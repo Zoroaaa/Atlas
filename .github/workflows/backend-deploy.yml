@@ -1,0 +1,88 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [ main, v2.0 ]
+    paths: ['backend/**']
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '选择要部署的分支'
+        required: true
+        default: 'v2.0'
+        type: choice
+        options:
+          - main
+          - v1.0
+          - v2.0
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Backend to ${{ github.event.inputs.environment || 'production' }}
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0
+      
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+      
+      - name: Install and Update Dependencies
+        run: |
+          echo "安装和更新依赖..."
+          echo "=== 安装前状态 ==="
+          ls -la package*.json || echo "没有 package 文件"
+          
+          if [ -f package-lock.json ]; then
+            echo "备份旧的 lock 文件..."
+            cp package-lock.json package-lock.json.backup
+            rm package-lock.json
+          fi
+          
+          if [ -d node_modules ]; then
+            rm -rf node_modules
+          fi
+          
+          echo "执行全新安装..."
+          npm install
+          
+          echo "=== 安装后验证 ==="
+          npx wrangler --version
+          echo "Wrangler 版本验证完成"
+      
+      - name: Validate Configuration
+        run: |
+          echo "验证配置文件..."
+          npx wrangler --version
+          npx wrangler whoami
+      
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./backend
+          command: deploy
+        env:
+          WRANGLER_VERSION: 4
+      
+

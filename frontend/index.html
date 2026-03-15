@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="磁力快搜 - 高效的磁力链接搜索引擎，支持多源聚合搜索" />
+    <meta name="keywords" content="磁力搜索,磁力链接,BT搜索,资源搜索" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <title>磁力快搜 - 高效磁力搜索引擎</title>
+    <script>
+      (function() {
+        try {
+          const theme = JSON.parse(localStorage.getItem('theme-storage') || '{}');
+          if (theme?.state?.resolvedTheme === 'dark' || 
+              (!theme?.state?.resolvedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

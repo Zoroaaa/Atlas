@@ -1,0 +1,10 @@
+export { authRoutes } from './auth';
+export { githubOAuthRoutes } from './github-oauth';
+export { userRoutes } from './user';
+export { sourceRoutes } from './sources';
+export { communityRoutes } from './community';
+export { systemRoutes } from './system';
+export { searchRoutes } from './search';
+export { adminRoutes } from './admin';
+export { configRoutes } from './config';
+export { javRoutes } from './jav';

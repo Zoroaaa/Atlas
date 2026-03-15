@@ -1,0 +1,57 @@
+name = "codeseek-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+preview_urls = false
+
+# =====================================================================
+# [vars] — Layer 1: 部署级配置
+# 职责：换域名/换环境时需要不同值的基础设施参数
+# 修改方式：编辑此文件后重新部署
+# 注意：敏感密钥（JWT_SECRET, RESEND_API_KEY）通过 `wrangler secret put` 注入，
+#       不得出现在此文件中
+# =====================================================================
+[vars]
+
+# 应用版本（CI/CD 流程中可通过 --var 覆盖）
+APP_VERSION = "2.0.0"
+
+# 运行环境标识（区分 development / production 行为）
+APP_ENV = "production"
+
+# 网站域名 — 与 DNS/CORS/邮件发件域强绑定，改了必须重新部署
+SITE_URL = "https://tempemail.pp.ua"
+
+# 前端域名 — OAuth 回调后跳转目标
+FRONTEND_URL = "https://codeseek.pp.ua"
+
+# 后端 API 域名 — 用于 OAuth callback URI 构造
+BACKEND_URL = "https://backend.codeseek.pp.ua"
+
+# 邮件发件人 — 与邮件服务商域名验证绑定，改了必须重新部署
+DEFAULT_FROM_EMAIL = "noreply@tempemail.pp.ua"
+DEFAULT_FROM_NAME = "磁力快搜"
+
+# JWT 过期天数 — 安全策略，属于环境级决策
+JWT_EXPIRY_DAYS = "30"
+
+# 用户行为日志 — 生产/开发环境可能不同，属于环境级开关
+ENABLE_ACTION_LOGGING = "true"
+
+# =====================================================================
+# 以下配置通过 `wrangler secret put` 注入（不得写入此文件）：
+# 🔐 JWT_SECRET
+# 🔐 RESEND_API_KEY
+# 🔐 GITHUB_CLIENT_ID        (GitHub OAuth App Client ID)
+# 🔐 GITHUB_CLIENT_SECRET    (GitHub OAuth App Client Secret)
+# =====================================================================
+
+# 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "codeseek"
+database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
+
+# 监控
+[observability]
+enabled = true
