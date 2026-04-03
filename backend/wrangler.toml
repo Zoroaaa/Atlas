@@ -20,7 +20,7 @@ APP_VERSION = "2.0.0"
 APP_ENV = "production"
 
 # 网站域名 — 与 DNS/CORS/邮件发件域强绑定，改了必须重新部署
-SITE_URL = "https://tempemail.pp.ua"
+SITE_URL = "https://mail.wort.uk"
 
 # 前端域名 — OAuth 回调后跳转目标
 FRONTEND_URL = "https://codeseek.pp.ua"
@@ -29,7 +29,7 @@ FRONTEND_URL = "https://codeseek.pp.ua"
 BACKEND_URL = "https://backend.codeseek.pp.ua"
 
 # 邮件发件人 — 与邮件服务商域名验证绑定，改了必须重新部署
-DEFAULT_FROM_EMAIL = "noreply@tempemail.pp.ua"
+DEFAULT_FROM_EMAIL = "noreply@mail.wort.uk"
 DEFAULT_FROM_NAME = "磁力快搜"
 
 # JWT 过期天数 — 安全策略，属于环境级决策

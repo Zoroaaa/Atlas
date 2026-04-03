@@ -28,6 +28,6 @@ export default [
     },
   },
   {
-    ignores: ['node_modules', 'dist', '*.config.js', '*.config.ts', 'postcss.config.js', 'tailwind.config.js', 'vite.config.ts', 'eslint.config.js'],
+    ignores: ['node_modules', 'dist', '*.config.js', '*.config.ts', 'postcss.config.js', 'tailwind.config.js', 'vite.config.ts', 'eslint.config.js', 'public/**/*.js'],
   },
 ];
