@@ -6,9 +6,11 @@
  */
 import { Hono } from 'hono';
 import { Env, User, CommunitySourceReport, UserAction, JwtPayload, Role } from '@/types';
-import { success, error, verifyToken, logUserAction } from '@/utils';
+import { success, error, logUserAction } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
+import { authMiddleware, adminMiddleware } from '@/middleware/auth';
+import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
 
 const R = VALIDATION_RULES;
 
@@ -22,34 +24,8 @@ function getPaginationConfig() {
   };
 }
 
-const getAdminUser = async (c: any): Promise<JwtPayload | null> => {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.slice(7);
-  const payload = await verifyToken(token, c.env.JWT_SECRET);
-
-  if (!payload) {
-    return null;
-  }
-
-  if (payload.role !== 'admin' && payload.role !== 'super_admin') {
-    return null;
-  }
-
-  return payload;
-};
-
-adminRoutes.use('*', async (c, next) => {
-  const adminUser = await getAdminUser(c);
-  if (!adminUser) {
-    return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
-  }
-  c.set('user', adminUser);
-  await next();
-});
+adminRoutes.use('*', authMiddleware);
+adminRoutes.use('*', adminMiddleware);
 
 /**
  * 获取角色列表
@@ -67,7 +43,7 @@ adminRoutes.get('/roles', async (c) => {
         name: r.name,
         displayName: r.display_name,
         description: r.description,
-        permissions: JSON.parse(r.permissions || '[]'),
+        permissions: (() => { try { return JSON.parse(r.permissions || '[]'); } catch { return []; } })(),
         isSystem: r.is_system === 1,
         priority: r.priority,
         createdAt: r.created_at,
@@ -191,7 +167,7 @@ adminRoutes.get('/users', async (c) => {
         loginCount: u.login_count,
         createdAt: u.created_at,
         lastLogin: u.last_login,
-        permissions: JSON.parse(u.permissions || '[]'),
+        permissions: (() => { try { return JSON.parse(u.permissions || '[]'); } catch { return []; } })(),
         role: u.role_name || 'user',
         roleDisplayName: u.role_display_name || '普通用户',
       })),
@@ -243,7 +219,11 @@ adminRoutes.get('/users/:id', async (c) => {
        ORDER BY created_at DESC LIMIT 20`
     ).bind(userId).all();
 
-    const loginCount = recentActions.results?.filter((a: any) => a.action === 'login').length || 0;
+    const loginCount = recentActions.results?.filter((a) => {
+      const result = adminActionSchema.safeParse(a);
+      const action = result.success ? result.data : a as { action: string };
+      return action.action === 'login';
+    }).length || 0;
     const searchCount = await c.env.DB.prepare(
       'SELECT COUNT(*) as count FROM user_search_history WHERE user_id = ?'
     ).bind(userId).first<{ count: number }>();
@@ -258,11 +238,11 @@ adminRoutes.get('/users/:id', async (c) => {
         loginCount: user.login_count,
         createdAt: user.created_at,
         lastLogin: user.last_login,
-        permissions: JSON.parse(user.permissions || '[]'),
-        settings: JSON.parse(user.settings || '{}'),
+        permissions: (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
+        settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
         role: user.role_name || 'user',
         roleDisplayName: user.role_display_name || '普通用户',
-        rolePermissions: JSON.parse(user.role_permissions || '[]'),
+        rolePermissions: (() => { try { return JSON.parse(user.role_permissions || '[]'); } catch { return []; } })(),
       },
       stats: {
         favoritesCount: favoritesCount?.count || 0,
@@ -362,7 +342,7 @@ adminRoutes.get('/users/:id/login-logs', async (c) => {
 
     return c.json(success({
       logs: (logs.results || []).map(l => {
-        const data = l.data ? JSON.parse(l.data as string) : {};
+        const data = l.data ? (() => { try { return JSON.parse(l.data as string); } catch { return {}; } })() : {};
         return {
           id: l.id,
           loginTime: l.created_at,
@@ -1046,19 +1026,23 @@ adminRoutes.get('/sessions', async (c) => {
     const now = Date.now();
 
     return c.json(success({
-      sessions: (sessions.results || []).map((s: any) => ({
-        id: s.id,
-        userId: s.user_id,
-        username: s.username,
-        email: s.email,
-        ipAddress: s.ip_address,
-        userAgent: s.user_agent,
-        createdAt: s.created_at,
-        lastActivity: s.last_activity,
-        expiresAt: s.expires_at,
-        isActive: s.expires_at > now,
-        expiresInSeconds: Math.max(0, Math.floor((s.expires_at - now) / 1000)),
-      })),
+      sessions: (sessions.results || []).map((s) => {
+        const result = adminSessionSchema.safeParse(s);
+        const session = result.success ? result.data : s as { id: string; user_id: string; ip_address?: string; user_agent?: string; created_at: number; last_activity: number; expires_at: number };
+        return {
+          id: session.id,
+          userId: session.user_id,
+          username: (s as Record<string, unknown>).username as string,
+          email: (s as Record<string, unknown>).email as string,
+          ipAddress: session.ip_address,
+          userAgent: session.user_agent,
+          createdAt: session.created_at,
+          lastActivity: session.last_activity,
+          expiresAt: session.expires_at,
+          isActive: session.expires_at > now,
+          expiresInSeconds: Math.max(0, Math.floor((session.expires_at - now) / 1000)),
+        };
+      }),
       total: countResult?.total || 0,
       page,
       pageSize,
@@ -1220,18 +1204,22 @@ adminRoutes.get('/analytics/events', async (c) => {
     `).bind(...params, pageSize, (page - 1) * pageSize).all();
 
     return c.json(success({
-      events: (events.results || []).map((e: any) => ({
-        id: e.id,
-        userId: e.user_id,
-        username: e.username,
-        sessionId: e.session_id,
-        eventType: e.event_type,
-        eventData: e.event_data ? JSON.parse(e.event_data) : {},
-        ipAddress: e.ip_address,
-        userAgent: e.user_agent,
-        referer: e.referer,
-        createdAt: e.created_at,
-      })),
+      events: (events.results || []).map((e) => {
+        const result = adminEventSchema.safeParse(e);
+        const event = result.success ? result.data : e as { id: string; user_id?: string; event_type: string; data?: string; ip_address?: string; user_agent?: string; session_id?: string; referer?: string; created_at: number };
+        return {
+          id: event.id,
+          userId: event.user_id,
+          username: (e as Record<string, unknown>).username,
+          sessionId: event.session_id,
+          eventType: event.event_type,
+          eventData: event.data ? (() => { try { return JSON.parse(event.data); } catch { return {}; } })() : {},
+          ipAddress: event.ip_address,
+          userAgent: event.user_agent,
+          referer: event.referer,
+          createdAt: event.created_at,
+        };
+      }),
       total: countResult?.total || 0,
       page,
       pageSize,
@@ -1384,12 +1372,21 @@ adminRoutes.get('/dashboard/overview', async (c) => {
         reviews: communityStats?.reviews || 0,
         pendingReports: communityStats?.pending_reports || 0,
       },
-      recentActions: (recentActions.results || []).map((a: any) => ({
-        action: a.action,
-        data: a.data ? JSON.parse(a.data) : {},
-        createdAt: a.created_at,
-        username: a.username || '匿名',
-      })),
+      recentActions: (recentActions.results || []).map((a) => {
+        try {
+          const result = adminActionSchema.safeParse(a);
+          const action = result.success ? result.data : a as { id: string; user_id?: string; action: string; data?: string; ip_address?: string; user_agent?: string; created_at: number };
+          return {
+            action: action.action,
+            data: action.data ? (() => { try { return JSON.parse(action.data); } catch { return {}; } })() : {},
+            createdAt: action.created_at,
+            username: (a as Record<string, unknown>).username || '匿名',
+          };
+        } catch (parseError) {
+          console.error('Parse recent action error:', parseError, a);
+          return null;
+        }
+      }).filter(Boolean),
     }));
   } catch (err) {
     console.error('Get dashboard overview error:', err);

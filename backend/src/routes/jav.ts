@@ -8,6 +8,119 @@ import { authMiddleware } from '@/middleware';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
+// 图片代理（无需认证）
+// GET /api/jav/proxy-image?url=<encoded_url>
+const ALLOWED_IMAGE_HOSTS = [
+  'www.javbus.com',
+  'javbus.com',
+  'pics.javbus.com',
+  'img.javbus.com',
+];
+
+function isPrivateIP(hostname: string): boolean {
+  const privatePatterns = [
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,
+    /^::1$/,
+    /^fc00:/i,
+    /^fe80:/i,
+    /^localhost$/i,
+  ];
+  return privatePatterns.some(pattern => pattern.test(hostname));
+}
+
+javRoutes.get('/proxy-image', async (c) => {
+  const rawUrl = c.req.query('url');
+  if (!rawUrl) {
+    return c.json({ success: false, error: { code: 'MISSING_URL', message: '缺少url参数' } }, 400);
+  }
+
+  let targetUrl: string;
+  try {
+    targetUrl = decodeURIComponent(rawUrl);
+  } catch {
+    return c.json({ success: false, error: { code: 'INVALID_URL', message: '无效的URL编码' } }, 400);
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return c.json({ success: false, error: { code: 'INVALID_URL', message: '无效的URL格式' } }, 400);
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return c.json({ success: false, error: { code: 'INVALID_PROTOCOL', message: '只支持http/https协议' } }, 400);
+  }
+
+  if (isPrivateIP(parsed.hostname)) {
+    console.warn('SSRF attempt blocked:', parsed.hostname);
+    return c.json({ success: false, error: { code: 'FORBIDDEN', message: '不允许访问内网地址' } }, 403);
+  }
+
+  if (!ALLOWED_IMAGE_HOSTS.includes(parsed.hostname)) {
+    return c.json({ success: false, error: { code: 'FORBIDDEN_HOST', message: `不允许的域名: ${parsed.hostname}` } }, 403);
+  }
+
+  const imageFetchHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Referer': 'https://www.javbus.com/',
+    'Sec-Fetch-Dest': 'image',
+    'Sec-Fetch-Mode': 'no-cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'Cache-Control': 'no-cache',
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const resp = await fetch(targetUrl, {
+        headers: imageFetchHeaders,
+        signal: AbortSignal.timeout(10000),
+        redirect: 'follow',
+      });
+
+      if (resp.status === 403 && attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+
+      if (!resp.ok) {
+        console.error('Image fetch failed:', targetUrl, resp.status);
+        return c.json({ success: false, error: { code: 'FETCH_FAILED', message: `图片获取失败: ${resp.status}` } }, 502);
+      }
+
+      const contentType = resp.headers.get('content-type') || 'image/jpeg';
+      const data = await resp.arrayBuffer();
+
+      return new Response(data, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': '*',
+          'Cross-Origin-Resource-Policy': 'cross-origin',
+        },
+      });
+    } catch (err) {
+      if (attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+      console.error('Proxy image error:', targetUrl, err);
+      return c.json({ success: false, error: { code: 'TIMEOUT', message: '图片请求超时或失败' } }, 504);
+    }
+  }
+
+  return c.json({ success: false, error: { code: 'FETCH_FAILED', message: '图片获取失败' } }, 502);
+});
+
 javRoutes.use('*', authMiddleware);
 
 // ─────────────────────────────────────────────
@@ -320,6 +433,24 @@ async function fetchRandomActresses(): Promise<GroupRanking[]> {
 // ─────────────────────────────────────────────
 
 javRoutes.get('/rankings', async (c) => {
+  const RANKINGS_CACHE_TTL = 20 * 60;
+  const forceRefresh = c.req.query('refresh') === '1';
+  
+  const cacheKey = new Request('https://internal/jav-rankings-v1');
+  const cache = caches.default;
+
+  if (!forceRefresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: {
+          ...Object.fromEntries(cached.headers),
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+  }
+
   try {
     // 六路并发：有码、无码、高清、字幕、类别列表+抓取、女优列表+抓取
     const [r_censored, r_uncensored, r_hd, r_subtitle, r_genres, r_actresses] = await Promise.allSettled([
@@ -354,24 +485,69 @@ javRoutes.get('/rankings', async (c) => {
       fetchedAt: Date.now(), sources,
     };
 
-    return c.json({ success: true, data: response });
+    const responseBody = JSON.stringify({ success: true, data: response });
+    const newResponse = new Response(responseBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${RANKINGS_CACHE_TTL}`,
+        'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
+        'X-Fetched-At': new Date().toISOString(),
+      },
+    });
+
+    c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+
+    return newResponse;
   } catch (err) {
     console.error('JAV rankings error:', err);
     return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取榜单失败' } }, 500);
   }
 });
 
-// suggestions 接口（轻量）
+// suggestions 接口（轻量）— 使用用户收藏数据，5分钟缓存
+
 javRoutes.get('/suggestions', async (c) => {
   const keyword = (c.req.query('keyword') || '').toUpperCase().trim();
   if (!keyword) return c.json({ success: true, data: [] });
+  
+  const user = c.get('user');
+  
   try {
+    const codes = await c.env.DB.prepare(
+      'SELECT DISTINCT code FROM user_favorites WHERE user_id = ? AND code LIKE ? LIMIT 10'
+    ).bind(user.userId, `${keyword}%`).all<{ code: string }>();
+    
+    const matchedCodes = (codes.results || []).map(r => r.code);
+    
+    if (matchedCodes.length >= 5) {
+      return c.json({ success: true, data: matchedCodes.slice(0, 10) });
+    }
+    
+    const cacheKey = new Request(`https://internal/jav-suggestions/${keyword}`);
+    const cache = caches.default;
+    
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const cachedData = await cached.json() as { success: boolean; data: string[] };
+      const combined = [...new Set([...matchedCodes, ...cachedData.data])].slice(0, 10);
+      return c.json({ success: true, data: combined });
+    }
+
     const html = await get('https://www.javbus.com/');
-    const matched = parseGrid(html, 'javbus')
+    const externalMatched = parseGrid(html, 'javbus')
       .map(i => i.code)
       .filter(code => code.startsWith(keyword) || code.includes(keyword))
       .slice(0, 10);
-    return c.json({ success: true, data: matched });
+    
+    const combined = [...new Set([...matchedCodes, ...externalMatched])].slice(0, 10);
+    
+    const response = c.json({ success: true, data: combined });
+    
+    c.executionCtx.waitUntil(
+      cache.put(cacheKey, new Response(JSON.stringify({ success: true, data: externalMatched })))
+    );
+    
+    return response;
   } catch {
     return c.json({ success: true, data: [] });
   }
@@ -487,12 +663,16 @@ function parseDetail(html: string, code: string, detailUrl: string): Omit<JavDet
   }
 
   // 演员
+  const actressSet = new Set<string>();
   const actresses: string[] = [];
   const starRe = /<a[^>]+href="[^"]*\/star\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
   let starM: RegExpExecArray | null;
   while ((starM = starRe.exec(html)) !== null) {
     const name = starM[1].trim();
-    if (name && name.length < 30) actresses.push(name);
+    if (name && name.length < 30 && !actressSet.has(name)) {
+      actressSet.add(name);
+      actresses.push(name);
+    }
   }
 
   return { code, title, cover, releaseDate, duration, director, maker, publisher, series, tags, actresses, detailUrl };
@@ -502,6 +682,20 @@ javRoutes.get('/detail', async (c) => {
   const code = (c.req.query('code') ?? '').trim().toUpperCase();
   if (!code || !/^[A-Z]+-\d+$/.test(code) && !/^[A-Z0-9]+-?\d+$/.test(code)) {
     return c.json({ success: false, error: { code: 'INVALID_CODE', message: '无效的番号格式' } }, 400);
+  }
+
+  const DETAIL_CACHE_TTL = 3600;
+  const cacheKey = new Request(`https://internal/jav-detail/${code}`);
+  const cache = caches.default;
+
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: {
+        ...Object.fromEntries(cached.headers),
+        'X-Cache': 'HIT',
+      },
+    });
   }
 
   const detailUrl = `https://www.javbus.com/${code}`;
@@ -525,7 +719,17 @@ javRoutes.get('/detail', async (c) => {
       magnets = parseMagnets(magnetHtml);
     }
 
-    return c.json({ success: true, data: { ...detail, magnets } });
+    const detailResponse = JSON.stringify({ success: true, data: { ...detail, magnets } });
+    const newResponse = new Response(detailResponse, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${DETAIL_CACHE_TTL}`,
+        'X-Cache': 'MISS',
+      },
+    });
+
+    c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+    return newResponse;
   } catch (err) {
     console.error('JAV detail error:', err);
     return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取详情失败' } }, 500);

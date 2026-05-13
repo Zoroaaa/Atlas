@@ -12,3 +12,4 @@ export { Tabs, TabPanel } from './Tabs';
 export { EmptyState } from './EmptyState';
 export { Dropdown } from './Dropdown';
 export { SourceIcon } from './SourceIcon';
+export { ProxyImage } from './ImagePreview';

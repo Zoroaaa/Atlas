@@ -7,7 +7,7 @@
 **现代化的磁力搜索聚合平台 - 基于 Cloudflare 边缘计算的无服务器架构**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Zoroaaa/codeseek)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/Zoroaaa/codeseek)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -52,7 +52,7 @@
 | **架构设计文档** | 前后端目录结构、技术栈版本、部署架构、数据库模块化设计详解 | [docs/backend-frontend-tree.md](docs/backend-frontend-tree.md) |
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | v1.0 到 v2.0 的完整变更记录，包含技术栈升级、架构重构、迁移指南 | [docs/changelogv.2.0.md](docs/changelogv.2.0.md) |
+| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化） | [docs/changelogv.2.0.md](docs/changelogv.2.0.md) / [docs/changelogv3.0.md](docs/changelogv3.0.md) / [docs/changelogv3.1.0.md](docs/changelogv3.1.0.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -98,6 +98,7 @@ TypeScript 5.5.3      → 完整类型推断、泛型约束、类型守卫
 Vite 5.4.1            → ESM原生支持、按需编译、极速HMR
 Tailwind CSS 3.4.11   → JIT编译、暗色模式、响应式设计
 Zustand 4.5.5         → 极简API、中间件支持、持久化存储
+@codeseek/shared      → Monorepo 共享包 (类型、工具、验证规则)
 React Router 6.26.2   → 数据路由、懒加载、嵌套布局
 Lucide React 0.441.0  → 1000+ 精美图标、Tree-shaking优化
 date-fns 3.6.0        → 轻量级日期处理、国际化支持

@@ -73,7 +73,7 @@ export const schemas = {
 
   user: {
     updateSettings: z.object({
-      settings: z.record(z.unknown()),
+      settings: z.record(z.string(), z.unknown()),
     }),
 
     addFavorite: z.object({
@@ -256,7 +256,7 @@ export const schemas = {
     recordAction: z.object({
       userId: z.string().optional(),
       action: z.string().min(1, '行为类型不能为空').max(50),
-      data: z.record(z.unknown()).optional(),
+      data: z.record(z.string(), z.unknown()).optional(),
     }),
   },
 
@@ -278,7 +278,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): ValidationRe
     if (result.success) {
       return { success: true, data: result.data };
     }
-    const errors = result.error.errors.map(e => e.message);
+    const errors = result.error.issues.map(e => e.message);
     return { success: false, errors };
   } catch {
     return { success: false, errors: ['验证失败'] };
@@ -292,13 +292,13 @@ export function validateBody<T>(schema: z.ZodSchema<T>) {
       const result = schema.safeParse(body);
       
       if (!result.success) {
-        const errors = result.error.errors.map(e => e.message);
+        const errors = result.error.issues.map(e => e.message);
         return c.json({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: errors.join('; '),
-            details: result.error.errors,
+            details: result.error.issues,
           },
         }, 400);
       }
@@ -323,7 +323,7 @@ export function validateQuery<T>(schema: z.ZodSchema<T>) {
     const result = schema.safeParse(query);
     
     if (!result.success) {
-      const errors = result.error.errors.map(e => e.message);
+      const errors = result.error.issues.map(e => e.message);
       return c.json({
         success: false,
         error: {

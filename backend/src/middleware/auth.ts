@@ -1,29 +1,40 @@
 import { Context, Next } from 'hono';
 import { Env, JwtPayload, Role } from '@/types';
-import { verifyToken, error } from '@/utils';
+import { verifyToken, error, hashToken } from '@/utils';
 
 declare module 'hono' {
   interface ContextVariableMap {
     user: JwtPayload;
     userRole: Role;
+    authToken: string;
   }
 }
 
 export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
   const authHeader = c.req.header('Authorization');
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return c.json(error('UNAUTHORIZED', '未提供认证令牌'), 401);
   }
-  
+
   const token = authHeader.substring(7);
   const payload = await verifyToken(token, c.env.JWT_SECRET);
-  
+
   if (!payload) {
     return c.json(error('UNAUTHORIZED', '无效或过期的令牌'), 401);
   }
-  
+
+  const tokenHash = await hashToken(token);
+  const session = await c.env.DB.prepare(
+    'SELECT id FROM user_sessions WHERE token_hash = ? AND expires_at > ?'
+  ).bind(tokenHash, Date.now()).first();
+
+  if (!session) {
+    return c.json(error('UNAUTHORIZED', '会话已失效，请重新登录'), 401);
+  }
+
   c.set('user', payload);
+  c.set('authToken', token);
   await next();
 };
 

@@ -10,3 +10,5 @@ export {
   getBtorrentUrl,
   getMagnetShortHash,
 } from './magnet';
+
+export { camelizeKeys, type CamelCaseKeys } from '@codeseek/shared/utils';

@@ -18,27 +18,15 @@ import { AdminManager, AdminPanelOverview } from '@/pages/admin';
 import { CommunityManager } from '@/pages/community';
 import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage } from '@/pages/auth';
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
+interface GuardRouteProps {
+  children: React.ReactNode;
+  requiredRole?: 'admin' | 'super_admin';
+  requiredFlag?: boolean;
+}
 
-const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const GuardRoute: React.FC<GuardRouteProps> = ({ children, requiredRole, requiredFlag }) => {
   const { isAuthenticated, isLoading, user } = useAuthStore();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -51,30 +39,11 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   
-  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+  if (requiredRole && user?.role !== requiredRole && user?.role !== 'super_admin') {
     return <Navigate to="/dashboard" replace />;
   }
   
-  return <>{children}</>;
-};
-
-const CommunityRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore();
-  const { communityEnabled } = useFeatureFlags();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (!communityEnabled) {
+  if (requiredFlag === false) {
     return <Navigate to="/dashboard" replace />;
   }
   
@@ -127,13 +96,10 @@ const PageTracker: React.FC = () => {
 const App: React.FC = () => {
   const { setUser, setLoading, logout } = useAuthStore();
   const { resolvedTheme } = useThemeStore();
+  const { communityEnabled } = useFeatureFlags();
 
   useEffect(() => {
-    // 订阅 token 变化，同步到 apiClient
-    const unsub = useAuthStore.subscribe((state) => {
-      apiClient.setToken(state.token);
-    });
-    return () => unsub();
+    // apiClient 现在直接从 zustand persist 读取 token，无需手动同步
   }, []);
 
   useEffect(() => {
@@ -147,32 +113,27 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initAuth = async () => {
-      // 直接从 localStorage 读取 token，绕过 zustand persist 的异步 hydration 时序问题
-      let token: string | null = null;
-      try {
-        const stored = localStorage.getItem('auth-storage');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          token = parsed?.state?.token || null;
-        }
-      } catch {
-        token = null;
-      }
+      setLoading(true);
+      const token = await useAuthStore.getState().restoreToken();
 
       if (token) {
         try {
-          apiClient.setToken(token);
           const response = await apiClient.get<{ success: boolean; data: import('@/types').User }>('/auth/me');
           if (response.success && response.data) {
             setUser(response.data);
           } else {
             logout();
           }
-        } catch {
-          logout();
+        } catch (err: unknown) {
+          const status = (err as { status?: number })?.status;
+          if (status === 401) {
+            logout();
+          } else {
+            setLoading(false); // 网络问题，保持登录态
+          }
         }
       } else {
-        setLoading(false);
+        logout();
       }
     };
 
@@ -193,9 +154,13 @@ const App: React.FC = () => {
         <Route path="/forgot-password" element={<AuthRedirect><ForgotPasswordPage /></AuthRedirect>} />
         {/* GitHub OAuth 回调 — 不加 AuthRedirect，否则已登录状态无法完成回调 */}
         <Route path="/auth/callback" element={<GitHubCallbackPage />} />
-        <Route path="/main" element={<ProtectedRoute><MainSearchPage /></ProtectedRoute>} />
+        <Route path="/main" element={
+          <GuardRoute>
+            <MainSearchPage />
+          </GuardRoute>
+        } />
         
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={<GuardRoute><DashboardLayout /></GuardRoute>}>
           <Route index element={<DashboardPage />} />
           <Route path="stats" element={<DashboardPage />} />
           <Route path="sources" element={<DashboardPage />} />
@@ -206,7 +171,7 @@ const App: React.FC = () => {
           <Route path="activities" element={<UserActivitiesPage />} />
         </Route>
         
-        <Route path="/community" element={<CommunityRoute><CommunityPanelLayout /></CommunityRoute>}>
+        <Route path="/community" element={<GuardRoute requiredFlag={communityEnabled !== undefined ? communityEnabled : true}><CommunityPanelLayout /></GuardRoute>}>
           <Route index element={<CommunityManager />} />
           <Route path="my-shares" element={<CommunityManager />} />
           <Route path="my-favorites" element={<CommunityManager />} />
@@ -215,7 +180,7 @@ const App: React.FC = () => {
           <Route path="reports" element={<CommunityManager />} />
         </Route>
         
-        <Route path="/admin-panel" element={<AdminRoute><AdminPanelLayout /></AdminRoute>}>
+        <Route path="/admin-panel" element={<GuardRoute requiredRole='admin'><AdminPanelLayout /></GuardRoute>}>
           <Route index element={<AdminPanelOverview />} />
           <Route path="users" element={<AdminManager />} />
           <Route path="sessions" element={<AdminManager />} />
@@ -229,7 +194,7 @@ const App: React.FC = () => {
           <Route path="feedback" element={<AdminManager />} />
         </Route>
         
-        <Route path="/admin" element={<AdminRoute><DashboardLayout /></AdminRoute>}>
+        <Route path="/admin" element={<GuardRoute requiredRole='admin'><DashboardLayout /></GuardRoute>}>
           <Route index element={<AdminManager />} />
         </Route>
       </Routes>

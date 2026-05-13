@@ -1,6 +1,6 @@
-# 磁力快搜 - 项目架构树 (v2.0.0)
+# 磁力快搜 - 项目架构树 (v3.1.0)
 
-> 📖 [返回项目主页](../readme.md) | [API接口文档](api/index.md) | [配置说明文档](config.md) | [部署指南文档](deploy.md)
+> 📖 [返回项目主页](../readme.md) | [API接口文档](api/index.md) | [配置说明文档](config.md) | [部署指南文档](deploy.md) | [v3.0 变更日志](changelogv3.0.md) | [v3.1.0 变更日志](changelogv3.1.0.md)
 
 ---
 
@@ -9,11 +9,12 @@
 - [技术栈版本](#技术栈版本)
 - [项目根目录结构](#项目根目录结构)
 - [前端架构](#前端架构-部署在cloudflare-pages)
-- [后端架构](#后端架构-部署在cloudflare-workers-v20)
+- [后端架构](#后端架构-部署在cloudflare-workers-v30)
 - [部署架构](#部署架构)
 - [数据库模块化结构说明](#数据库模块化结构说明)
 - [版本信息](#版本信息)
 - [与版本1.0的主要区别](#与版本10的主要区别)
+- [版本 3.0 更新内容](#版本-30-更新内容)
 
 ---
 
@@ -29,7 +30,7 @@
 - **日期处理**: date-fns 3.6.0
 - **工具库**: clsx 2.1.1 (类名合并)
 - **部署**: Cloudflare Pages
-- **版本**: v2.0.0
+- **版本**: v3.1.0
 
 ### 后端技术栈
 - **运行时**: Cloudflare Workers
@@ -37,10 +38,13 @@
 - **语言**: TypeScript 5.5.3
 - **数据库**: Cloudflare D1 (SQLite)
 - **认证**: JWT (jose 5.9.0)
+- **数据验证**: Zod 4.4.3
+- **密码安全**: PBKDF2-SHA256 (100,000次迭代)
+- **Token 存储**: AES-GCM 加密 (v3.1.0)
 - **邮件服务**: Resend
 - **API**: RESTful 风格
 - **开发工具**: Wrangler 3.78.0
-- **版本**: v2.0.0
+- **版本**: v3.1.0
 
 ### 代理服务
 - **架构**: Cloudflare Workers边缘计算
@@ -53,11 +57,14 @@
 
 ```
 codeseek/
+├── 📁 packages/                   # 共享包 (npm workspaces)
+│   └── 📁 shared/                 # @codeseek/shared - 类型、工具、验证规则
 ├── 📁 backend/                    # 后端代码 (Cloudflare Workers + Hono)
 ├── 📁 frontend/                   # 前端代码 (React + TypeScript)
 ├── 📁 database/                   # 数据库迁移文件 (Cloudflare D1)
 ├── 📁 codeseek-1.0/              # 版本1.0存档（历史参考）
 ├── 📁 docs/                       # 项目文档目录
+├── 📄 package.json                # npm workspaces 根配置
 ├── 📄 readme.md                   # 项目说明文档
 └── 📄 LICENSE                     # MIT许可证
 ```
@@ -202,7 +209,9 @@ frontend/
 │   │   └── 📄 source.ts                  # 搜索源类型
 │   │
 │   ├── 📁 utils/                         # 🛠️ 工具函数
-│   │   └── 📄 notificationTemplates.ts   # 通知模板
+│   │   ├── 📄 notificationTemplates.ts   # 通知模板
+│   │   ├── 📄 magnet.ts                  # 磁力链接工具
+│   │   └── 📄 index.ts                   # 工具函数导出
 │   │
 │   ├── 📄 App.tsx                        # 应用入口组件
 │   ├── 📄 index.css                      # 全局样式 (Tailwind)
@@ -218,7 +227,7 @@ frontend/
 
 ---
 
-## 后端架构 (部署在Cloudflare Workers v2.0)
+## 后端架构 (部署在Cloudflare Workers v3.1)
 
 ```
 backend/
@@ -327,7 +336,13 @@ backend/
         │
         ├──► 06_data_search_sources.sql (搜索源预置数据 - 50+源)
         │
-        └──► 07_data_tags.sql (官方标签初始化数据)
+        ├──► 07_data_tags.sql (官方标签初始化数据)
+        │
+        ├──► 10_schema_favorites_extend.sql (v3.0: 收藏表扩展)
+        │
+        ├──► 11_schema_search_history_extend.sql (v3.0: 历史表扩展)
+        │
+        └──► 12_index_performance.sql (v3.1: 查询性能索引)
 ```
 
 ### 数据表详细说明
@@ -341,6 +356,9 @@ backend/
 | 05_data_system.sql | - | 系统初始化数据：角色定义、系统配置、邮件模板 |
 | 06_data_search_sources.sql | - | 搜索源预置数据：4个主分类、50+搜索源 |
 | 07_data_tags.sql | - | 官方标签初始化数据 |
+| 10_schema_favorites_extend.sql | - | v3.0: 收藏表新增9个JAV元数据字段 |
+| 11_schema_search_history_extend.sql | - | v3.0: 搜索历史表新增9个元数据字段 |
+| 12_index_performance.sql | - | v3.1: 25个高频查询索引 |
 
 ### 搜索源预置数据
 
@@ -371,9 +389,10 @@ backend/
 
 | 组件 | 版本 | 说明 |
 |-----|------|------|
-| 前端应用 | v2.0.0 | React 18 + TypeScript |
-| 后端服务 | v2.0.0 | Hono + TypeScript |
-| 数据库 | v2.0.0 | Cloudflare D1 |
+| 前端应用 | v3.1.0 | React 18 + TypeScript |
+| 后端服务 | v3.1.0 | Hono + TypeScript |
+| 数据库 | v3.1.0 | Cloudflare D1 |
+| 共享包 | v3.1.0 | @codeseek/shared |
 
 ---
 
@@ -408,3 +427,170 @@ backend/
 3. **可维护性**: 组件化架构，代码组织更清晰
 4. **性能优化**: Vite构建，代码分割，Tree-shaking
 5. **开发效率**: 热更新，更好的IDE支持
+
+---
+
+## 版本 3.0 更新内容
+
+> 📅 发布日期: 2026-05-13 | 详细变更: [changelogv3.0.md](changelogv3.0.md)
+
+### 🔒 安全性重大升级
+
+- **密码哈希算法升级**: SHA-256 → PBKDF2-SHA256 (100,000次迭代)
+  - 新增随机盐值，抗彩虹表攻击
+  - 向后兼容旧哈希格式
+  - 符合 OWASP 密码存储最佳实践
+  
+- **Token 哈希分离**: 密码和 Token 使用不同哈希策略
+  - Token 保持 SHA-256（轻量快速）
+  - 密码使用 PBKDF2（高安全性）
+
+- **CORS 策略强化**:
+  - 移除通配符匹配（原 `.endsWith()` 过于宽松）
+  - 支持正则表达式精确控制域名
+  - 明确拒绝未授权来源
+
+### 📊 数据模型扩展
+
+#### 收藏项新增字段 (9个)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `code` | TEXT | 番号 |
+| `cover` | TEXT | 封面图URL |
+| `actors` | TEXT | 演员 |
+| `duration` | TEXT | 时长 |
+| `tags` | TEXT | 标签 |
+| `release_date` | TEXT | 发行时间 |
+| `publisher` | TEXT | 发行商 |
+| `magnet_link` | TEXT | 磁力链接 |
+| `status` | TEXT | 状态 (want/watched) |
+
+#### 搜索历史新增字段 (9个)
+- title, subtitle, code, actors, duration, tags, release_date, publisher, keyword
+
+### ⚙️ 后端架构改进
+
+1. **Zod 数据验证体系**
+   - 新增依赖: `zod@^4.4.3`
+   - 新增文件: [`backend/src/utils/validators.ts`](backend/src/utils/validators.ts)
+   - 应用场景: 用户活动、反馈、通知等数据验证
+   
+2. **认证中间件统一**
+   - Context 新增 `authToken` 字段
+   - 消除 ~50 行重复的 Token 验证代码
+   - 统一使用 `authMiddleware` 装饰接口
+
+3. **数据库批量操作优化**
+   - 使用 `DB.batch()` 实现原子操作
+   - 应用于账户删除、密码重置等场景
+
+4. **搜索源服务 Bug 修复**
+   - 修正表名: `major_categories` → `search_major_categories`
+   - 修正表名: `categories` → `search_source_categories`
+
+5. **JSON 解析容错处理**
+   - settings 和 permissions 字段增加 try-catch
+   - 防止脏数据导致服务异常
+
+### 🎨 前端体验优化
+
+1. **收藏面板重构**
+   - 卡片式布局（支持封面图展示）
+   - 状态切换按钮（想看 ↔ 已看）
+   - 元数据显示（番号、演员、时长、标签等）
+   
+2. **搜索历史面板增强**
+   - 高度调整: 276px → 400px
+   - Grid 网格 → 列表视图（适应多行内容）
+   - 完整元数据展示
+
+3. **JAV 面板功能扩展**
+   - 新增收藏状态显示
+   - 快速添加/取消收藏功能
+   - 收藏时自动携带完整元数据
+
+4. **认证架构优化**
+   - ApiClient 不再维护独立 token 状态
+   - 统一由 AuthStore (Zustand) 管理
+   - 消除双重状态同步问题
+
+5. **图片代理组件**
+   - 新增 ProxyImage 组件（解决跨域问题）
+   - 自动回退占位图
+
+### 🗄️ 数据库变更
+
+**新增迁移脚本**:
+- [`database/10_schema_favorites_extend.sql`](database/10_schema_favorites_extend.sql) - 收藏表扩展
+- [`database/11_schema_search_history_extend.sql`](database/11_schema_search_history_extend.sql) - 历史表扩展
+
+**索引优化**:
+```sql
+CREATE INDEX idx_favorites_code ON user_favorites(code);
+```
+
+### 📦 依赖变更
+
+**后端新增**:
+```json
+{
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}
+```
+
+**前端无新增依赖**（基于现有技术栈）
+
+### 📈 变更统计
+
+- **总文件数**: 35 个文件修改
+- **代码行数**: +1666 行 / -596 行
+- **后端文件**: 15 个（核心逻辑 + 验证体系）
+- **前端文件**: 12 个（UI 重构 + 架构优化）
+- **数据库脚本**: 3 个（Schema + 迁移）
+
+---
+
+## 🔄 v3.1.0 版本变更 (2026-05-13)
+
+### 📦 Monorepo 共享包改造
+
+- 创建 `packages/shared` (`@codeseek/shared`)
+- 前端类型文件改为从共享包重新导出：`auth.ts`, `search.ts`, `source.ts`, `common.ts`
+- 后端 `VALIDATION_RULES` 从共享包导入
+- npm workspaces 统一管理，前后端分别独立构建/部署
+
+### 🔒 安全加固
+
+- 关闭生产环境 source map (`vite.config.ts`)
+
+### 🚦 CI/CD 改进
+
+- `backend-deploy.yml` 部署前强制运行 `typecheck` + `lint`
+- 类型错误和代码规范问题被拦截在 CI，不再推送到生产
+
+### ⚡ 性能优化
+
+- 新增 `12_index_performance.sql` — 25 个高频查询索引
+- 覆盖：登录、会话验证、收藏、搜索历史、邮箱验证、安全锁定、社区查询
+- 构建脚本优化：`tsc -b && vite build` → `tsc --noEmit && vite build`
+
+### 🧹 代码质量
+
+- 新增 `camelizeKeys` 工具函数（递归 snake_case → camelCase）
+- 前端 `utils/index.ts` 从共享包重新导出工具函数
+- 前端 API 服务 (`search.ts`) 应用 `camelizeKeys` 替代 15 行手动映射
+- 修复 `AdminUser.permissions` / `AdminUserDetail.permissions` 类型 (`string` → `string[]`)
+- 删除冗余文件：`frontend/src/utils/camelize.ts`, `shared/validations.ts`
+
+### 📄 文件变更
+- 新增 14 个文件（共享包 + 数据库索引）
+- 修改 12 个文件（前端 9 + 后端 3 + CI 1 + 构建配置 1）
+- 删除 0 个文件
+
+---
+
+👉 [查看完整的 v3.1.0 变更日志 →](changelogv3.1.0.md)
+
+👉 [查看完整的 v3.0 变更日志 →](changelogv3.0.md)

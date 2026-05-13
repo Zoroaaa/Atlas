@@ -1,17 +1,17 @@
 import React from 'react';
-import { Clock, Search, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2 } from 'lucide-react';
 import { Loading } from '@/components/ui';
 import type { SearchHistoryItem } from '@/types';
 
 // ─── 高度常量（与 JavRankingsPanel 共享逻辑）────────────────────────
 // header: 64px（同 JAV 面板）
-// 内容区: p-3(12)*2 + 4行(每行32px + gap8px*3) = 24 + 152 = 176px
+// 内容区: p-3(12)*2 + 列表项(每项约80-100px)
 // footer: 约 36px
-// 总计 = 64 + 176 + 36 = 276px
-export const HIST_PANEL_HEIGHT = 276;
+// 总计 = 64 + 内容 + 36
+export const HIST_PANEL_HEIGHT = 400;
 export const HIST_HEADER_HEIGHT = 64;
 
-const CONTENT_H = HIST_PANEL_HEIGHT - HIST_HEADER_HEIGHT - 36; // 内容+padding 区域
+const CONTENT_H = HIST_PANEL_HEIGHT - HIST_HEADER_HEIGHT - 36;
 
 interface SearchHistoryPanelProps {
   history: SearchHistoryItem[];
@@ -25,7 +25,6 @@ interface SearchHistoryPanelProps {
 export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
   history, isLoading, show, onToggle, onItemClick, onClear,
 }) => (
-  // 固定总高度：展开时 HIST_PANEL_HEIGHT，收缩时 HIST_HEADER_HEIGHT
   <div
     className="collapsible-section animate-fade-in transition-all duration-300 overflow-hidden shrink-0"
     style={{ animationDelay: '100ms', height: show ? HIST_PANEL_HEIGHT : HIST_HEADER_HEIGHT }}
@@ -58,15 +57,78 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
         <>
           {/* 历史列表：固定内容高度，内部滚动 */}
           <div className="p-3 sm:p-4 overflow-y-auto scrollbar-thin" style={{ height: CONTENT_H + 24 }}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2 content-start">
+            <div className="space-y-1.5 sm:space-y-2">
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-800/60 cursor-pointer transition-all border border-surface-100 dark:border-surface-800 active:scale-[0.98]"
+                  className="flex flex-col gap-1.5 p-2 sm:p-2.5 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/40 cursor-pointer transition-all border border-surface-100 dark:border-surface-800 active:scale-[0.98]"
                   onClick={() => onItemClick(item.query)}
                 >
-                  <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-surface-400 shrink-0" />
-                  <span className="text-xs sm:text-sm text-surface-800 dark:text-surface-200 truncate">{item.query}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-surface-400 shrink-0" />
+                      <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                        {item.code && (
+                          <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                            {item.code}
+                          </span>
+                        )}
+                        <span className="text-xs sm:text-sm font-medium text-surface-800 dark:text-surface-200 truncate">
+                          {item.title || item.query}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-surface-400 shrink-0">
+                      {item.resultsCount !== undefined && item.resultsCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs">
+                          {item.resultsCount}条
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {(item.subtitle || item.actors || item.duration || item.releaseDate || item.publisher || item.tags) && (
+                    <div className="space-y-1 pl-5">
+                      {item.subtitle && (
+                        <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        {item.actors && (
+                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                            <User className="w-2.5 h-2.5" />
+                            {item.actors}
+                          </span>
+                        )}
+                        {item.duration && (
+                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                            <Clock className="w-2.5 h-2.5" />
+                            {item.duration}分钟
+                          </span>
+                        )}
+                        {item.releaseDate && (
+                          <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                            <Calendar className="w-2.5 h-2.5" />
+                            {item.releaseDate}
+                          </span>
+                        )}
+                        {item.publisher && (
+                          <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                            <Building2 className="w-2.5 h-2.5" />
+                            {item.publisher}
+                          </span>
+                        )}
+                      </div>
+                      {item.tags && (
+                        <div className="flex items-center gap-1 flex-wrap mt-1">
+                          {item.tags.split(',').slice(0, 4).map((tag, i) => (
+                            <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                              {tag.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

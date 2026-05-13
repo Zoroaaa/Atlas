@@ -9,20 +9,39 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  MoreVertical,
   Calendar,
   Tag,
   BarChart2,
+  Eye,
+  EyeOff,
+  Building2,
+  User,
 } from 'lucide-react';
-import { Card, Button, Input, Badge, Modal, Loading, EmptyState, Dropdown } from '@/components/ui';
+import { Card, Button, Input, Badge, Modal, Loading, EmptyState } from '@/components/ui';
+import { ProxyImage } from '@/components/ui';
 import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useNavigate } from 'react-router-dom';
 import type { FavoriteItem, SearchHistoryItem } from '@/types';
 
+const resolveUrl = (relativePath: string, referenceUrl: string): string => {
+  try {
+    const base = new URL(referenceUrl);
+    return new URL(relativePath, base).href;
+  } catch {
+    return relativePath;
+  }
+};
+
+const getProxyImageUrl = (url: string): string => {
+  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? ''
+    : 'https://backend.codeseek.pp.ua';
+  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
-  const navigate = useNavigate();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +77,23 @@ export const FavoritesManager: React.FC = () => {
       toast.success('已移除收藏');
     } catch (_error) {
       toast.error('移除失败', '请稍后重试');
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'want' ? 'watched' : 'want';
+    try {
+      const result = await userApi.updateFavoriteStatus(id, newStatus);
+      if (result.success) {
+        setFavorites(prev => prev.map(f => 
+          f.id === id ? { ...f, status: newStatus } : f
+        ));
+        toast.success('状态更新成功');
+      } else {
+        toast.error(result.message || '状态更新失败');
+      }
+    } catch (_error) {
+      toast.error('状态更新失败');
     }
   };
 
@@ -121,16 +157,6 @@ export const FavoritesManager: React.FC = () => {
     }
   };
 
-  const handleSelectItem = (id: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedItems(newSelected);
-  };
-
   const filteredFavorites = favorites
     .filter(f => f.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
@@ -143,16 +169,6 @@ export const FavoritesManager: React.FC = () => {
         ? a.title.localeCompare(b.title) 
         : b.title.localeCompare(a.title);
     });
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   if (isLoading) {
     return (
@@ -257,88 +273,106 @@ export const FavoritesManager: React.FC = () => {
       {filteredFavorites.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredFavorites.map(favorite => (
-            <Card key={favorite.id} className="p-5 border-surface-200/50 dark:border-surface-700/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col">
-              <div className="flex items-start gap-3 flex-1">
-                <input
-                  type="checkbox"
-                  checked={selectedItems.has(favorite.id)}
-                  onChange={() => handleSelectItem(favorite.id)}
-                  className="mt-1 rounded border-surface-300 dark:border-surface-600"
-                />
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-surface-900 dark:text-surface-100 truncate">
-                    {favorite.title}
-                  </h3>
-                  {favorite.subtitle && (
-                    <p className="text-sm text-surface-500 dark:text-surface-400 truncate mt-1">
-                      {favorite.subtitle}
-                    </p>
-                  )}
-                  {/* 关键词标签 */}
-                  {favorite.keyword && (
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <Tag className="w-3 h-3 text-primary-400 flex-shrink-0" />
-                      <span className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-full truncate max-w-[160px]">
-                        {favorite.keyword}
-                      </span>
+            <Card key={favorite.id} className="p-3 sm:p-4 border-surface-200/50 dark:border-surface-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <div className="flex flex-col gap-2 sm:gap-3">
+                <div className="flex gap-3">
+                  {favorite.cover ? (
+                    <ProxyImage
+                      src={getProxyImageUrl(resolveUrl(favorite.cover, favorite.url))}
+                      alt={favorite.title}
+                      className="w-28 h-20 sm:w-36 sm:h-24 object-cover rounded-md flex-shrink-0"
+                    />
+                  ) : favorite.icon ? (
+                    <img src={favorite.icon} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain flex-shrink-0" loading="lazy" />
+                  ) : null}
+                  <div className="flex-1 min-w-0 flex items-start justify-between gap-2 py-1">
+                    <div className="flex flex-col gap-1.5 flex-wrap">
+                      {favorite.status && (
+                        <button
+                          onClick={() => handleUpdateStatus(favorite.id, favorite.status!)}
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 transition-all hover:opacity-80 w-fit ${
+                            favorite.status === 'want'
+                              ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30'
+                              : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                          }`}
+                        >
+                          {favorite.status === 'want' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                          {favorite.status === 'want' ? '想看' : '已看过'}
+                        </button>
+                      )}
+                      {favorite.code && (
+                        <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded w-fit">
+                          {favorite.code}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-2 text-xs text-surface-400">
-                    <Calendar className="w-3 h-3" />
-                    {formatDate(favorite.createdAt)}
+                    <div className="flex flex-col items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => window.open(favorite.url, '_blank')}
+                        className="p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleRemoveFavorite(favorite.id)}
+                        className="p-1.5 rounded-lg text-surface-400 hover:text-error-500 hover:bg-error-50 dark:hover:bg-error-900/20 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <Dropdown
-                  trigger={
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  }
-                  items={[
-                    { 
-                      label: '打开链接', 
-                      onClick: () => window.open(favorite.url, '_blank'),
-                      icon: <ExternalLink className="w-4 h-4" />
-                    },
-                    { 
-                      label: '复制链接', 
-                      onClick: () => {
-                        navigator.clipboard.writeText(favorite.url);
-                        toast.success('已复制到剪贴板');
-                      }
-                    },
-                    ...(favorite.keyword ? [{
-                      label: '用关键词重新搜索',
-                      onClick: () => navigate(`/main?q=${encodeURIComponent(favorite.keyword!)}`),
-                      icon: <Search className="w-4 h-4" />,
-                    }] : []),
-                    { 
-                      label: '删除', 
-                      onClick: () => handleRemoveFavorite(favorite.id),
-                      danger: true,
-                      icon: <Trash2 className="w-4 h-4" />
-                    },
-                  ]}
-                />
-              </div>
-              {/* 底部快捷操作 */}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100 dark:border-surface-800">
-                <button
-                  onClick={() => window.open(favorite.url, '_blank')}
-                  className="flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-surface-50 dark:bg-surface-800 hover:bg-primary-50 dark:hover:bg-primary-900/30 text-surface-600 dark:text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  访问
-                </button>
-                {favorite.keyword && (
-                  <button
-                    onClick={() => navigate(`/main`)}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-lg bg-surface-50 dark:bg-surface-800 hover:bg-accent-50 dark:hover:bg-accent-900/30 text-surface-600 dark:text-surface-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    重搜
-                  </button>
-                )}
+                <div className="space-y-1 pl-0">
+                  <p className="text-sm font-medium text-surface-900 dark:text-surface-100 break-words">{favorite.title}</p>
+                  {favorite.subtitle && (
+                    <p className="text-xs text-surface-500 truncate">{favorite.subtitle}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    {favorite.actors && (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <User className="w-3 h-3" />
+                        {favorite.actors}
+                      </span>
+                    )}
+                    {favorite.duration && (
+                      <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <Clock className="w-3 h-3" />
+                        {favorite.duration}分钟
+                      </span>
+                    )}
+                    {favorite.releaseDate && (
+                      <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <Calendar className="w-3 h-3" />
+                        {favorite.releaseDate}
+                      </span>
+                    )}
+                    {favorite.publisher && (
+                      <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                        <Building2 className="w-3 h-3" />
+                        {favorite.publisher}
+                      </span>
+                    )}
+                  </div>
+                  {(favorite.tags || (favorite.keyword && !favorite.code)) && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      {favorite.tags && (
+                        <>
+                          {favorite.tags.split(',').slice(0, 6).map((tag, i) => (
+                            <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                                {tag.trim()}
+                            </span>
+                          ))}
+                        </>
+                      )}
+                      {favorite.keyword && !favorite.code && (
+                        <span className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded truncate max-w-[150px]">
+                          <Tag className="w-3 h-3" />
+                          {favorite.keyword}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           ))}
@@ -713,49 +747,103 @@ export const HistoryManager: React.FC = () => {
               </h3>
               <Card className="divide-y divide-surface-200 dark:divide-surface-700 border-surface-200/50 dark:border-surface-700/50 shadow-lg overflow-hidden">
                 {items.map(item => (
-                  <div 
+                  <div
                     key={item.id}
-                    className="flex items-center gap-4 p-4 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                    className="flex flex-col gap-3 p-4 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(item.id)}
-                      onChange={() => handleSelectItem(item.id)}
-                      className="rounded border-surface-300 dark:border-surface-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-surface-900 dark:text-surface-100">
-                        {item.query}
-                      </p>
-                      <div className="flex items-center gap-3 text-sm text-surface-500 dark:text-surface-400 mt-1">
-                        <span>{formatDate(item.createdAt)}</span>
-                        {item.resultsCount !== undefined && (
-                          <span className="px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded">
-                            {item.resultsCount} 条结果
-                          </span>
-                        )}
-                        {item.source && (
-                          <Badge variant="outline">{item.source}</Badge>
-                        )}
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(item.id)}
+                        onChange={() => handleSelectItem(item.id)}
+                        className="rounded border-surface-300 dark:border-surface-600"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {item.code && (
+                            <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                              {item.code}
+                            </span>
+                          )}
+                          <p className="font-medium text-surface-900 dark:text-surface-100">
+                            {item.title || item.query}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-surface-500 dark:text-surface-400 mt-1 flex-wrap">
+                          <span>{formatDate(item.createdAt)}</span>
+                          {item.resultsCount !== undefined && (
+                            <span className="px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded">
+                              {item.resultsCount}条
+                            </span>
+                          )}
+                          {item.source && (
+                            <Badge variant="outline">{item.source}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate('/main')}
+                          title="重新搜索此关键词"
+                          className="text-primary-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                        >
+                          <Search className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate('/main')}
-                      title="重新搜索此关键词"
-                      className="text-primary-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex-shrink-0"
-                    >
-                      <Search className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20 flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+
+                    {(item.subtitle || item.actors || item.duration || item.releaseDate || item.publisher || item.tags) && (
+                      <div className="space-y-1.5 pl-10">
+                        {item.subtitle && (
+                          <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                          {item.actors && (
+                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                              <User className="w-2.5 h-2.5" />
+                              {item.actors}
+                            </span>
+                          )}
+                          {item.duration && (
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                              <Clock className="w-2.5 h-2.5" />
+                              {item.duration}分钟
+                            </span>
+                          )}
+                          {item.releaseDate && (
+                            <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                              <Calendar className="w-2.5 h-2.5" />
+                              {item.releaseDate}
+                            </span>
+                          )}
+                          {item.publisher && (
+                            <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                              <Building2 className="w-2.5 h-2.5" />
+                              {item.publisher}
+                            </span>
+                          )}
+                        </div>
+                        {item.tags && (
+                          <div className="flex items-center gap-1 flex-wrap mt-1">
+                            {item.tags.split(',').slice(0, 4).map((tag, i) => (
+                              <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </Card>

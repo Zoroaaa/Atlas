@@ -12,8 +12,10 @@
     "db:migrate": "wrangler d1 migrations apply codeseek-db"
   },
   "dependencies": {
+    "@codeseek/shared": "*",
     "hono": "^4.6.0",
-    "jose": "^5.9.0"
+    "jose": "^5.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",

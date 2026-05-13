@@ -7,7 +7,8 @@
 import { Hono } from 'hono';
 import { Env, User, UserFavorite, UserSearchHistory } from '@/types';
 import { success, error, generateId, logUserAction } from '@/utils';
-import { authMiddleware } from '@/middleware';
+import { authMiddleware } from '@/middleware/auth';
+import { userActivitySchema } from '@/utils/validators';
 import { CONFIG, VALIDATION_RULES } from '@/constants';
 
 const R = VALIDATION_RULES;
@@ -29,7 +30,7 @@ userRoutes.get('/settings', async (c) => {
     }
 
     return c.json(success({
-      settings: JSON.parse(userRow.settings || '{}'),
+      settings: (() => { try { return JSON.parse(userRow.settings || '{}'); } catch { return {}; } })(),
     }));
   } catch (err) {
     console.error('Get settings error:', err);
@@ -69,8 +70,28 @@ userRoutes.get('/favorites', async (c) => {
       'SELECT * FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC'
     ).bind(user.userId).all<UserFavorite>();
 
+    const mapped = (favorites.results || []).map((f: UserFavorite) => ({
+      id: f.id,
+      userId: f.user_id,
+      title: f.title,
+      subtitle: f.subtitle,
+      url: f.url,
+      icon: f.icon,
+      keyword: f.keyword,
+      code: f.code,
+      cover: f.cover,
+      actors: f.actors,
+      duration: f.duration,
+      tags: f.tags,
+      releaseDate: f.release_date,
+      publisher: f.publisher,
+      magnetLink: f.magnet_link,
+      status: f.status,
+      createdAt: f.created_at,
+    }));
+
     return c.json(success({
-      favorites: favorites.results || [],
+      favorites: mapped,
     }));
   } catch (err) {
     console.error('Get favorites error:', err);
@@ -83,26 +104,36 @@ userRoutes.post('/favorites', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { title, subtitle, url, icon, keyword } = body;
+    const { title, subtitle, url, icon, keyword, code, cover, actors, duration, tags, releaseDate, publisher, magnetLink, status } = body;
 
     if (!title || !url) {
       return c.json(error('VALIDATION_ERROR', '标题和URL是必填项'), 400);
     }
 
     const existing = await c.env.DB.prepare(
-      'SELECT id, title, subtitle, url, icon, keyword, created_at FROM user_favorites WHERE user_id = ? AND url = ?'
+      'SELECT * FROM user_favorites WHERE user_id = ? AND url = ?'
     ).bind(user.userId, url).first<UserFavorite>();
 
     if (existing) {
       return c.json(success({
-        id: existing.id,
-        title: existing.title,
-        subtitle: existing.subtitle,
-        url: existing.url,
-        icon: existing.icon,
-        keyword: existing.keyword,
-        createdAt: existing.created_at,
-      }, '已收藏该链接'));
+      id: existing.id,
+      userId: existing.user_id,
+      title: existing.title,
+      subtitle: existing.subtitle,
+      url: existing.url,
+      icon: existing.icon,
+      keyword: existing.keyword,
+      code: existing.code,
+      cover: existing.cover,
+      actors: existing.actors,
+      duration: existing.duration,
+      tags: existing.tags,
+      releaseDate: existing.release_date,
+      publisher: existing.publisher,
+      magnetLink: existing.magnet_link,
+      status: existing.status,
+      createdAt: existing.created_at,
+    }, '已收藏该链接'));
     }
 
     const maxFavorites = R.FAVORITES.MAX_COUNT;
@@ -119,8 +150,8 @@ userRoutes.post('/favorites', async (c) => {
     const now = Date.now();
 
     await c.env.DB.prepare(`
-      INSERT INTO user_favorites (id, user_id, title, subtitle, url, icon, keyword, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO user_favorites (id, user_id, title, subtitle, url, icon, keyword, code, cover, actors, duration, tags, release_date, publisher, magnet_link, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       favoriteId,
       user.userId,
@@ -129,6 +160,15 @@ userRoutes.post('/favorites', async (c) => {
       url,
       icon || null,
       keyword || null,
+      code || null,
+      cover || null,
+      actors || null,
+      duration || null,
+      tags || null,
+      releaseDate || null,
+      publisher || null,
+      magnetLink || null,
+      status || 'want',
       now,
       now
     ).run();
@@ -137,11 +177,21 @@ userRoutes.post('/favorites', async (c) => {
 
     return c.json(success({
       id: favoriteId,
+      userId: user.userId,
       title,
       subtitle: subtitle || null,
       url,
       icon: icon || null,
       keyword: keyword || null,
+      code: code || null,
+      cover: cover || null,
+      actors: actors || null,
+      duration: duration || null,
+      tags: tags || null,
+      releaseDate: releaseDate || null,
+      publisher: publisher || null,
+      magnetLink: magnetLink || null,
+      status: status || 'want',
       createdAt: now,
     }, '收藏成功'));
   } catch (err) {
@@ -172,6 +222,43 @@ userRoutes.delete('/favorites/:id', async (c) => {
   }
 });
 
+userRoutes.patch('/favorites/:id/status', async (c) => {
+  const user = c.get('user');
+  const favoriteId = c.req.param('id');
+
+  try {
+    const body = await c.req.json();
+    const { status } = body;
+
+    if (!status || (status !== 'want' && status !== 'watched')) {
+      return c.json(error('VALIDATION_ERROR', '状态必须是 want 或 watched'), 400);
+    }
+
+    const existing = await c.env.DB.prepare(
+      'SELECT * FROM user_favorites WHERE id = ? AND user_id = ?'
+    ).bind(favoriteId, user.userId).first<UserFavorite>();
+
+    if (!existing) {
+      return c.json(error('NOT_FOUND', '收藏不存在'), 404);
+    }
+
+    const now = Date.now();
+    await c.env.DB.prepare(
+      'UPDATE user_favorites SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+    ).bind(status, now, favoriteId, user.userId).run();
+
+    await logUserAction(c.env, user.userId, 'update_favorite_status', { favoriteId, status }, c);
+
+    return c.json(success({
+      id: favoriteId,
+      status,
+    }, '状态更新成功'));
+  } catch (err) {
+    console.error('Update favorite status error:', err);
+    return c.json(error('SERVER_ERROR', '更新状态失败'), 500);
+  }
+});
+
 userRoutes.get('/search-history', async (c) => {
   const user = c.get('user');
 
@@ -195,14 +282,14 @@ userRoutes.post('/search-history', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { query, source, resultsCount } = body;
+    const { query, source, resultsCount, title, subtitle, code, actors, duration, tags, releaseDate, publisher, keyword } = body;
 
     if (!query) {
       return c.json(error('VALIDATION_ERROR', '搜索关键词是必填项'), 400);
     }
 
     const maxHistory = R.SEARCH_HISTORY.MAX_COUNT;
-    
+
     const count = await c.env.DB.prepare(
       'SELECT COUNT(*) as count FROM user_search_history WHERE user_id = ?'
     ).bind(user.userId).first<{ count: number }>();
@@ -221,15 +308,24 @@ userRoutes.post('/search-history', async (c) => {
     const now = Date.now();
 
     await c.env.DB.prepare(`
-      INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at, title, subtitle, code, actors, duration, tags, release_date, publisher, keyword)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       historyId,
       user.userId,
       query,
       source || '',
       resultsCount || 0,
-      now
+      now,
+      title || null,
+      subtitle || null,
+      code || null,
+      actors || null,
+      duration || null,
+      tags || null,
+      releaseDate || null,
+      publisher || null,
+      keyword || null
     ).run();
 
     return c.json(success({
@@ -238,10 +334,68 @@ userRoutes.post('/search-history', async (c) => {
       source: source || '',
       resultsCount: resultsCount || 0,
       createdAt: now,
+      title: title || null,
+      subtitle: subtitle || null,
+      code: code || null,
+      actors: actors || null,
+      duration: duration || null,
+      tags: tags || null,
+      releaseDate: releaseDate || null,
+      publisher: publisher || null,
+      keyword: keyword || null,
     }, '搜索历史已保存'));
   } catch (err) {
     console.error('Save search history error:', err);
     return c.json(error('SERVER_ERROR', '保存搜索历史失败'), 500);
+  }
+});
+
+userRoutes.put('/search-history/:id', async (c) => {
+  const user = c.get('user');
+  const historyId = c.req.param('id');
+
+  try {
+    const body = await c.req.json();
+    const { title, subtitle, code, actors, duration, tags, releaseDate, publisher, keyword } = body;
+
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM user_search_history WHERE id = ? AND user_id = ?'
+    ).bind(historyId, user.userId).first<{ id: string }>();
+
+    if (!existing) {
+      return c.json(error('NOT_FOUND', '搜索历史记录不存在'), 404);
+    }
+
+    const updateFields: string[] = [];
+    const updateValues: (string | number | null)[] = [];
+
+    if (title !== undefined) { updateFields.push('title = ?'); updateValues.push(title || null); }
+    if (subtitle !== undefined) { updateFields.push('subtitle = ?'); updateValues.push(subtitle || null); }
+    if (code !== undefined) { updateFields.push('code = ?'); updateValues.push(code || null); }
+    if (actors !== undefined) { updateFields.push('actors = ?'); updateValues.push(actors || null); }
+    if (duration !== undefined) { updateFields.push('duration = ?'); updateValues.push(duration || null); }
+    if (tags !== undefined) { updateFields.push('tags = ?'); updateValues.push(tags || null); }
+    if (releaseDate !== undefined) { updateFields.push('release_date = ?'); updateValues.push(releaseDate || null); }
+    if (publisher !== undefined) { updateFields.push('publisher = ?'); updateValues.push(publisher || null); }
+    if (keyword !== undefined) { updateFields.push('keyword = ?'); updateValues.push(keyword || null); }
+
+    if (updateFields.length === 0) {
+      return c.json(error('VALIDATION_ERROR', '没有需要更新的字段'), 400);
+    }
+
+    updateFields.push('updated_at = ?');
+    updateValues.push(Date.now());
+    updateValues.push(historyId);
+    updateValues.push(user.userId);
+
+    await c.env.DB.prepare(`
+      UPDATE user_search_history SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?
+    `).bind(...updateValues).run();
+
+    return c.json(success(null, '搜索历史已更新'));
+  } catch (err) {
+    console.error('Update search history error:', err);
+    return c.json(error('SERVER_ERROR', '更新搜索历史失败'), 500);
   }
 });
 
@@ -456,15 +610,19 @@ userRoutes.get('/activities', async (c) => {
     };
 
     return c.json(success({
-      activities: (activities.results || []).map((a: any) => ({
-        id: a.id,
-        action: a.action,
-        actionLabel: actionLabels[a.action] || a.action,
-        data: a.data ? JSON.parse(a.data) : {},
-        ipAddress: a.ip_address,
-        userAgent: a.user_agent,
-        createdAt: a.created_at,
-      })),
+      activities: (activities.results || []).map((a) => {
+        const result = userActivitySchema.safeParse(a);
+        const activity = result.success ? result.data : a as { id: string; action: string; data?: string; ip_address?: string; user_agent?: string; created_at: number };
+        return {
+          id: activity.id,
+          action: activity.action,
+          actionLabel: actionLabels[activity.action] || activity.action,
+          data: activity.data ? (() => { try { return JSON.parse(activity.data); } catch { return {}; } })() : {},
+          ipAddress: activity.ip_address,
+          userAgent: activity.user_agent,
+          createdAt: activity.created_at,
+        };
+      }),
       total: countResult?.total || 0,
       limit,
       offset,

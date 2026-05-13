@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { camelizeKeys } from '@/utils';
 import type {
   SearchHistoryItem,
   FavoriteItem,
@@ -52,14 +53,22 @@ export const userApi = {
   }> => {
     const response = await apiClient.get<{ success: boolean; data: { favorites: Array<{
       id: string;
-      user_id: string;
+      userId: string;
       title: string;
       subtitle: string | null;
       url: string;
       icon: string | null;
       keyword: string | null;
-      created_at: number;
-      updated_at: number;
+      code: string | null;
+      cover: string | null;
+      actors: string | null;
+      duration: string | null;
+      tags: string | null;
+      releaseDate: string | null;
+      publisher: string | null;
+      magnetLink: string | null;
+      status: string | null;
+      createdAt: number;
     }> } }>('/user/favorites');
     
     if (response.success && response.data) {
@@ -68,13 +77,22 @@ export const userApi = {
         data: {
           favorites: response.data.favorites.map(f => ({
             id: f.id,
-            userId: f.user_id,
+            userId: f.userId,
             title: f.title,
             subtitle: f.subtitle || undefined,
             url: f.url,
             icon: f.icon || undefined,
             keyword: f.keyword || undefined,
-            createdAt: f.created_at,
+            code: f.code || undefined,
+            cover: f.cover || undefined,
+            actors: f.actors || undefined,
+            duration: f.duration || undefined,
+            tags: f.tags || undefined,
+            releaseDate: f.releaseDate || undefined,
+            publisher: f.publisher || undefined,
+            magnetLink: f.magnetLink || undefined,
+            status: f.status || undefined,
+            createdAt: f.createdAt,
           }))
         }
       };
@@ -94,32 +112,24 @@ export const userApi = {
     return apiClient.delete(`/user/favorites/${id}`);
   },
 
-  getSearchHistory: async (limit = 50): Promise<{ 
+  updateFavoriteStatus: async (id: string, status: string): Promise<{ 
     success: boolean; 
-    data: { history: SearchHistoryItem[] } 
+    data: { id: string; status: string }; 
+    message: string 
   }> => {
-    const response = await apiClient.get<{ success: boolean; data: { history: Array<{
-      id: string;
-      user_id: string;
-      query: string;
-      source: string;
-      results_count: number;
-      created_at: number;
-    }> } }>(`/user/search-history?limit=${limit}`);
-    
+    return apiClient.patch(`/user/favorites/${id}/status`, { status });
+  },
+
+  getSearchHistory: async (limit = 50): Promise<{
+    success: boolean;
+    data: { history: SearchHistoryItem[] }
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: { history: Array<Record<string, unknown>> } }>(`/user/search-history?limit=${limit}`);
+
     if (response.success && response.data) {
       return {
         success: true,
-        data: {
-          history: response.data.history.map(h => ({
-            id: h.id,
-            userId: h.user_id,
-            query: h.query,
-            source: h.source,
-            resultsCount: h.results_count,
-            createdAt: h.created_at,
-          }))
-        }
+        data: { history: camelizeKeys<SearchHistoryItem[]>(response.data.history) }
       };
     }
     return { success: false, data: { history: [] } };
@@ -139,6 +149,20 @@ export const userApi = {
 
   deleteSearchHistoryItem: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/user/search-history/${id}`);
+  },
+
+  updateSearchHistory: async (id: string, data: {
+    title?: string;
+    subtitle?: string;
+    code?: string;
+    actors?: string;
+    duration?: string;
+    tags?: string;
+    releaseDate?: string;
+    publisher?: string;
+    keyword?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    return apiClient.put(`/user/search-history/${id}`, data);
   },
 
   getSearchStats: async (): Promise<{ 

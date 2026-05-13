@@ -1,17 +1,25 @@
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  permissions: string[];
-  settings: UserSettings;
-  isActive: boolean;
-  emailVerified: boolean;
-  createdAt: number;
-  lastLogin: number | null;
-  loginCount: number;
-  role: string;
-  roleDisplayName: string;
-}
+// API 契约类型 - 从共享包导入
+export type {
+  User,
+  UserSettings,
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  DeleteAccountRequest,
+  SendVerificationCodeRequest,
+  VerificationStatusResponse,
+  TokenVerifyResponse,
+  UserLoginLog,
+  EmailChangeRequest,
+  SendEmailChangeCodeRequest,
+  VerifyEmailChangeCodeRequest,
+} from '@codeseek/shared';
+
+// 前端专属类型
+export { DEFAULT_USER_SETTINGS } from '@codeseek/shared';
 
 export interface Role {
   id: string;
@@ -25,13 +33,34 @@ export interface Role {
   updatedAt: number;
 }
 
-export interface AdminUser extends User {
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  permissions: string[];
+  role: string;
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt: number;
+  lastLogin: number | null;
+  loginCount: number;
   recentLogins?: number;
   recentSearches?: number;
 }
 
-export interface AdminUserDetail extends User {
+export interface AdminUserDetail {
+  id: string;
+  username: string;
+  email: string;
+  permissions: string[];
+  role: string;
+  roleDisplayName: string;
   rolePermissions: string[];
+  isActive: boolean;
+  emailVerified: boolean;
+  createdAt: number;
+  lastLogin: number | null;
+  loginCount: number;
   stats: {
     favoritesCount: number;
     historyCount: number;
@@ -51,101 +80,4 @@ export interface AdminUserDetail extends User {
     action: string;
     created_at: number;
   }>;
-}
-
-export interface UserSettings {
-  language: string;
-}
-
-export const DEFAULT_USER_SETTINGS: UserSettings = {
-  language: 'zh-CN',
-};
-
-export interface LoginRequest {
-  identifier: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  username: string;
-  email: string;
-  password: string;
-  verificationCode?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    user: User;
-    token: string;
-  };
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  email: string;
-  verificationCode: string;
-  code?: string;
-  newPassword: string;
-}
-
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-  verificationCode?: string;
-}
-
-export interface DeleteAccountRequest {
-  verificationCode: string;
-  confirmText: string;
-  password?: string;
-}
-
-export interface SendVerificationCodeRequest {
-  email: string;
-  verificationType: 'registration' | 'password_reset' | 'email_change_old' | 'email_change_new' | 'account_delete';
-  force?: boolean;
-}
-
-export interface VerificationStatusResponse {
-  hasPendingCode: boolean;
-  hasPendingVerification: boolean;
-  canResend: boolean;
-  remainingTime: number;
-}
-
-export interface EmailChangeRequest {
-  newEmail: string;
-  currentPassword: string;
-}
-
-export interface SendEmailChangeCodeRequest {
-  requestId: string;
-  emailType: 'old' | 'new';
-}
-
-export interface VerifyEmailChangeCodeRequest {
-  requestId: string;
-  emailType: 'old' | 'new';
-  code: string;
-}
-
-export interface TokenVerifyResponse {
-  valid: boolean;
-  userId: string;
-  username: string;
-}
-
-export interface UserLoginLog {
-  id: string;
-  loginTime: number;
-  ipAddress: string | null;
-  userAgent: string | null;
-  loginStatus: 'success' | 'failed';
-  loginMethod: string;
-  failureReason: string | null;
 }

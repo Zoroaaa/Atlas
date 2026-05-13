@@ -1,3 +1,13 @@
+// API 契约类型 - 从共享包导入
+export type {
+  ApiError,
+  ApiSuccess,
+  ApiResponse,
+  PaginatedResponse,
+  PaginationParams,
+} from '@codeseek/shared';
+
+// 前端专属管理/统计类型
 export interface SystemStats {
   activeUsers: number;
   activeSources: number;
@@ -63,38 +73,6 @@ export interface AuditLog {
   details: string;
   ip: string;
   createdAt: string;
-}
-
-export interface ApiError {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
-export interface ApiSuccess<T> {
-  success: true;
-  data: T;
-  message?: string;
-}
-
-export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
 }
 
 export interface Report {

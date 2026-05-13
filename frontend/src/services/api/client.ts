@@ -1,4 +1,5 @@
 import { API_BASE_URL, API_CONFIG } from '@/constants';
+import { useAuthStore } from '@/stores/authStore';
 
 const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
@@ -26,34 +27,15 @@ interface RequestOptions {
 
 class ApiClient {
   private baseUrl: string;
-  private token: string | null = null;
   private maxRetries = API_CONFIG.MAX_RETRIES;
   private retryDelay = API_CONFIG.RETRY_DELAY;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.loadToken();
-  }
-
-  private loadToken(): void {
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token');
-    }
-  }
-
-  setToken(token: string | null) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      if (token) {
-        localStorage.setItem('auth_token', token);
-      } else {
-        localStorage.removeItem('auth_token');
-      }
-    }
   }
 
   getToken(): string | null {
-    return this.token;
+    return useAuthStore.getState().token || null;
   }
 
   private getHeaders(customHeaders?: Record<string, string>): HeadersInit {
@@ -62,8 +44,9 @@ class ApiClient {
       ...customHeaders,
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     return headers;
@@ -113,7 +96,7 @@ class ApiClient {
         }
 
         if (response.status === 401) {
-          this.setToken(null);
+          useAuthStore.getState().logout();
           const authError = new Error('认证失败，请重新登录');
           (authError as unknown as Record<string, unknown>).code = 'AUTH_FAILED';
           throw authError;

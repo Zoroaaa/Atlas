@@ -22,12 +22,18 @@ interface UseAuthReturn {
 
 export function useAuth(): UseAuthReturn {
   const toast = useToast();
-  const { user, token, setUser, setToken, logout: logoutStore, initialize } = useAuthStore();
+  const { user, token, setUser, setToken, logout: logoutStore, restoreToken, initialize, persistToken } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    const initAuth = async () => {
+      initialize();
+      await restoreToken();
+      setIsInitializing(false);
+    };
+    initAuth();
+  }, [initialize, restoreToken]);
 
   const refreshUser = useCallback(async () => {
     if (!token) return;
@@ -50,19 +56,20 @@ export function useAuth(): UseAuthReturn {
       if (response.success && response.data) {
         setUser(response.data.user);
         setToken(response.data.token);
+        persistToken(response.data.token);
         toast.success('登录成功', `欢迎回来，${response.data.user.username}`);
         return true;
       }
       toast.error('登录失败', response.message || '登录失败');
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '登录失败，请稍后重试';
+      const { message = '登录失败，请稍后重试' } = error instanceof Error ? error : { message: '登录失败，请稍后重试' };
       toast.error('登录失败', message);
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setToken, toast]);
+  }, [setUser, setToken, persistToken, toast]);
 
   const register = useCallback(async (username: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
@@ -71,6 +78,7 @@ export function useAuth(): UseAuthReturn {
       if (response.success && response.data) {
         setUser(response.data.user);
         setToken(response.data.token);
+        persistToken(response.data.token);
         toast.success('注册成功', '欢迎加入磁力快搜');
         return true;
       }
@@ -83,7 +91,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setToken, toast]);
+  }, [setUser, setToken, persistToken, toast]);
 
   const logout = useCallback(async () => {
     try {
@@ -216,15 +224,15 @@ export function useAuth(): UseAuthReturn {
   }, [logoutStore, toast]);
 
   useEffect(() => {
-    if (token && !user) {
+    if (!isInitializing && token && !user) {
       refreshUser();
     }
-  }, [token, user, refreshUser]);
+  }, [token, user, refreshUser, isInitializing]);
 
   return {
     user,
     isAuthenticated: !!user,
-    isLoading,
+    isLoading: isLoading || isInitializing,
     login,
     register,
     logout,

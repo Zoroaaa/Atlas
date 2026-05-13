@@ -798,3 +798,18 @@ npm install
 
 如有问题或建议，请通过以下方式反馈：
 - GitHub Issues: [https://github.com/Zoroaaa/codeseek/issues](https://github.com/Zoroaaa/codeseek/issues)
+
+---
+
+## 🚀 下一步：版本 3.0
+
+> ⏭️ **查看最新版本**: [changelogv3.0.md](changelogv3.0.md)
+
+版本 3.0 已发布！主要更新包括：
+- 🔐 **密码安全升级** (SHA-256 → PBKDF2-SHA256)
+- 📦 **JAV 元数据支持** (番号、封面、演员等 8+ 字段)
+- 🎯 **收藏状态管理** ("想看/已看" 切换功能)
+- 🔧 **Zod 数据验证** (全面引入运行时类型检查)
+- 🌐 **CORS 策略强化** (正则匹配域名)
+
+👉 [立即查看 v3.0 变更日志 →](changelogv3.0.md)

@@ -1,10 +1,28 @@
-import React from 'react';
-import { Heart, Download, Trash2, ExternalLink, Tag, ChevronDown, ChevronRight } from 'lucide-react';
-import { Loading } from '@/components/ui';
+import React, { useState } from 'react';
+import { Heart, Download, Trash2, ExternalLink, Tag, ChevronDown, ChevronRight, Clock, Building2, Calendar, User, Eye, EyeOff } from 'lucide-react';
+import { Loading, ProxyImage } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
 import { JAV_PANEL_HEIGHT, JAV_HEADER_HEIGHT } from '@/components/jav/JavRankingsPanel';
 import { HIST_PANEL_HEIGHT, HIST_HEADER_HEIGHT } from '@/components/search/SearchHistoryPanel';
+import { userApi } from '@/services/api/search';
+import { useToast } from '@/components/ui/Toast';
+
+const resolveUrl = (relativePath: string, referenceUrl: string): string => {
+  try {
+    const base = new URL(referenceUrl);
+    return new URL(relativePath, base).href;
+  } catch {
+    return relativePath;
+  }
+};
+
+const getProxyImageUrl = (url: string): string => {
+  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? ''
+    : 'https://backend.codeseek.pp.ua';
+  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+};
 
 // ─── 收藏面板高度由左侧两个面板决定 ────────────────────────────────
 // gap-3(12px) 或 gap-4(16px)，取 sm:gap-4 = 16px
@@ -27,13 +45,45 @@ interface FavoritesPanelProps {
   onToggle: () => void;
   onRemove: (id: string) => void;
   onExport: () => void;
+  onUpdate: () => void;
 }
 
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
-  favorites, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport,
+  favorites, isLoading: isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
 }) => {
+  const toast = useToast();
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
   const totalHeight = show ? FAV_EXPANDED_HEIGHT : FAV_COLLAPSED_HEIGHT;
   const contentHeight = totalHeight - FAV_HEADER_HEIGHT;
+
+  const handleStatusChange = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'want' ? 'watched' : 'want';
+    setUpdatingStatus(id);
+    try {
+      const result = await userApi.updateFavoriteStatus(id, newStatus);
+      if (result.success) {
+        toast.success('状态更新成功');
+        onUpdate();
+      } else {
+        toast.error(result.message || '状态更新失败');
+      }
+    } catch (error) {
+      toast.error('状态更新失败');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    return status === 'want' ? '想看' : '已看过';
+  };
+
+  const getStatusColor = (status: string) => {
+    return status === 'want' 
+      ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30' 
+      : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30';
+  };
 
   return (
     <div
@@ -84,35 +134,107 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
               {favorites.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-all border border-surface-100 dark:border-surface-800"
+                  className="flex flex-col gap-2 p-2.5 sm:p-3 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-all border border-surface-100 dark:border-surface-800"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-surface-900 dark:text-surface-100 truncate">{item.title}</p>
+                  <div className="flex gap-3">
+                    {item.cover ? (
+                      <ProxyImage
+                        src={getProxyImageUrl(resolveUrl(item.cover, item.url))}
+                        alt={item.title}
+                        className="w-36 h-24 sm:w-44 sm:h-28 object-cover rounded-md flex-shrink-0"
+                      />
+                    ) : item.icon ? (
+                      <img src={item.icon} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain flex-shrink-0" loading="lazy" />
+                    ) : null}
+                    <div className="flex-1 min-w-0 flex items-center justify-between gap-2 py-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {item.status && (
+                          <button
+                            onClick={() => !updatingStatus && handleStatusChange(item.id, item.status!)}
+                            disabled={updatingStatus === item.id}
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 transition-all ${
+                              updatingStatus === item.id 
+                                ? 'opacity-50 cursor-not-allowed' 
+                                : 'hover:opacity-80 cursor-pointer'
+                            } ${getStatusColor(item.status)}`}
+                            title={updatingStatus === item.id ? '更新中...' : `点击切换到${getStatusText(item.status === 'want' ? 'watched' : 'want')}`}
+                          >
+                            {item.status === 'want' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            {getStatusText(item.status)}
+                          </button>
+                        )}
+                        {item.code && (
+                          <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded">
+                            {item.code}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => window.open(isProxyEnabled ? convertToProxyUrl(item.url) : item.url, '_blank')}
+                          className="p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => onRemove(item.id)}
+                          className="p-1.5 rounded-lg text-surface-400 hover:text-error-500 hover:bg-error-50 dark:hover:bg-error-900/20 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1 pl-0">
+                    <p className="text-sm font-medium text-surface-900 dark:text-surface-100 break-words">{item.title}</p>
                     {item.subtitle && (
-                      <p className="text-[10px] sm:text-xs text-surface-400 truncate mt-0.5">{item.subtitle}</p>
+                      <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
                     )}
-                    {item.keyword && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Tag className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary-400 flex-shrink-0" />
-                        <span className="text-[10px] sm:text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded truncate max-w-[100px] sm:max-w-[120px]">
-                          {item.keyword}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      {item.actors && (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <User className="w-3 h-3" />
+                          {item.actors}
                         </span>
+                      )}
+                      {item.duration && (
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <Clock className="w-3 h-3" />
+                          {item.duration}分钟
+                        </span>
+                      )}
+                      {item.releaseDate && (
+                        <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                          <Calendar className="w-3 h-3" />
+                          {item.releaseDate}
+                        </span>
+                      )}
+                      {item.publisher && (
+                        <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                          <Building2 className="w-3 h-3" />
+                          {item.publisher}
+                        </span>
+                      )}
+                    </div>
+                    {(item.tags || (item.keyword && !item.code)) && (
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {item.tags && (
+                          <>
+                            {item.tags.split(',').slice(0, 6).map((tag, i) => (
+                              <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                                  {tag.trim()}
+                              </span>
+                            ))}
+                          </>
+                        )}
+                        {item.keyword && !item.code && (
+                          <span className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded truncate max-w-[150px]">
+                            <Tag className="w-3 h-3" />
+                            {item.keyword}
+                          </span>
+                        )}
                       </div>
                     )}
-                  </div>
-                  <div className="flex items-center gap-0.5 sm:gap-1 ml-2 shrink-0">
-                    <button
-                      onClick={() => window.open(isProxyEnabled ? convertToProxyUrl(item.url) : item.url, '_blank')}
-                      className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-                    >
-                      <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onRemove(item.id)}
-                      className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-error-500 hover:bg-error-50 dark:hover:bg-error-900/20 transition-all"
-                    >
-                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </button>
                   </div>
                 </div>
               ))}

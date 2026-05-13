@@ -151,6 +151,36 @@ CREATE INDEX IF NOT EXISTS idx_shared_sources_likes ON community_shared_sources(
 CREATE INDEX IF NOT EXISTS idx_shared_sources_view_count ON community_shared_sources(view_count DESC);
 CREATE INDEX IF NOT EXISTS idx_shared_sources_user_status ON community_shared_sources(user_id, status);
 
+-- FTS5 全文搜索索引（用于社区搜索源搜索）
+CREATE VIRTUAL TABLE IF NOT EXISTS community_sources_fts USING fts5(
+  source_name,
+  source_subtitle,
+  description,
+  content='community_shared_sources',
+  content_rowid='id'
+);
+
+-- 触发器：同步数据到 FTS 表
+CREATE TRIGGER IF NOT EXISTS community_sources_fts_insert
+    AFTER INSERT ON community_shared_sources FOR EACH ROW BEGIN
+      INSERT INTO community_sources_fts(rowid, source_name, source_subtitle, description)
+      VALUES (NEW.id, NEW.source_name, NEW.source_subtitle, NEW.description);
+    END;
+
+CREATE TRIGGER IF NOT EXISTS community_sources_fts_update
+    AFTER UPDATE ON community_shared_sources FOR EACH ROW BEGIN
+      INSERT INTO community_sources_fts(community_sources_fts, rowid, source_name, source_subtitle, description)
+      VALUES ('delete', OLD.id, OLD.source_name, OLD.source_subtitle, OLD.description);
+      INSERT INTO community_sources_fts(rowid, source_name, source_subtitle, description)
+      VALUES (NEW.id, NEW.source_name, NEW.source_subtitle, NEW.description);
+    END;
+
+CREATE TRIGGER IF NOT EXISTS community_sources_fts_delete
+    AFTER DELETE ON community_shared_sources FOR EACH ROW BEGIN
+      INSERT INTO community_sources_fts(community_sources_fts, rowid, source_name, source_subtitle, description)
+      VALUES ('delete', OLD.id, OLD.source_name, OLD.source_subtitle, OLD.description);
+    END;
+
 CREATE INDEX IF NOT EXISTS idx_reviews_shared_source ON community_source_reviews(shared_source_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON community_source_reviews(user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_created ON community_source_reviews(created_at DESC);

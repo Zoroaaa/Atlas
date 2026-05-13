@@ -1,84 +1,16 @@
-export type SourceStatus = 'active' | 'inactive' | 'error' | 'unknown';
+// API 契约类型 - 从共享包导入
+export type {
+  SourceStatus,
+  SiteType,
+  SearchSource,
+  Category,
+  MajorCategory,
+  SourceCheckResult,
+  UserSourceConfig,
+  SourceStats,
+} from '@codeseek/shared';
 
-export type SiteType = 'search' | 'browse' | 'reference';
-
-export interface SearchSource {
-  id: string;
-  name: string;
-  subtitle?: string;
-  description?: string;
-  icon?: string;
-  urlTemplate: string;
-  homepageUrl?: string;
-  categoryId: string;
-  siteType: SiteType;
-  searchable: boolean;
-  requiresKeyword: boolean;
-  searchPriority: number;
-  status: SourceStatus;
-  isActive: boolean;
-  isSystem?: boolean;
-  usageCount: number;
-  displayOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  majorCategoryId: string;
-  majorCategoryName?: string;
-  icon?: string;
-  color?: string;
-  defaultSearchable: boolean;
-  defaultSiteType: SiteType;
-  searchPriority: number;
-  isActive: boolean;
-  isSystem?: boolean;
-  displayOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  sources?: SearchSource[];
-}
-
-export interface MajorCategory {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  requiresKeyword: boolean;
-  isActive: boolean;
-  isSystem?: boolean;
-  displayOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  categories?: Category[];
-}
-
-export interface SourceCheckResult {
-  sourceId: string;
-  status: SourceStatus;
-  available: boolean;
-  responseTime: number;
-  checkedAt: string;
-  error?: string;
-}
-
-export interface UserSourceConfig {
-  id: string;
-  userId: string;
-  sourceId: string;
-  isEnabled: boolean;
-  customPriority: number | null;
-  customName: string | null;
-  customSubtitle: string | null;
-  customIcon: string | null;
-  notes: string | null;
-}
-
+// 前端专属请求类型
 export interface CreateSourceRequest {
   categoryId: string;
   name: string;
@@ -87,7 +19,7 @@ export interface CreateSourceRequest {
   icon?: string;
   urlTemplate: string;
   homepageUrl?: string;
-  siteType?: SiteType;
+  siteType?: import('@codeseek/shared').SiteType;
   searchable?: boolean;
   requiresKeyword?: boolean;
   searchPriority?: number;
@@ -101,7 +33,7 @@ export interface UpdateSourceRequest {
   icon?: string;
   urlTemplate?: string;
   homepageUrl?: string;
-  siteType?: SiteType;
+  siteType?: import('@codeseek/shared').SiteType;
   searchable?: boolean;
   requiresKeyword?: boolean;
   searchPriority?: number;
@@ -114,7 +46,7 @@ export interface CreateCategoryRequest {
   icon?: string;
   color?: string;
   defaultSearchable?: boolean;
-  defaultSiteType?: SiteType;
+  defaultSiteType?: import('@codeseek/shared').SiteType;
   searchPriority?: number;
 }
 
@@ -124,7 +56,7 @@ export interface UpdateCategoryRequest {
   icon?: string;
   color?: string;
   defaultSearchable?: boolean;
-  defaultSiteType?: SiteType;
+  defaultSiteType?: import('@codeseek/shared').SiteType;
   searchPriority?: number;
 }
 
@@ -164,26 +96,5 @@ export interface BatchUpdateUserSourceConfigRequest {
     customSubtitle?: string;
     customIcon?: string;
     notes?: string;
-  }>;
-}
-
-export interface SourceStats {
-  totalSources: number;
-  searchableSources: number;
-  totalCategories: number;
-  totalMajorCategories: number;
-  topUsedSources: Array<{
-    id: string;
-    name: string;
-    usageCount: number;
-  }>;
-  sourcesByCategory: Array<{
-    categoryId: string;
-    categoryName: string;
-    count: number;
-  }>;
-  sourcesBySiteType: Array<{
-    siteType: string;
-    count: number;
   }>;
 }

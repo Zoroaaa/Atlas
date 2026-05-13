@@ -63,6 +63,14 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     url TEXT NOT NULL,                          -- 收藏项URL
     icon TEXT,                                  -- 收藏项图标
     keyword TEXT,                               -- 关联关键词
+    code TEXT,                                  -- 番号
+    cover TEXT,                                 -- 封面图URL
+    actors TEXT,                                -- 演员（JSON数组或逗号分隔）
+    duration TEXT,                              -- 时长
+    tags TEXT,                                  -- 类别标签（JSON数组或逗号分隔）
+    release_date TEXT,                          -- 发行时间
+    publisher TEXT,                             -- 发行商
+    magnet_link TEXT,                           -- 磁力链接
     created_at INTEGER NOT NULL,                -- 创建时间戳
     updated_at INTEGER NOT NULL,                -- 更新时间戳
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE

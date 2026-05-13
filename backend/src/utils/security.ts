@@ -77,11 +77,13 @@ export async function recordFailedAttempt(
   const db = env.DB;
   const now = Date.now();
   
-  const configMaxLoginAttempts = await configService.getInt(DB_CONFIG_KEYS.MAX_LOGIN_ATTEMPTS, DEFAULT_SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS);
-  const configMaxVerificationAttempts = await configService.getInt(DB_CONFIG_KEYS.MAX_VERIFICATION_ATTEMPTS, DEFAULT_SECURITY_CONFIG.MAX_VERIFICATION_ATTEMPTS);
-  const configMaxPasswordResetAttempts = await configService.getInt(DB_CONFIG_KEYS.PASSWORD_RESET_MAX_ATTEMPTS, DEFAULT_SECURITY_CONFIG.MAX_PASSWORD_RESET_ATTEMPTS);
-  const configLockoutDuration = await configService.getInt(DB_CONFIG_KEYS.LOCKOUT_DURATION_MS, DEFAULT_SECURITY_CONFIG.LOCKOUT_DURATION_MS);
-  const configPasswordResetLockout = await configService.getInt(DB_CONFIG_KEYS.PASSWORD_RESET_LOCKOUT_DURATION, DEFAULT_SECURITY_CONFIG.PASSWORD_RESET_LOCKOUT_MS);
+  const securityConfig = await configService.getGroup('security');
+  
+  const configMaxLoginAttempts = parseInt(securityConfig[DB_CONFIG_KEYS.MAX_LOGIN_ATTEMPTS] || String(DEFAULT_SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS), 10);
+  const configMaxVerificationAttempts = parseInt(securityConfig[DB_CONFIG_KEYS.MAX_VERIFICATION_ATTEMPTS] || String(DEFAULT_SECURITY_CONFIG.MAX_VERIFICATION_ATTEMPTS), 10);
+  const configMaxPasswordResetAttempts = parseInt(securityConfig[DB_CONFIG_KEYS.PASSWORD_RESET_MAX_ATTEMPTS] || String(DEFAULT_SECURITY_CONFIG.MAX_PASSWORD_RESET_ATTEMPTS), 10);
+  const configLockoutDuration = parseInt(securityConfig[DB_CONFIG_KEYS.LOCKOUT_DURATION_MS] || String(DEFAULT_SECURITY_CONFIG.LOCKOUT_DURATION_MS), 10);
+  const configPasswordResetLockout = parseInt(securityConfig[DB_CONFIG_KEYS.PASSWORD_RESET_LOCKOUT_DURATION] || String(DEFAULT_SECURITY_CONFIG.PASSWORD_RESET_LOCKOUT_MS), 10);
 
   const max = maxAttempts || (
     lockoutType === 'password_reset' ? configMaxPasswordResetAttempts :

@@ -352,16 +352,22 @@ sourceRoutes.get('/user-configs/:userId', async (c) => {
 });
 
 sourceRoutes.get('/with-user-config/:userId', async (c) => {
-  const userId = c.req.param('userId');
+  const requestedUserId = c.req.param('userId');
+  const currentUser = c.get('user');
+
+  if (requestedUserId !== currentUser.userId &&
+      currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
+    return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
+  }
 
   try {
     const sources = await c.env.DB.prepare(
       'SELECT * FROM search_sources WHERE is_active = 1 AND (is_system = 1 OR created_by = ?) ORDER BY search_priority DESC, display_order ASC'
-    ).bind(userId).all<SearchSource>();
+    ).bind(requestedUserId).all<SearchSource>();
 
     const userConfigs = await c.env.DB.prepare(
       'SELECT * FROM user_search_source_configs WHERE user_id = ?'
-    ).bind(userId).all<UserSearchSourceConfig>();
+    ).bind(requestedUserId).all<UserSearchSourceConfig>();
 
     const configMap = new Map(
       (userConfigs.results || []).map(config => [config.source_id, config])

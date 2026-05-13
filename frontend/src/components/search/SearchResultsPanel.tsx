@@ -8,6 +8,7 @@ interface SearchResultItem extends SearchResult {
   subtitle?: string;
   siteType?: string;
   category?: string;
+  description?: string;
 }
 
 interface SearchResultsPanelProps {
@@ -57,6 +58,15 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
     const majorCategory = majorCategories.find(mc => mc.id === category.majorCategoryId);
     if (majorCategory?.color) return { backgroundColor: `${majorCategory.color}20`, color: majorCategory.color };
     return {};
+  };
+
+  const getSiteTypeBadge = (siteType?: string) => {
+    const map: Record<string, { label: string; cls: string }> = {
+      search: { label: '搜索', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+      browse: { label: '浏览', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+      reference: { label: '参考', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+    };
+    return map[siteType || 'search'] || map.search;
   };
 
   if (results.length === 0) return null;
@@ -110,6 +120,11 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
                     >
                       {getCategoryLabel(result.category)}
                     </span>
+                    {(() => { const badge = getSiteTypeBadge(result.siteType); return (
+                      <span className={`hidden sm:inline text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md font-medium ${badge.cls}`}>
+                        {badge.label}
+                      </span>
+                    ); })()}
                     {isProxyEnabled && (
                       <span className="hidden sm:flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md font-medium bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400">
                         <ShieldCheck className="w-3 h-3" />代理
@@ -118,6 +133,9 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
                   </div>
                   {result.subtitle && (
                     <p className="text-[10px] sm:text-xs text-surface-500 dark:text-surface-400 mt-0.5 truncate">{result.subtitle}</p>
+                  )}
+                  {result.description && (
+                    <p className="text-[10px] sm:text-xs text-surface-400 dark:text-surface-500 mt-0.5 line-clamp-1">{result.description}</p>
                   )}
                 </div>
               </div>

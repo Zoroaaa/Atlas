@@ -15,12 +15,9 @@ import type {
   VerifyEmailChangeCodeRequest,
   TokenVerifyResponse,
 } from '@/types';
+import { useAuthStore } from '@/stores/authStore';
 
 export const authApi = {
-  /**
-   * 发起 GitHub OAuth 授权
-   * 直接跳转到后端 /auth/github，后端重定向到 GitHub
-   */
   loginWithGitHub: (): void => {
     const base = import.meta.env.DEV
       ? '/api'
@@ -31,13 +28,21 @@ export const authApi = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', data);
     if (response.success && response.data?.token) {
-      apiClient.setToken(response.data.token);
+      const store = useAuthStore.getState();
+      store.setToken(response.data.token);
+      store.persistToken(response.data.token);
     }
     return response;
   },
 
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    return apiClient.post<AuthResponse>('/auth/register', data);
+    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    if (response.success && response.data?.token) {
+      const store = useAuthStore.getState();
+      store.setToken(response.data.token);
+      store.persistToken(response.data.token);
+    }
+    return response;
   },
 
   logout: async (): Promise<{ success: boolean; message: string }> => {
@@ -45,7 +50,7 @@ export const authApi = {
       const response = await apiClient.post<{ success: boolean; message: string }>('/auth/logout', {});
       return response;
     } finally {
-      apiClient.setToken(null);
+      useAuthStore.getState().logout();
     }
   },
 
@@ -55,7 +60,9 @@ export const authApi = {
 
   verifyToken: async (token?: string): Promise<{ success: boolean; data: TokenVerifyResponse }> => {
     if (token) {
-      apiClient.setToken(token);
+      const store = useAuthStore.getState();
+      store.setToken(token);
+      store.persistToken(token);
     }
     return apiClient.post<{ success: boolean; data: TokenVerifyResponse }>('/auth/verify-token', {});
   },
@@ -63,7 +70,9 @@ export const authApi = {
   refreshToken: async (): Promise<{ success: boolean; data: { token: string } }> => {
     const response = await apiClient.post<{ success: boolean; data: { token: string } }>('/auth/refresh', {});
     if (response.success && response.data?.token) {
-      apiClient.setToken(response.data.token);
+      const store = useAuthStore.getState();
+      store.setToken(response.data.token);
+      store.persistToken(response.data.token);
     }
     return response;
   },
@@ -93,7 +102,7 @@ export const authApi = {
       const response = await apiClient.delete<{ success: boolean; message: string }>('/auth/account', data);
       return response;
     } finally {
-      apiClient.setToken(null);
+      useAuthStore.getState().logout();
     }
   },
 

@@ -159,7 +159,7 @@ export class SearchSourcesService {
   async getAllMajorCategories(env: Env): Promise<{ majorCategories: MajorCategory[] }> {
     try {
       const result = await env.DB.prepare(
-        `SELECT * FROM major_categories 
+        `SELECT * FROM search_major_categories 
          WHERE is_active = 1 
          ORDER BY display_order ASC, created_at ASC`
       ).all();
@@ -180,7 +180,7 @@ export class SearchSourcesService {
   ): Promise<MajorCategory> {
     try {
       const existing = await env.DB.prepare(
-        `SELECT id FROM major_categories 
+        `SELECT id FROM search_major_categories 
          WHERE name = ? AND is_active = 1`
       )
         .bind(majorCategoryData.name)
@@ -194,7 +194,7 @@ export class SearchSourcesService {
       const now = Date.now();
 
       await env.DB.prepare(
-        `INSERT INTO major_categories (
+        `INSERT INTO search_major_categories (
           id, name, description, icon, color, requires_keyword,
           display_order, is_system, is_active, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -243,8 +243,8 @@ export class SearchSourcesService {
 
       let query = `
         SELECT sc.*, mc.name as major_category_name, mc.icon as major_category_icon
-        FROM categories sc
-        LEFT JOIN major_categories mc ON sc.major_category_id = mc.id
+        FROM search_source_categories sc
+        LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
         WHERE sc.is_active = 1
       `;
       const params: (string | number)[] = [];
@@ -281,7 +281,7 @@ export class SearchSourcesService {
   ): Promise<SourceCategory> {
     try {
       const majorCategory = await env.DB.prepare(
-        `SELECT id FROM major_categories 
+        `SELECT id FROM search_major_categories 
          WHERE id = ? AND is_active = 1`
       )
         .bind(categoryData.majorCategoryId)
@@ -292,7 +292,7 @@ export class SearchSourcesService {
       }
 
       const existing = await env.DB.prepare(
-        `SELECT id FROM categories 
+        `SELECT id FROM search_source_categories 
          WHERE major_category_id = ? AND name = ? AND is_active = 1`
       )
         .bind(categoryData.majorCategoryId, categoryData.name)
@@ -306,7 +306,7 @@ export class SearchSourcesService {
       const now = Date.now();
 
       await env.DB.prepare(
-        `INSERT INTO categories (
+        `INSERT INTO search_source_categories (
           id, major_category_id, name, description, icon, color,
           display_order, is_system, is_active, default_searchable,
           default_site_type, search_priority, created_by, created_at, updated_at
@@ -362,7 +362,7 @@ export class SearchSourcesService {
   ): Promise<{ category: SourceCategory }> {
     try {
       const category = (await env.DB.prepare(
-        `SELECT * FROM categories 
+        `SELECT * FROM search_source_categories 
          WHERE id = ? AND is_active = 1`
       )
         .bind(categoryId)
@@ -387,7 +387,7 @@ export class SearchSourcesService {
 
       if (updateData.name && updateData.name !== category.name) {
         const existing = await env.DB.prepare(
-          `SELECT id FROM categories 
+          `SELECT id FROM search_source_categories 
            WHERE major_category_id = ? AND name = ? AND id != ? AND is_active = 1`
         )
           .bind(category.major_category_id, updateData.name, categoryId)
@@ -414,7 +414,7 @@ export class SearchSourcesService {
       updateValues.push(categoryId);
 
       await env.DB.prepare(
-        `UPDATE categories 
+        `UPDATE search_source_categories 
          SET ${updateFields.join(', ')}
          WHERE id = ?`
       )
@@ -423,8 +423,8 @@ export class SearchSourcesService {
 
       const updatedCategory = await env.DB.prepare(
         `SELECT sc.*, mc.name as major_category_name, mc.icon as major_category_icon
-         FROM categories sc
-         LEFT JOIN major_categories mc ON sc.major_category_id = mc.id
+         FROM search_source_categories sc
+         LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
          WHERE sc.id = ?`
       )
         .bind(categoryId)
@@ -450,7 +450,7 @@ export class SearchSourcesService {
   ): Promise<{ message: string; deletedCategory: { id: string; name: string } }> {
     try {
       const category = (await env.DB.prepare(
-        `SELECT * FROM categories 
+        `SELECT * FROM search_source_categories 
          WHERE id = ? AND is_active = 1`
       )
         .bind(categoryId)
@@ -485,7 +485,7 @@ export class SearchSourcesService {
       }
 
       await env.DB.prepare(
-        `UPDATE categories 
+        `UPDATE search_source_categories 
          SET is_active = 0, updated_at = ?
          WHERE id = ?`
       )
@@ -534,8 +534,8 @@ export class SearchSourcesService {
           usc.custom_icon,
           usc.notes as user_notes
         FROM search_sources ss
-        LEFT JOIN categories sc ON ss.category_id = sc.id
-        LEFT JOIN major_categories mc ON sc.major_category_id = mc.id
+        LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
+        LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
         LEFT JOIN user_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
         WHERE ss.is_active = 1
       `;
@@ -590,7 +590,7 @@ export class SearchSourcesService {
   ): Promise<SearchSource> {
     try {
       const category = await env.DB.prepare(
-        `SELECT id FROM categories 
+        `SELECT id FROM search_source_categories 
          WHERE id = ? AND is_active = 1`
       )
         .bind(sourceData.categoryId)
@@ -763,8 +763,8 @@ export class SearchSourcesService {
           mc.name as major_category_name,
           mc.icon as major_category_icon
         FROM search_sources ss
-        LEFT JOIN categories sc ON ss.category_id = sc.id
-        LEFT JOIN major_categories mc ON sc.major_category_id = mc.id
+        LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
+        LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
         WHERE ss.id = ?`
       )
         .bind(sourceId)
@@ -853,8 +853,8 @@ export class SearchSourcesService {
           mc.name as major_category_name
         FROM user_source_configs usc
         LEFT JOIN search_sources ss ON usc.source_id = ss.id
-        LEFT JOIN categories sc ON ss.category_id = sc.id
-        LEFT JOIN major_categories mc ON sc.major_category_id = mc.id
+        LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
+        LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
         WHERE usc.user_id = ? AND ss.is_active = 1
         ORDER BY usc.custom_priority ASC, ss.search_priority ASC, ss.display_order ASC`
       )
@@ -1072,8 +1072,8 @@ export class SearchSourcesService {
   }> {
     try {
       const [majorCategoriesCount, categoriesCount, sourcesCount, userConfigsCount] = await Promise.all([
-        env.DB.prepare(`SELECT COUNT(*) as count FROM major_categories WHERE is_active = 1`).first(),
-        env.DB.prepare(`SELECT COUNT(*) as count FROM categories WHERE is_active = 1`).first(),
+        env.DB.prepare(`SELECT COUNT(*) as count FROM search_major_categories WHERE is_active = 1`).first(),
+        env.DB.prepare(`SELECT COUNT(*) as count FROM search_source_categories WHERE is_active = 1`).first(),
         env.DB.prepare(`SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1`).first(),
         env.DB.prepare(
           `SELECT COUNT(*) as count FROM user_source_configs WHERE user_id = ? AND is_enabled = 1`
@@ -1090,8 +1090,8 @@ export class SearchSourcesService {
           COUNT(DISTINCT sc.id) as categories_count,
           COUNT(DISTINCT ss.id) as sources_count,
           COUNT(DISTINCT CASE WHEN usc.is_enabled = 1 THEN usc.id END) as enabled_sources_count
-        FROM major_categories mc
-        LEFT JOIN categories sc ON mc.id = sc.major_category_id AND sc.is_active = 1
+        FROM search_major_categories mc
+        LEFT JOIN search_source_categories sc ON mc.id = sc.major_category_id AND sc.is_active = 1
         LEFT JOIN search_sources ss ON sc.id = ss.category_id AND ss.is_active = 1
         LEFT JOIN user_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
         WHERE mc.is_active = 1

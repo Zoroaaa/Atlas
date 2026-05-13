@@ -82,6 +82,15 @@ export interface UserFavorite {
   url: string;
   icon: string | null;
   keyword: string | null;
+  code: string | null;
+  cover: string | null;
+  actors: string | null;
+  duration: string | null;
+  tags: string | null;
+  release_date: string | null;
+  publisher: string | null;
+  magnet_link: string | null;
+  status: string;
   created_at: number;
   updated_at: number;
 }
@@ -93,6 +102,15 @@ export interface UserSearchHistory {
   source: string;
   results_count: number;
   created_at: number;
+  title?: string;
+  subtitle?: string;
+  code?: string;
+  actors?: string;
+  duration?: string;
+  tags?: string;
+  release_date?: string;
+  publisher?: string;
+  keyword?: string;
 }
 
 export interface UserAction {

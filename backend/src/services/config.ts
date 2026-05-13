@@ -10,6 +10,13 @@
  * 后备值说明：
  *   后备值直接写在方法调用的第二个参数中，如 configService.getInt(DB_CONFIG_KEYS.XXX, 1000)
  *   仅当 DB 中无该配置时使用后备值
+ * 
+ * ⚠️ 缓存行为说明（Cloudflare Workers 环境）：
+ *   - 模块级变量 configCache 在 Worker isolate 复用（warm start）时可跨请求共享
+ *   - 但 isolate 不保证跨请求持久化，冷 invocation 会重新加载
+ *   - 并发请求可能同时触发 DB 查询（这是预期行为，不会导致错误）
+ *   - 此缓存为 best-effort，不保证强一致性
+ *   - 不要在关键安全路径上依赖此缓存的实时性
  */
 import { Env } from '@/types';
 

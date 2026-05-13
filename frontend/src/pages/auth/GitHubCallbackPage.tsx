@@ -23,7 +23,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 export const GitHubCallbackPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { setUser, setToken } = useAuthStore();
+  const { setUser, setToken, persistToken } = useAuthStore();
   const notification = useNotification();
   const processed = useRef(false);
 
@@ -52,6 +52,7 @@ export const GitHubCallbackPage: React.FC = () => {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw));
       setToken(token);
+      persistToken(token);
       setUser(user);
       notification.success('登录成功', `欢迎回来，${user.username}！`);
       navigate('/dashboard', { replace: true });

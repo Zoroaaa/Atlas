@@ -41,9 +41,9 @@ searchRoutes.post('/', async (c) => {
     if (userPayload) {
       historyId = generateId();
       await c.env.DB.prepare(
-        `INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at)
-         VALUES (?, ?, ?, ?, 0, ?)`
-      ).bind(historyId, userPayload.userId, trimmedKeyword, categoryId || majorCategoryId || 'all', Date.now()).run();
+        `INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at, keyword)
+         VALUES (?, ?, ?, ?, 0, ?, ?)`
+      ).bind(historyId, userPayload.userId, trimmedKeyword, categoryId || majorCategoryId || 'all', Date.now(), trimmedKeyword).run();
     }
 
     let userEnabledSources: Set<string> | null = null;
@@ -107,6 +107,7 @@ searchRoutes.post('/', async (c) => {
       url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
       siteType: source.site_type,
       category: source.category_id,
+      description: source.description,
     }));
 
     if (historyId && userPayload) {
