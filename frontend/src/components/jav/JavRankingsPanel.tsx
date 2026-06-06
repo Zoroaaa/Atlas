@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 import {
   Film, Eye, Tag, Users, Tv, FileText,
   RefreshCw, Loader2, AlertCircle, Clock,
-  ChevronDown, ChevronRight, Search, TrendingUp, Heart,
+  ChevronDown, ChevronRight, Search, TrendingUp,
 } from 'lucide-react';
 import { useJavRankings } from '@/hooks';
 import type { JavItem, GroupRanking } from '@/types';
 
 interface JavRankingsPanelProps {
   onCodeClick: (code: string) => void;
-  onFavorite?: (item: { code: string; title: string; cover?: string; date?: string; actress?: string }) => void;
-  favoritedCodes?: Set<string>;
 }
 
 // ─── 高度常量（与搜索历史、收藏面板共享同一套数值）─────────────────
@@ -44,8 +42,8 @@ const CODE_COLORS = [
   'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800',
 ];
 
-const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void; emptyText?: string; onFavorite?: (item: { code: string; title: string; cover?: string; date?: string; actress?: string }) => void; favoritedCodes?: Set<string> }> = ({
-  items, onCodeClick, emptyText = '暂无数据', onFavorite, favoritedCodes,
+const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void; emptyText?: string }> = ({
+  items, onCodeClick, emptyText = '暂无数据',
 }) => {
   if (items.length === 0) {
     return (
@@ -57,30 +55,17 @@ const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void; e
   }
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 content-start">
-      {items.map((item, i) => {
-        const isFav = favoritedCodes?.has(item.code) ?? false;
-        return (
-          <div key={`${item.code}-${i}`} className="relative group/item">
-            <button
-              onClick={() => onCodeClick(item.code)}
-              className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-left transition-all active:scale-[0.97] hover:shadow-sm ${CODE_COLORS[i % CODE_COLORS.length]}`}
-              title={item.title}
-            >
-              <span className="text-[10px] font-bold opacity-50 shrink-0 w-4 text-right">{i + 1}</span>
-              <span className="text-xs font-semibold truncate">{item.code}</span>
-            </button>
-            {onFavorite && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onFavorite({ code: item.code, title: item.title, cover: item.cover, date: item.date, actress: item.actress }); }}
-                className={`absolute top-0.5 right-0.5 p-0.5 rounded-md transition-all opacity-0 group-hover/item:opacity-100 ${isFav ? 'text-rose-500 opacity-100' : 'text-surface-400 hover:text-rose-500'}`}
-                title={isFav ? '取消收藏' : '收藏'}
-              >
-                <Heart className={`w-3 h-3 ${isFav ? 'fill-current' : ''}`} />
-              </button>
-            )}
-          </div>
-        );
-      })}
+      {items.map((item, i) => (
+        <button
+          key={`${item.code}-${i}`}
+          onClick={() => onCodeClick(item.code)}
+          className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-left transition-all active:scale-[0.97] hover:shadow-sm ${CODE_COLORS[i % CODE_COLORS.length]}`}
+          title={item.title}
+        >
+          <span className="text-[10px] font-bold opacity-50 shrink-0 w-4 text-right">{i + 1}</span>
+          <span className="text-xs font-semibold truncate">{item.code}</span>
+        </button>
+      ))}
     </div>
   );
 };
@@ -90,9 +75,7 @@ const GroupTabs: React.FC<{
   onCodeClick: (c: string) => void;
   emptyText?: string;
   emptyIcon?: React.ElementType;
-  onFavorite?: (item: { code: string; title: string; cover?: string; date?: string; actress?: string }) => void;
-  favoritedCodes?: Set<string>;
-}> = ({ groups, onCodeClick, emptyText = '数据加载中，请稍后刷新', emptyIcon: Icon = Tag, onFavorite, favoritedCodes }) => {
+}> = ({ groups, onCodeClick, emptyText = '数据加载中，请稍后刷新', emptyIcon: Icon = Tag }) => {
   const [activeKey, setActiveKey] = useState<string>(groups[0]?.key ?? '');
   if (groups.length === 0) {
     return (
@@ -122,7 +105,7 @@ const GroupTabs: React.FC<{
         ))}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-        <CodeGrid items={current.items} onCodeClick={onCodeClick} emptyText="该分组暂无数据" onFavorite={onFavorite} favoritedCodes={favoritedCodes} />
+        <CodeGrid items={current.items} onCodeClick={onCodeClick} emptyText="该分组暂无数据" />
       </div>
     </div>
   );
@@ -139,7 +122,7 @@ const TABS: TabDef[] = [
   { id: 'actresses',  label: '随机女优', short: '女优', icon: Users,    color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
 ];
 
-export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick, onFavorite, favoritedCodes }) => {
+export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick }) => {
   const { data, isLoading, error, fromCache, cacheAge, refresh } = useJavRankings();
   const [activeTab, setActiveTab] = useState<TabId>('censored');
   const [expanded, setExpanded] = useState(true);
@@ -237,16 +220,16 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
               <button onClick={refresh} className="text-xs text-primary-500 underline">点击重试</button>
             </div>
           ) : activeTab === 'genres' ? (
-            <GroupTabs groups={data?.genres ?? []} onCodeClick={onCodeClick} emptyText="类别数据加载失败" emptyIcon={Tag} onFavorite={onFavorite} favoritedCodes={favoritedCodes} />
+            <GroupTabs groups={data?.genres ?? []} onCodeClick={onCodeClick} emptyText="类别数据加载失败" emptyIcon={Tag} />
           ) : activeTab === 'actresses' ? (
-            <GroupTabs groups={data?.actresses ?? []} onCodeClick={onCodeClick} emptyText="女优数据加载失败" emptyIcon={Users} onFavorite={onFavorite} favoritedCodes={favoritedCodes} />
+            <GroupTabs groups={data?.actresses ?? []} onCodeClick={onCodeClick} emptyText="女优数据加载失败" emptyIcon={Users} />
           ) : activeTab === 'hd' ? (
             <div className="h-full overflow-y-auto scrollbar-thin">
-              <CodeGrid items={data?.hd ?? []} onCodeClick={onCodeClick} emptyText="高清数据暂无，点击刷新重试" onFavorite={onFavorite} favoritedCodes={favoritedCodes} />
+              <CodeGrid items={data?.hd ?? []} onCodeClick={onCodeClick} emptyText="高清数据暂无，点击刷新重试" />
             </div>
           ) : activeTab === 'subtitle' ? (
             <div className="h-full overflow-y-auto scrollbar-thin">
-              <CodeGrid items={data?.subtitle ?? []} onCodeClick={onCodeClick} emptyText="字幕数据暂无，点击刷新重试" onFavorite={onFavorite} favoritedCodes={favoritedCodes} />
+              <CodeGrid items={data?.subtitle ?? []} onCodeClick={onCodeClick} emptyText="字幕数据暂无，点击刷新重试" />
             </div>
           ) : (
             <div className="h-full overflow-y-auto scrollbar-thin">
@@ -254,8 +237,6 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
                 items={(data?.[activeTab as 'censored' | 'uncensored'] as JavItem[]) ?? []}
                 onCodeClick={onCodeClick}
                 emptyText="暂无数据，点击右上角刷新按钮重试"
-                onFavorite={onFavorite}
-                favoritedCodes={favoritedCodes}
               />
             </div>
           )}
@@ -264,7 +245,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
         {/* 底部提示 */}
         <div className="px-3 sm:px-4 py-2.5 border-t border-surface-50 dark:border-surface-800/60 shrink-0 flex items-center justify-between">
           <p className="text-[10px] text-surface-400 dark:text-surface-500">
-            💡 点击番号快速填入搜索框
+            💡 点击番号自动搜索
             {fromCache && cacheAge !== null && (
               <span className="ml-2 sm:hidden">· 缓存 {formatAge(cacheAge)}</span>
             )}
