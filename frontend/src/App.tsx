@@ -13,6 +13,8 @@ import { HomePage } from '@/pages/HomePage';
 import { MainSearchPage } from '@/pages/MainSearchPage';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
+import { AnimeSearchPage } from '@/pages/AnimeSearchPage';
+import { MovieSearchPage } from '@/pages/MovieSearchPage';
 import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
 import { AdminManager, AdminPanelOverview } from '@/pages/admin';
 import { CommunityManager } from '@/pages/community';
@@ -157,6 +159,16 @@ const App: React.FC = () => {
         <Route path="/main" element={
           <GuardRoute>
             <MainSearchPage />
+          </GuardRoute>
+        } />
+        <Route path="/anime" element={
+          <GuardRoute>
+            <AnimeSearchPage />
+          </GuardRoute>
+        } />
+        <Route path="/movie" element={
+          <GuardRoute>
+            <MovieSearchPage />
           </GuardRoute>
         } />
         

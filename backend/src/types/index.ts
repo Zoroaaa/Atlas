@@ -30,6 +30,9 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
 
+  // TMDB API（影视搜索元数据）
+  TMDB_API_KEY?: string;
+
 }
 
 export interface User {

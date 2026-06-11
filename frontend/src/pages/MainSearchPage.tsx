@@ -11,6 +11,8 @@ import {
   Filter,
   LayoutDashboard,
   Globe,
+  Film,
+  Tv2,
 } from 'lucide-react';
 import { useSearchStore, useSourceStore, useAuthStore, useThemeStore, useProxyStore } from '@/stores';
 import { searchApi, sourceApi, userApi, analyticsApi } from '@/services/api';
@@ -645,9 +647,37 @@ export const MainSearchPage: React.FC = () => {
                     {category.name}
                   </button>
                 ))}
-              </div>
+          </div>
             </div>
           )}
+
+          {/* 专题搜索入口 */}
+          <div className="flex gap-2 sm:gap-3 mt-3">
+            <button
+              onClick={() => navigate('/anime')}
+              className="flex-1 flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium
+                         bg-violet-50 dark:bg-violet-900/15 text-violet-700 dark:text-violet-300
+                         border border-violet-200/60 dark:border-violet-800/40
+                         hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:border-violet-300 dark:hover:border-violet-700/60
+                         transition-all active:scale-[0.98]"
+            >
+              <Film className="w-4 h-4 sm:w-5 sm:h-5 text-violet-500 dark:text-violet-400" />
+              <span>动漫搜索</span>
+              <span className="text-[10px] xs:text-xs text-violet-400/70 dark:text-violet-500/50 ml-auto hidden sm:inline">Bangumi + Nyaa + Mikan</span>
+            </button>
+            <button
+              onClick={() => navigate('/movie')}
+              className="flex-1 flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium
+                         bg-blue-50 dark:bg-blue-900/15 text-blue-700 dark:text-blue-300
+                         border border-blue-200/60 dark:border-blue-800/40
+                         hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700/60
+                         transition-all active:scale-[0.98]"
+            >
+              <Tv2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 dark:text-blue-400" />
+              <span>影视搜索</span>
+              <span className="text-[10px] xs:text-xs text-blue-400/70 dark:text-blue-500/50 ml-auto hidden sm:inline">TMDB + 磁力资源</span>
+            </button>
+          </div>
         </div>
 
         <JavDetailPanel
