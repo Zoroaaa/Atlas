@@ -7,7 +7,6 @@ export interface MajorCategory {
   description: string;
   icon: string;
   color: string;
-  requiresKeyword: boolean;
   displayOrder: number;
   isSystem: boolean;
   isActive: boolean;
@@ -54,7 +53,6 @@ export interface SearchSource {
   homepageUrl: string;
   siteType: string;
   searchable: boolean;
-  requiresKeyword: boolean;
   searchPriority: number;
   originalPriority: number;
   isSystem: boolean;
@@ -93,7 +91,6 @@ export interface CreateMajorCategoryData {
   description?: string;
   icon?: string;
   color?: string;
-  requiresKeyword?: boolean;
 }
 
 export interface CreateSourceCategoryData {
@@ -127,7 +124,6 @@ export interface CreateSearchSourceData {
   homepageUrl?: string;
   siteType?: string;
   searchable?: boolean;
-  requiresKeyword?: boolean;
   searchPriority?: number;
 }
 
@@ -141,7 +137,6 @@ export interface UpdateSearchSourceData {
   homepageUrl?: string;
   siteType?: string;
   searchable?: boolean;
-  requiresKeyword?: boolean;
   searchPriority?: number;
 }
 
@@ -195,9 +190,9 @@ export class SearchSourcesService {
 
       await env.DB.prepare(
         `INSERT INTO search_major_categories (
-          id, name, description, icon, color, requires_keyword,
+          id, name, description, icon, color,
           display_order, is_system, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           majorCategoryId,
@@ -205,7 +200,6 @@ export class SearchSourcesService {
           majorCategoryData.description || '',
           majorCategoryData.icon || '🌟',
           majorCategoryData.color || '#6b7280',
-          majorCategoryData.requiresKeyword ? 1 : 0,
           999,
           0,
           1,
@@ -220,7 +214,6 @@ export class SearchSourcesService {
         description: majorCategoryData.description || '',
         icon: majorCategoryData.icon || '🌟',
         color: majorCategoryData.color || '#6b7280',
-        requires_keyword: majorCategoryData.requiresKeyword ? 1 : 0,
         display_order: 999,
         is_system: 0,
         is_active: 1,
@@ -621,10 +614,10 @@ export class SearchSourcesService {
       await env.DB.prepare(
         `INSERT INTO search_sources (
           id, category_id, name, subtitle, description, icon, url_template,
-          homepage_url, site_type, searchable, requires_keyword, search_priority,
+          homepage_url, site_type, searchable, search_priority,
           is_system, is_active, display_order, usage_count,
           created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
           sourceId,
@@ -637,7 +630,6 @@ export class SearchSourcesService {
           sourceData.homepageUrl || '',
           sourceData.siteType || 'search',
           sourceData.searchable ? 1 : 0,
-          sourceData.requiresKeyword ? 1 : 0,
           sourceData.searchPriority || 5,
           0,
           1,
@@ -662,7 +654,6 @@ export class SearchSourcesService {
         homepage_url: sourceData.homepageUrl || '',
         site_type: sourceData.siteType || 'search',
         searchable: sourceData.searchable ? 1 : 0,
-        requires_keyword: sourceData.requiresKeyword ? 1 : 0,
         search_priority: sourceData.searchPriority || 5,
         is_system: 0,
         is_active: 1,
@@ -1163,7 +1154,6 @@ export class SearchSourcesService {
       description: (data.description as string) || '',
       icon: (data.icon as string) || '🌟',
       color: (data.color as string) || '#6b7280',
-      requiresKeyword: Boolean(data.requires_keyword),
       displayOrder: (data.display_order as number) || 999,
       isSystem: Boolean(data.is_system),
       isActive: Boolean(data.is_active),
@@ -1214,7 +1204,6 @@ export class SearchSourcesService {
       homepageUrl: (data.homepage_url as string) || '',
       siteType: (data.site_type as string) || 'search',
       searchable: Boolean(data.searchable),
-      requiresKeyword: Boolean(data.requires_keyword),
       searchPriority: (data.custom_priority as number) || (data.search_priority as number) || 5,
       originalPriority: (data.search_priority as number) || 5,
       isSystem: Boolean(data.is_system),
@@ -1278,7 +1267,6 @@ export class SearchSourcesService {
       homepageUrl: 'homepage_url',
       siteType: 'site_type',
       searchable: 'searchable',
-      requiresKeyword: 'requires_keyword',
       searchPriority: 'search_priority',
     };
     return fieldMap[field] || null;

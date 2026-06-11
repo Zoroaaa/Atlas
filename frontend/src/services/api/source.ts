@@ -26,7 +26,6 @@ export const sourceApi = {
       description: string | null;
       icon: string | null;
       color: string;
-      requires_keyword: number;
       display_order: number;
       is_system: number;
       is_active: number;
@@ -43,7 +42,6 @@ export const sourceApi = {
           description: c.description || undefined,
           icon: c.icon || undefined,
           color: c.color,
-          requiresKeyword: c.requires_keyword === 1,
           isSystem: c.is_system === 1,
           isActive: c.is_active === 1,
           displayOrder: c.display_order,
@@ -233,7 +231,6 @@ export const sourceApi = {
       homepage_url: string | null;
       site_type: string;
       searchable: number;
-      requires_keyword: number;
       search_priority: number;
       is_system: number;
       is_active: number;
@@ -259,7 +256,6 @@ export const sourceApi = {
           homepageUrl: s.homepage_url || undefined,
           siteType: s.site_type as 'search' | 'browse' | 'reference',
           searchable: s.searchable === 1,
-          requiresKeyword: s.requires_keyword === 1,
           searchPriority: s.search_priority,
           isSystem: s.is_system === 1,
           isActive: s.is_active === 1,
@@ -298,7 +294,6 @@ export const sourceApi = {
         homepage_url: string | null;
         site_type: string;
         searchable: number;
-        requires_keyword: number;
         search_priority: number;
         is_system: number;
         is_active: number;
@@ -324,7 +319,6 @@ export const sourceApi = {
             homepageUrl: s.homepage_url || undefined,
             siteType: s.site_type as 'search' | 'browse' | 'reference',
             searchable: s.searchable === 1,
-            requiresKeyword: s.requires_keyword === 1,
             searchPriority: s.search_priority,
             isSystem: s.is_system === 1,
             isActive: s.is_active === 1,
@@ -359,7 +353,6 @@ export const sourceApi = {
       homepage_url: string | null;
       site_type: string;
       searchable: number;
-      requires_keyword: number;
       search_priority: number;
       is_system: number;
       is_active: number;
@@ -396,7 +389,6 @@ export const sourceApi = {
           homepageUrl: s.homepage_url || undefined,
           siteType: s.site_type as 'search' | 'browse' | 'reference',
           searchable: s.searchable === 1,
-          requiresKeyword: s.requires_keyword === 1,
           searchPriority: s.search_priority,
           isSystem: s.is_system === 1,
           isActive: s.is_active === 1,

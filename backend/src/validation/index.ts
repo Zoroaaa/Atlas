@@ -121,7 +121,6 @@ export const schemas = {
       description: z.string().max(R.MAJOR_CATEGORY.DESCRIPTION_MAX_LENGTH).optional(),
       icon: z.string().max(R.MAJOR_CATEGORY.ICON_MAX_LENGTH).optional(),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '颜色格式不正确').optional(),
-      requiresKeyword: z.boolean().optional(),
     }),
 
     updateMajorCategory: z.object({
@@ -129,7 +128,6 @@ export const schemas = {
       description: z.string().max(R.MAJOR_CATEGORY.DESCRIPTION_MAX_LENGTH).optional().nullable(),
       icon: z.string().max(R.MAJOR_CATEGORY.ICON_MAX_LENGTH).optional(),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-      requiresKeyword: z.boolean().optional(),
       isActive: z.boolean().optional(),
     }),
 
@@ -169,7 +167,6 @@ export const schemas = {
       homepageUrl: z.string().url('主页URL格式不正确').max(R.SOURCE.URL_MAX_LENGTH).optional().nullable(),
       siteType: z.enum(['search', 'browse', 'reference']).optional(),
       searchable: z.boolean().optional(),
-      requiresKeyword: z.boolean().optional(),
       searchPriority: z.number().int().min(1).max(10).optional(),
     }),
 
@@ -183,7 +180,6 @@ export const schemas = {
       homepageUrl: z.string().url().max(R.SOURCE.URL_MAX_LENGTH).optional().nullable(),
       siteType: z.enum(['search', 'browse', 'reference']).optional(),
       searchable: z.boolean().optional(),
-      requiresKeyword: z.boolean().optional(),
       searchPriority: z.number().int().min(1).max(10).optional(),
     }),
 

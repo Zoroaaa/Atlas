@@ -13,8 +13,6 @@ import { HomePage } from '@/pages/HomePage';
 import { MainSearchPage } from '@/pages/MainSearchPage';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
-import { AnimeSearchPage } from '@/pages/AnimeSearchPage';
-import { MovieSearchPage } from '@/pages/MovieSearchPage';
 import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
 import { AdminManager, AdminPanelOverview } from '@/pages/admin';
 import { CommunityManager } from '@/pages/community';
@@ -146,8 +144,9 @@ const App: React.FC = () => {
     <BrowserRouter>
       <PageTracker />
       <Routes>
+        {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar） */}
+        <Route path="/" element={<AuthRedirect><HomePage /></AuthRedirect>} />
         <Route element={<MainLayout />}>
-          <Route path="/" element={<AuthRedirect><HomePage /></AuthRedirect>} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
         </Route>
@@ -161,14 +160,20 @@ const App: React.FC = () => {
             <MainSearchPage />
           </GuardRoute>
         } />
+        {/* 
+          重定向旧路由到新的 Tab 视图 (2026-06-11 重构)
+          - /anime → /main?tab=anime
+          - /movie → /main?tab=movie
+          原因：整合到统一的搜索源体系，作为 MainSearchPage 的 Tab 存在
+        */}
         <Route path="/anime" element={
           <GuardRoute>
-            <AnimeSearchPage />
+            <Navigate to="/main?tab=anime" replace />
           </GuardRoute>
         } />
         <Route path="/movie" element={
           <GuardRoute>
-            <MovieSearchPage />
+            <Navigate to="/main?tab=movie" replace />
           </GuardRoute>
         } />
         

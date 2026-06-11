@@ -9,30 +9,25 @@ import {
   Cloud,
   Heart,
   Layers,
-  Moon,
-  Sun,
-  ShieldCheck,
-  ShieldAlert,
-  Loader2,
   Settings,
   ArrowRight,
-  Github,
-  HelpCircle,
 } from 'lucide-react';
-import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
-import { Button, Modal } from '@/components/ui';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAppInfo, useFeatureFlags } from '@/contexts';
+import { useAuthStore, useProxyStore } from '@/stores';
+import { Modal } from '@/components/ui';
+import { UnifiedNavBar } from '@/components/layout';
+import { useNavigate } from 'react-router-dom';
+import { useFeatureFlags } from '@/contexts';
 import { FeedbackButton } from '@/components/feedback';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthStore();
-  const { resolvedTheme, toggleTheme } = useThemeStore();
-  const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy, initializeProxy } = useProxyStore();
-  const appInfo = useAppInfo();
+  const { isAuthenticated, user } = useAuthStore();
+  const { initializeProxy } = useProxyStore();
   const { enableRegistration } = useFeatureFlags();
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+
+  // 计算是否为管理员
+  const isAdmin = isAuthenticated && user != null && (user.role === 'admin' || user.role === 'super_admin');
 
   useEffect(() => {
     initializeProxy();
@@ -83,14 +78,8 @@ export const HomePage: React.FC = () => {
     },
   ];
 
-  const getProxyButtonClass = () => {
-    if (isProxyEnabled) return 'proxy-toggle-btn enabled';
-    if (proxyStatus === 'error') return 'proxy-toggle-btn error';
-    return 'proxy-toggle-btn disabled';
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden pb-16 md:pb-0">
 
       {/* ── Ambient background orbs ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -99,95 +88,18 @@ export const HomePage: React.FC = () => {
         <div className="absolute bottom-0 left-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/6 dark:bg-cyan-500/4 blur-[120px]" />
       </div>
 
-      {/* ── Navigation ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
-
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="relative w-9 h-9 sm:w-10 sm:h-10">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 opacity-0 group-hover:opacity-20 blur-lg transition-all duration-300" />
-                <div className="relative w-full h-full rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg">
-                  <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-              </div>
-              <span className="text-lg sm:text-xl font-bold gradient-text display-font">
-                {appInfo.NAME}
-              </span>
-            </Link>
-
-            {/* Actions */}
-            <div className="flex items-center gap-0.5 sm:gap-1.5">
-              {/* Help button */}
-              <button
-                onClick={() => setIsHelpModalOpen(true)}
-                className="help-btn"
-                title="使用说明"
-              >
-                <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-
-              {/* Proxy toggle */}
-              <button
-                onClick={toggleProxy}
-                disabled={isProxyLoading}
-                className={getProxyButtonClass()}
-                title={isProxyEnabled ? '代理已启用 - 点击关闭' : '代理已关闭 - 点击启用'}
-              >
-                {isProxyLoading ? (
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                ) : isProxyEnabled ? (
-                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                ) : proxyStatus === 'error' ? (
-                  <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
-                ) : (
-                  <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
-                )}
-              </button>
-
-              {/* GitHub link */}
-              <a
-                href="https://github.com/Zoroaaa/codeseek"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="github-link-btn"
-                title="访问GitHub仓库"
-              >
-                <Github className="w-4 h-4 sm:w-5 sm:h-5" />
-              </a>
-
-              {/* Theme toggle */}
-              <button onClick={toggleTheme} className="theme-toggle-btn">
-                {resolvedTheme === 'dark'
-                  ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
-                  : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
-              </button>
-
-              {/* CTA Buttons */}
-              {isAuthenticated ? (
-                <Button variant="primary" size="sm" onClick={() => navigate('/main')} className="ml-1 sm:ml-1.5">
-                  进入主页
-                </Button>
-              ) : (
-                <>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/login')} className="ml-0.5 sm:ml-1 px-2 sm:px-3">
-                    登录
-                  </Button>
-                  {enableRegistration && (
-                    <Button variant="primary" size="sm" onClick={() => navigate('/register')} className="ml-0.5 sm:ml-1.5 px-2 sm:px-3">
-                      注册
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* ── Navigation - 使用统一导航栏 ── */}
+      <UnifiedNavBar
+        activeTab="jav"
+        onTabChange={(tab) => navigate(`/main?tab=${tab}`)}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        isAdmin={isAdmin}
+        communityEnabled={enableRegistration}
+      />
 
       {/* ── Hero Section ── */}
-      <section className="relative pt-28 sm:pt-32 lg:pt-36 pb-16 sm:pb-20 lg:pb-24 px-4 sm:px-6 lg:px-8">
+      <section className="relative pt-24 sm:pt-28 lg:pt-32 pb-16 sm:pb-20 lg:pb-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto text-center">
 
           {/* Badge */}

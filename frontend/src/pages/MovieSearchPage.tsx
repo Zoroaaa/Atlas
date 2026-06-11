@@ -1,3 +1,9 @@
+/**
+ * @deprecated 此页面已整合到 MainSearchPage 的「影视搜索」Tab 中
+ * 请使用 /main?tab=movie 访问
+ * @see MainSearchPage
+ * @date 2026-06-11
+ */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Moon, Sun, ArrowLeft, ExternalLink, Copy, Star,

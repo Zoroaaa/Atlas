@@ -54,7 +54,6 @@ export const CategoryManager: React.FC = () => {
     description: '',
     icon: '',
     color: '#3B82F6',
-    requiresKeyword: true,
   });
   
   const [categoryForm, setCategoryForm] = useState<CreateCategoryRequest>({
@@ -120,7 +119,6 @@ export const CategoryManager: React.FC = () => {
           description: '',
           icon: '',
           color: '#3B82F6',
-          requiresKeyword: true,
         });
         loadData(true);
       }
@@ -141,7 +139,6 @@ export const CategoryManager: React.FC = () => {
         description: majorCategoryForm.description,
         icon: majorCategoryForm.icon,
         color: majorCategoryForm.color,
-        requiresKeyword: majorCategoryForm.requiresKeyword,
       };
       
       await sourceApi.updateMajorCategory(majorCategoryModal.data.id, updateData);
@@ -243,23 +240,19 @@ export const CategoryManager: React.FC = () => {
       description: majorCategory.description || '',
       icon: majorCategory.icon || '',
       color: majorCategory.color || '#3B82F6',
-      requiresKeyword: majorCategory.requiresKeyword,
     });
     setMajorCategoryModal({ isOpen: true, mode: 'edit', data: majorCategory });
   };
 
   const openCreateCategoryModal = (majorCategoryId: string) => {
-    const majorCategory = majorCategories.find(mc => mc.id === majorCategoryId);
-    const isSearchCategory = majorCategory?.requiresKeyword ?? true;
-    
     setCategoryForm({
       majorCategoryId,
       name: '',
       description: '',
       icon: '',
       color: '#3B82F6',
-      defaultSearchable: isSearchCategory,
-      defaultSiteType: isSearchCategory ? 'search' : 'browse',
+      defaultSearchable: true,
+      defaultSiteType: 'search',
       searchPriority: 0,
     });
     setCategoryModal({ isOpen: true, mode: 'create', data: null, majorCategoryId });
@@ -321,7 +314,6 @@ export const CategoryManager: React.FC = () => {
               description: '',
               icon: '',
               color: '#3B82F6',
-              requiresKeyword: true,
             });
             setMajorCategoryModal({ isOpen: true, mode: 'create', data: null });
           }}
@@ -373,13 +365,6 @@ export const CategoryManager: React.FC = () => {
                   </div>
                 </div>
                 <div className="shrink-0 flex items-center gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
-                  {/* Keyword badge — hide text on mobile */}
-                  <Badge variant={majorCategory.requiresKeyword ? 'primary' : 'default'} className="hidden sm:inline-flex">
-                    {majorCategory.requiresKeyword ? '需要关键词' : '无需关键词'}
-                  </Badge>
-                  <Badge variant={majorCategory.requiresKeyword ? 'primary' : 'default'} className="sm:hidden text-xs px-1.5 py-0.5">
-                    {majorCategory.requiresKeyword ? '搜索型' : '浏览型'}
-                  </Badge>
                   {majorCategory.isSystem && (
                     <Badge variant="accent" className="hidden sm:flex items-center gap-1">
                       <Shield className="w-3 h-3" />
@@ -439,15 +424,9 @@ export const CategoryManager: React.FC = () => {
                             </div>
                             {/* Badges on mobile go below name */}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              {majorCategory.requiresKeyword ? (
-                                <Badge variant={category.defaultSearchable ? 'success' : 'default'} className="text-xs">
-                                  {category.defaultSearchable ? '可搜索' : '不可搜索'}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs bg-surface-100 dark:bg-surface-700">
-                                  不参与搜索
-                                </Badge>
-                              )}
+                              <Badge variant={category.defaultSearchable ? 'success' : 'default'} className="text-xs">
+                                {category.defaultSearchable ? '可搜索' : '不可搜索'}
+                              </Badge>
                               <Badge variant="outline" className="text-xs">
                                 {category.defaultSiteType === 'search' ? '搜索' : 
                                  category.defaultSiteType === 'browse' ? '浏览' : '参考'}
@@ -576,16 +555,6 @@ export const CategoryManager: React.FC = () => {
             </div>
           </div>
           
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={majorCategoryForm.requiresKeyword}
-              onChange={(e) => setMajorCategoryForm({ ...majorCategoryForm, requiresKeyword: e.target.checked })}
-              className="rounded border-surface-300 dark:border-surface-600"
-            />
-            <span className="text-sm text-surface-700 dark:text-surface-300">需要关键词才能搜索</span>
-          </label>
-          
           <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
@@ -610,9 +579,6 @@ export const CategoryManager: React.FC = () => {
         size="md"
       >
         {(() => {
-          const currentMajorCategory = majorCategories.find(mc => mc.id === categoryModal.majorCategoryId);
-          const isSearchCategory = currentMajorCategory?.requiresKeyword ?? true;
-          
           return (
         <div className="space-y-4">
           <Input
@@ -681,21 +647,15 @@ export const CategoryManager: React.FC = () => {
             />
           </div>
           
-          {isSearchCategory ? (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={categoryForm.defaultSearchable}
-                onChange={(e) => setCategoryForm({ ...categoryForm, defaultSearchable: e.target.checked })}
-                className="rounded border-surface-300 dark:border-surface-600"
-              />
-              <span className="text-sm text-surface-700 dark:text-surface-300">默认可搜索</span>
-            </label>
-          ) : (
-            <div className="p-3 rounded-lg bg-surface-100 dark:bg-surface-800 text-sm text-surface-500 dark:text-surface-400">
-              <span className="font-medium">提示：</span>该大类为浏览型（无需关键词），分类下的搜索源不参与搜索
-            </div>
-          )}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={categoryForm.defaultSearchable}
+              onChange={(e) => setCategoryForm({ ...categoryForm, defaultSearchable: e.target.checked })}
+              className="rounded border-surface-300 dark:border-surface-600"
+            />
+            <span className="text-sm text-surface-700 dark:text-surface-300">默认可搜索 *</span>
+          </label>
           
           <div className="flex justify-end gap-3 pt-4">
             <Button

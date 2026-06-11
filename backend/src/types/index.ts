@@ -132,7 +132,6 @@ export interface MajorCategory {
   description: string;
   icon: string | null;
   color: string;
-  requires_keyword: number;
   display_order: number;
   is_system: number;
   is_active: number;
@@ -169,7 +168,6 @@ export interface SearchSource {
   homepage_url: string | null;
   site_type: string;
   searchable: number;
-  requires_keyword: number;
   search_priority: number;
   is_system: number;
   is_active: number;

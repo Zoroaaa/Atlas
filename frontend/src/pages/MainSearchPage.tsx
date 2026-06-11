@@ -1,23 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
-  Moon,
-  Sun,
-  LogOut,
-  Shield,
-  ShieldCheck,
-  ShieldAlert,
   Loader2,
   Filter,
-  LayoutDashboard,
-  Globe,
-  Film,
-  Tv2,
 } from 'lucide-react';
-import { useSearchStore, useSourceStore, useAuthStore, useThemeStore, useProxyStore } from '@/stores';
+import { useSearchStore, useSourceStore, useAuthStore, useProxyStore } from '@/stores';
 import { searchApi, sourceApi, userApi, analyticsApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFeatureFlags } from '@/contexts';
 import type {
   SearchResult,
@@ -30,10 +20,13 @@ import type {
   JavDetail,
 } from '@/types';
 
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesPanel, QuickActionsPanel } from '@/components/search';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
+import { UnifiedNavBar } from '@/components/layout';
 import { useJavDetail } from '@/hooks';
 import { FeedbackButton } from '@/components/feedback';
+import { SEARCH_TABS } from '@/config/tabs';
+import type { SearchTabType } from '@/types/source';
 
 interface SearchResultItem extends SearchResult {
   subtitle?: string;
@@ -68,32 +61,66 @@ const getSiteTypeLabel = (siteType?: string) => {
   return map[siteType || 'search'] || '搜索';
 };
 
-const getProxyButtonClass = (isEnabled: boolean, status: string) => {
-  if (isEnabled) return 'proxy-toggle-btn enabled';
-  if (status === 'error') return 'proxy-toggle-btn error';
-  return 'proxy-toggle-btn disabled';
-};
-
 export const MainSearchPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const { resolvedTheme, toggleTheme } = useThemeStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isAuthenticated } = useAuthStore();
   const { keyword, setKeyword, setResults, isSearching, setSearching } = useSearchStore();
-  const { majorCategories, setMajorCategories, categories, setCategories } = useSourceStore();
+  const { majorCategories, setMajorCategories, categories, setCategories, activeTab, setActiveTab } = useSourceStore();
   const {
     isEnabled: isProxyEnabled,
-    status: proxyStatus,
-    isLoading: isProxyLoading,
-    toggleProxy,
     initializeProxy,
   } = useProxyStore();
   const { communityEnabled } = useFeatureFlags();
 
+  // 从 URL 参数初始化 Tab 状态
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['jav', 'anime', 'movie', 'sources'].includes(tabParam)) {
+      setActiveTab(tabParam as SearchTabType);
+    }
+  }, []);
+
+  // Tab 切换处理函数（包含 URL 同步和分类联动）
+  const handleTabChange = useCallback((tab: SearchTabType) => {
+    setActiveTab(tab);
+    setSearchParams({ tab }, { replace: true });
+    
+    // 根据选中的 Tab 更新 UI 上下文
+    switch (tab) {
+      case 'jav':
+        setSelectedCategory(null);
+        break;
+      case 'anime': {
+        const animeMC = majorCategories.find(mc => mc.id === 'anime_sources');
+        if (animeMC) {
+          const defaultCat = categories.find(c =>
+            c.majorCategoryId === animeMC.id && c.defaultSearchable
+          );
+          setSelectedCategory(defaultCat?.id || null);
+        }
+        break;
+      }
+      case 'movie': {
+        const movieMC = majorCategories.find(mc => mc.id === 'movie_sources');
+        if (movieMC) {
+          const defaultCat = categories.find(c =>
+            c.majorCategoryId === movieMC.id && c.defaultSearchable
+          );
+          setSelectedCategory(defaultCat?.id || null);
+        }
+        break;
+      }
+      case 'sources':
+        setSelectedCategory(null);
+        break;
+    }
+  }, [setActiveTab, setSearchParams, majorCategories, categories]);
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(true);
   const [showFavorites, setShowFavorites] = useState(true);
-  const [showSources, setShowSources] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
     typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
   );
@@ -105,7 +132,6 @@ export const MainSearchPage: React.FC = () => {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
   // JAV 磁力提取
   const { detail: javDetail, status: javDetailStatus, fetch: fetchJavDetail, reset: resetJavDetail } = useJavDetail();
@@ -162,11 +188,8 @@ export const MainSearchPage: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    if (hasSearched && keyword.trim()) {
-      handleSearch();
-    }
-  }, [selectedCategory]);
+  // 注意：不在 selectedCategory 变化时自动搜索，避免 Tab 切换等场景下触发意外搜索
+  // 用户需要手动点击搜索按钮或按 Enter 键来执行搜索
 
   // JAV详情提取成功后自动更新搜索历史
   useEffect(() => {
@@ -258,7 +281,6 @@ export const MainSearchPage: React.FC = () => {
       eventData: { keyword: query.trim() },
     }).catch(() => {});
     setSearching(true);
-    setHasSearched(true);
     try {
       const response = await searchApi.search({
         keyword: query.trim(),
@@ -479,7 +501,9 @@ export const MainSearchPage: React.FC = () => {
   }, [favorites]);
   const searchableCategories = categories.filter(cat => {
     const mc = majorCategories.find(mc => mc.id === cat.majorCategoryId);
-    return mc?.requiresKeyword === true;
+    // 双重门控：属于当前Tab对应的大类 AND 分类本身标记为可搜索
+    const isInCurrentMajorCategory = mc?.id === SEARCH_TABS[activeTab].majorCategoryId;
+    return isInCurrentMajorCategory && cat.defaultSearchable === true;
   });
 
   const handleCodeClick = (code: string) => {
@@ -488,102 +512,17 @@ export const MainSearchPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen page-bg">
+    <div className="min-h-screen page-bg pb-16 md:pb-0">
 
-      <header className="mobile-header">
-        <div className="max-w-7xl mx-auto">
-          <div className="mobile-header-inner">
-            <a href={window.location.pathname} className="flex items-center gap-2 group cursor-pointer" title="刷新页面">
-              <img
-                src="/logo.png"
-                alt="磁力快搜"
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-lg shadow-primary-500/20 group-hover:shadow-primary-500/40 transition-all object-cover"
-              />
-              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent hidden xs:block tracking-tight">
-                磁力快搜
-              </span>
-            </a>
-
-            <nav className="hidden md:flex items-center gap-1">
-              <Link to="/main" className="px-3.5 py-2 text-sm font-semibold rounded-xl text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 transition-all flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5" />搜索
-              </Link>
-              <Link to="/dashboard" className="px-3.5 py-2 text-sm font-medium rounded-xl text-surface-500 dark:text-surface-400 hover:text-surface-800 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all flex items-center gap-1.5">
-                <LayoutDashboard className="w-3.5 h-3.5" />控制台
-              </Link>
-              {communityEnabled && (
-                <Link to="/community" className="px-3.5 py-2 text-sm font-medium rounded-xl text-surface-500 dark:text-surface-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5" />社区
-                </Link>
-              )}
-              {isAdmin && (
-                <Link to="/admin-panel" className="px-3.5 py-2 text-sm font-medium rounded-xl text-surface-500 dark:text-surface-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5" />管理
-                </Link>
-              )}
-            </nav>
-
-            <div className="mobile-header-actions">
-              {isAuthenticated && (
-                <button
-                  onClick={toggleProxy}
-                  disabled={isProxyLoading}
-                  className={getProxyButtonClass(isProxyEnabled, proxyStatus)}
-                  title={isProxyEnabled ? '代理已启用 - 点击关闭' : '代理已关闭 - 点击启用'}
-                >
-                  {isProxyLoading
-                    ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                    : isProxyEnabled
-                      ? <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                      : proxyStatus === 'error'
-                        ? <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
-                        : <Shield className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
-              )}
-
-              <button onClick={toggleTheme} className="theme-toggle-btn">
-                {resolvedTheme === 'dark' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
-              </button>
-
-              <Link to="/dashboard" className="mobile-header-btn md:hidden" title="控制台">
-                <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Link>
-
-              {communityEnabled && (
-                <Link to="/community" className="mobile-header-btn md:hidden" title="社区">
-                  <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
-                </Link>
-              )}
-
-              {isAdmin && (
-                <Link to="/admin-panel" className="mobile-header-btn md:hidden text-red-500 hover:text-red-600" title="管理后台">
-                  <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
-                </Link>
-              )}
-
-              {isAuthenticated ? (
-                <>
-                  <div className="mobile-user-info">
-                    <div className="mobile-user-avatar">
-                      {user?.username?.[0]?.toUpperCase() || 'U'}
-                    </div>
-                    <span className="text-sm font-medium text-surface-700 dark:text-surface-300 max-w-[80px] truncate">
-                      {user?.username}
-                    </span>
-                  </div>
-                  <button onClick={() => { logout(); navigate('/'); }} className="mobile-logout-btn" title="退出登录">
-                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </>
-              ) : (
-                <Link to="/login" className="ml-2 px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-medium rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:from-primary-600 hover:to-accent-600 shadow-lg shadow-primary-500/25 transition-all">
-                  登录
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* 新的统一导航栏 */}
+      <UnifiedNavBar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        isAdmin={isAdmin}
+        communityEnabled={communityEnabled}
+      />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
 
@@ -593,9 +532,11 @@ export const MainSearchPage: React.FC = () => {
               {isAuthenticated ? user?.username : '访客'}
             </span> 👋
           </h1>
-          <p className="text-xs sm:text-sm text-caption mt-0.5">搜索全网资源，一步直达</p>
+          <p className="text-xs sm:text-sm text-caption mt-0.5">{SEARCH_TABS[activeTab].description}</p>
         </div>
 
+        {/* 搜索框区域：仅在搜索类 Tab 显示（sources Tab 不需要） */}
+        {activeTab !== 'sources' && (
         <div className="bg-white dark:bg-surface-900/80 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 p-3 sm:p-5 mb-4 sm:mb-6 backdrop-blur-sm animate-slide-up relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-accent-500 to-cyan-500"></div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 relative z-10">
@@ -605,7 +546,7 @@ export const MainSearchPage: React.FC = () => {
               </div>
               <input
                 type="text"
-                placeholder="输入番号、关键词搜索资源..."
+                placeholder={SEARCH_TABS[activeTab].placeholder}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -637,75 +578,69 @@ export const MainSearchPage: React.FC = () => {
                 >
                   全部
                 </button>
-                {searchableCategories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`category-filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                  >
-                    {category.icon && <span className="mr-1">{category.icon}</span>}
-                    {category.name}
-                  </button>
-                ))}
-          </div>
+                {searchableCategories
+                  .filter(cat => {
+                    const mc = majorCategories.find(mc => mc.id === cat.majorCategoryId);
+                    return mc?.id === SEARCH_TABS[activeTab].majorCategoryId;
+                  })
+                  .map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.id)}
+                      className={`category-filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
+                    >
+                      {category.icon && <span className="mr-1">{category.icon}</span>}
+                      {category.name}
+                    </button>
+                  ))}
+              </div>
             </div>
           )}
-
-          {/* 专题搜索入口 */}
-          <div className="flex gap-2 sm:gap-3 mt-3">
-            <button
-              onClick={() => navigate('/anime')}
-              className="flex-1 flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium
-                         bg-violet-50 dark:bg-violet-900/15 text-violet-700 dark:text-violet-300
-                         border border-violet-200/60 dark:border-violet-800/40
-                         hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:border-violet-300 dark:hover:border-violet-700/60
-                         transition-all active:scale-[0.98]"
-            >
-              <Film className="w-4 h-4 sm:w-5 sm:h-5 text-violet-500 dark:text-violet-400" />
-              <span>动漫搜索</span>
-              <span className="text-[10px] xs:text-xs text-violet-400/70 dark:text-violet-500/50 ml-auto hidden sm:inline">Bangumi + Nyaa + Mikan</span>
-            </button>
-            <button
-              onClick={() => navigate('/movie')}
-              className="flex-1 flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium
-                         bg-blue-50 dark:bg-blue-900/15 text-blue-700 dark:text-blue-300
-                         border border-blue-200/60 dark:border-blue-800/40
-                         hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700/60
-                         transition-all active:scale-[0.98]"
-            >
-              <Tv2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 dark:text-blue-400" />
-              <span>影视搜索</span>
-              <span className="text-[10px] xs:text-xs text-blue-400/70 dark:text-blue-500/50 ml-auto hidden sm:inline">TMDB + 磁力资源</span>
-            </button>
-          </div>
         </div>
+        )}
 
-        <JavDetailPanel
-          detail={javDetail}
-          status={javDetailStatus}
-          onClose={resetJavDetail}
-          onFavorite={handleFavoriteJavDetail}
-          isFavorited={javDetail ? favoritedCodes.has(javDetail.code) : false}
-        />
+        {/* 根据 Tab 渲染不同内容 */}
+        {activeTab === 'sources' ? (
+          /* 搜索源访问：仅显示搜索源管理面板（全宽） */
+          <SourcesSidebar
+            show={true}
+            layoutMode="panel"
+            collapsible={false}
+            defaultExpanded={true}
+            allSources={allSources}
+            majorCategoriesWithCategories={getMajorCategoriesWithCategories()}
+            expandedMajorCategories={expandedMajorCategories}
+            expandedCategories={expandedCategories}
+            batchCheckResults={batchCheckResults}
+            isBatchChecking={isBatchChecking}
+            isProxyEnabled={isProxyEnabled}
+            onToggle={() => {}}
+            onToggleMajorCategory={toggleMajorCategory}
+            onToggleCategory={toggleCategory}
+            onBatchCheck={handleBatchCheckSources}
+            onCheckSingle={handleCheckSingleSource}
+            getSiteTypeBadge={getSiteTypeBadge}
+            getSiteTypeLabel={getSiteTypeLabel}
+          />
+        ) : (
+        /* 搜索类 Tab（JAV/动漫/影视）：恢复原来三栏布局，不含源面板 */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        <SearchResultsPanel
-          results={searchResults}
-          viewMode={viewMode}
-          isAuthenticated={isAuthenticated}
-          isProxyEnabled={isProxyEnabled}
-          favorites={favorites}
-          categories={categories}
-          majorCategories={majorCategories}
-          onViewModeChange={setViewMode}
-          onClose={() => { setSearchResults([]); resetJavDetail(); }}
-          onToggleFavorite={handleToggleFavorite}
-        />
+          {/* 左列：JAV详情 + 排行榜 + 历史 */}
+          <div className="flex flex-col gap-4">
+            {activeTab === 'jav' && (
+              <JavDetailPanel
+                detail={javDetail}
+                status={javDetailStatus}
+                onClose={resetJavDetail}
+                onFavorite={handleFavoriteJavDetail}
+                isFavorited={javDetail ? favoritedCodes.has(javDetail.code) : false}
+              />
+            )}
 
-        {/* 主内容区：左侧JAV+历史 / 右侧收藏，右列高度精确跟随左列 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-
-          <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
-            <JavRankingsPanel onCodeClick={handleCodeClick} />
+            {activeTab === 'jav' && (
+              <JavRankingsPanel onCodeClick={handleCodeClick} />
+            )}
 
             {isAuthenticated && (
               <SearchHistoryPanel
@@ -719,9 +654,23 @@ export const MainSearchPage: React.FC = () => {
             )}
           </div>
 
-          {/* 右列：高度由 FavoritesPanel 内部常量决定，自动与左列对齐 */}
-          {isAuthenticated && (
-            <div className="hidden lg:block self-start">
+          {/* 中列：搜索结果 */}
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            <SearchResultsPanel
+              results={searchResults}
+              viewMode={viewMode}
+              isAuthenticated={isAuthenticated}
+              isProxyEnabled={isProxyEnabled}
+              favorites={favorites}
+              categories={categories}
+              majorCategories={majorCategories}
+              onViewModeChange={setViewMode}
+              onClose={() => { setSearchResults([]); resetJavDetail(); }}
+              onToggleFavorite={handleToggleFavorite}
+            />
+
+            {/* 收藏面板 */}
+            {isAuthenticated && (
               <FavoritesPanel
                 favorites={favorites}
                 isLoading={isLoadingFavorites}
@@ -732,48 +681,11 @@ export const MainSearchPage: React.FC = () => {
                 onExport={handleExportFavorites}
                 onUpdate={loadFavorites}
               />
-            </div>
-          )}
-
-        </div>
-
-        {/* 移动端：我的收藏 */}
-        {isAuthenticated && (
-          <div className="lg:hidden mt-3 sm:mt-4">
-            <FavoritesPanel
-              favorites={favorites}
-              isLoading={isLoadingFavorites}
-              show={showFavorites}
-              isProxyEnabled={isProxyEnabled}
-              onToggle={() => setShowFavorites(!showFavorites)}
-              onRemove={handleRemoveFavorite}
-              onExport={handleExportFavorites}
-              onUpdate={loadFavorites}
-            />
+            )}
           </div>
-        )}
 
-        <div className="mt-3 sm:mt-4 space-y-3 sm:space-y-4">
-          <SourcesPanel
-            show={showSources}
-            allSources={allSources}
-            majorCategoriesWithCategories={getMajorCategoriesWithCategories()}
-            expandedMajorCategories={expandedMajorCategories}
-            expandedCategories={expandedCategories}
-            batchCheckResults={batchCheckResults}
-            isBatchChecking={isBatchChecking}
-            isProxyEnabled={isProxyEnabled}
-            onToggle={() => setShowSources(!showSources)}
-            onToggleMajorCategory={toggleMajorCategory}
-            onToggleCategory={toggleCategory}
-            onBatchCheck={handleBatchCheckSources}
-            onCheckSingle={handleCheckSingleSource}
-            getSiteTypeBadge={getSiteTypeBadge}
-            getSiteTypeLabel={getSiteTypeLabel}
-          />
-
-          <QuickActionsPanel isAdmin={isAdmin} communityEnabled={communityEnabled} layout="horizontal" />
         </div>
+        )}
       </div>
 
       {/* 悬浮反馈按钮 */}

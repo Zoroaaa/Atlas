@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS search_major_categories (
     description TEXT,                           -- 大类描述
     icon TEXT DEFAULT '🌟',                     -- 大类图标
     color TEXT DEFAULT '#6b7280',               -- 大类颜色
-    requires_keyword INTEGER DEFAULT 1,         -- 是否需要关键词(1:需要 0:不需要)
     display_order INTEGER DEFAULT 999,          -- 显示顺序
     is_system INTEGER DEFAULT 0,                -- 是否系统大类(1:系统 0:自定义)
     is_active INTEGER DEFAULT 1,                -- 是否激活(1:激活 0:禁用)
@@ -60,9 +59,8 @@ CREATE TABLE IF NOT EXISTS search_sources (
     icon TEXT DEFAULT '🔍',                     -- 搜索源图标
     url_template TEXT NOT NULL,                 -- URL模板
     homepage_url TEXT,                          -- 主页URL
-    site_type TEXT DEFAULT 'search',            -- 网站类型(search/browse/reference)
-    searchable INTEGER DEFAULT 1,               -- 是否参与搜索(1:参与 0:不参与)
-    requires_keyword INTEGER DEFAULT 1,         -- 是否需要关键词(1:需要 0:不需要)
+    site_type TEXT DEFAULT 'search',            -- 网站类型(跟随分类的default_site_type，不可独立修改)
+    searchable INTEGER DEFAULT 1,               -- 是否参与搜索(1:参与 0:不参与)，需与分类default_searchable同时为1才生效
     search_priority INTEGER DEFAULT 5,          -- 搜索优先级(1-10)
     is_system INTEGER DEFAULT 0,                -- 是否系统搜索源(1:系统 0:自定义)
     is_active INTEGER DEFAULT 1,                -- 是否激活(1:激活 0:禁用)

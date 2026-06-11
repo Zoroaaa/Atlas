@@ -456,7 +456,7 @@ sourceRoutes.post('/major-categories', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { name, description, icon, color, requiresKeyword } = body;
+    const { name, description, icon, color } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return c.json(error('VALIDATION_ERROR', '大类名称不能为空'), 400);
@@ -479,16 +479,15 @@ sourceRoutes.post('/major-categories', async (c) => {
 
     await c.env.DB.prepare(`
       INSERT INTO search_major_categories (
-        id, name, description, icon, color, requires_keyword, 
-        is_system, is_active, display_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, 1, 0, ?, ?)
+        id, name, description, icon, color,
+      is_system, is_active, display_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 0, 1, 0, ?, ?)
     `).bind(
       categoryId,
       name.trim(),
       description?.trim() || '',
       icon?.trim() || '🌟',
       color?.trim() || '#6b7280',
-      requiresKeyword !== false ? 1 : 0,
       now,
       now
     ).run();
@@ -499,7 +498,6 @@ sourceRoutes.post('/major-categories', async (c) => {
       description: description?.trim() || '',
       icon: icon?.trim() || '🌟',
       color: color?.trim() || '#6b7280',
-      requiresKeyword: requiresKeyword !== false,
       isSystem: false,
     }, '大类创建成功'));
   } catch (err) {
@@ -696,9 +694,7 @@ sourceRoutes.post('/', async (c) => {
       icon,
       urlTemplate,
       homepageUrl,
-      siteType,
       searchable,
-      requiresKeyword,
       searchPriority
     } = body;
 
@@ -719,8 +715,8 @@ sourceRoutes.post('/', async (c) => {
     }
 
     const category = await c.env.DB.prepare(
-      'SELECT id FROM search_source_categories WHERE id = ? AND is_active = 1'
-    ).bind(categoryId).first();
+      'SELECT id, default_site_type FROM search_source_categories WHERE id = ? AND is_active = 1'
+    ).bind(categoryId).first<{ id: string; default_site_type: string }>();
 
     if (!category) {
       return c.json(error('NOT_FOUND', '分类不存在'), 404);
@@ -732,9 +728,9 @@ sourceRoutes.post('/', async (c) => {
     await c.env.DB.prepare(`
       INSERT INTO search_sources (
         id, category_id, name, subtitle, description, icon, url_template,
-        homepage_url, site_type, searchable, requires_keyword, search_priority,
+        homepage_url, site_type, searchable, search_priority,
         is_system, is_active, display_order, usage_count, created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 999, 0, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 999, 0, ?, ?, ?)
     `).bind(
       sourceId,
       categoryId.trim(),
@@ -744,9 +740,8 @@ sourceRoutes.post('/', async (c) => {
       icon?.trim() || '🔍',
       urlTemplate.trim(),
       homepageUrl?.trim() || null,
-      siteType || 'search',
+      category.default_site_type || 'search',
       searchable !== false ? 1 : 0,
-      requiresKeyword !== false ? 1 : 0,
       Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
       user.userId,
       now,
@@ -762,9 +757,8 @@ sourceRoutes.post('/', async (c) => {
       icon: icon?.trim() || '🔍',
       urlTemplate: urlTemplate.trim(),
       homepageUrl: homepageUrl?.trim() || null,
-      siteType: siteType || 'search',
+      siteType: category.default_site_type || 'search',
       searchable: searchable !== false,
-      requiresKeyword: requiresKeyword !== false,
       searchPriority: Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
     }, '搜索源创建成功'));
   } catch (err) {
@@ -832,11 +826,6 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
       params.push(body.color);
     }
 
-    if (body.requiresKeyword !== undefined) {
-      updates.push('requires_keyword = ?');
-      params.push(body.requiresKeyword ? 1 : 0);
-    }
-
     if (body.displayOrder !== undefined) {
       updates.push('display_order = ?');
       params.push(Math.max(0, parseInt(body.displayOrder) || 0));
@@ -861,8 +850,8 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
 
     return c.json(success({
       categoryId,
-      updatedFields: Object.keys(body).filter(key => 
-        ['name', 'description', 'icon', 'color', 'requiresKeyword', 'displayOrder', 'isActive'].includes(key)
+      updatedFields: Object.keys(body).filter(key =>
+        ['name', 'description', 'icon', 'color', 'displayOrder', 'isActive'].includes(key)
       )
     }, '大类更新成功'));
   } catch (err) {
@@ -955,16 +944,14 @@ sourceRoutes.put('/:id', async (c) => {
 
     const allowedFields = [
       'categoryId', 'name', 'subtitle', 'description', 'icon',
-      'urlTemplate', 'homepageUrl', 'siteType', 'searchable',
-      'requiresKeyword', 'searchPriority'
+      'urlTemplate', 'homepageUrl', 'searchable',
+      'searchPriority'
     ];
 
     const fieldMapping: Record<string, string> = {
       categoryId: 'category_id',
       urlTemplate: 'url_template',
       homepageUrl: 'homepage_url',
-      siteType: 'site_type',
-      requiresKeyword: 'requires_keyword',
       searchPriority: 'search_priority'
     };
 
@@ -974,7 +961,7 @@ sourceRoutes.put('/:id', async (c) => {
         if (field === 'searchPriority') {
           updates.push(`${dbField} = ?`);
           params.push(Math.min(Math.max(parseInt(body[field]) || 5, 1), 10));
-        } else if (field === 'searchable' || field === 'requiresKeyword') {
+        } else if (field === 'searchable') {
           updates.push(`${dbField} = ?`);
           params.push(body[field] ? 1 : 0);
         } else if (typeof body[field] === 'string') {

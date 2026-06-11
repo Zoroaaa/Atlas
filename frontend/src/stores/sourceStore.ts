@@ -2,6 +2,19 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { MajorCategory, Category, SearchSource, UserSourceConfig, SourceCheckResult } from '@/types';
 
+// Tab 类型与 MajorCategory 的映射关系
+const getMajorCategoryIdByTab = (tab: string): string | null => {
+  const mapping: Record<string, string | null> = {
+    jav: 'jav_sources',
+    anime: 'anime_sources',
+    movie: 'movie_sources',
+    sources: null,
+  };
+  return mapping[tab] ?? null;
+};
+
+export type SearchTabType = 'jav' | 'anime' | 'movie' | 'sources';
+
 interface SourceState {
   majorCategories: MajorCategory[];
   categories: Category[];
@@ -10,6 +23,7 @@ interface SourceState {
   selectedMajorCategory: string | null;
   selectedCategory: string | null;
   selectedSources: string[];
+  activeTab: SearchTabType;
   checkResults: Map<string, SourceCheckResult>;
   isLoading: boolean;
   
@@ -20,6 +34,7 @@ interface SourceState {
   setSelectedMajorCategory: (id: string | null) => void;
   setSelectedCategory: (id: string | null) => void;
   setSelectedSources: (ids: string[]) => void;
+  setActiveTab: (tab: SearchTabType) => void;
   toggleSourceSelection: (id: string) => void;
   selectAllSources: () => void;
   clearSourceSelection: () => void;
@@ -47,6 +62,7 @@ export const useSourceStore = create<SourceState>()(
       selectedMajorCategory: null,
       selectedCategory: null,
       selectedSources: [],
+      activeTab: 'jav',
       checkResults: new Map(),
       isLoading: false,
       
@@ -64,6 +80,14 @@ export const useSourceStore = create<SourceState>()(
         selectedSources: []
       }),
       setSelectedSources: (selectedSources) => set({ selectedSources }),
+      
+      setActiveTab: (activeTab) => set({ 
+        activeTab,
+        // 切换Tab时自动更新selectedMajorCategory，并清空子级选择
+        selectedMajorCategory: getMajorCategoryIdByTab(activeTab),
+        selectedCategory: null,
+        selectedSources: []
+      }),
       
       toggleSourceSelection: (id) => set((state) => ({
         selectedSources: state.selectedSources.includes(id)
@@ -145,6 +169,7 @@ export const useSourceStore = create<SourceState>()(
         selectedMajorCategory: state.selectedMajorCategory,
         selectedCategory: state.selectedCategory,
         selectedSources: state.selectedSources,
+        activeTab: state.activeTab,
       }),
     }
   )

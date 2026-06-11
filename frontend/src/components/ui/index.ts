@@ -11,5 +11,8 @@ export { Badge } from './Badge';
 export { Tabs, TabPanel } from './Tabs';
 export { EmptyState } from './EmptyState';
 export { Dropdown } from './Dropdown';
+export { DropdownMenu } from './DropdownMenu';
+export type { DropdownMenuProps, MenuItem } from './DropdownMenu';
+export { userMenuItems, adminMenuItems, communityMenuItems } from './DropdownMenu';
 export { SourceIcon } from './SourceIcon';
 export { ProxyImage } from './ImagePreview';

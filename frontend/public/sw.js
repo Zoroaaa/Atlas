@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.0.1';
+const CACHE_VERSION = 'v1.0.2';
 const STATIC_CACHE_NAME = `codeseek-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `codeseek-dynamic-${CACHE_VERSION}`;
 const API_CACHE_NAME = `codeseek-api-${CACHE_VERSION}`;

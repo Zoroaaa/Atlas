@@ -13,7 +13,6 @@ export interface SearchSource {
   categoryId: string;
   siteType: SiteType;
   searchable: boolean;
-  requiresKeyword: boolean;
   searchPriority: number;
   status: SourceStatus;
   isActive: boolean;
@@ -49,7 +48,6 @@ export interface MajorCategory {
   description?: string;
   icon?: string;
   color?: string;
-  requiresKeyword: boolean;
   isActive: boolean;
   isSystem?: boolean;
   displayOrder: number;

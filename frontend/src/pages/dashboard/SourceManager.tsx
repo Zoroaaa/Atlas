@@ -78,9 +78,7 @@ export const SourceManager: React.FC = () => {
     urlTemplate: '',
     homepageUrl: '',
     categoryId: '',
-    siteType: 'search',
     searchable: true,
-    requiresKeyword: true,
     searchPriority: 0,
   });
   
@@ -275,9 +273,7 @@ export const SourceManager: React.FC = () => {
           urlTemplate: '',
           homepageUrl: '',
           categoryId: '',
-          siteType: 'search',
           searchable: true,
-          requiresKeyword: true,
           searchPriority: 0,
         });
         loadData();
@@ -299,9 +295,7 @@ export const SourceManager: React.FC = () => {
         urlTemplate: formData.urlTemplate,
         homepageUrl: formData.homepageUrl,
         categoryId: formData.categoryId,
-        siteType: formData.siteType,
         searchable: formData.searchable,
-        requiresKeyword: formData.requiresKeyword,
         searchPriority: formData.searchPriority,
       };
       
@@ -635,7 +629,6 @@ export const SourceManager: React.FC = () => {
       <div className="space-y-4">
         {filteredMajorCategories.map((majorCategory) => {
           const isMajorExpanded = expandedMajorCategories.has(majorCategory.id);
-          const isSearchCategory = majorCategory.requiresKeyword;
           
           return (
             <Card key={majorCategory.id} className="overflow-hidden border-surface-200/50 dark:border-surface-700/50 shadow-lg">
@@ -669,34 +662,26 @@ export const SourceManager: React.FC = () => {
                   
                   {/* Controls: shrink-0 so they never wrap into the title */}
                   <div className="shrink-0 flex items-center gap-2">
-                    {isSearchCategory ? (
-                      <>
-                        <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-100 dark:bg-surface-700 text-xs text-surface-600 dark:text-surface-300 whitespace-nowrap">
-                          {majorCategory.enabledCount}/{majorCategory.totalCount}
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, true); }}
-                          className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
-                          title="启用全部"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, false); }}
-                          className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
-                          title="禁用全部"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                        <span className="sm:hidden text-xs text-surface-500">
-                          {majorCategory.enabledCount}/{majorCategory.totalCount}
-                        </span>
-                      </>
-                    ) : (
-                      <Badge variant="outline" className="text-xs bg-surface-100 dark:bg-surface-700 whitespace-nowrap">
-                        <span className="hidden sm:inline">浏览型 · </span>不参与搜索
-                      </Badge>
-                    )}
+                    <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-100 dark:bg-surface-700 text-xs text-surface-600 dark:text-surface-300 whitespace-nowrap">
+                      {majorCategory.enabledCount}/{majorCategory.totalCount}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, true); }}
+                      className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
+                      title="启用全部"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, false); }}
+                      className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
+                      title="禁用全部"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                    <span className="sm:hidden text-xs text-surface-500">
+                      {majorCategory.enabledCount}/{majorCategory.totalCount}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -734,34 +719,26 @@ export const SourceManager: React.FC = () => {
                             </div>
                           </div>
                           <div className="shrink-0 flex items-center gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
-                            {isSearchCategory ? (
-                              <>
-                                <span className="hidden sm:inline text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap">
-                                  {category.enabledCount}/{category.totalCount}
-                                </span>
-                                <button
-                                  onClick={() => handleToggleCategory(category.id, true)}
-                                  className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
-                                  title="启用全部"
-                                >
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleToggleCategory(category.id, false)}
-                                  className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
-                                  title="禁用全部"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </button>
-                                <span className="sm:hidden text-xs text-surface-500">
-                                  {category.enabledCount}/{category.totalCount}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-surface-400 dark:text-surface-500">
-                                不参与搜索
-                              </span>
-                            )}
+                            <span className="hidden sm:inline text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap">
+                              {category.enabledCount}/{category.totalCount}
+                            </span>
+                            <button
+                              onClick={() => handleToggleCategory(category.id, true)}
+                              className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
+                              title="启用全部"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleCategory(category.id, false)}
+                              className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
+                              title="禁用全部"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="sm:hidden text-xs text-surface-500">
+                              {category.enabledCount}/{category.totalCount}
+                            </span>
                           </div>
                         </div>
                         
@@ -848,23 +825,17 @@ export const SourceManager: React.FC = () => {
                                       )}
                                       {/* Actions row — always on its own line on mobile */}
                                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                                        {isSearchCategory ? (
-                                          <button
-                                            onClick={() => handleToggleSource(source.id, !isEnabled)}
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                                              isEnabled
-                                                ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
-                                                : 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
-                                            }`}
-                                          >
-                                            {isEnabled ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                                            {isEnabled ? '已启用' : '已禁用'}
-                                          </button>
-                                        ) : (
-                                          <span className="text-xs text-surface-400 dark:text-surface-500 px-2 py-1 bg-surface-100 dark:bg-surface-800 rounded-lg">
-                                            不参与搜索
-                                          </span>
-                                        )}
+                                        <button
+                                          onClick={() => handleToggleSource(source.id, !isEnabled)}
+                                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                                            isEnabled
+                                              ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
+                                              : 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
+                                          }`}
+                                        >
+                                          {isEnabled ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                          {isEnabled ? '已启用' : '已禁用'}
+                                        </button>
                                         <div className="flex items-center gap-0.5 ml-auto">
                                           <Button
                                             variant="ghost"
@@ -889,9 +860,7 @@ export const SourceManager: React.FC = () => {
                                                     urlTemplate: source.urlTemplate,
                                                     homepageUrl: source.homepageUrl || '',
                                                     categoryId: source.categoryId,
-                                                    siteType: source.siteType,
                                                     searchable: source.searchable,
-                                                    requiresKeyword: source.requiresKeyword,
                                                     searchPriority: source.searchPriority,
                                                   });
                                                   setEditModal({ isOpen: true, source });
@@ -962,9 +931,7 @@ export const SourceManager: React.FC = () => {
             urlTemplate: '',
             homepageUrl: '',
             categoryId: '',
-            siteType: 'search',
             searchable: true,
-            requiresKeyword: true,
             searchPriority: 0,
           });
         }}
@@ -1015,15 +982,11 @@ export const SourceManager: React.FC = () => {
                 onChange={(e) => {
                   const newCategoryId = e.target.value;
                   const selectedCategory = categories.find(c => c.id === newCategoryId);
-                  const parentMajorCategory = selectedCategory 
-                    ? majorCategories.find(mc => mc.id === selectedCategory.majorCategoryId)
-                    : null;
                   
                   setFormData({ 
                     ...formData, 
                     categoryId: newCategoryId,
-                    searchable: parentMajorCategory?.requiresKeyword ?? true,
-                    requiresKeyword: parentMajorCategory?.requiresKeyword ?? true,
+                    searchable: selectedCategory?.defaultSearchable ?? true,
                   });
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
@@ -1036,20 +999,6 @@ export const SourceManager: React.FC = () => {
                     ))}
                   </optgroup>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                站点类型
-              </label>
-              <select
-                value={formData.siteType}
-                onChange={(e) => setFormData({ ...formData, siteType: e.target.value as 'search' | 'browse' | 'reference' })}
-                className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
-              >
-                <option value="search">搜索型</option>
-                <option value="browse">浏览型</option>
-                <option value="reference">参考型</option>
               </select>
             </div>
           </div>
@@ -1075,54 +1024,23 @@ export const SourceManager: React.FC = () => {
             />
           </div>
           
-          <div className="grid grid-cols-3 gap-4">
-            {(() => {
-              const selectedCategory = categories.find(c => c.id === formData.categoryId);
-              const parentMajorCategory = selectedCategory 
-                ? majorCategories.find(mc => mc.id === selectedCategory.majorCategoryId)
-                : null;
-              const isSearchCategory = parentMajorCategory?.requiresKeyword ?? true;
-              
-              if (!isSearchCategory) {
-                return (
-                  <div className="col-span-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      该分类属于浏览型大类（无需关键词），搜索源不参与搜索功能
-                    </p>
-                  </div>
-                );
-              }
-              
-              return (
-                <>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.searchable}
-                      onChange={(e) => setFormData({ ...formData, searchable: e.target.checked })}
-                      className="rounded border-surface-300 dark:border-surface-600"
-                    />
-                    <span className="text-sm text-surface-700 dark:text-surface-300">可搜索</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.requiresKeyword}
-                      onChange={(e) => setFormData({ ...formData, requiresKeyword: e.target.checked })}
-                      className="rounded border-surface-300 dark:border-surface-600"
-                    />
-                    <span className="text-sm text-surface-700 dark:text-surface-300">需要关键词</span>
-                  </label>
-                  <Input
-                    label="优先级"
-                    type="number"
-                    value={formData.searchPriority}
-                    onChange={(e) => setFormData({ ...formData, searchPriority: parseInt(e.target.value) || 0 })}
-                    fullWidth
-                  />
-                </>
-              );
-            })()}
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.searchable}
+                onChange={(e) => setFormData({ ...formData, searchable: e.target.checked })}
+                className="rounded border-surface-300 dark:border-surface-600"
+              />
+              <span className="text-sm text-surface-700 dark:text-surface-300">可搜索</span>
+            </label>
+            <Input
+              label="优先级"
+              type="number"
+              value={formData.searchPriority}
+              onChange={(e) => setFormData({ ...formData, searchPriority: parseInt(e.target.value) || 0 })}
+              fullWidth
+            />
           </div>
           
           <div className="flex justify-end gap-3 pt-4">

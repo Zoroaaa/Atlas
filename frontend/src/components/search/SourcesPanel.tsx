@@ -134,15 +134,9 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  {majorCategory.requiresKeyword ? (
-                    <span className="text-[10px] sm:text-xs px-2 py-1 bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 rounded-lg font-medium">
-                      {enabledSources}/{totalSources} 启用
-                    </span>
-                  ) : (
-                    <span className="text-[10px] sm:text-xs px-2 py-1 bg-surface-100 dark:bg-surface-800 text-surface-400 dark:text-surface-500 rounded-lg font-medium">
-                      浏览型
-                    </span>
-                  )}
+                  <span className="text-[10px] sm:text-xs px-2 py-1 bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 rounded-lg font-medium">
+                    {enabledSources}/{totalSources} 启用
+                  </span>
                 </div>
               </button>
 
@@ -174,13 +168,9 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                             <span className="text-[10px] sm:text-xs text-surface-400">{category.sources.length} 个源</span>
                           </div>
                           <div className="flex items-center gap-1.5 sm:gap-2">
-                            {majorCategory.requiresKeyword ? (
-                              <span className="text-[10px] sm:text-xs text-surface-500 dark:text-surface-400">
-                                {categoryEnabledCount}/{category.sources.length} 启用
-                              </span>
-                            ) : (
-                              <span className="text-[10px] sm:text-xs text-surface-400 dark:text-surface-500">不参与搜索</span>
-                            )}
+                            <span className="text-[10px] sm:text-xs text-surface-500 dark:text-surface-400">
+                              {categoryEnabledCount}/{category.sources.length} 启用
+                            </span>
                           </div>
                         </button>
 
@@ -209,8 +199,7 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                             <span className={`text-[9px] sm:text-[10px] px-1 py-0.5 rounded font-medium ${getSiteTypeBadge(source.siteType)}`}>
                                               {getSiteTypeLabel(source.siteType)}
                                             </span>
-                                            {majorCategory.requiresKeyword && (
-                                              <span className={`flex items-center gap-0.5 text-[9px] sm:text-[10px] px-1 py-0.5 rounded font-medium ${
+                                            <span className={`flex items-center gap-0.5 text-[9px] sm:text-[10px] px-1 py-0.5 rounded font-medium ${
                                                 isEnabled
                                                   ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
                                                   : 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
@@ -218,7 +207,6 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                                 {isEnabled ? <CheckCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> : <XCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" />}
                                                 {isEnabled ? '启用' : '禁用'}
                                               </span>
-                                            )}
                                             {checkResult && (() => {
                                               const colorClass = checkResult.available
                                                 ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400'
