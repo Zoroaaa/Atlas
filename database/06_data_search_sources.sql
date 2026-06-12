@@ -1,7 +1,8 @@
 -- ===============================================
 -- 搜索源默认数据
--- 版本: 2.0
+-- 版本: 3.0
 -- 说明: 包含搜索源大类、分类、搜索源等初始化数据
+-- 更新: 2026-06-12 根据全网实测可用性重构资源源站
 -- 执行顺序: 06
 -- ===============================================
 
@@ -41,7 +42,7 @@ INSERT OR REPLACE INTO search_sources (
     site_type, searchable, search_priority, is_system, is_active,
     display_order, created_at, updated_at
 ) VALUES
-    ('javbus', 'database', 'JavBus', '番号+磁力一体站，信息完善', '提供详细的番号信息、封面、演员资料和磁力链接', '🎬', 'https://www.javbus.com/search/{keyword}', 'https://www.javbus.com', 'search', 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('javbus', 'database', 'JavBus', '番号+磁力一体站，信息完善', '提供详细的番号信息、封面、演员资料和磁力链接', '🎬', 'https://www.javbus.com/search/{keyword}', 'https://www.javbus.com', 'search', 1, 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('javdb', 'database', 'JavDB', '极简风格番号资料站，轻量快速', '提供简洁的番号信息和磁力链接', '📚', 'https://javdb.com/search?q={keyword}&f=all', 'https://javdb.com', 'search', 1, 2, 1, 1, 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('javlibrary', 'database', 'JavLibrary', '评论活跃，女优搜索详尽', '老牌番号资料站，社区活跃', '📖', 'https://www.javlibrary.com/cn/vl_searchbyid.php?keyword={keyword}', 'https://www.javlibrary.com', 'search', 1, 3, 1, 1, 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('rjav', 'database', 'r/JAV', 'Reddit JAV社区', '专注于日本成人视频讨论的Reddit社区', '📖', 'https://reddit.com/r/jav/search?q={keyword}', 'https://reddit.com/r/jav/', 'search', 1, 30, 1, 1, 24, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
@@ -187,6 +188,8 @@ INSERT OR REPLACE INTO search_sources (
 
 -- ===============================================
 -- 11. 动漫搜索源 - 动漫种子
+-- 更新: 2026-06-12 AnimeTosho提升为主源(聚合Nyaa多站)
+--       Nyaa/Mikan降为备用, ACG.RIP/TokyoToshokan标记超时
 -- ===============================================
 
 INSERT OR REPLACE INTO search_sources (
@@ -194,14 +197,12 @@ INSERT OR REPLACE INTO search_sources (
     site_type, searchable, search_priority, is_system, is_active,
     display_order, created_at, updated_at
 ) VALUES
-('nyaa_si', 'anime_torrent', 'Nyaa.si', '最大动漫种子索引站', '全球最大的动漫种子搜索引擎，资源丰富更新及时', '🧲', 'https://nyaa.si/?f=0&c=0_0&q={keyword}', 'https://nyaa.si', 'search', 1, 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('mikan_project', 'anime_torrent', 'Mikan Project', '中文动漫种子订阅站', '优秀的中文动漫资源站，支持RSS订阅和自动下载', '🍊', 'https://mikanani.me/Home/Search?searchstr={keyword}', 'https://mikanani.me', 'search', 1, 2, 1, 1, 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('nyaa_pantsu', 'anime_torrent', 'Nyaa Pantsu', 'Nyaa替代站，开源实现', 'Nyaa的开源替代版本，界面现代化', '👖', 'https://nyaa.pantsu.cat/search?q={keyword}', 'https://nyaa.pantsu.cat', 'search', 1, 3, 1, 1, 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('acg_rip', 'anime_torrent', 'ACG.RIP', '高质量动漫资源发布站', '专注于高质量动漫资源的发布和分享', '💿', 'https://acg.rip/?term={keyword}', 'https://acg.rip', 'search', 1, 4, 1, 1, 4, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('tokyotoshoku', 'anime_torrent', 'Tokyo Toshokan', '老牌动漫资源索引站', '历史悠久的动漫资源索引网站', '🏯', 'http://www.tokyotoshokan.com/?terms={keyword}', 'http://www.tokyotoshokan.com', 'search', 1, 5, 1, 1, 5, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('animebytes', 'anime_torrent', 'AnimeBytes', '高质量私有PT站（需邀请）', '知名私有动漫PT站，资源质量极高，需要邀请注册', '🔒', 'https://animebytes.tv/torrents.php?searchstr={keyword}', 'https://animebytes.tv', 'search', 1, 10, 1, 1, 6, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('sukebei_nyaa', 'anime_torrent', 'Sukebei Nyaa', '成人向动漫种子站', 'Nyaa的成人内容镜像站，收录成人向动漫资源', '🔞', 'https://sukebei.nyaa.si/?f=0&c=0_0&q={keyword}', 'https://sukebei.nyaa.si', 'search', 1, 6, 1, 1, 7, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('shana_project', 'anime_torrent', 'Shana Project', '动漫种子跟踪聚合器', '聚合多个来源的动漫种子信息，支持自动追踪', '📡', 'https://www.shanaproject.com/?q={keyword}', 'https://www.shanaproject.com', 'search', 1, 7, 1, 1, 8, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
+('animetosho', 'anime_torrent', 'AnimeTosho', '动漫磁力聚合RSS（主源，最稳定）', '聚合 Nyaa/多站动漫资源的 RSS Feed，含完整磁力链接、大小信息，CF Workers 可直接访问，覆盖最全最稳定', '📡', 'https://feed.animetosho.org/rss2?q={keyword}&orderby=seeds', 'https://animetosho.org', 'api', 1, 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('nyaa_si', 'anime_torrent', 'Nyaa.si', '[⚠️ CF拦截] 最大动漫种子索引站', '全球最大的动漫种子搜索引擎，资源丰富更新及时。注意：可能被 Cloudflare 拦截，作为备用源使用', '🧲', 'https://nyaa.si/?f=0&c=0_0&q={keyword}', 'https://nyaa.si', 'search', 1, 10, 1, 1, 10, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('mikan_project', 'anime_torrent', 'Mikan Project', '[⚠️ 超时] 中文动漫种子订阅站', '优秀的中文动漫资源站，支持RSS订阅和自动下载。近期可能超时，作为备用源', '🍊', 'https://mikanani.me/Home/Search?searchstr={keyword}', 'https://mikanani.me', 'search', 1, 11, 1, 1, 11, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('animebytes', 'anime_torrent', 'AnimeBytes', '高质量私有PT站（需邀请）', '知名私有动漫PT站，资源质量极高，需要邀请注册', '🔒', 'https://animebytes.tv/torrents.php?searchstr={keyword}', 'https://animebytes.tv', 'search', 0, 50, 1, 1, 50, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('sukebei_nyaa', 'anime_torrent', 'Sukebei Nyaa', '成人向动漫种子站', 'Nyaa的成人内容镜像站，收录成人向动漫资源', '🔞', 'https://sukebei.nyaa.si/?f=0&c=0_0&q={keyword}', 'https://sukebei.nyaa.si', 'search', 1, 12, 1, 1, 12, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('shana_project', 'anime_torrent', 'Shana Project', '动漫种子跟踪聚合器', '聚合多个来源的动漫种子信息，支持自动追踪', '📡', 'https://www.shanaproject.com/?q={keyword}', 'https://www.shanaproject.com', 'search', 1, 13, 1, 1, 13, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
 
 -- ===============================================
 -- 12. 动漫搜索源 - 在线观看
@@ -259,6 +260,8 @@ INSERT OR REPLACE INTO search_sources (
 
 -- ===============================================
 -- 15. 影视搜索源 - 影视磁力
+-- 更新: 2026-06-12 移除失效源(YTS/1337x/RARBG/Lime/TG/BT4G)
+--       新增 Torrentio(聚合多源) + TPB API(apibay.org)
 -- ===============================================
 
 INSERT OR REPLACE INTO search_sources (
@@ -266,14 +269,8 @@ INSERT OR REPLACE INTO search_sources (
     site_type, searchable, search_priority, is_system, is_active,
     display_order, created_at, updated_at
 ) VALUES
-('pirate_bay', 'movie_torrent', 'The Pirate Bay', '全球最大种子搜索引擎', '历史悠久且知名的种子搜索引擎，资源覆盖全面', '☠️', 'https://thepiratebay.org/search.php?q={keyword}', 'https://thepiratebay.org', 'search', 1, 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('yts_yify', 'movie_torrent', 'YTS (YIFY)', '高清电影种子专门站', '专注高清720p/1080p/4K电影种子，体积小画质优', '🎬', 'https://yts.mx/browse-movies/{keyword}/all/all/0/latest/0/all', 'https://yts.mx', 'search', 1, 2, 1, 1, 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('x1337x', 'movie_torrent', '1337x', '热门种子搜索站', '全球排名前列的种子搜索引擎，分类清晰', '🔢', 'https://1337x.st/search/{keyword}/1/', 'https://1337x.st', 'search', 1, 3, 1, 1, 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('rarbg_to', 'movie_torrent', 'RARBG Mirrors', '优质影视资源站（需镜像）', '知名影视资源站，提供高质量的影视种子，需使用镜像访问', '💎', 'https://rarbg2023.org/search/?search={keyword}', 'https://rarbgto.org', 'search', 1, 4, 1, 1, 4, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('limetorrents', 'movie_torrent', 'LimeTorrents', '综合性种子搜索引擎', '大型种子搜索引擎，涵盖电影、电视、软件等各类资源', '🍋', 'https://www.limetorrents.lol/search/all/{keyword}/', 'https://www.limetorrents.lol', 'search', 1, 5, 1, 1, 5, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('torrentgalaxy', 'movie_torrent', 'TorrentGalaxy', '现代UI种子搜索站', '界面现代化的种子搜索引擎，功能完善', '🌌', 'https://torrentgalaxy.to/search?search={keyword}', 'https://torrentgalaxy.to', 'search', 1, 6, 1, 1, 6, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('bt4g', 'movie_torrent', 'BT4G', '磁力链接搜索引擎', '专业的磁力链接搜索和聚合引擎', '🧲', 'https://bt4gprx.com/search?q={keyword}', 'https://bt4gprx.com', 'search', 1, 7, 1, 1, 7, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('mejortorrent', 'movie_torrent', 'MejorTorrent', '西语影视资源站', '西班牙语影视资源专门站，西语内容丰富', '🇪🇸', 'https://www.mejortorrent.com/secciones.php?sec=buscador&valor={keyword}', 'https://www.mejortorrent.com', 'search', 1, 8, 1, 1, 8, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
+('torrentio', 'movie_torrent', 'Torrentio', '聚合多源磁力API（Stremio生态）', '聚合 YTS/1337x/TPB/RARBG/TorrentGalaxy 等多站资源，通过TMDB ID查询，返回infoHash+磁力链接，质量最高覆盖最全', '🌐', 'https://torrentio.strem.fun/stream/movie/{tmdb_id}.json', 'https://torrentio.strem.fun', 'api', 1, 1, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+('pirate_bay_api', 'movie_torrent', 'TPB API (apibay)', '海盗湾官方JSON API，关键词搜索', 'The Pirate Bay 官方 JSON API (apibay.org)，支持关键词搜索，CF Workers 可直接访问，资源覆盖最广', '☠️', 'https://apibay.org/q.php?q={keyword}&cat=0', 'https://thepiratebay.org', 'api', 1, 2, 1, 1, 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
 
 -- ===============================================
 -- 16. 影视搜索源 - 在线观看

@@ -1,6 +1,10 @@
 /**
  * 搜索模块路由
  * 功能：提供搜索、搜索历史、收藏、搜索建议等功能
+ * 支持：
+ *   - 通用模式：返回匹配的搜索源 URL 列表（原有行为）
+ *   - 聚合模式：当 majorCategoryId 为 anime_sources / movie_sources 时，
+ *              返回结构化元数据 + 磁力资源（调用专用 service）
  * 作者：CodeSeek Team
  * 日期：2024
  */
@@ -9,6 +13,8 @@ import { Env, SearchSource } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { VALIDATION_RULES } from '@/constants';
+import { searchAnime } from '@/services/anime-search';
+import { searchMovie } from '@/services/movie-search';
 
 const R = VALIDATION_RULES;
 
@@ -58,6 +64,48 @@ searchRoutes.post('/', async (c) => {
       }
     }
 
+    // ── 聚合模式：anime / movie 分类走专用搜索引擎 ──
+    const ENRICHED_MAJOR_CATEGORIES = new Set(['anime_sources', 'movie_sources']);
+    let actualMajorCategoryId: string | undefined = majorCategoryId;
+
+    if (!actualMajorCategoryId && categoryId) {
+      const catRow = await c.env.DB.prepare(
+        'SELECT major_category_id FROM search_source_categories WHERE id = ?'
+      ).bind(categoryId).first<{ major_category_id: string }>();
+      actualMajorCategoryId = catRow?.major_category_id;
+    }
+
+    if (actualMajorCategoryId && ENRICHED_MAJOR_CATEGORIES.has(actualMajorCategoryId)) {
+      try {
+        let enrichedData: Record<string, unknown>;
+
+        if (actualMajorCategoryId === 'anime_sources') {
+          const result = await searchAnime(trimmedKeyword, limitPage);
+          enrichedData = { ...result, resultType: 'anime' } as Record<string, unknown>;
+        } else {
+          const result = await searchMovie(trimmedKeyword, limitPage, c.env.TMDB_API_KEY);
+          enrichedData = { ...result, resultType: 'movie' } as Record<string, unknown>;
+        }
+
+        if (historyId && userPayload) {
+          await c.env.DB.prepare(
+            `UPDATE user_search_history SET results_count = ? WHERE id = ? AND user_id = ?`
+          ).bind(
+            actualMajorCategoryId === 'anime_sources'
+              ? (enrichedData as { total: number }).total
+              : (enrichedData as { total: number }).total,
+            historyId, userPayload.userId
+          ).run();
+        }
+
+        return c.json(success(enrichedData, '搜索完成'));
+      } catch (err) {
+        console.error('Enriched search error:', err);
+        return c.json(error('SERVER_ERROR', '搜索失败'), 500);
+      }
+    }
+
+    // ── 通用模式：返回匹配的搜索源 URL 列表 ──
     let query: string;
     let params: (string | number)[];
 

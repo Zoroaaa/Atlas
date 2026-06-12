@@ -1,0 +1,398 @@
+/**
+ * 影视搜索服务
+ * 元数据: TMDB（主）+ 豆瓣（fallback）
+ * 磁力资源: TPB API（关键词搜索）+ Torrentio（TMDB ID 聚合多源）
+ */
+
+// ─── Types ──────────────────────────────────────────────────────────────
+
+export interface TMDBResult {
+  id: number;
+  title: string;
+  originalTitle: string;
+  overview: string;
+  poster: string | null;
+  backdrop: string | null;
+  releaseDate: string;
+  year: string;
+  rating: number;
+  voteCount: number;
+  mediaType: 'movie' | 'tv';
+  source: 'tmdb' | 'douban';
+}
+
+export interface ResourceItem {
+  title: string;
+  magnet: string;
+  size: string;
+  date: string;
+  source: string;
+  sourceLabel: string;
+  /** 资源类型：magnet=磁力 drive=网盘 direct=直链 */
+  resourceType?: 'magnet' | 'drive' | 'direct';
+  /** 网盘链接（当 resourceType === 'drive' 时） */
+  driveUrl?: string;
+  /** 提取码 */
+  driveCode?: string;
+  /** 原站详情页链接（用于“查看详情”跳转） */
+  detailUrl?: string;
+}
+
+export interface MovieSearchResult {
+  keyword: string;
+  page: number;
+  results: TMDBResult[];
+  resources: ResourceItem[];
+  total: number;
+  resourceTotal: number;
+  tmdbError: string | null;
+  doubanError: string | null;
+  ytsError: string | null;
+  eztvError: string | null;
+  resourceSources: string[];
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────
+
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// ─── 工具函数 ─────────────────────────────────────────────────────────
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '';
+  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
+  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(0)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${bytes} B`;
+}
+
+/** 从 magnet URI 提取 infoHash（40位 hex） */
+function extractHash(magnet: string): string {
+  const m = magnet.match(/urn:btih:([a-fA-F0-9]{40})/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+// ─── TMDB API ──────────────────────────────────────────────────────────
+
+async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-CN'): Promise<TMDBResult[]> {
+  const url = `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(keyword)}&language=${lang}&page=${page}&include_adult=false`;
+  const r = await fetch(url, {
+    headers: { 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`TMDB error: ${r.status}`);
+  const data = await r.json() as { results?: any[] };
+  if (!data.results) return [];
+
+  return data.results
+    .filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv')
+    .slice(0, 20)
+    .map((item: any) => {
+      const releaseDate: string = item.release_date || item.first_air_date || '';
+      return {
+        id: item.id,
+        title: item.title || item.name || '',
+        originalTitle: item.original_title || item.original_name || '',
+        overview: (item.overview || '').slice(0, 300),
+        poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+        backdrop: item.backdrop_path ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}` : null,
+        releaseDate,
+        year: releaseDate ? releaseDate.slice(0, 4) : '',
+        rating: Math.round((item.vote_average || 0) * 10) / 10,
+        voteCount: item.vote_count || 0,
+        mediaType: item.media_type as 'movie' | 'tv',
+        source: 'tmdb' as const,
+      };
+    });
+}
+
+// ─── 豆瓣搜索 ─────────────────────────────────────────────────────────
+
+interface DoubanRawItem { id: string; title: string; rate: string; cover?: string; url: string; is_tv: boolean; }
+
+async function searchDoubanAjax(keyword: string): Promise<TMDBResult[]> {
+  const url = `https://movie.douban.com/j/search_subjects?type=movie&tag=&sort=recommend&page_limit=20&page_start=0&search_text=${encodeURIComponent(keyword)}`;
+  const r = await fetch(url, {
+    headers: {
+      'User-Agent': UA, 'Accept': 'application/json, text/javascript, */*',
+      'Referer': 'https://movie.douban.com/explore', 'X-Requested-With': 'XMLHttpRequest',
+      'Cookie': 'bid=""; __yadk_uid=dummy',
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error(`Douban AJAX error: ${r.status}`);
+  const data = await r.json() as { subjects?: DoubanRawItem[] };
+  if (!data.subjects?.length) return [];
+  return data.subjects.slice(0, 15).map((item) => ({
+    id: -Math.abs(parseInt(item.id) || 0), title: item.title || '', originalTitle: item.title || '',
+    overview: '', poster: item.cover?.startsWith('http') ? item.cover : (item.cover ? `https:${item.cover}` : null),
+    backdrop: null, releaseDate: '', year: '',
+    rating: parseFloat(item.rate) || 0, voteCount: 0,
+    mediaType: (item.is_tv ? 'tv' : 'movie') as 'movie' | 'tv', source: 'douban' as const,
+  }));
+}
+
+async function searchDouban(keyword: string): Promise<TMDBResult[]> {
+  try { const r = await searchDoubanAjax(keyword); if (r.length > 0) return r; } catch { /* ignore */ }
+  return [];
+}
+
+// ─── The Pirate Bay API（apibay.org JSON，最全，CF Workers 可达）──────
+
+async function searchTPB(keyword: string): Promise<ResourceItem[]> {
+  try {
+    const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword)}&cat=0`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': UA },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!r.ok) return [];
+    const items = await r.json() as Array<{
+      id: string; name: string; info_hash: string;
+      leechers: string; seeders: string; size: string; added: string;
+    }>;
+    if (!items?.length || items[0]?.name === 'No results returned') return [];
+
+    const trackers = [
+      'udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce',
+      'udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce',
+      'udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce',
+      'udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
+    ].map(t => `&tr=${t}`).join('');
+
+    return items.slice(0, 20).map(item => ({
+      title: item.name,
+      magnet: `magnet:?xt=urn:btih:${item.info_hash.toLowerCase()}&dn=${encodeURIComponent(item.name)}${trackers}`,
+      size: formatBytes(parseInt(item.size) || 0),
+      date: item.added ? new Date(parseInt(item.added) * 1000).toISOString().split('T')[0] : '',
+      source: 'tpb',
+      sourceLabel: 'TPB',
+      resourceType: 'magnet' as const,
+      detailUrl: item.id ? `https://thepiratebay.org/description.php?id=${item.id}` : undefined,
+    }));
+  } catch { return []; }
+}
+
+// ─── YTS JSON API（电影专用）──────────────────────────────────────────
+
+const YTS_TRACKERS = [
+  'udp://open.stealth.si:80/announce',
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://exodus.desync.com:6969/announce',
+].map(t => `&tr=${encodeURIComponent(t)}`).join('');
+
+async function fetchYTS(keyword: string): Promise<ResourceItem[]> {
+  try {
+    const url = `https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(keyword)}&sort_by=seeds&limit=20`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) throw new Error(`yts_http_${r.status}`);
+
+    const data = await r.json() as {
+      data?: { movies?: Array<{
+        id: number; title: string; year: number;
+        torrents: Array<{
+          hash: string; quality: string; type: string;
+          seeds: number; peers: number; size: string; date_uploaded: string;
+        }>;
+      }> };
+    };
+
+    if (!data.data?.movies?.length) return [];
+
+    const results: ResourceItem[] = [];
+    for (const movie of data.data.movies) {
+      for (const t of movie.torrents) {
+        if (!t.hash || !/^[a-fA-F0-9]{40}$/.test(t.hash)) continue;
+        const magnet = `magnet:?xt=urn:btih:${t.hash.toLowerCase()}&dn=${encodeURIComponent(`${movie.title} ${t.quality}`)}${YTS_TRACKERS}`;
+        results.push({
+          title: `${movie.title} (${t.quality})`,
+          magnet,
+          size: t.size || '',
+          date: t.date_uploaded ? t.date_uploaded.split(' ')[0] : '',
+          source: 'yts',
+          sourceLabel: 'YTS',
+          resourceType: 'magnet' as const,
+        });
+      }
+    }
+    return results;
+  } catch (e) {
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+}
+
+// ─── TMDB External IDs（获取 IMDB ID 用于 EZTV）──────────────────────
+
+async function fetchTMDBExternalIds(tmdbId: number, apiKey: string): Promise<{ imdb_id: string | null }> {
+  try {
+    const url = `https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${apiKey}`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) throw new Error(`tmdb_ext_http_${r.status}`);
+    const data = await r.json() as { imdb_id?: string | null };
+    return { imdb_id: data.imdb_id || null };
+  } catch (e) {
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+}
+
+// ─── EZTV JSON API（剧集专用）─────────────────────────────────────────
+
+async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
+  try {
+    const url = `https://eztv.re/api/get-torrents?imdb_id=${imdbId}&limit=30`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) throw new Error(`eztv_http_${r.status}`);
+
+    const data = await r.json() as {
+      torrents?: Array<{
+        id: string; title: string; magnet_url: string;
+        size_bytes: string; seeds: number; peers: number;
+        date_released_unix: string;
+      }>;
+    };
+
+    if (!data.torrents?.length) return [];
+
+    return data.torrents.map(t => ({
+      title: t.title || '',
+      magnet: t.magnet_url || '',
+      size: t.size_bytes ? formatBytes(parseInt(t.size_bytes) || 0) : '',
+      date: t.date_released_unix ? new Date(parseInt(t.date_released_unix) * 1000).toISOString().split('T')[0] : '',
+      source: 'eztv',
+      sourceLabel: 'EZTV',
+      resourceType: 'magnet' as const,
+    }));
+  } catch (e) {
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+}
+
+// ─── 主入口 ────────────────────────────────────────────────────────────
+
+export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): Promise<MovieSearchResult> {
+  // Phase 1: 元数据 — 中文 TMDB + 英文 TMDB（拿英文名搜 TPB）+ 豆瓣 三路并行
+  const [zhMetaRes, enMetaRes, doubanRes] = await Promise.allSettled([
+    tmdbKey ? searchTMDB(keyword, tmdbKey, page, 'zh-CN').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
+    tmdbKey ? searchTMDB(keyword, tmdbKey, page, 'en-US').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
+    searchDouban(keyword).catch(() => [] as TMDBResult[]),
+  ]);
+
+  let results: TMDBResult[] = zhMetaRes.status === 'fulfilled' ? zhMetaRes.value : [];
+  if (doubanRes.status === 'fulfilled' && doubanRes.value.length > 0) {
+    results.push(...doubanRes.value);
+  }
+  const tmdbError = zhMetaRes.status === 'rejected' ? String(zhMetaRes.reason) : null;
+
+  // 元数据去重（按 title 前30字符）
+  const seen = new Set<string>();
+  results = results.filter(item => {
+    const key = item.title.toLowerCase().slice(0, 30);
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  // ── 构建 TPB 搜索关键词列表 ──
+  const enResults: TMDBResult[] = enMetaRes.status === 'fulfilled' ? enMetaRes.value : [];
+  const idToEnglishTitle = new Map<number, string>();
+  for (const item of enResults) {
+    if (item.id > 0 && item.title) idToEnglishTitle.set(item.id, item.title);
+  }
+
+  // 收集关键词：英文名 + 英文名+年份，去重
+  const tpbKeywords: string[] = [];
+  for (const r of results.slice(0, 8)) {
+    const en = idToEnglishTitle.get(r.id) || r.originalTitle?.trim() || '';
+    if (en && en.length > 1) {
+      if (!tpbKeywords.includes(en)) tpbKeywords.push(en);
+      // 加上年份提高精度
+      if (r.year && !tpbKeywords.includes(`${en} ${r.year}`)) {
+        tpbKeywords.push(`${en} ${r.year}`);
+      }
+    }
+  }
+
+  // ── TPB 并发搜索（所有关键词）──
+  let allTpbResults: ResourceItem[] = [];
+  if (tpbKeywords.length > 0) {
+    const tpbPromises = tpbKeywords.map(title =>
+      searchTPB(title).catch(() => [] as ResourceItem[])
+    );
+    const tpbRes = await Promise.allSettled(tpbPromises);
+    for (const res of tpbRes) {
+      if (res.status === 'fulfilled') allTpbResults.push(...res.value);
+    }
+    // 按 btih 去重
+    const seenHashes = new Set<string>();
+    allTpbResults = allTpbResults.filter(r => {
+      const hash = r.magnet?.slice(20, 60) || '';
+      if (!hash || seenHashes.has(hash)) return false;
+      seenHashes.add(hash); return true;
+    }).slice(0, 40);
+  }
+
+  // ── Phase 2: YTS 电影搜索（一次关键词搜索即可）──
+  let ytsResults: ResourceItem[] = [];
+  let ytsError: string | null = null;
+  try {
+    ytsResults = await fetchYTS(keyword);
+  } catch (e) {
+    ytsError = e instanceof Error ? e.message : String(e);
+  }
+
+  // ── Phase 3: EZTV 剧集搜索（需要 IMDB ID）──
+  let eztvResults: ResourceItem[] = [];
+  const eztvError: string | null = null;
+  const tvItems = results.filter(r => r.mediaType === 'tv');
+  if (tvItems.length > 0 && tmdbKey) {
+    const eztvPromises = tvItems.slice(0, 5).map(async (item) => {
+      try {
+        const extIds = await fetchTMDBExternalIds(item.id, tmdbKey);
+        if (extIds.imdb_id) {
+          return await fetchEZTV(extIds.imdb_id);
+        }
+        return [] as ResourceItem[];
+      } catch { return [] as ResourceItem[] }
+    });
+    const eztvAll = await Promise.all(eztvPromises);
+    eztvResults = eztvAll.flat();
+  }
+
+  // ── 合并所有资源 + 去重 + 排序 ──
+  const allResources = [...allTpbResults, ...ytsResults, ...eztvResults];
+  const seenHashes = new Set<string>();
+  const dedupedResources = allResources.filter(r => {
+    const hash = extractHash(r.magnet);
+    if (!hash || seenHashes.has(hash)) return false;
+    seenHashes.add(hash);
+    return true;
+  });
+
+  // 收集实际命中的源列表
+  const sourceNames = new Set<string>();
+  if (allTpbResults.length > 0) sourceNames.add('TPB');
+  if (ytsResults.length > 0) sourceNames.add('YTS');
+  if (eztvResults.length > 0) sourceNames.add('EZTV');
+
+  return {
+    keyword,
+    page,
+    results,
+    resources: dedupedResources,
+    total: results.length,
+    resourceTotal: dedupedResources.length,
+    tmdbError,
+    doubanError: null,
+    ytsError,
+    eztvError,
+    resourceSources: Array.from(sourceNames),
+  };
+}

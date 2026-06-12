@@ -1,0 +1,502 @@
+import React, { useState } from 'react';
+import {
+  Star, Calendar, Tv, Copy, Check, ExternalLink,
+  Magnet, Wifi, RefreshCw, ChevronLeft, ChevronRight,
+  ChevronDown, ChevronUp, Shield, Tag, Heart, Users, Trophy, Film,
+} from 'lucide-react';
+import type {
+  AnimeEnrichedData,
+  BangumiSubject,
+  NyaaTorrent,
+} from '@/types/search';
+
+// ─── 图片代理（与 JAV 统一走后端 /api/jav/proxy-image）─────────────
+const getProxyImageUrl = (url: string): string => {
+  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? ''
+    : 'https://backend.codeseek.pp.ua';
+  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const fmt = {
+  seedColor: (n: number) =>
+    n >= 10 ? 'text-emerald-400' : n >= 1 ? 'text-yellow-400' : 'text-red-400',
+  rating: (n: number) =>
+    n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-slate-400',
+};
+
+// ─── 复制按钮（带反馈） ─────────────────────────────────────────────
+
+function CopyBtn({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+  return (
+    <button
+      onClick={copy}
+      title={label ?? '复制磁力链接'}
+      className="p-1 rounded text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+    >
+      {copied
+        ? <Check className="w-3.5 h-3.5 text-emerald-500" />
+        : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
+// ─── Nyaa 磁力卡片 ──────────────────────────────────────────────────
+
+function NyaaCard({ item }: { item: NyaaTorrent }) {
+  return (
+    <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+      {/* 左侧：标题 + 元信息 */}
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* 可信标记 */}
+          {item.trusted && (
+            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title="可信上传者" />
+          )}
+          {/* HD 标记 */}
+          {item.title.toLowerCase().includes('1080') && (
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300 rounded">HD</span>
+          )}
+          {item.title.toLowerCase().includes('2160') || item.title.toLowerCase().includes('4k') ? (
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300 rounded">4K</span>
+          ) : null}
+          {/* 来源标记 */}
+          {item.source === 'nyaa' && (
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-medium bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300 rounded">Nyaa</span>
+          )}
+          {/* 标题（点击唤起客户端） */}
+          <a
+            href={item.magnet}
+            className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
+            title={`点击唤起 BT 客户端下载：${item.title}`}
+          >
+            {item.title}
+          </a>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-slate-500">
+          {item.category && <span>{item.category}</span>}
+          {item.size && <span>{item.size}</span>}
+          {item.date && <span>{item.date}</span>}
+        </div>
+      </div>
+
+      {/* 右侧：操作区 */}
+      <div className="flex items-center gap-2">
+        {/* 做种/下载 */}
+        {item.hasSeedData === false ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-700/60 dark:text-slate-400" title="DHT 网络，种子仍可获取">DHT</span>
+        ) : (
+          <span className={`text-xs font-medium ${fmt.seedColor(item.seeders)} tabular-nums`}>
+            {item.seeders}<span className="text-slate-400 mx-0.5">/</span><span className="text-red-400">{item.leechers}</span>
+          </span>
+        )}
+        {/* 操作按钮 */}
+        <div className="flex items-center gap-0.5">
+          <CopyBtn text={item.magnet} label="复制磁力链接" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 类型/状态标签颜色映射 ────────────────────────────────────────
+
+const typeColor = (t?: string | number) => {
+  const m: Record<string | number, string> = { 2:'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300',6:'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',4:'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',3:'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400','tv':'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300','movie':'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300' };
+  return t != null ? (m[t] ?? 'bg-slate-100 text-slate-500 dark:bg-slate-700/40 dark:text-slate-400') : 'bg-slate-100 text-slate-500 dark:bg-slate-700/40 dark:text-slate-400';
+};
+
+const statusColor = (s?: string) => {
+  switch (s) {
+    case '连载中': return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
+    case '已完结': return 'bg-slate-100 text-slate-500 dark:bg-slate-700/40 dark:text-slate-400';
+    case '未开播': return 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400';
+    default: return '';
+  }
+};
+
+const typeLabel = (t?: string | number) => {
+  const m: Record<string | number, string> = { 2:'TV',6:'剧场版',4:'Web',3:'音乐','tv':'TV','movie':'剧场版','ova':'OVA','web':'Web','music':'音乐' };
+  return t != null ? (m[t] ?? String(t)) : '';
+};
+
+// ─── Bangumi 卡片（详细元数据展示） ─────────────────────────────────
+
+const BangumiCard: React.FC<{ subject: BangumiSubject }> = ({ subject }) => (
+  <a
+    href={subject.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="group flex gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/40 hover:border-violet-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-all"
+  >
+    {/* 封面 */}
+    {subject.cover && (
+      <img
+        src={getProxyImageUrl(subject.cover)}
+        alt={subject.nameCN || subject.name}
+        className="w-20 sm:w-24 h-[120px] sm:h-[140px] object-cover rounded-lg flex-shrink-0 bg-slate-200 dark:bg-slate-700 shadow-md"
+        loading="lazy"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    )}
+
+    <div className="min-w-0 flex-1">
+      {/* 标题行：类型 + 状态 + 名称 + 外链 */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            {subject.type && (
+              <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${typeColor(subject.type)}`}>
+                {typeLabel(subject.type)}
+              </span>
+            )}
+            {subject.status && (
+              <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${statusColor(subject.status)}`}>
+                {subject.status}
+              </span>
+            )}
+            {subject.rank && subject.rank > 0 && subject.rank <= 1000 && (
+              <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-amber-500 font-medium">
+                <Trophy className="w-3 h-3" />#{subject.rank}
+              </span>
+            )}
+          </div>
+
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-violet-500 transition-colors">
+            {subject.nameCN || subject.name}
+          </h3>
+          {subject.nameCN && subject.name !== subject.nameCN && (
+            <p className="text-xs text-slate-500 mt-0.5 truncate">{subject.name}</p>
+          )}
+        </div>
+        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-500 flex-shrink-0 mt-0.5 transition-colors" />
+      </div>
+
+      {/* 详细信息区 */}
+      <div className="space-y-1.5 mt-2">
+        {/* 第一行：评分 + 收藏 + 集数 + 放送日期 */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+          {subject.rating > 0 && (
+            <span className={`flex items-center gap-1 ${fmt.rating(subject.rating)} font-medium`}>
+              <Star className="w-3 h-3 fill-current" />
+              {subject.rating.toFixed(1)}
+              {subject.ratingCount ? (
+                <span className="text-[10px] text-slate-400 font-normal">({subject.ratingCount})</span>
+              ) : null}
+            </span>
+          )}
+
+          {subject.collection && (
+            <>
+              {subject.collection.collect > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px]" title="收藏人数">
+                  <Heart className="w-3 h-3 text-red-400" />
+                  {(subject.collection.collect / 1000).toFixed(1)}k
+                </span>
+              )}
+              {subject.collection.doing > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px]" title="在看人数">
+                  <Users className="w-3 h-3 text-blue-400" />
+                  {subject.collection.doing}
+                </span>
+              )}
+            </>
+          )}
+
+          {subject.eps > 0 && (
+            <span className="flex items-center gap-1">
+              <Tv className="w-3 h-3" />{subject.eps} 集
+            </span>
+          )}
+          {subject.airDate && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />{subject.airDate.slice(0, 7)}
+            </span>
+          )}
+        </div>
+
+        {/* 制作公司 */}
+        {subject.studio && (
+          <span className="text-[10px] text-violet-500 dark:text-violet-400 truncate block">
+            <Film className="w-3 h-3 inline mr-0.5" />{subject.studio}
+          </span>
+        )}
+
+        {/* 标签 */}
+        {subject.tags && subject.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {subject.tags.map(tag => (
+              <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] rounded-full bg-slate-100 text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
+                <Tag className="w-2.5 h-2.5" />{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* 简介 */}
+        {subject.summary && (
+          <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 mt-1">
+            {subject.summary}
+          </p>
+        )}
+      </div>
+    </div>
+  </a>
+);
+
+// ─── main component ──────────────────────────────────────────────────────────
+
+interface AnimeSearchResultPanelProps {
+  data: AnimeEnrichedData;
+  isDark?: boolean;
+  onRefresh?: () => void;
+  onPageChange?: (page: number) => void;
+}
+
+export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
+  data,
+  isDark: _isDark = true,
+  onRefresh,
+  onPageChange,
+}) => {
+  const [localPage, setLocalPage] = useState(1);
+  const [showAllTorrents, setShowAllTorrents] = useState(false);
+  const PAGE_SIZE = 10;
+
+  const bgmList = data.bgm ?? [];
+  // 合并 Nyaa + AnimeTosho（后端已按 infoHash 去重并排序）
+  const torrentList = data.nyaa ?? [];
+  const hasResults = torrentList.length > 0;
+
+  const activeTorrents = torrentList;
+  const totalPages = Math.max(1, Math.ceil(activeTorrents.length / PAGE_SIZE));
+  const pagedTorrents = activeTorrents.slice((localPage - 1) * PAGE_SIZE, localPage * PAGE_SIZE);
+
+  // error states
+  const hasBgmError = !!data.errors?.bangumi;
+  const hasTorrentError = !!data.errors?.nyaa || !!data.errors?.animetosho;
+
+  return (
+    <div className="space-y-6">
+      {/* toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {hasResults && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-medium">多源聚合</span>
+              <span>共 {data.total} 条资源</span>
+              {(data.nyaa?.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">Nyaa</span>
+              )}
+              {(data.animetosho?.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">AT</span>
+              )}
+            </div>
+          )}
+          {!hasResults && (
+            <span className="text-xs text-slate-500">磁力 {data.total} 条</span>
+          )}
+        </div>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" /> 刷新
+          </button>
+        )}
+      </div>
+
+      {/* errors */}
+      {(hasBgmError || hasTorrentError) && (
+        <div className="space-y-2">
+          {hasBgmError && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-sm dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400">
+              <Wifi className="w-4 h-4 flex-shrink-0" />
+              <span>Bangumi 请求失败：{data.errors.bangumi}</span>
+            </div>
+          )}
+          {data.errors?.nyaa && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-sm dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400">
+              <Wifi className="w-4 h-4 flex-shrink-0" />
+              <span>Nyaa 请求失败：{data.errors.nyaa}</span>
+            </div>
+          )}
+          {data.errors?.animetosho && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 text-sm dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400">
+              <Wifi className="w-4 h-4 flex-shrink-0" />
+              <span>AnimeTosho 请求失败：{data.errors.animetosho}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* completely empty state */}
+      {!hasResults && bgmList.length === 0 && !hasBgmError && !hasTorrentError && (
+        <div className="text-center py-16">
+          <Wifi className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+          <p className="text-sm text-slate-500">未找到相关结果</p>
+          <p className="text-xs text-slate-400 mt-1">尝试更换关键词</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        {/* left: Bangumi metadata（增强版） */}
+        {bgmList.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-4 rounded-full bg-violet-500" />
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Bangumi 条目
+              </h2>
+              <a
+                href={`https://bgm.tv/search/${encodeURIComponent(data.keyword)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto text-xs text-violet-500 hover:text-violet-400 transition-colors"
+              >
+                更多 →
+              </a>
+            </div>
+            <div className="space-y-2">
+              {bgmList.map((s) => (
+                <BangumiCard key={s.id} subject={s} />
+              ))}
+            </div>
+          </div>
+        ) : hasBgmError ? null : (
+          <div className="rounded-xl border p-6 text-center bg-white dark:bg-slate-800/30 border-slate-200 dark:border-slate-700">
+            <Star className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">未找到 Bangumi 条目</p>
+          </div>
+        )}
+
+        {/* right: torrent results */}
+        <div className="min-w-0 space-y-4">
+          {/* empty state for torrents */}
+          {!hasResults && (
+            <div className="text-center py-12 bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60">
+              <Magnet className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">未找到磁力资源</p>
+              <p className="text-xs text-slate-400 mt-1">尝试更换关键词或数据源</p>
+            </div>
+          )}
+
+          {/* 磁力列表容器（增强版卡片式） */}
+          {pagedTorrents.length > 0 && (
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+              {/* 标题栏 */}
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                    <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-500 dark:text-violet-400" />
+                  </div>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                    磁力链接
+                  </span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-full">
+                    {activeTorrents.length} 条
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <Shield className="w-3 h-3" />
+                  点击名称唤起客户端 · 图标复制/下载
+                </div>
+              </div>
+
+              {/* 内容区 */}
+              <div className="p-4 sm:p-5">
+                <div className="space-y-1.5">
+                  {/* 表头 */}
+                  <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800">
+                    <span>标题 / 分类 / 大小 / 日期</span>
+                    <span className="text-right">状态 · 操作</span>
+                  </div>
+
+                  {/* 资源列表 */}
+                  {(showAllTorrents ? pagedTorrents : pagedTorrents.slice(0, 5)).map((item, i) =>
+                    <NyaaCard key={(item as NyaaTorrent).id || i} item={item as NyaaTorrent} />
+                  )}
+
+                  {/* 展开/收起 */}
+                  {pagedTorrents.length > 5 && (
+                    <button
+                      onClick={() => setShowAllTorrents(!showAllTorrents)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-slate-400 hover:text-violet-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-lg transition-all"
+                    >
+                      {showAllTorrents
+                        ? <><ChevronUp className="w-3.5 h-3.5" />收起</>
+                        : <><ChevronDown className="w-3.5 h-3.5" />展开全部（共 {pagedTorrents.length} 条）</>}
+                    </button>
+                  )}
+                </div>
+
+                {/* 分页 */}
+                {activeTorrents.length > PAGE_SIZE && (
+                  <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      disabled={localPage <= 1}
+                      onClick={() => setLocalPage(p => p - 1)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                                 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                    </button>
+                    <span className="text-xs text-slate-500 px-2">
+                      {localPage} / {totalPages}
+                      <span className="ml-1 text-slate-400">（共 {activeTorrents.length} 条）</span>
+                    </span>
+                    <button
+                      disabled={localPage >= totalPages}
+                      onClick={() => setLocalPage(p => p + 1)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                 hover:bg-slate-200 hover:text-slate-700 transition-all
+                                 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    >
+                      下一页 <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 服务端翻页（超过 60 条时请求下一页） */}
+          {onPageChange && torrentList.length >= 60 && localPage >= totalPages && (
+            <div className="flex justify-center gap-2 mt-1">
+              <button
+                disabled={data.page <= 1}
+                onClick={() => onPageChange(data.page - 1)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-violet-100 text-violet-600
+                           hover:bg-violet-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                           dark:bg-violet-900/40 dark:text-violet-300 dark:hover:bg-violet-900/60"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> 上一批
+              </button>
+              <span className="flex items-center px-3 text-xs text-slate-500">第 {data.page} 批</span>
+              <button
+                onClick={() => onPageChange(data.page + 1)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-violet-100 text-violet-600
+                           hover:bg-violet-200 transition-all
+                           dark:bg-violet-900/40 dark:text-violet-300 dark:hover:bg-violet-900/60"
+              >
+                下一批 <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -2,7 +2,7 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
-  Referrer-Policy: strict-origin-when-cross-allow
+  Referrer-Policy: strict-origin-when-cross-origin
 
 /index.html
   Cache-Control: no-cache, must-revalidate

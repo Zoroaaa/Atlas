@@ -15,6 +15,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'javbus.com',
   'pics.javbus.com',
   'img.javbus.com',
+  'lain.bgm.tv',
 ];
 
 function isPrivateIP(hostname: string): boolean {
@@ -65,17 +66,26 @@ javRoutes.get('/proxy-image', async (c) => {
     return c.json({ success: false, error: { code: 'FORBIDDEN_HOST', message: `不允许的域名: ${parsed.hostname}` } }, 403);
   }
 
-  const imageFetchHeaders = {
+  // 根据目标域名动态设置 Referer
+  const refererMap: Record<string, string> = {
+    'lain.bgm.tv': 'https://bgm.tv/',
+    'www.javbus.com': 'https://www.javbus.com/',
+    'javbus.com': 'https://www.javbus.com/',
+    'pics.javbus.com': 'https://www.javbus.com/',
+    'img.javbus.com': 'https://www.javbus.com/',
+  };
+  const imageFetchHeaders: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Referer': 'https://www.javbus.com/',
+    'Referer': refererMap[parsed.hostname] || `https://${parsed.hostname}/`,
     'Sec-Fetch-Dest': 'image',
     'Sec-Fetch-Mode': 'no-cors',
     'Sec-Fetch-Site': 'same-origin',
-    'Cache-Control': 'no-cache',
   };
+
+  // 1x1 透明 GIF（错误时返回，避免 <img> 标签触发 ORB）
+  const fallbackGif = new Uint8Array([71,73,70,56,57,97,1,0,1,0,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,68,1,0,59]);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -92,10 +102,17 @@ javRoutes.get('/proxy-image', async (c) => {
 
       if (!resp.ok) {
         console.error('Image fetch failed:', targetUrl, resp.status);
-        return c.json({ success: false, error: { code: 'FETCH_FAILED', message: `图片获取失败: ${resp.status}` } }, 502);
+        return new Response(fallbackGif, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/gif',
+            'Cache-Control': 'no-store',
+            'Cross-Origin-Resource-Policy': 'cross-origin',
+          },
+        });
       }
 
-      const contentType = resp.headers.get('content-type') || 'image/jpeg';
+      const contentType = resp.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
       const data = await resp.arrayBuffer();
 
       return new Response(data, {
@@ -114,11 +131,25 @@ javRoutes.get('/proxy-image', async (c) => {
         continue;
       }
       console.error('Proxy image error:', targetUrl, err);
-      return c.json({ success: false, error: { code: 'TIMEOUT', message: '图片请求超时或失败' } }, 504);
+      return new Response(fallbackGif, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/gif',
+          'Cache-Control': 'no-store',
+          'Cross-Origin-Resource-Policy': 'cross-origin',
+        },
+      });
     }
   }
 
-  return c.json({ success: false, error: { code: 'FETCH_FAILED', message: '图片获取失败' } }, 502);
+  return new Response(fallbackGif, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/gif',
+      'Cache-Control': 'no-store',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+    },
+  });
 });
 
 javRoutes.use('*', authMiddleware);

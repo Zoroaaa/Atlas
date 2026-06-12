@@ -355,7 +355,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
               ? 'animate-fade-out animate-slide-up'
               : 'animate-fade-in animate-slide-down',
             // 对齐方式
-            align === 'right' ? 'right-0' : 'left-0'
+            align === 'right' ? 'right-0 translate-x-2' : 'left-0'
           )}
           style={{
             animationDuration: isClosing ? '100ms' : '150ms',

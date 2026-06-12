@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, animeRoutes, movieRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { CONFIG } from '@/constants';
 
@@ -70,8 +70,6 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/config', configRoutes);
 app.route('/api/jav', javRoutes);
 app.route('/api/feedback', feedbackRoutes);
-app.route('/api/anime', animeRoutes);
-app.route('/api/movie', movieRoutes);
 app.route('/api', systemRoutes);
 
 app.notFound((c) => {

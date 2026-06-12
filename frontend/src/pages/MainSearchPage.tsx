@@ -18,9 +18,10 @@ import type {
   SearchSource,
   UserSourceConfig,
   JavDetail,
+  EnrichedSearchData,
 } from '@/types';
 
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar } from '@/components/search';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useJavDetail } from '@/hooks';
@@ -82,52 +83,41 @@ export const MainSearchPage: React.FC = () => {
     }
   }, []);
 
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(() =>
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [enrichedData, setEnrichedData] = useState<EnrichedSearchData | null>(null);
+  const [enrichedPage, setEnrichedPage] = useState(1);
+
+  // 响应系统/用户主题切换
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setDarkMode(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+  const [showHistory, setShowHistory] = useState(true);
+  const [showFavorites, setShowFavorites] = useState(true);
+
   // Tab 切换处理函数（包含 URL 同步和分类联动）
   const handleTabChange = useCallback((tab: SearchTabType) => {
     setActiveTab(tab);
     setSearchParams({ tab }, { replace: true });
-    
-    // 根据选中的 Tab 更新 UI 上下文
-    switch (tab) {
-      case 'jav':
-        setSelectedCategory(null);
-        break;
-      case 'anime': {
-        const animeMC = majorCategories.find(mc => mc.id === 'anime_sources');
-        if (animeMC) {
-          const defaultCat = categories.find(c =>
-            c.majorCategoryId === animeMC.id && c.defaultSearchable
-          );
-          setSelectedCategory(defaultCat?.id || null);
-        }
-        break;
-      }
-      case 'movie': {
-        const movieMC = majorCategories.find(mc => mc.id === 'movie_sources');
-        if (movieMC) {
-          const defaultCat = categories.find(c =>
-            c.majorCategoryId === movieMC.id && c.defaultSearchable
-          );
-          setSelectedCategory(defaultCat?.id || null);
-        }
-        break;
-      }
-      case 'sources':
-        setSelectedCategory(null);
-        break;
-    }
-  }, [setActiveTab, setSearchParams, majorCategories, categories]);
-
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(true);
-  const [showFavorites, setShowFavorites] = useState(true);
+    // anime/movie 走聚合模式，分类过滤无影响，统一重置为"全部"
+    setSelectedCategory(null);
+    // 切换 Tab 时清空上次搜索结果，避免展示错误类型数据
+    setSearchResults([]);
+    setEnrichedData(null);
+  }, [setActiveTab, setSearchParams]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
     typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
   );
 
 
 
-  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -263,7 +253,7 @@ export const MainSearchPage: React.FC = () => {
     }
   };
 
-  const handleSearch = useCallback(async (overrideKeyword?: string) => {
+  const handleSearch = useCallback(async (overrideKeyword?: string, page = 1) => {
     const query = overrideKeyword || keyword;
     if (!query.trim()) {
       toast.warning('请输入搜索关键词');
@@ -281,30 +271,44 @@ export const MainSearchPage: React.FC = () => {
       eventData: { keyword: query.trim() },
     }).catch(() => {});
     setSearching(true);
+    setEnrichedData(null); // 重置聚合数据
+    setEnrichedPage(page);
     try {
       const response = await searchApi.search({
         keyword: query.trim(),
         categoryId: selectedCategory || undefined,
+        majorCategoryId: SEARCH_TABS[activeTab].majorCategoryId || undefined,
+        page,
       }) as unknown as {
         success: boolean;
-        data: { keyword: string; results: Array<{ id: string; name: string; subtitle?: string; icon?: string; url: string; siteType: string; category: string; description?: string }> };
+        data: { keyword: string; results: Array<{ id: string; name: string; subtitle?: string; icon?: string; url: string; siteType: string; category: string; description?: string }> } | EnrichedSearchData;
       };
       if (response.success && response.data) {
-        const mappedResults: SearchResultItem[] = response.data.results.map(r => ({
-          sourceId: r.id,
-          sourceName: r.name,
-          sourceIcon: r.icon,
-          url: r.url,
-          subtitle: r.subtitle,
-          siteType: r.siteType,
-          category: r.category,
-          description: r.description,
-        }));
-        setResults(mappedResults as unknown as SearchResult[]);
-        setSearchResults(mappedResults);
-        if (mappedResults.length === 0) {
-          toast.info('未找到结果', '尝试更换关键词搜索');
+        // ── 检测聚合响应（anime / movie）──
+        let isEnriched = false;
+        if ('resultType' in response.data && (response.data.resultType === 'anime' || response.data.resultType === 'movie')) {
+          setEnrichedData(response.data as EnrichedSearchData);
+          setSearchResults([]); // 清空通用搜索结果
+          isEnriched = true;
         } else {
+          // ── 通用模式：搜索源 URL 列表 ──
+          const mappedResults: SearchResultItem[] = (response.data as { results: any[] }).results.map(r => ({
+            sourceId: r.id,
+            sourceName: r.name,
+            sourceIcon: r.icon,
+            url: r.url,
+            subtitle: r.subtitle,
+            siteType: r.siteType,
+            category: r.category,
+            description: r.description,
+          }));
+          setResults(mappedResults as unknown as SearchResult[]);
+          setSearchResults(mappedResults);
+          if (mappedResults.length === 0) {
+            toast.info('未找到结果', '尝试更换关键词搜索');
+          }
+        }
+        if (!isEnriched) {
           loadHistory();
         }
         // 若输入符合番号格式，自动触发磁力提取
@@ -565,7 +569,8 @@ export const MainSearchPage: React.FC = () => {
             </button>
           </div>
 
-          {searchableCategories.length > 0 && (
+          {/* 分类过滤：仅 JAV tab 显示，anime/movie 走聚合模式无需过滤 */}
+          {searchableCategories.length > 0 && activeTab === 'jav' && (
             <div className="category-filter-wrapper">
               <div className="flex items-center gap-1.5 shrink-0">
                 <Filter className="w-3.5 h-3.5 text-surface-400" />
@@ -623,54 +628,89 @@ export const MainSearchPage: React.FC = () => {
             getSiteTypeLabel={getSiteTypeLabel}
           />
         ) : (
-        /* 搜索类 Tab（JAV/动漫/影视）：恢复原来三栏布局，不含源面板 */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <>
+          {/* JAV详情面板：全宽显示 */}
+          {activeTab === 'jav' && (
+            <JavDetailPanel
+              detail={javDetail}
+              status={javDetailStatus}
+              onClose={resetJavDetail}
+              onFavorite={handleFavoriteJavDetail}
+              isFavorited={javDetail ? favoritedCodes.has(javDetail.code) : false}
+            />
+          )}
 
-          {/* 左列：JAV详情 + 排行榜 + 历史 */}
-          <div className="flex flex-col gap-4">
-            {activeTab === 'jav' && (
-              <JavDetailPanel
-                detail={javDetail}
-                status={javDetailStatus}
-                onClose={resetJavDetail}
-                onFavorite={handleFavoriteJavDetail}
-                isFavorited={javDetail ? favoritedCodes.has(javDetail.code) : false}
-              />
-            )}
+          {/* 搜索结果面板：根据数据类型渲染不同 Panel */}
+          {enrichedData && enrichedData.resultType === 'anime' ? (
+          <AnimeSearchResultPanel
+            data={enrichedData}
+            isDark={darkMode}
+            onRefresh={() => handleSearch(keyword, enrichedPage)}
+            onPageChange={(p) => handleSearch(keyword, p)}
+            />
+          ) : enrichedData && enrichedData.resultType === 'movie' ? (
+            <MovieSearchResultPanel
+              data={enrichedData}
+              isDark={darkMode}
+              onRefresh={() => handleSearch(keyword, enrichedPage)}
+              onPageChange={(p) => handleSearch(keyword, p)}
+            />
+          ) : (
+          <SearchResultsPanel
+            results={searchResults}
+            viewMode={viewMode}
+            isAuthenticated={isAuthenticated}
+            isProxyEnabled={isProxyEnabled}
+            favorites={favorites}
+            categories={categories}
+            majorCategories={majorCategories}
+            onViewModeChange={setViewMode}
+            onClose={() => { setSearchResults([]); setEnrichedData(null); resetJavDetail(); }}
+            onToggleFavorite={handleToggleFavorite}
+          />
+          )}
 
-            {activeTab === 'jav' && (
-              <JavRankingsPanel onCodeClick={handleCodeClick} />
-            )}
+          {/* 主内容区：左侧排行+历史(2列) / 右侧收藏(1列) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
 
+            <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
+              {activeTab === 'jav' && (
+                <JavRankingsPanel onCodeClick={handleCodeClick} />
+              )}
+
+              {isAuthenticated && (
+                <SearchHistoryPanel
+                  history={searchHistory}
+                  isLoading={isLoadingHistory}
+                  show={showHistory}
+                  onToggle={() => setShowHistory(!showHistory)}
+                  onItemClick={(query) => setKeyword(query)}
+                  onClear={handleClearHistory}
+                />
+              )}
+            </div>
+
+            {/* 右列：收藏 */}
             {isAuthenticated && (
-              <SearchHistoryPanel
-                history={searchHistory}
-                isLoading={isLoadingHistory}
-                show={showHistory}
-                onToggle={() => setShowHistory(!showHistory)}
-                onItemClick={(query) => setKeyword(query)}
-                onClear={handleClearHistory}
-              />
+              <div className="hidden lg:block self-start">
+                <FavoritesPanel
+                  favorites={favorites}
+                  isLoading={isLoadingFavorites}
+                  show={showFavorites}
+                  isProxyEnabled={isProxyEnabled}
+                  onToggle={() => setShowFavorites(!showFavorites)}
+                  onRemove={handleRemoveFavorite}
+                  onExport={handleExportFavorites}
+                  onUpdate={loadFavorites}
+                />
+              </div>
             )}
+
           </div>
 
-          {/* 中列：搜索结果 */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            <SearchResultsPanel
-              results={searchResults}
-              viewMode={viewMode}
-              isAuthenticated={isAuthenticated}
-              isProxyEnabled={isProxyEnabled}
-              favorites={favorites}
-              categories={categories}
-              majorCategories={majorCategories}
-              onViewModeChange={setViewMode}
-              onClose={() => { setSearchResults([]); resetJavDetail(); }}
-              onToggleFavorite={handleToggleFavorite}
-            />
-
-            {/* 收藏面板 */}
-            {isAuthenticated && (
+          {/* 移动端：我的收藏 */}
+          {isAuthenticated && (
+            <div className="lg:hidden mt-3 sm:mt-4">
               <FavoritesPanel
                 favorites={favorites}
                 isLoading={isLoadingFavorites}
@@ -681,10 +721,9 @@ export const MainSearchPage: React.FC = () => {
                 onExport={handleExportFavorites}
                 onUpdate={loadFavorites}
               />
-            )}
-          </div>
-
-        </div>
+            </div>
+          )}
+        </>
         )}
       </div>
 
