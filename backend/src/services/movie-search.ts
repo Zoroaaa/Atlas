@@ -2,6 +2,10 @@
  * 影视搜索服务
  * 元数据: TMDB（主）+ 豆瓣（fallback）
  * 磁力资源: TPB API（关键词搜索）+ Torrentio（TMDB ID 聚合多源）
+ *
+ * ⚠️ 类型契约：本文件导出的接口（TMDBResult, ResourceItem, MovieSearchResult）
+ *    与 frontend/src/types/search.ts 保持结构同步。
+ *    修改任一端时，请同步更新另一端。
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -47,24 +51,18 @@ export interface MovieSearchResult {
   resourceTotal: number;
   tmdbError: string | null;
   doubanError: string | null;
-  ytsError: string | null;
+  tpbError: string | null;
   eztvError: string | null;
   resourceSources: string[];
 }
 
+import { fetchWithRetry } from '@/utils/fetch';
+import { formatBytes } from '@/utils/format';
+import { sanitizeError } from '@/utils/error';
+
 // ─── Constants ───────────────────────────────────────────────────────────
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-// ─── 工具函数 ─────────────────────────────────────────────────────────
-
-function formatBytes(bytes: number): string {
-  if (!bytes) return '';
-  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
-  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(0)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${bytes} B`;
-}
 
 /** 从 magnet URI 提取 infoHash（40位 hex） */
 function extractHash(magnet: string): string {
@@ -106,30 +104,39 @@ async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-
     });
 }
 
-// ─── 豆瓣搜索 ─────────────────────────────────────────────────────────
+// ─── 豆瓣搜索（best-effort fallback）───────────────────────────────
+//
+// ⚠️ 豆瓣反爬策略可能随时变化，此接口不保证长期可用。
+//    当前作为 TMDB 中文元数据的补充，失败时静默降级，不影响主流程。
+//    如豆瓣持续不可用，可移除此函数及调用点。
 
 interface DoubanRawItem { id: string; title: string; rate: string; cover?: string; url: string; is_tv: boolean; }
 
 async function searchDoubanAjax(keyword: string): Promise<TMDBResult[]> {
-  const url = `https://movie.douban.com/j/search_subjects?type=movie&tag=&sort=recommend&page_limit=20&page_start=0&search_text=${encodeURIComponent(keyword)}`;
-  const r = await fetch(url, {
-    headers: {
-      'User-Agent': UA, 'Accept': 'application/json, text/javascript, */*',
-      'Referer': 'https://movie.douban.com/explore', 'X-Requested-With': 'XMLHttpRequest',
-      'Cookie': 'bid=""; __yadk_uid=dummy',
-    },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!r.ok) throw new Error(`Douban AJAX error: ${r.status}`);
-  const data = await r.json() as { subjects?: DoubanRawItem[] };
-  if (!data.subjects?.length) return [];
-  return data.subjects.slice(0, 15).map((item) => ({
+  try {
+    const url = `https://movie.douban.com/j/search_subjects?type=movie&tag=&sort=recommend&page_limit=20&page_start=0&search_text=${encodeURIComponent(keyword)}`;
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': UA, 'Accept': 'application/json, text/javascript, */*',
+        'Referer': 'https://movie.douban.com/explore', 'X-Requested-With': 'XMLHttpRequest',
+        'Cookie': 'bid=""; __yadk_uid=dummy',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) throw new Error(`Douban AJAX error: ${r.status}`);
+    const data = await r.json() as { subjects?: DoubanRawItem[] };
+    if (!data.subjects?.length) return [];
+    return data.subjects.slice(0, 15).map((item) => ({
     id: -Math.abs(parseInt(item.id) || 0), title: item.title || '', originalTitle: item.title || '',
     overview: '', poster: item.cover?.startsWith('http') ? item.cover : (item.cover ? `https:${item.cover}` : null),
     backdrop: null, releaseDate: '', year: '',
     rating: parseFloat(item.rate) || 0, voteCount: 0,
     mediaType: (item.is_tv ? 'tv' : 'movie') as 'movie' | 'tv', source: 'douban' as const,
   }));
+  } catch {
+    // 豆瓣不可用时静默降级，TMDB 已足够覆盖
+    return [];
+  }
 }
 
 async function searchDouban(keyword: string): Promise<TMDBResult[]> {
@@ -142,10 +149,10 @@ async function searchDouban(keyword: string): Promise<TMDBResult[]> {
 async function searchTPB(keyword: string): Promise<ResourceItem[]> {
   try {
     const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword)}&cat=0`;
-    const r = await fetch(url, {
+    const r = await fetchWithRetry(url, {
       headers: { 'Accept': 'application/json', 'User-Agent': UA },
-      signal: AbortSignal.timeout(12000),
-    });
+      signal: AbortSignal.timeout(30000),
+    }, { retries: 2, baseDelay: 1000 });
     if (!r.ok) return [];
     const items = await r.json() as Array<{
       id: string; name: string; info_hash: string;
@@ -170,57 +177,9 @@ async function searchTPB(keyword: string): Promise<ResourceItem[]> {
       resourceType: 'magnet' as const,
       detailUrl: item.id ? `https://thepiratebay.org/description.php?id=${item.id}` : undefined,
     }));
-  } catch { return []; }
-}
-
-// ─── YTS JSON API（电影专用）──────────────────────────────────────────
-
-const YTS_TRACKERS = [
-  'udp://open.stealth.si:80/announce',
-  'udp://tracker.opentrackr.org:1337/announce',
-  'udp://exodus.desync.com:6969/announce',
-].map(t => `&tr=${encodeURIComponent(t)}`).join('');
-
-async function fetchYTS(keyword: string): Promise<ResourceItem[]> {
-  try {
-    const url = `https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(keyword)}&sort_by=seeds&limit=20`;
-    const r = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!r.ok) throw new Error(`yts_http_${r.status}`);
-
-    const data = await r.json() as {
-      data?: { movies?: Array<{
-        id: number; title: string; year: number;
-        torrents: Array<{
-          hash: string; quality: string; type: string;
-          seeds: number; peers: number; size: string; date_uploaded: string;
-        }>;
-      }> };
-    };
-
-    if (!data.data?.movies?.length) return [];
-
-    const results: ResourceItem[] = [];
-    for (const movie of data.data.movies) {
-      for (const t of movie.torrents) {
-        if (!t.hash || !/^[a-fA-F0-9]{40}$/.test(t.hash)) continue;
-        const magnet = `magnet:?xt=urn:btih:${t.hash.toLowerCase()}&dn=${encodeURIComponent(`${movie.title} ${t.quality}`)}${YTS_TRACKERS}`;
-        results.push({
-          title: `${movie.title} (${t.quality})`,
-          magnet,
-          size: t.size || '',
-          date: t.date_uploaded ? t.date_uploaded.split(' ')[0] : '',
-          source: 'yts',
-          sourceLabel: 'YTS',
-          resourceType: 'magnet' as const,
-        });
-      }
-    }
-    return results;
   } catch (e) {
-    throw e instanceof Error ? e : new Error(String(e));
+    console.error('[movie-search] tpb failed:', e instanceof Error ? e.message : e);
+    return [];
   }
 }
 
@@ -290,7 +249,8 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   if (doubanRes.status === 'fulfilled' && doubanRes.value.length > 0) {
     results.push(...doubanRes.value);
   }
-  const tmdbError = zhMetaRes.status === 'rejected' ? String(zhMetaRes.reason) : null;
+  const tmdbErrorRaw = zhMetaRes.status === 'rejected' ? String(zhMetaRes.reason) : null;
+  const doubanErrorRaw = doubanRes.status === 'rejected' ? String(doubanRes.reason) : null;
 
   // 元数据去重（按 title 前30字符）
   const seen = new Set<string>();
@@ -322,13 +282,32 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
 
   // ── TPB 并发搜索（所有关键词）──
   let allTpbResults: ResourceItem[] = [];
+  let tpbError: string | null = null;
   if (tpbKeywords.length > 0) {
-    const tpbPromises = tpbKeywords.map(title =>
-      searchTPB(title).catch(() => [] as ResourceItem[])
+    // 限制最多使用前 6 个关键词，避免过多并发请求
+    const limitedKeywords = tpbKeywords.slice(0, 6);
+    const TPB_CONCURRENCY = 3; // 每批最多 3 个并发
+
+    const tpbPromises = limitedKeywords.map(title =>
+      searchTPB(title).catch((e) => ({ _error: String(e) }) as unknown as ResourceItem[])
     );
-    const tpbRes = await Promise.allSettled(tpbPromises);
+
+    // 分批执行，避免同时发起大量请求触发限流
+    const tpbRes: PromiseSettledResult<ResourceItem[]>[] = [];
+    for (let i = 0; i < tpbPromises.length; i += TPB_CONCURRENCY) {
+      const batch = tpbPromises.slice(i, i + TPB_CONCURRENCY);
+      const batchResults = await Promise.allSettled(batch);
+      tpbRes.push(...batchResults);
+    }
     for (const res of tpbRes) {
-      if (res.status === 'fulfilled') allTpbResults.push(...res.value);
+      if (res.status === 'fulfilled') {
+        // 检查是否是错误标记结果
+        if (res.value.length === 1 && (res.value[0] as any)?._error) {
+          if (!tpbError) tpbError = `TPB: ${(res.value[0] as any)._error}`;
+        } else {
+          allTpbResults.push(...res.value);
+        }
+      }
     }
     // 按 btih 去重
     const seenHashes = new Set<string>();
@@ -339,35 +318,28 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     }).slice(0, 40);
   }
 
-  // ── Phase 2: YTS 电影搜索（一次关键词搜索即可）──
-  let ytsResults: ResourceItem[] = [];
-  let ytsError: string | null = null;
-  try {
-    ytsResults = await fetchYTS(keyword);
-  } catch (e) {
-    ytsError = e instanceof Error ? e.message : String(e);
-  }
-
-  // ── Phase 3: EZTV 剧集搜索（需要 IMDB ID）──
+  // ── Phase 2: EZTV 剧集搜索（需要 IMDB ID）──
   let eztvResults: ResourceItem[] = [];
-  const eztvError: string | null = null;
+  let eztvError: string | null = null;
   const tvItems = results.filter(r => r.mediaType === 'tv');
   if (tvItems.length > 0 && tmdbKey) {
     const eztvPromises = tvItems.slice(0, 5).map(async (item) => {
-      try {
-        const extIds = await fetchTMDBExternalIds(item.id, tmdbKey);
-        if (extIds.imdb_id) {
-          return await fetchEZTV(extIds.imdb_id);
-        }
-        return [] as ResourceItem[];
-      } catch { return [] as ResourceItem[] }
+      const extIds = await fetchTMDBExternalIds(item.id, tmdbKey);
+      if (extIds.imdb_id) {
+        return await fetchEZTV(extIds.imdb_id);
+      }
+      return [] as ResourceItem[];
     });
-    const eztvAll = await Promise.all(eztvPromises);
-    eztvResults = eztvAll.flat();
+    try {
+      const eztvAll = await Promise.all(eztvPromises);
+      eztvResults = eztvAll.flat();
+    } catch (e) {
+      eztvError = e instanceof Error ? e.message : String(e);
+    }
   }
 
   // ── 合并所有资源 + 去重 + 排序 ──
-  const allResources = [...allTpbResults, ...ytsResults, ...eztvResults];
+  const allResources = [...allTpbResults, ...eztvResults];
   const seenHashes = new Set<string>();
   const dedupedResources = allResources.filter(r => {
     const hash = extractHash(r.magnet);
@@ -379,7 +351,6 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   // 收集实际命中的源列表
   const sourceNames = new Set<string>();
   if (allTpbResults.length > 0) sourceNames.add('TPB');
-  if (ytsResults.length > 0) sourceNames.add('YTS');
   if (eztvResults.length > 0) sourceNames.add('EZTV');
 
   return {
@@ -389,10 +360,10 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     resources: dedupedResources,
     total: results.length,
     resourceTotal: dedupedResources.length,
-    tmdbError,
-    doubanError: null,
-    ytsError,
-    eztvError,
+    tmdbError:  sanitizeError(tmdbErrorRaw),
+    doubanError: sanitizeError(doubanErrorRaw),
+    tpbError:    sanitizeError(tpbError),
+    eztvError:   sanitizeError(eztvError),
     resourceSources: Array.from(sourceNames),
   };
 }

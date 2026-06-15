@@ -1,7 +1,28 @@
 import React from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2 } from 'lucide-react';
 import { Loading } from '@/components/ui';
+import { API_BASE_URL } from '@/constants';
 import type { SearchHistoryItem } from '@/types';
+
+// ─── 图片代理（与搜索结果统一走后端 /api/jav/proxy-image）─────────
+
+/** 将相对路径转为完整 URL（JAV 封面存的是 /pics/cover/xxx.jpg） */
+const resolveCoverUrl = (cover: string): string => {
+  if (!cover) return '';
+  // 已是完整 URL → 直接返回
+  if (cover.startsWith('http://') || cover.startsWith('https://')) return cover;
+  // 相对路径 → 拼接 JavBus 域名
+  if (cover.startsWith('/')) return `https://www.javbus.com${cover}`;
+  return cover;
+};
+
+const getProxyImageUrl = (url: string): string => {
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  );
+  const baseUrl = isLocal ? '' : API_BASE_URL.PRODUCTION.replace('/api', '');
+  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(resolveCoverUrl(url))}`;
+};
 
 // ─── 高度常量（与 JavRankingsPanel 共享逻辑）────────────────────────
 // header: 64px（同 JAV 面板）
@@ -61,73 +82,141 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-1.5 p-2 sm:p-2.5 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/40 cursor-pointer transition-all border border-surface-100 dark:border-surface-800 active:scale-[0.98]"
+                  className={`group rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/40 cursor-pointer transition-all border border-surface-100 dark:border-surface-800 active:scale-[0.98] overflow-hidden ${
+                    item.cover ? 'flex gap-2.5 p-2 sm:p-2.5' : 'flex flex-col gap-1.5 p-2 sm:p-2.5'
+                  }`}
                   onClick={() => onItemClick(item.query)}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-surface-400 shrink-0" />
-                      <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                  {/* ── 封面卡片模式 ── */}
+                  {item.cover ? (
+                    <>
+                      <img
+                        src={getProxyImageUrl(item.cover)}
+                        alt={item.title || item.query}
+                        className="w-14 h-20 sm:w-16 sm:h-22 object-cover rounded-md shrink-0 bg-surface-100"
+                        loading="lazy"
+                      />
+                      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs sm:text-sm font-medium text-surface-800 dark:text-surface-200 truncate">
+                            {item.title || item.query}
+                          </span>
+                          {item.resultsCount !== undefined && item.resultsCount > 0 && (
+                            <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-[10px] text-surface-500 shrink-0">
+                              {item.resultsCount}条
+                            </span>
+                          )}
+                        </div>
                         {item.code && (
-                          <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                          <span className="text-[10px] xs:text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded w-fit">
                             {item.code}
                           </span>
                         )}
-                        <span className="text-xs sm:text-sm font-medium text-surface-800 dark:text-surface-200 truncate">
-                          {item.title || item.query}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-surface-400 shrink-0">
-                      {item.resultsCount !== undefined && item.resultsCount > 0 && (
-                        <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs">
-                          {item.resultsCount}条
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {(item.subtitle || item.actors || item.duration || item.releaseDate || item.publisher || item.tags) && (
-                    <div className="space-y-1 pl-5">
-                      {item.subtitle && (
-                        <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                        {item.actors && (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                            <User className="w-2.5 h-2.5" />
-                            {item.actors}
-                          </span>
+                        {(item.actors || item.duration || item.releaseDate || item.publisher) && (
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] xs:text-xs">
+                            {item.actors && (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 truncate max-w-[120px]">
+                                <User className="w-2 h-2 shrink-0" />
+                                {item.actors}
+                              </span>
+                            )}
+                            {item.duration && (
+                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                <Clock className="w-2 h-2" />{item.duration}分钟
+                              </span>
+                            )}
+                            {item.releaseDate && (
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                <Calendar className="w-2 h-2" />{item.releaseDate}
+                              </span>
+                            )}
+                            {item.publisher && (
+                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 truncate max-w-[100px]">
+                                <Building2 className="w-2 h-2 shrink-0" />{item.publisher}
+                              </span>
+                            )}
+                          </div>
                         )}
-                        {item.duration && (
-                          <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                            <Clock className="w-2.5 h-2.5" />
-                            {item.duration}分钟
-                          </span>
-                        )}
-                        {item.releaseDate && (
-                          <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                            <Calendar className="w-2.5 h-2.5" />
-                            {item.releaseDate}
-                          </span>
-                        )}
-                        {item.publisher && (
-                          <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
-                            <Building2 className="w-2.5 h-2.5" />
-                            {item.publisher}
-                          </span>
+                        {item.tags && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {item.tags.split(',').slice(0, 4).map((tag, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {item.tags && (
-                        <div className="flex items-center gap-1 flex-wrap mt-1">
-                          {item.tags.split(',').slice(0, 4).map((tag, i) => (
-                            <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
-                              {tag.trim()}
+                    </>
+                  ) : (
+                    /* ── 纯文本列表模式（原有）── */
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-surface-400 shrink-0" />
+                          <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                            {item.code && (
+                              <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                                {item.code}
+                              </span>
+                            )}
+                            <span className="text-xs sm:text-sm font-medium text-surface-800 dark:text-surface-200 truncate">
+                              {item.title || item.query}
                             </span>
-                          ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-surface-400 shrink-0">
+                          {item.resultsCount !== undefined && item.resultsCount > 0 && (
+                            <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs">
+                              {item.resultsCount}条
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {(item.subtitle || item.actors || item.duration || item.releaseDate || item.publisher || item.tags) && (
+                        <div className="space-y-1 pl-5">
+                          {item.subtitle && (
+                            <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            {item.actors && (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                <User className="w-2.5 h-2.5" />
+                                {item.actors}
+                              </span>
+                            )}
+                            {item.duration && (
+                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                <Clock className="w-2.5 h-2.5" />
+                                {item.duration}分钟
+                              </span>
+                            )}
+                            {item.releaseDate && (
+                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                <Calendar className="w-2.5 h-2.5" />
+                                {item.releaseDate}
+                              </span>
+                            )}
+                            {item.publisher && (
+                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                                <Building2 className="w-2.5 h-2.5" />
+                                {item.publisher}
+                              </span>
+                            )}
+                          </div>
+                          {item.tags && (
+                            <div className="flex items-center gap-1 flex-wrap mt-1">
+                              {item.tags.split(',').slice(0, 4).map((tag, i) => (
+                                <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-300">
+                                  {tag.trim()}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               ))}

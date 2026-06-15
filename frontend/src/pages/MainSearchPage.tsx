@@ -285,6 +285,7 @@ export const MainSearchPage: React.FC = () => {
       };
       if (response.success && response.data) {
         // ── 检测聚合响应（anime / movie）──
+        // 注意：JAV 不走 enriched 模式，保持"多源列表 + 详情抽取"双轨并行
         let isEnriched = false;
         if ('resultType' in response.data && (response.data.resultType === 'anime' || response.data.resultType === 'movie')) {
           setEnrichedData(response.data as EnrichedSearchData);
@@ -311,9 +312,9 @@ export const MainSearchPage: React.FC = () => {
         if (!isEnriched) {
           loadHistory();
         }
-        // 若输入符合番号格式，自动触发磁力提取
+        // 若输入符合番号格式且当前在 JAV tab，自动触发磁力提取
         const trimmed = query.trim().toUpperCase();
-        if (/^[A-Z]{2,8}-?\d{2,6}$/.test(trimmed)) {
+        if (activeTab === 'jav' && /^[A-Z]{2,8}-?\d{2,6}$/.test(trimmed)) {
           fetchJavDetail(trimmed);
         } else {
           resetJavDetail();
@@ -702,6 +703,7 @@ export const MainSearchPage: React.FC = () => {
                   onRemove={handleRemoveFavorite}
                   onExport={handleExportFavorites}
                   onUpdate={loadFavorites}
+                  hasJavRankings={activeTab === 'jav'}
                 />
               </div>
             )}
@@ -720,6 +722,7 @@ export const MainSearchPage: React.FC = () => {
                 onRemove={handleRemoveFavorite}
                 onExport={handleExportFavorites}
                 onUpdate={loadFavorites}
+                hasJavRankings={activeTab === 'jav'}
               />
             </div>
           )}

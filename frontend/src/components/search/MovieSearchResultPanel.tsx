@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Star, Film, Tv2, Calendar, Copy, Check, Magnet,
-  ExternalLink, AlertCircle, Wifi, RefreshCw,
+  Star, Film, Tv2, Calendar, ExternalLink, Magnet,
+  AlertCircle, Wifi, RefreshCw,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type {
@@ -9,6 +9,7 @@ import type {
   TMDBResult,
   ResourceItem,
 } from '@/types/search';
+import { CopyButton } from '@/components/ui/CopyButton';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -17,30 +18,6 @@ const ratingColor = (n: number) =>
 
 const mediaTypeLabel = (t: 'movie' | 'tv') =>
   t === 'movie' ? '电影' : '剧集';
-
-// ─── 复制按钮（带反馈） ─────────────────────────────────────────────
-
-function CopyBtn({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => false);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-  return (
-    <button
-      onClick={copy}
-      title={label ?? '复制链接'}
-      className="p-1 rounded text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-    >
-      {copied
-        ? <Check className="w-3.5 h-3.5 text-emerald-500" />
-        : <Copy className="w-3.5 h-3.5" />}
-    </button>
-  );
-}
 
 // ─── 资源卡片（单条资源） ────────────────────────────────────────────
 
@@ -111,12 +88,12 @@ function ResourceCard({ item }: { item: ResourceItem }) {
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
             {item.driveCode && (
-              <CopyBtn text={item.driveCode} label={`复制提取码: ${item.driveCode}`} />
+              <CopyButton text={item.driveCode} label={`复制提取码: ${item.driveCode}`} />
             )}
           </>
         ) : item.magnet ? (
           <>
-            <CopyBtn text={item.magnet} label="复制磁力链接" />
+            <CopyButton text={item.magnet} label="复制磁力链接" />
             <a
               href={item.magnet}
               title="打开磁力链接（唤起BT客户端）"
@@ -298,10 +275,10 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
           <span>豆瓣请求失败：{data.doubanError}</span>
         </div>
       )}
-      {data.ytsError && (
+      {data.tpbError && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>YTS 请求失败：{data.ytsError}</span>
+          <span>TPB 请求失败：{data.tpbError}</span>
         </div>
       )}
       {data.eztvError && (
@@ -312,7 +289,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
       )}
 
       {/* completely empty state */}
-      {results.length === 0 && resources.length === 0 && !data.tmdbError && !data.doubanError && !data.ytsError && !data.eztvError && (
+      {results.length === 0 && resources.length === 0 && !data.tmdbError && !data.doubanError && !data.tpbError && !data.eztvError && (
         <div className="text-center py-16">
           <Wifi className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <p className="text-sm text-slate-500">未找到相关结果</p>

@@ -1,3 +1,14 @@
+/**
+ * 通用搜索 Hook（适用于通用搜索模式）
+ *
+ * ⚠️ 适用范围：
+ *   此 hook 仅支持「通用模式」搜索（sourceIds 分页）。
+ *   聚合搜索（anime_sources / movie_sources）由 MainSearchPage 内联的
+ *   handleSearch 直接调用 searchApi，不经过此 hook。
+ *
+ *   如果需要让聚合搜索也走此 hook，需扩展 performSearch 支持 majorCategoryId 参数。
+ *   当前状态：此 hook 主要被非主搜索页面使用。
+ */
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchStore, useAuthStore } from '@/stores';
 import { searchApi, userApi } from '@/services/api';

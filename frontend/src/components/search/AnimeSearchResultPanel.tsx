@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
 import {
-  Star, Calendar, Tv, Copy, Check, ExternalLink,
+  Star, Calendar, Tv, ExternalLink,
   Magnet, Wifi, RefreshCw, ChevronLeft, ChevronRight,
-  ChevronDown, ChevronUp, Shield, Tag, Heart, Users, Trophy, Film,
+  Tag, Heart, Users, Trophy, Film,
 } from 'lucide-react';
 import type {
   AnimeEnrichedData,
   BangumiSubject,
+  MikanItem,
   NyaaTorrent,
+  ShowRssItem,
 } from '@/types/search';
+import { API_BASE_URL } from '@/constants';
+import { CopyButton } from '@/components/ui/CopyButton';
 
 // ─── 图片代理（与 JAV 统一走后端 /api/jav/proxy-image）─────────────
 const getProxyImageUrl = (url: string): string => {
-  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? ''
-    : 'https://backend.codeseek.pp.ua';
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  );
+  // 复用 API_BASE_URL 常量，避免硬编码部署地址
+  const baseUrl = isLocal ? '' : API_BASE_URL.PRODUCTION.replace('/api', '');
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
@@ -26,30 +32,6 @@ const fmt = {
   rating: (n: number) =>
     n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-slate-400',
 };
-
-// ─── 复制按钮（带反馈） ─────────────────────────────────────────────
-
-function CopyBtn({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => false);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-  return (
-    <button
-      onClick={copy}
-      title={label ?? '复制磁力链接'}
-      className="p-1 rounded text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-    >
-      {copied
-        ? <Check className="w-3.5 h-3.5 text-emerald-500" />
-        : <Copy className="w-3.5 h-3.5" />}
-    </button>
-  );
-}
 
 // ─── Nyaa 磁力卡片 ──────────────────────────────────────────────────
 
@@ -102,8 +84,79 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
         )}
         {/* 操作按钮 */}
         <div className="flex items-center gap-0.5">
-          <CopyBtn text={item.magnet} label="复制磁力链接" />
+          <CopyButton text={item.magnet} label="复制磁力链接" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mikan 磁力卡片 ──────────────────────────────────────────────────
+
+function MikanCard({ item }: { item: MikanItem }) {
+  return (
+    <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">Mikan</span>
+          {item.group && (
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 rounded truncate max-w-[80px]" title={`字幕组：${item.group}`}>
+              {item.group}
+            </span>
+          )}
+          {item.magnet ? (
+            <a
+              href={item.magnet}
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
+              title={`点击唤起 BT 客户端下载：${item.title}`}
+            >
+              {item.title}
+            </a>
+          ) : (
+            <span className="text-xs text-slate-600 dark:text-slate-300 truncate" title={item.title}>
+              {item.title}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-slate-500">
+          {item.size && <span>{item.size}</span>}
+          {item.pubDate && <span>{item.pubDate}</span>}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {item.magnet && <CopyButton text={item.magnet} label="复制磁力链接" />}
+      </div>
+    </div>
+  );
+}
+
+// ─── showRSS 磁力卡片 ────────────────────────────────────────────────
+
+function ShowRssCard({ item }: { item: ShowRssItem }) {
+  return (
+    <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-medium bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300 rounded">SR</span>
+          {item.magnet ? (
+            <a
+              href={item.magnet}
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
+              title={`点击唤起 BT 客户端下载：${item.title}`}
+            >
+              {item.title}
+            </a>
+          ) : (
+            <span className="text-xs text-slate-600 dark:text-slate-300 truncate" title={item.title}>
+              {item.title}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {item.magnet && <CopyButton text={item.magnet} label="复制磁力链接" />}
       </div>
     </div>
   );
@@ -270,21 +323,32 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   onPageChange,
 }) => {
   const [localPage, setLocalPage] = useState(1);
-  const [showAllTorrents, setShowAllTorrents] = useState(false);
+  // 各源独立分页 state
+  const [atosPage, setAtosPage] = useState(1);
+  const [mikanPage, setMikanPage] = useState(1);
+  const [srPage, setSrPage] = useState(1);
+  const SOURCE_PAGE_SIZE = 10; // 统一每页10条
   const PAGE_SIZE = 10;
 
   const bgmList = data.bgm ?? [];
-  // 合并 Nyaa + AnimeTosho（后端已按 infoHash 去重并排序）
-  const torrentList = data.nyaa ?? [];
-  const hasResults = torrentList.length > 0;
+  // 各源独立
+  const nyaaList = data.nyaa ?? [];
+  const atosList = data.animetosho ?? [];
+  const mikanList = data.mikan ?? [];
+  const showrssList = data.showrss ?? [];
+  const hasResults = nyaaList.length > 0 || atosList.length > 0 || mikanList.length > 0 || showrssList.length > 0;
 
-  const activeTorrents = torrentList;
+  // Nyaa 翻页（保留原有分页逻辑）
+  const activeTorrents = nyaaList;
   const totalPages = Math.max(1, Math.ceil(activeTorrents.length / PAGE_SIZE));
   const pagedTorrents = activeTorrents.slice((localPage - 1) * PAGE_SIZE, localPage * PAGE_SIZE);
 
   // error states
   const hasBgmError = !!data.errors?.bangumi;
-  const hasTorrentError = !!data.errors?.nyaa || !!data.errors?.animetosho;
+  const hasNyaaError = !!data.errors?.nyaa;
+  const hasAtosError = !!data.errors?.animetosho;
+  const hasMikanError = !!data.errors?.mikan;
+  const hasSrError = !!data.errors?.showrss;
 
   return (
     <div className="space-y-6">
@@ -295,11 +359,17 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
               <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-medium">多源聚合</span>
               <span>共 {data.total} 条资源</span>
-              {(data.nyaa?.length > 0) && (
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">Nyaa</span>
+              {(nyaaList.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">Nyaa {nyaaList.length}</span>
               )}
-              {(data.animetosho?.length > 0) && (
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">AT</span>
+              {(atosList.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">AT {atosList.length}</span>
+              )}
+              {(mikanList.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">Mikan {mikanList.length}</span>
+              )}
+              {(showrssList.length > 0) && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300">SR {showrssList.length}</span>
               )}
             </div>
           )}
@@ -318,7 +388,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
       </div>
 
       {/* errors */}
-      {(hasBgmError || hasTorrentError) && (
+      {(hasBgmError || hasNyaaError || hasAtosError || hasMikanError || hasSrError) && (
         <div className="space-y-2">
           {hasBgmError && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-sm dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400">
@@ -332,17 +402,29 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
               <span>Nyaa 请求失败：{data.errors.nyaa}</span>
             </div>
           )}
+          {data.errors?.mikan && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400">
+              <Wifi className="w-4 h-4 flex-shrink-0" />
+              <span>Mikan 请求失败：{data.errors.mikan}</span>
+            </div>
+          )}
           {data.errors?.animetosho && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 text-sm dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
               <span>AnimeTosho 请求失败：{data.errors.animetosho}</span>
             </div>
           )}
+          {data.errors?.showrss && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm dark:bg-orange-500/10 dark:border-orange-500/30 dark:text-orange-400">
+              <Wifi className="w-4 h-4 flex-shrink-0" />
+              <span>showRSS 请求失败：{data.errors.showrss}</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* completely empty state */}
-      {!hasResults && bgmList.length === 0 && !hasBgmError && !hasTorrentError && (
+      {!hasResults && bgmList.length === 0 && !hasBgmError && !hasNyaaError && !hasAtosError && !hasMikanError && !hasSrError && (
         <div className="text-center py-16">
           <Wifi className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <p className="text-sm text-slate-500">未找到相关结果</p>
@@ -392,26 +474,18 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             </div>
           )}
 
-          {/* 磁力列表容器（增强版卡片式） */}
+          {/* Nyaa 磁力列表 */}
           {pagedTorrents.length > 0 && (
             <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
-              {/* 标题栏 */}
               <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
                     <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-500 dark:text-violet-400" />
                   </div>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                    磁力链接
-                  </span>
-                  <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-full">
-                    {activeTorrents.length} 条
-                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">Nyaa 资源</span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-full">{nyaaList.length} 条</span>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                  <Shield className="w-3 h-3" />
-                  点击名称唤起客户端 · 图标复制/下载
-                </div>
+                <a href={`https://nyaa.si/?f=0&c=1_0&q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-500 hover:text-violet-400 transition-colors">Nyaa 站内搜索 →</a>
               </div>
 
               {/* 内容区 */}
@@ -424,21 +498,10 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   </div>
 
                   {/* 资源列表 */}
-                  {(showAllTorrents ? pagedTorrents : pagedTorrents.slice(0, 5)).map((item, i) =>
+                  {pagedTorrents.map((item, i) =>
                     <NyaaCard key={(item as NyaaTorrent).id || i} item={item as NyaaTorrent} />
                   )}
 
-                  {/* 展开/收起 */}
-                  {pagedTorrents.length > 5 && (
-                    <button
-                      onClick={() => setShowAllTorrents(!showAllTorrents)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-slate-400 hover:text-violet-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-lg transition-all"
-                    >
-                      {showAllTorrents
-                        ? <><ChevronUp className="w-3.5 h-3.5" />收起</>
-                        : <><ChevronDown className="w-3.5 h-3.5" />展开全部（共 {pagedTorrents.length} 条）</>}
-                    </button>
-                  )}
                 </div>
 
                 {/* 分页 */}
@@ -472,8 +535,215 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             </div>
           )}
 
+          {/* AnimeTosho 磁力列表 */}
+          {atosList.length > 0 && (
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden mt-4">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 dark:text-purple-400" />
+                  </div>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">AnimeTosho 资源</span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">{atosList.length} 条</span>
+                </div>
+                <a href={`https://feed.animetosho.org/json?filter=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-500 hover:text-purple-400 transition-colors">AT 站内搜索 →</a>
+              </div>
+              <div className="p-4 sm:p-5">
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800">
+                    <span>标题 / 大小 / 日期</span>
+                    <span className="text-right">操作</span>
+                  </div>
+                  {/* 计算分页 */}
+                  {(() => {
+                    const atosTotalPages = Math.max(1, Math.ceil(atosList.length / SOURCE_PAGE_SIZE));
+                    const pagedAtos = atosList.slice((atosPage - 1) * SOURCE_PAGE_SIZE, atosPage * SOURCE_PAGE_SIZE);
+                    return (
+                      <>
+                        {pagedAtos.map((item, i) =>
+                          <NyaaCard key={(item as NyaaTorrent).id || `atos-${i}`} item={item as NyaaTorrent} />
+                        )}
+                        {/* 分页控件 */}
+                        {atosList.length > SOURCE_PAGE_SIZE && (
+                          <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                              disabled={atosPage <= 1}
+                              onClick={() => setAtosPage(p => p - 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                            </button>
+                            <span className="text-xs text-slate-500 px-2">
+                              {atosPage} / {atosTotalPages}
+                              <span className="ml-1 text-slate-400">（共 {atosList.length} 条）</span>
+                            </span>
+                            <button
+                              disabled={atosPage >= atosTotalPages}
+                              onClick={() => setAtosPage(p => p + 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mikan 结果（独立展示） */}
+          {mikanList.length > 0 && (
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden mt-4">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                    Mikan 资源
+                  </span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
+                    {mikanList.length} 条
+                  </span>
+                </div>
+                <a
+                  href={`https://mikanani.me/RSS/Search?searchstr=${encodeURIComponent(data.keyword)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-emerald-500 hover:text-emerald-400 transition-colors"
+                >
+                  Mikan 站内搜索 →
+                </a>
+              </div>
+              <div className="p-4 sm:p-5">
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800">
+                    <span>标题 / 字幕组 / 大小 / 日期</span>
+                    <span className="text-right">操作</span>
+                  </div>
+                  {/* 计算分页 */}
+                  {(() => {
+                    const mikanTotalPages = Math.max(1, Math.ceil(mikanList.length / SOURCE_PAGE_SIZE));
+                    const pagedMikan = mikanList.slice((mikanPage - 1) * SOURCE_PAGE_SIZE, mikanPage * SOURCE_PAGE_SIZE);
+                    return (
+                      <>
+                        {pagedMikan.map((item, i) =>
+                          <MikanCard key={i} item={item} />
+                        )}
+                        {/* 分页控件 */}
+                        {mikanList.length > SOURCE_PAGE_SIZE && (
+                          <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                              disabled={mikanPage <= 1}
+                              onClick={() => setMikanPage(p => p - 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                            </button>
+                            <span className="text-xs text-slate-500 px-2">
+                              {mikanPage} / {mikanTotalPages}
+                              <span className="ml-1 text-slate-400">（共 {mikanList.length} 条）</span>
+                            </span>
+                            <button
+                              disabled={mikanPage >= mikanTotalPages}
+                              onClick={() => setMikanPage(p => p + 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* showRSS 结果 */}
+          {showrssList.length > 0 && (
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden mt-4">
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 dark:text-orange-400" />
+                  </div>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                    showRSS 资源
+                  </span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full">
+                    {showrssList.length} 条
+                  </span>
+                </div>
+                <a
+                  href="https://showrss.info"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-orange-500 hover:text-orange-400 transition-colors"
+                >
+                  showRSS 站内 →
+                </a>
+              </div>
+              <div className="p-4 sm:p-5">
+                <div className="space-y-1.5">
+                  {/* 计算分页 */}
+                  {(() => {
+                    const srTotalPages = Math.max(1, Math.ceil(showrssList.length / SOURCE_PAGE_SIZE));
+                    const pagedSr = showrssList.slice((srPage - 1) * SOURCE_PAGE_SIZE, srPage * SOURCE_PAGE_SIZE);
+                    return (
+                      <>
+                        {pagedSr.map((item, i) => (
+                          <ShowRssCard key={i} item={item} />
+                        ))}
+                        {/* 分页控件 */}
+                        {showrssList.length > SOURCE_PAGE_SIZE && (
+                          <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                              disabled={srPage <= 1}
+                              onClick={() => setSrPage(p => p - 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                            </button>
+                            <span className="text-xs text-slate-500 px-2">
+                              {srPage} / {srTotalPages}
+                              <span className="ml-1 text-slate-400">（共 {showrssList.length} 条）</span>
+                            </span>
+                            <button
+                              disabled={srPage >= srTotalPages}
+                              onClick={() => setSrPage(p => p + 1)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
+                                         hover:bg-slate-200 hover:text-slate-700 transition-all
+                                         dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                            >
+                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 服务端翻页（超过 60 条时请求下一页） */}
-          {onPageChange && torrentList.length >= 60 && localPage >= totalPages && (
+          {onPageChange && nyaaList.length >= 60 && localPage >= totalPages && (
             <div className="flex justify-center gap-2 mt-1">
               <button
                 disabled={data.page <= 1}

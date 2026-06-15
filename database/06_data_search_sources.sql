@@ -165,8 +165,7 @@ INSERT OR REPLACE INTO search_source_categories (
 ) VALUES
 ('movie_database', 'movie_sources', '📚 影视资料站', 'TMDB、豆瓣、IMDb等影视资料库', '📚', '#3b82f6', 1, 1, 1, 1, 'search', 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
 ('movie_torrent', 'movie_sources', '🧲 影视磁力', '各类电影电视剧磁力资源站', '🧲', '#2563eb', 2, 1, 1, 1, 'search', 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('movie_streaming', 'movie_sources', '📺 在线观看', '在线影视播放平台', '📺', '#0891b2', 3, 1, 1, 1, 'search', 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('movie_live', 'movie_sources', '📡 直播相关', '直播资源和 IPTV 相关站点', '📡', '#059669', 4, 1, 1, 1, 'search', 4, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
+('movie_streaming', 'movie_sources', '📺 在线观看', '在线影视播放平台', '📺', '#0891b2', 3, 1, 1, 1, 'search', 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
 
 -- ===============================================
 -- 10. 动漫搜索源 - 番剧资料站
@@ -289,21 +288,3 @@ INSERT OR REPLACE INTO search_sources (
 ('putlocker', 'movie_streaming', 'Putlocker', '免费影视流媒体', '知名的免费在线影视观看平台', '🎥', 'https://putlockers.name/search/{keyword}', 'https://putlockers.name', 'search', 1, 6, 1, 1, 6, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
 ('fmovies', 'movie_streaming', 'FMovies', '免费电影电视剧站', '提供大量免费电影和电视剧在线观看', '🎬', 'https://fmovies.to/movie/search.html?keyword={keyword}', 'https://fmovies.to', 'search', 1, 7, 1, 1, 7, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
 ('solarmovie', 'movie_streaming', 'SolarMovie', '高清影视在线观看', '高清画质的免费影视在线观看平台', '☀️', 'https://solarmovie.pe/search/{keyword}', 'https://solarmovie.pe', 'search', 1, 8, 1, 1, 8, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
-
--- ===============================================
--- 17. 影视搜索源 - 直播相关/IPTV
--- ===============================================
-
-INSERT OR REPLACE INTO search_sources (
-    id, category_id, name, subtitle, description, icon, url_template, homepage_url,
-    site_type, searchable, search_priority, is_system, is_active,
-    display_order, created_at, updated_at
-) VALUES
-('iptv_org', 'movie_live', 'IPTV.Org', '全球IPTV源集合', '收集整理全球可用的IPTV直播源，持续维护更新', '📡', 'https://iptv-org.github.io/', 'https://iptv-org.github.io', 'browse', 0, 99, 1, 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('tv_mosaic', 'movie_live', 'TV Mosaic', 'IPTV播放器聚合工具', 'IPTV播放和管理工具，支持多种EPG格式', '📺', 'https://tvmosaic.com', 'https://tvmosaic.com', 'browse', 0, 99, 1, 1, 2, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('plex_tv', 'movie_live', 'Plex Live TV', 'Plex DVR直播功能', 'Plex媒体服务器的Live TV & DVR功能，支持电视调谐器', '📀', 'https://www.plex.tv/tv-live-tv-dvr/', 'https://www.plex.tv', 'browse', 0, 99, 1, 1, 3, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('stalker', 'movie_live', 'Stalker Middleware', 'IPTV中间件解决方案', '企业级IPTV/OTT解决方案中间件', '🎯', 'https://github.com/nicholasgasior/stalker', 'https://github.com/nicholasgasior/stalker', 'browse', 0, 99, 1, 1, 4, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('xteve', 'movie_live', 'xTeve', 'Plex/DVR虚拟调谐器', '为Plex和Emby创建虚拟调谐器的工具，支持M3U', '🔧', 'https://github.com/xteve/xTeve', 'https://github.com/xteve/xTeve', 'browse', 0, 99, 1, 1, 5, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('iptvnator', 'movie_live', 'IPTVnator', '跨平台IPTV播放器', '基于Electron的跨平台IPTV播放器应用', '📱', 'https://github.com/4gray/iptvnator', 'https://github.com/4gray/iptvnator', 'browse', 0, 99, 1, 1, 6, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('epg_grabber', 'movie_live', 'WebGrab+Plus', 'EPG电子节目抓取工具', '从各网站抓取EPG节目单数据的工具', '📋', 'https://forum.webgrabplus.com/', 'https://forum.webgrabplus.com', 'browse', 0, 99, 1, 1, 7, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-('tvguide', 'movie_live', 'OnLine TV Guide', '在线电视节目表', '提供全球各地电视台的节目时间表查询', '📅', 'https://www.onlinetvguide.com/', 'https://www.onlinetvguide.com', 'browse', 0, 99, 1, 1, 8, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);

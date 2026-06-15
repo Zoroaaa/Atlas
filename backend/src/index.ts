@@ -11,6 +11,16 @@ import { Env } from '@/types';
 import { authRoutes, githubOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { CONFIG } from '@/constants';
+// 注册搜索 Provider
+import { providerRegistry } from '@/services/search-provider';
+import { animeProvider } from '@/providers/anime-provider';
+import { movieProvider } from '@/providers/movie-provider';
+
+// ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
+// 注意：JAV 不注册 Provider，保持原有"通用搜索 + 详情抽取"双轨并行
+providerRegistry.register(animeProvider);
+providerRegistry.register(movieProvider);
+// providerRegistry.register(javProvider); // JAV 走通用搜索模式，详情由 /api/jav/detail 独立处理
 
 const app = new Hono<{ Bindings: Env }>();
 

@@ -436,19 +436,19 @@ export const userMenuItems = (
     id: 'favorites',
     label: '我的收藏',
     icon: <Heart className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard?tab=favorites'),
+    onClick: () => navigate('/dashboard/favorites'),
   },
   {
     id: 'history',
     label: '搜索历史',
     icon: <Clock className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard?tab=history'),
+    onClick: () => navigate('/dashboard/history'),
   },
   {
     id: 'settings',
     label: '设置',
     icon: <Settings className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard?tab=settings'),
+    onClick: () => navigate('/dashboard/settings'),
   },
   {
     id: 'divider-2',

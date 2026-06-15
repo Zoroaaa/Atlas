@@ -24,15 +24,9 @@ const getProxyImageUrl = (url: string): string => {
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
-// ─── 收藏面板高度由左侧两个面板决定 ────────────────────────────────
+// ─── 收藏面板高度由左侧面板决定（动态适配） ─────────────────────────
 // gap-3(12px) 或 gap-4(16px)，取 sm:gap-4 = 16px
 const GAP = 16;
-
-// 展开高度 = JAV展开 + gap + 历史展开
-const FAV_EXPANDED_HEIGHT = JAV_PANEL_HEIGHT + GAP + HIST_PANEL_HEIGHT;
-
-// 收缩高度 = JAV收缩(header) + gap + 历史收缩(header)
-const FAV_COLLAPSED_HEIGHT = JAV_HEADER_HEIGHT + GAP + HIST_HEADER_HEIGHT;
 
 // Header 与左侧一致
 const FAV_HEADER_HEIGHT = 64;
@@ -46,13 +40,24 @@ interface FavoritesPanelProps {
   onRemove: (id: string) => void;
   onExport: () => void;
   onUpdate: () => void;
+  hasJavRankings?: boolean;  // 默认 true 保持向后兼容
 }
 
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
   favorites, isLoading: isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
+  hasJavRankings = true,  // 新增，默认true保持向后兼容
 }) => {
   const toast = useToast();
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  // 根据是否有JAV热榜动态计算高度
+  const FAV_EXPANDED_HEIGHT = hasJavRankings
+    ? JAV_PANEL_HEIGHT + GAP + HIST_PANEL_HEIGHT
+    : HIST_PANEL_HEIGHT;
+
+  const FAV_COLLAPSED_HEIGHT = hasJavRankings
+    ? JAV_HEADER_HEIGHT + GAP + HIST_HEADER_HEIGHT
+    : HIST_HEADER_HEIGHT;
 
   const totalHeight = show ? FAV_EXPANDED_HEIGHT : FAV_COLLAPSED_HEIGHT;
   const contentHeight = totalHeight - FAV_HEADER_HEIGHT;

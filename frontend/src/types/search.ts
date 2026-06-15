@@ -13,6 +13,19 @@ export type {
 } from '@codeseek/shared';
 
 // ─── 聚合搜索结果类型（anime / movie enriched response）───
+//
+// ⚠️ 类型同步契约：
+//   以下接口与后端 service 文件保持 1:1 结构对应：
+//     BangumiSubject  ←→ backend/src/services/anime-search.ts
+//     NyaaTorrent      ←→ backend/src/services/anime-search.ts
+//     MikanItem         ←→ backend/src/services/anime-search.ts
+//     ShowRssItem       ←→ backend/src/services/anime-search.ts
+//     AnimeEnrichedData ←→ backend/src/routes/search.ts (聚合响应)
+//     TMDBResult        ←→ backend/src/services/movie-search.ts
+//     ResourceItem      ←→ backend/src/services/movie-search.ts
+//     MovieEnrichedData ←→ backend/src/routes/search.ts (聚合响应)
+//
+//   修改任一端字段时，必须同步更新另一端，否则运行时可能出现静默错误。
 
 export interface BangumiSubject {
   id: number;
@@ -68,6 +81,11 @@ export interface MikanItem {
   detailUrl?: string;
 }
 
+export interface ShowRssItem {
+  title: string;
+  magnet: string;
+}
+
 export interface AnimeEnrichedData {
   resultType: 'anime';
   keyword: string;
@@ -76,8 +94,9 @@ export interface AnimeEnrichedData {
   nyaa: NyaaTorrent[];
   mikan: MikanItem[];
   animetosho: NyaaTorrent[];
+  showrss: ShowRssItem[];
   total: number;
-  errors: { bangumi: string | null; nyaa: string | null; mikan: string | null; animetosho: string | null };
+  errors: { bangumi: string | null; nyaa: string | null; mikan: string | null; animetosho: string | null; showrss: string | null };
 }
 
 export interface TMDBResult {
@@ -119,7 +138,7 @@ export interface MovieEnrichedData {
   resourceTotal: number;
   tmdbError: string | null;
   doubanError: string | null;
-  ytsError: string | null;      // NEW
+  tpbError: string | null;
   eztvError: string | null;     // NEW
   resourceSources?: string[];
 }

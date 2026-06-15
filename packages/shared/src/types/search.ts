@@ -14,6 +14,8 @@ export interface SearchHistoryItem {
   releaseDate?: string;
   publisher?: string;
   keyword?: string;
+  /** 封面 URL（方案B增强：Bangumi封面/TMDB poster/JAV封面） */
+  cover?: string;
 }
 
 export interface FavoriteItem {

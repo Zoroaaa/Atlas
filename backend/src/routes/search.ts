@@ -2,25 +2,140 @@
  * 搜索模块路由
  * 功能：提供搜索、搜索历史、收藏、搜索建议等功能
  * 支持：
+ *   - Provider 模式：通过 SearchProvider 接口分发到各搜索引擎（anime/movie/jav）
  *   - 通用模式：返回匹配的搜索源 URL 列表（原有行为）
- *   - 聚合模式：当 majorCategoryId 为 anime_sources / movie_sources 时，
- *              返回结构化元数据 + 磁力资源（调用专用 service）
+ *
+ * 架构升级说明：
+ *   原 if-else 分发逻辑已替换为 SearchProviderRegistry 查找。
+ *   新增搜索类别只需：(1)实现 SearchProvider接口 (2)在 index.ts 注册
  * 作者：CodeSeek Team
- * 日期：2024
+ * 日期：2024 / 2026 重构
  */
 import { Hono } from 'hono';
-import { Env, SearchSource } from '@/types';
+import { Env, SearchSource, JwtPayload } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { VALIDATION_RULES } from '@/constants';
-import { searchAnime } from '@/services/anime-search';
-import { searchMovie } from '@/services/movie-search';
+import { checkRateLimit } from '@/utils/rate-limit';
+import { providerRegistry } from '@/services/search-provider';
+import { setTmdbApiKey } from '@/providers/movie-provider';
 
 const R = VALIDATION_RULES;
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
 searchRoutes.use('*', authMiddleware);
+
+// ─── 搜索历史增强写入（方案 B）─────────────────────────────────────────
+
+/**
+ * 根据聚合搜索结果，将丰富元数据补写到搜索历史记录
+ * 利用 Bangumi ID/封面、TMDB ID/poster 等数据增强历史展示
+ */
+async function saveEnrichedHistory(
+  db: D1Database,
+  historyId: string | null,
+  user: JwtPayload,
+  result: Record<string, unknown>
+): Promise<void> {
+  if (!historyId || !user) return;
+
+  const resultType = result.resultType as string;
+  const updateFields: string[] = [];
+  const updateValues: (string | number)[] = [];
+
+  switch (resultType) {
+    case 'anime': {
+      // 动漫：提取首条 Bangumi 元数据 → title + cover + code(bgm:id) + tags + studio(publisher)
+      const bgm = (result as { bgm?: Array<{ id: number; name: string; nameCN: string; cover: string; tags?: string[]; studio?: string; rating?: number }> }).bgm;
+      const firstBgm = bgm?.[0];
+      if (firstBgm) {
+        updateFields.push('title=?, cover=?, code=?');
+        updateValues.push(
+          firstBgm.nameCN || firstBgm.name,
+          firstBgm.cover,
+          `bgm:${firstBgm.id}`
+        );
+        if (firstBgm.tags?.length) {
+          updateFields.push('tags=?');
+          updateValues.push(firstBgm.tags.join(','));
+        }
+        if (firstBgm.studio) {
+          updateFields.push('publisher=?');
+          updateValues.push(firstBgm.studio);
+        }
+        if (firstBgm.rating != null) {
+          updateFields.push('subtitle=?');
+          updateValues.push(`${firstBgm.rating} 分`);
+        }
+      }
+      break;
+    }
+    case 'movie': {
+      // 影视：提取首条 TMDB 结果 → title + cover(poster) + code(tmdb:id) + release_date
+      const results = (result as { results?: Array<{ id: number; title: string; poster: string | null; release_date?: string; first_air_date?: string; vote_average?: number }> }).results;
+      const firstResult = results?.[0];
+      if (firstResult) {
+        updateFields.push('title=?, cover=?, code=?');
+        updateValues.push(
+          firstResult.title,
+          firstResult.poster || '',
+          `tmdb:${firstResult.id}`
+        );
+        const release = firstResult.release_date || firstResult.first_air_date;
+        if (release) {
+          updateFields.push('release_date=?');
+          updateValues.push(release);
+        }
+        if (firstResult.vote_average != null) {
+          updateFields.push('subtitle=?');
+          updateValues.push(`${firstResult.vote_average} 分`);
+        }
+      }
+      break;
+    }
+    case 'jav': {
+      // JAV：提取详情数据 → title + cover + code(番号) + actors + duration + release_date + publisher + tags
+      const detail = (result as { detail?: { code: string; title: string; cover?: string; actresses?: string[]; duration?: string; releaseDate?: string; publisher?: string; tags?: string[] } }).detail;
+      if (detail) {
+        updateFields.push('title=?, cover=?');
+        updateValues.push(detail.title, detail.cover || '');
+        if (detail.actresses?.length) {
+          updateFields.push('actors=?');
+          updateValues.push(detail.actresses.join(','));
+        }
+        if (detail.duration) {
+          updateFields.push('duration=?');
+          updateValues.push(detail.duration);
+        }
+        if (detail.releaseDate) {
+          updateFields.push('release_date=?');
+          updateValues.push(detail.releaseDate);
+        }
+        if (detail.publisher) {
+          updateFields.push('publisher=?');
+          updateValues.push(detail.publisher);
+        }
+        if (detail.tags?.length) {
+          updateFields.push('tags=?');
+          updateValues.push(detail.tags.join(','));
+        }
+      }
+      break;
+    }
+  }
+
+  if (updateFields.length > 0) {
+    const total = (result as { total: number }).total ?? 0;
+    updateFields.push('results_count=?');
+    updateValues.push(total);
+    updateValues.push(historyId, user.userId);
+
+    await db.prepare(
+      `UPDATE user_search_history SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?`
+    ).bind(...updateValues).run();
+  }
+}
 
 /**
  * 执行搜索
@@ -29,6 +144,14 @@ searchRoutes.use('*', authMiddleware);
  */
 searchRoutes.post('/', async (c) => {
   const userPayload = c.get('user');
+
+  // 搜索接口速率限制：每用户每分钟最多 15 次
+  const rateLimitKey = userPayload ? `search:${userPayload.userId}` : `search:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
+  const rl = checkRateLimit(rateLimitKey);
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+  }
+
   const body = await c.req.json();
   const { keyword, page = 1, pageSize = 20, majorCategoryId, categoryId } = body;
 
@@ -58,14 +181,13 @@ searchRoutes.post('/', async (c) => {
         `SELECT source_id FROM user_search_source_configs 
          WHERE user_id = ? AND is_enabled = 1`
       ).bind(userPayload.userId).all<{ source_id: string }>();
-      
+
       if (userConfigs.results && userConfigs.results.length > 0) {
         userEnabledSources = new Set(userConfigs.results.map(c => c.source_id));
       }
     }
 
-    // ── 聚合模式：anime / movie 分类走专用搜索引擎 ──
-    const ENRICHED_MAJOR_CATEGORIES = new Set(['anime_sources', 'movie_sources']);
+    // ── Provider 分发模式：通过 Registry 查找匹配的搜索引擎 ──
     let actualMajorCategoryId: string | undefined = majorCategoryId;
 
     if (!actualMajorCategoryId && categoryId) {
@@ -75,33 +197,26 @@ searchRoutes.post('/', async (c) => {
       actualMajorCategoryId = catRow?.major_category_id;
     }
 
-    if (actualMajorCategoryId && ENRICHED_MAJOR_CATEGORIES.has(actualMajorCategoryId)) {
-      try {
-        let enrichedData: Record<string, unknown>;
+    if (actualMajorCategoryId) {
+      const provider = providerRegistry.getByCategory(actualMajorCategoryId);
+      if (provider) {
+        try {
+          // 注入 TMDB API Key（供 MovieProvider 的 suggestions/trending 使用）
+          setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
+          const enrichedData = await provider.search(trimmedKeyword, limitPage, {
+            apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
+          }) as unknown as Record<string, unknown>;
 
-        if (actualMajorCategoryId === 'anime_sources') {
-          const result = await searchAnime(trimmedKeyword, limitPage);
-          enrichedData = { ...result, resultType: 'anime' } as Record<string, unknown>;
-        } else {
-          const result = await searchMovie(trimmedKeyword, limitPage, c.env.TMDB_API_KEY);
-          enrichedData = { ...result, resultType: 'movie' } as Record<string, unknown>;
+          // 增强搜索历史记录（方案 B）
+          if (historyId && userPayload) {
+            await saveEnrichedHistory(c.env.DB, historyId, userPayload, enrichedData);
+          }
+
+          return c.json(success(enrichedData, '搜索完成'));
+        } catch (err) {
+          console.error(`[Provider:${provider.id}] search error:`, err);
+          return c.json(error('SERVER_ERROR', '搜索失败'), 500);
         }
-
-        if (historyId && userPayload) {
-          await c.env.DB.prepare(
-            `UPDATE user_search_history SET results_count = ? WHERE id = ? AND user_id = ?`
-          ).bind(
-            actualMajorCategoryId === 'anime_sources'
-              ? (enrichedData as { total: number }).total
-              : (enrichedData as { total: number }).total,
-            historyId, userPayload.userId
-          ).run();
-        }
-
-        return c.json(success(enrichedData, '搜索完成'));
-      } catch (err) {
-        console.error('Enriched search error:', err);
-        return c.json(error('SERVER_ERROR', '搜索失败'), 500);
       }
     }
 
@@ -177,11 +292,14 @@ searchRoutes.post('/', async (c) => {
 
 /**
  * 获取搜索建议
- * GET /api/search/suggestions
- * 公开接口，基于全局搜索历史
+ * GET /api/search/suggestions?keyword=xxx&categoryId=xxx
+ * 支持两种模式：
+ *   - 带 categoryId 且对应 Provider 支持 suggestions → 走 Provider
+ *   - 否则 fallback 到全局搜索历史统计
  */
 searchRoutes.get('/suggestions', async (c) => {
   const keyword = c.req.query('keyword');
+  const categoryId = c.req.query('categoryId');
   const limit = Math.min(
     Math.max(1, parseInt(c.req.query('limit') || '10')),
     R.SUGGESTIONS.MAX_LIMIT
@@ -191,13 +309,35 @@ searchRoutes.get('/suggestions', async (c) => {
     return c.json(success([]));
   }
 
+  // ── Provider suggestions 模式 ──
+  if (categoryId) {
+    const provider = providerRegistry.getByCategory(categoryId);
+    if (provider?.suggestions) {
+      try {
+        setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
+        const items = await provider.suggestions(keyword);
+        // 统一返回格式：{ keyword, count }
+        const mapped = items.map(item => ({
+          keyword: item.text,
+          count: 0, // Provider suggestions 不提供计数
+          ...(item.meta || {}),
+        }));
+        return c.json(success(mapped));
+      } catch (err) {
+        console.error(`[Provider:${provider.id}] suggestions error:`, err);
+        // fallback 到通用模式
+      }
+    }
+  }
+
+  // ── 通用模式：基于全局搜索历史统计 ──
   try {
     const suggestions = await c.env.DB.prepare(
-      `SELECT query as keyword, COUNT(*) as count 
-       FROM user_search_history 
-       WHERE query LIKE ? 
-       GROUP BY query 
-       ORDER BY count DESC 
+      `SELECT query as keyword, COUNT(*) as count
+       FROM user_search_history
+       WHERE query LIKE ?
+       GROUP BY query
+       ORDER BY count DESC
        LIMIT ?`
     ).bind(`${keyword}%`, limit).all<{ keyword: string; count: number }>();
 
@@ -210,10 +350,13 @@ searchRoutes.get('/suggestions', async (c) => {
 
 /**
  * 获取热门搜索关键词
- * GET /api/search/trending
- * 公开接口
+ * GET /api/search/trending?categoryId=xxx
+ * 支持两种模式：
+ *   - 带 categoryId 且对应 Provider supports trending → 走 Provider
+ *   - 否则 fallback 到全局搜索历史统计
  */
 searchRoutes.get('/trending', async (c) => {
+  const categoryId = c.req.query('categoryId');
   const hourInMs = 60 * 60 * 1000;
 
   const limit = Math.min(
@@ -225,15 +368,38 @@ searchRoutes.get('/trending', async (c) => {
     R.TRENDING.MAX_HOURS
   );
 
+  // ── Provider trending 模式 ──
+  if (categoryId) {
+    const provider = providerRegistry.getByCategory(categoryId);
+    if (provider?.trending) {
+      try {
+        setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
+        const items = await provider.trending();
+        // 统一返回格式：{ keyword, count }
+        const mapped = items.map(item => ({
+          keyword: item.keyword,
+          count: item.count,
+          ...(item.cover ? { cover: item.cover } : {}),
+          ...(item.subtitle ? { subtitle: item.subtitle } : {}),
+        }));
+        return c.json(success(mapped));
+      } catch (err) {
+        console.error(`[Provider:${provider.id}] trending error:`, err);
+        // fallback 到通用模式
+      }
+    }
+  }
+
+  // ── 通用模式：基于全局搜索历史统计 ──
   try {
     const since = Date.now() - hours * hourInMs;
-    
+
     const trending = await c.env.DB.prepare(
-      `SELECT query as keyword, COUNT(*) as count 
-       FROM user_search_history 
-       WHERE created_at > ? 
-       GROUP BY query 
-       ORDER BY count DESC 
+      `SELECT query as keyword, COUNT(*) as count
+       FROM user_search_history
+       WHERE created_at > ?
+       GROUP BY query
+       ORDER BY count DESC
        LIMIT ?`
     ).bind(since, limit).all<{ keyword: string; count: number }>();
 

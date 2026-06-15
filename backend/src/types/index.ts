@@ -114,6 +114,8 @@ export interface UserSearchHistory {
   release_date?: string;
   publisher?: string;
   keyword?: string;
+  /** 封面 URL（搜索历史增强：Bangumi封面/TMDB poster/JAV封面） */
+  cover?: string;
 }
 
 export interface UserAction {

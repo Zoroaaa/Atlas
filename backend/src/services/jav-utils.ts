@@ -1,0 +1,166 @@
+/**
+ * JAV 搜索共享工具
+ *
+ * 从 jav.ts 路由和 jav-provider.ts 中提取的公共逻辑。
+ * 两处都需要：normalizeCode / extractGidUc / parseMagnets / parseJavDetail
+ */
+
+// ─── 类型 ──────────────────────────────────────────────────────────────
+
+export interface MagnetItem {
+  name: string;
+  size: string;
+  date: string;
+  magnet: string;
+  isHD: boolean;
+}
+
+// ─── HTTP 请求常量 ──────────────────────────────────────────────────────
+
+export const JAV_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xhtml+xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  'Referer': 'https://www.javbus.com/',
+};
+
+// ─── 番号标准化 ─────────────────────────────────────────────────────────
+
+/** 将输入统一为 XXX-123 格式 */
+export function normalizeCode(raw: string): string {
+  const s = raw.trim().toUpperCase().replace(/\s/g, '');
+  if (/^[A-Z]+-\d+$/.test(s)) return s;
+  const m = s.match(/^([A-Z]+)(\d+)$/);
+  return m ? `${m[1]}-${m[2]}` : s;
+}
+
+// ─── HTTP 辅助 ──────────────────────────────────────────────────────────
+
+export async function get(url: string, timeoutMs = 10000): Promise<string> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { headers: JAV_HEADERS, signal: ctrl.signal });
+    if (!r.ok) return '';
+    return await r.text();
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// ─── 页面解析 ────────────────────────────────────────────────────────────
+
+/** 从详情页 HTML 提取 gid / uc（用于磁力 Ajax） */
+export function extractGidUc(html: string): { gid: string; uc: string } | null {
+  const gidM = html.match(/var\s+gid\s*=\s*(\d+)/);
+  const ucM = html.match(/var\s+uc\s*=\s*(\d+)/);
+  if (gidM && ucM) return { gid: gidM[1], uc: ucM[1] };
+  return null;
+}
+
+/** 解析磁力 Ajax 响应 HTML → MagnetItem[] */
+export function parseMagnets(html: string): MagnetItem[] {
+  if (!html) return [];
+  const items: MagnetItem[] = [];
+  const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let row: RegExpExecArray | null;
+  while ((row = rowRe.exec(html)) !== null) {
+    const rowHtml = row[1];
+    const magnetM = rowHtml.match(/href="(magnet:\?xt=[^"]+)"/i);
+    if (!magnetM) continue;
+    const magnet = magnetM[1];
+    const nameM = rowHtml.match(/<td[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/i);
+    const name = nameM ? nameM[1].trim() : '';
+    const cells: string[] = [];
+    const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let cell: RegExpExecArray | null;
+    while ((cell = cellRe.exec(rowHtml))) {
+      cells.push(cell[1].replace(/<[^>]+>/g, '').trim());
+    }
+    const size = cells[1] ?? '';
+    const date = cells[2] ?? '';
+    const isHD = /hd|1080|720/i.test(name) || rowHtml.includes('btn-primary');
+    items.push({ name: name || '未知', size, date, magnet, isHD });
+  }
+  return items;
+}
+
+/** 解析详情页主体信息（标题/封面/演员/标签等） */
+export function parseJavDetail(
+  html: string,
+  code: string,
+  detailUrl: string
+): {
+  code: string;
+  title: string;
+  cover?: string;
+  releaseDate?: string;
+  duration?: string;
+  publisher?: string;
+  /** 导演（仅 jav.ts 路由使用） */
+  director?: string;
+  /** 制作商（仅 jav.ts 路由使用） */
+  maker?: string;
+  /** 系列（仅 jav.ts 路由使用） */
+  series?: string;
+  tags: string[];
+  actresses: string[];
+  detailUrl: string;
+} {
+  // 标题
+  const titleM = html.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i) ||
+                 html.match(/<title>([^<]+)<\/title>/i);
+  const rawTitle = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : code;
+  const title = rawTitle.replace(/\s*-\s*JavBus\s*$/i, '').trim();
+
+  // 封面
+  const coverM = html.match(/bigImage[^>]*href="([^"]+)"/i) ||
+                 html.match(/<img[^>]+class="[^"]*cover[^"]*"[^>]+src="([^"]+)"/i);
+  const cover = coverM ? coverM[1] : undefined;
+
+  // 信息提取辅助
+  const infoField = (label: string): string | undefined => {
+    const re = new RegExp(label + '[^:：]*[:：]\\s*<[^>]+>([^<]+)<', 'i');
+    const m = html.match(re);
+    if (m) return m[1].trim();
+    const re2 = new RegExp(label + '[^:：]*[:：]\\s*([^<\\n]+)', 'i');
+    const m2 = html.match(re2);
+    return m2 ? m2[1].trim() : undefined;
+  };
+
+  const releaseDate = infoField('發行日期') ?? infoField('发行日期') ?? infoField('Release Date');
+  const duration    = infoField('長度') ?? infoField('长度') ?? infoField('Length');
+  const publisher   = infoField('發行商') ?? infoField('发行商') ?? infoField('Label');
+  const director    = infoField('導演') ?? infoField('导演') ?? infoField('Director');
+  const maker       = infoField('製作商') ?? infoField('制作商') ?? infoField('Studio');
+  const series      = infoField('系列') ?? infoField('Series');
+
+  // 类别标签
+  const tags: string[] = [];
+  const tagSection = html.match(/class="genre"[\s\S]{0,5000}/i)?.[0] ?? '';
+  const tagRe = /<a[^>]+href="[^"]*\/genre\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
+  let tagM: RegExpExecArray | null;
+  while ((tagM = tagRe.exec(tagSection))) {
+    const t = tagM[1].trim();
+    if (t) tags.push(t);
+  }
+
+  // 演员
+  const actressSet = new Set<string>();
+  const actresses: string[] = [];
+  const starRe = /<a[^>]+href="[^"]*\/star\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
+  let starM: RegExpExecArray | null;
+  while ((starM = starRe.exec(html))) {
+    const name = starM[1].trim();
+    if (name && name.length < 30 && !actressSet.has(name)) {
+      actressSet.add(name);
+      actresses.push(name);
+    }
+  }
+
+  return { code, title, cover, releaseDate, duration, publisher, director, maker, series, tags, actresses, detailUrl };
+}
