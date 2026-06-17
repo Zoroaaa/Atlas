@@ -1,7 +1,7 @@
 {
-  "name": "磁力快搜 - 高效磁力搜索引擎",
-  "short_name": "磁力快搜",
-  "description": "高效的磁力链接搜索引擎，支持多源聚合搜索",
+  "name": "Atlas - 开源聚合搜索引擎",
+  "short_name": "Atlas",
+  "description": "开源聚合搜索引擎 — JAV / 动漫 / 影视，一站式搜索",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -80,7 +80,7 @@
     {
       "name": "搜索",
       "short_name": "搜索",
-      "description": "快速搜索磁力资源",
+      "description": "快速搜索资源",
       "url": "/?action=search",
       "icons": [
         {

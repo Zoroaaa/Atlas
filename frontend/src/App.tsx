@@ -71,9 +71,12 @@ const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // 页面访问追踪组件（挂在 BrowserRouter 内部以使用 useLocation）
 const PageTracker: React.FC = () => {
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   useEffect(() => {
+    // 未登录时不发送分析请求，避免 401 触发全局 logout
+    if (!isAuthenticated) return;
+
     // 记录页面访问分析事件（静默失败，不影响用户体验）
     const sessionId = sessionStorage.getItem('analytics_session_id') || (() => {
       const id = Math.random().toString(36).slice(2);
@@ -88,7 +91,7 @@ const PageTracker: React.FC = () => {
       eventData: { path: location.pathname },
       referer: document.referrer || undefined,
     }).catch(() => {});
-  }, [location.pathname]);
+  }, [location.pathname, isAuthenticated]);
 
   return null;
 };

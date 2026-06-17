@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2 } from 'lucide-react';
-import { Loading } from '@/components/ui';
+import { Loading, ProxyImage } from '@/components/ui';
 import { API_BASE_URL } from '@/constants';
 import type { SearchHistoryItem } from '@/types';
 
@@ -90,11 +90,10 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                   {/* ── 封面卡片模式 ── */}
                   {item.cover ? (
                     <>
-                      <img
+                      <ProxyImage
                         src={getProxyImageUrl(item.cover)}
                         alt={item.title || item.query}
                         className="w-14 h-20 sm:w-16 sm:h-22 object-cover rounded-md shrink-0 bg-surface-100"
-                        loading="lazy"
                       />
                       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
                         <div className="flex items-center justify-between gap-2">

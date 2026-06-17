@@ -19,7 +19,9 @@ import type {
   UserSourceConfig,
   JavDetail,
   EnrichedSearchData,
+  JavEnrichedData,
 } from '@/types';
+import type { BangumiSubject, TMDBResult } from '@/types/search';
 
 import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
@@ -125,6 +127,8 @@ export const MainSearchPage: React.FC = () => {
 
   // JAV 磁力提取
   const { detail: javDetail, status: javDetailStatus, fetch: fetchJavDetail, reset: resetJavDetail } = useJavDetail();
+  // JAV Provider 模式：搜索接口已返回 detail 时直接复用（无需二次请求 /api/jav/detail）
+  const [javEnrichedDetail, setJavEnrichedDetail] = useState<JavDetail | null>(null);
   const [allSources, setAllSources] = useState<SourceWithUserConfig[]>([]);
   const [expandedMajorCategories, setExpandedMajorCategories] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -284,13 +288,38 @@ export const MainSearchPage: React.FC = () => {
         data: { keyword: string; results: Array<{ id: string; name: string; subtitle?: string; icon?: string; url: string; siteType: string; category: string; description?: string }> } | EnrichedSearchData;
       };
       if (response.success && response.data) {
-        // ── 检测聚合响应（anime / movie）──
-        // 注意：JAV 不走 enriched 模式，保持"多源列表 + 详情抽取"双轨并行
+        // ── 检测聚合响应（anime / movie / jav）──
         let isEnriched = false;
-        if ('resultType' in response.data && (response.data.resultType === 'anime' || response.data.resultType === 'movie')) {
+        if ('resultType' in response.data && ['anime', 'movie', 'jav'].includes(response.data.resultType as string)) {
           setEnrichedData(response.data as EnrichedSearchData);
-          setSearchResults([]); // 清空通用搜索结果
           isEnriched = true;
+
+          // ★ JAV Hybrid：从同一响应中提取 detail 和 results，分别渲染两个面板
+          if (response.data.resultType === 'jav') {
+            const javData = response.data as JavEnrichedData;
+            // 提取 detail → 直接设置（跳过 /api/jav/detail 二次请求）
+            if (javData.detail) {
+              setJavEnrichedDetail(javData.detail as unknown as JavDetail);
+            }
+            // 提取 results → 设置到 searchResults（用于 SearchResultsPanel 多源列表）
+            if (javData.results) {
+              const mapped = javData.results.map(r => ({
+                sourceId: r.id,
+                sourceName: r.name,
+                sourceIcon: r.icon,
+                url: r.url,
+                subtitle: r.subtitle,
+                siteType: r.siteType,
+                category: r.category,
+                description: r.description,
+              }));
+              setSearchResults(mapped as unknown as SearchResult[]);
+              setSearchResults(mapped);
+            }
+          } else {
+            // anime/movie：清空通用搜索结果（原有行为）
+            setSearchResults([]);
+          }
         } else {
           // ── 通用模式：搜索源 URL 列表 ──
           const mappedResults: SearchResultItem[] = (response.data as { results: any[] }).results.map(r => ({
@@ -313,11 +342,16 @@ export const MainSearchPage: React.FC = () => {
           loadHistory();
         }
         // 若输入符合番号格式且当前在 JAV tab，自动触发磁力提取
+        // ★ Provider 模式下 detail 已在搜索响应中，无需二次请求 /api/jav/detail
         const trimmed = query.trim().toUpperCase();
         if (activeTab === 'jav' && /^[A-Z]{2,8}-?\d{2,6}$/.test(trimmed)) {
-          fetchJavDetail(trimmed);
+          // 仅当 Provider 未返回 detail 时才触发二次请求（fallback 兼容）
+          if (!javEnrichedDetail) {
+            fetchJavDetail(trimmed);
+          }
         } else {
           resetJavDetail();
+          setJavEnrichedDetail(null);
         }
       }
     } catch {
@@ -379,6 +413,61 @@ export const MainSearchPage: React.FC = () => {
           releaseDate: detail.releaseDate,
           publisher: detail.publisher || detail.maker,
           keyword: detail.code,
+        });
+        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
+        toast.success('已添加到收藏');
+      } catch { toast.error('收藏失败', '请稍后重试'); }
+    }
+  };
+
+  // 动漫收藏（Bangumi 条目）
+  const handleToggleFavoriteAnime = async (subject: BangumiSubject) => {
+    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    const existingFavoriteId = getFavoriteId(subject.url);
+    if (existingFavoriteId) {
+      try {
+        await userApi.removeFavorite(existingFavoriteId);
+        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
+        toast.success('已取消收藏');
+      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+    } else {
+      try {
+        const response = await userApi.addFavorite({
+          title: subject.nameCN || subject.name,
+          url: subject.url,
+          cover: subject.cover,
+          subtitle: subject.name !== subject.nameCN ? subject.name : undefined,
+          tags: subject.tags?.join(', '),
+          keyword: keyword.trim() || undefined,
+        });
+        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
+        toast.success('已添加到收藏');
+      } catch { toast.error('收藏失败', '请稍后重试'); }
+    }
+  };
+
+  // 影视收藏（TMDB / 豆瓣条目）
+  const handleToggleFavoriteMovie = async (item: TMDBResult) => {
+    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    const url = item.source === 'douban'
+      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
+      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    const existingFavoriteId = getFavoriteId(url);
+    if (existingFavoriteId) {
+      try {
+        await userApi.removeFavorite(existingFavoriteId);
+        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
+        toast.success('已取消收藏');
+      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+    } else {
+      try {
+        const response = await userApi.addFavorite({
+          title: item.title,
+          url,
+          cover: item.poster ?? undefined,
+          subtitle: item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : undefined,
+          tags: item.year ? String(item.year) : undefined,
+          keyword: keyword.trim() || undefined,
         });
         if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
         toast.success('已添加到收藏');
@@ -630,14 +719,14 @@ export const MainSearchPage: React.FC = () => {
           />
         ) : (
         <>
-          {/* JAV详情面板：全宽显示 */}
+          {/* JAV详情面板：全宽显示（优先使用 Provider 搜索返回的 detail，无需二次请求） */}
           {activeTab === 'jav' && (
             <JavDetailPanel
-              detail={javDetail}
-              status={javDetailStatus}
-              onClose={resetJavDetail}
+              detail={javEnrichedDetail || javDetail}
+              status={javEnrichedDetail ? 'success' : javDetailStatus}
+              onClose={() => { resetJavDetail(); setJavEnrichedDetail(null); }}
               onFavorite={handleFavoriteJavDetail}
-              isFavorited={javDetail ? favoritedCodes.has(javDetail.code) : false}
+              isFavorited={(javEnrichedDetail || javDetail) ? favoritedCodes.has((javEnrichedDetail || javDetail)!.code) : false}
             />
           )}
 
@@ -646,15 +735,21 @@ export const MainSearchPage: React.FC = () => {
           <AnimeSearchResultPanel
             data={enrichedData}
             isDark={darkMode}
+            isAuthenticated={isAuthenticated}
+            favorites={favorites}
             onRefresh={() => handleSearch(keyword, enrichedPage)}
             onPageChange={(p) => handleSearch(keyword, p)}
-            />
+            onToggleFavorite={handleToggleFavoriteAnime}
+          />
           ) : enrichedData && enrichedData.resultType === 'movie' ? (
             <MovieSearchResultPanel
               data={enrichedData}
               isDark={darkMode}
+              isAuthenticated={isAuthenticated}
+              favorites={favorites}
               onRefresh={() => handleSearch(keyword, enrichedPage)}
               onPageChange={(p) => handleSearch(keyword, p)}
+              onToggleFavorite={handleToggleFavoriteMovie}
             />
           ) : (
           <SearchResultsPanel

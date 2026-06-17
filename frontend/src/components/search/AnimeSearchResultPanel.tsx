@@ -11,6 +11,7 @@ import type {
   NyaaTorrent,
   ShowRssItem,
 } from '@/types/search';
+import type { FavoriteItem } from '@/types';
 import { API_BASE_URL } from '@/constants';
 import { CopyButton } from '@/components/ui/CopyButton';
 
@@ -185,26 +186,30 @@ const typeLabel = (t?: string | number) => {
 
 // ─── Bangumi 卡片（详细元数据展示） ─────────────────────────────────
 
-const BangumiCard: React.FC<{ subject: BangumiSubject }> = ({ subject }) => (
-  <a
-    href={subject.url}
-    target="_blank"
-    rel="noopener noreferrer"
+const BangumiCard: React.FC<{
+  subject: BangumiSubject;
+  isAuthenticated: boolean;
+  isFavorited: boolean;
+  onToggleFavorite: (subject: BangumiSubject) => void;
+}> = ({ subject, isAuthenticated, isFavorited, onToggleFavorite }) => (
+  <div
     className="group flex gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/40 hover:border-violet-500/50 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-all"
   >
     {/* 封面 */}
     {subject.cover && (
-      <img
-        src={getProxyImageUrl(subject.cover)}
-        alt={subject.nameCN || subject.name}
-        className="w-20 sm:w-24 h-[120px] sm:h-[140px] object-cover rounded-lg flex-shrink-0 bg-slate-200 dark:bg-slate-700 shadow-md"
-        loading="lazy"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
+      <a href={subject.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+        <img
+          src={getProxyImageUrl(subject.cover)}
+          alt={subject.nameCN || subject.name}
+          className="w-20 sm:w-24 h-[120px] sm:h-[140px] object-cover rounded-lg bg-slate-200 dark:bg-slate-700 shadow-md"
+          loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </a>
     )}
 
     <div className="min-w-0 flex-1">
-      {/* 标题行：类型 + 状态 + 名称 + 外链 */}
+      {/* 标题行：类型 + 状态 + 名称 + 操作按钮 */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
@@ -232,7 +237,29 @@ const BangumiCard: React.FC<{ subject: BangumiSubject }> = ({ subject }) => (
             <p className="text-xs text-slate-500 mt-0.5 truncate">{subject.name}</p>
           )}
         </div>
-        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-500 flex-shrink-0 mt-0.5 transition-colors" />
+        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+          {isAuthenticated && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(subject); }}
+              className={`p-1.5 rounded-lg transition-all ${
+                isFavorited
+                  ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                  : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+              }`}
+              title={isFavorited ? '取消收藏' : '收藏'}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
+            </button>
+          )}
+          <a
+            href={subject.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </div>
 
       {/* 详细信息区 */}
@@ -304,7 +331,7 @@ const BangumiCard: React.FC<{ subject: BangumiSubject }> = ({ subject }) => (
         )}
       </div>
     </div>
-  </a>
+  </div>
 );
 
 // ─── main component ──────────────────────────────────────────────────────────
@@ -312,15 +339,21 @@ const BangumiCard: React.FC<{ subject: BangumiSubject }> = ({ subject }) => (
 interface AnimeSearchResultPanelProps {
   data: AnimeEnrichedData;
   isDark?: boolean;
+  isAuthenticated?: boolean;
+  favorites?: FavoriteItem[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
+  onToggleFavorite?: (subject: BangumiSubject) => void;
 }
 
 export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   data,
   isDark: _isDark = true,
+  isAuthenticated = false,
+  favorites = [],
   onRefresh,
   onPageChange,
+  onToggleFavorite,
 }) => {
   const [localPage, setLocalPage] = useState(1);
   // 各源独立分页 state
@@ -337,6 +370,9 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const mikanList = data.mikan ?? [];
   const showrssList = data.showrss ?? [];
   const hasResults = nyaaList.length > 0 || atosList.length > 0 || mikanList.length > 0 || showrssList.length > 0;
+
+  // 收藏状态判断
+  const isBgmFavorited = (url: string) => favorites.some(f => f.url === url);
 
   // Nyaa 翻页（保留原有分页逻辑）
   const activeTorrents = nyaaList;
@@ -452,7 +488,13 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             </div>
             <div className="space-y-2">
               {bgmList.map((s) => (
-                <BangumiCard key={s.id} subject={s} />
+                <BangumiCard
+                  key={s.id}
+                  subject={s}
+                  isAuthenticated={isAuthenticated}
+                  isFavorited={isBgmFavorited(s.url)}
+                  onToggleFavorite={(subj) => onToggleFavorite?.(subj)}
+                />
               ))}
             </div>
           </div>

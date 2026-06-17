@@ -143,4 +143,38 @@ export interface MovieEnrichedData {
   resourceSources?: string[];
 }
 
-export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData;
+export interface JavEnrichedData {
+  resultType: 'jav';
+  keyword: string;
+  page: number;
+  total: number;
+  errors: Record<string, string | null>;
+  detail?: {
+    code: string;
+    title: string;
+    cover?: string;
+    releaseDate?: string;
+    duration?: string;
+    publisher?: string;
+    director?: string;
+    maker?: string;
+    series?: string;
+    tags: string[];
+    actresses: string[];
+    detailUrl: string;
+    magnets: import('./jav').MagnetItem[];
+  };
+  /** 多源搜索结果（与通用模式格式一致，用于 SearchResultsPanel） */
+  results?: Array<{
+    id: string;
+    name: string;
+    subtitle?: string;
+    icon?: string;
+    url: string;
+    siteType: string;
+    category: string;
+    description?: string;
+  }>;
+}
+
+export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData;

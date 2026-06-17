@@ -314,7 +314,7 @@ export const HomePage: React.FC = () => {
       >
         <div className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed">
           <p className="mb-4">
-            CodeSeek是一个高效的磁力搜索工具，帮助您快速找到所需资源。
+            Atlas是一个开源聚合搜索引擎，覆盖 JAV / 动漫 / 影视，帮助您一站式找到所需资源。
           </p>
           <p className="mb-4">
             使用步骤：

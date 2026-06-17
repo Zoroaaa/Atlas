@@ -1,5 +1,5 @@
 {
-  "name": "codeseek",
+  "name": "atlas",
   "private": true,
   "workspaces": [
     "packages/*",

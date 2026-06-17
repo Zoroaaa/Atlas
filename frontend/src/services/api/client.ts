@@ -96,7 +96,11 @@ class ApiClient {
         }
 
         if (response.status === 401) {
-          useAuthStore.getState().logout();
+          // 只有当前持有 token 时才视为"token 失效"并登出
+          // 避免匿名请求（如分析埋点）的 401 误触发 logout
+          if (this.getToken()) {
+            useAuthStore.getState().logout();
+          }
           const authError = new Error('认证失败，请重新登录');
           (authError as unknown as Record<string, unknown>).code = 'AUTH_FAILED';
           throw authError;

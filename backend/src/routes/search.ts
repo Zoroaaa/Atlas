@@ -207,6 +207,34 @@ searchRoutes.post('/', async (c) => {
             apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
           }) as unknown as Record<string, unknown>;
 
+          // ── JAV Hybrid：合并多源列表到 Provider 响应 ──
+          // JAV 需要同时返回 detail（JavDetailPanel）和 results（SearchResultsPanel）
+          if (provider.id === 'jav') {
+            const sources = await c.env.DB.prepare(`
+              SELECT s.* FROM search_sources s
+              INNER JOIN search_source_categories c ON s.category_id = c.id
+              WHERE s.is_active = 1 AND s.searchable = 1 AND c.major_category_id = ?
+              AND (s.is_system = 1 OR s.created_by = ?)
+              ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
+            `).bind(actualMajorCategoryId, userPayload?.userId || '').all<SearchSource>();
+
+            const filteredSources = userEnabledSources
+              ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
+              : (sources.results || []);
+
+            enrichedData.results = filteredSources.map(source => ({
+              id: source.id,
+              name: source.name,
+              subtitle: source.subtitle,
+              icon: source.icon,
+              url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
+              siteType: source.site_type,
+              category: source.category_id,
+              description: source.description,
+            }));
+            enrichedData.total = filteredSources.length;
+          }
+
           // 增强搜索历史记录（方案 B）
           if (historyId && userPayload) {
             await saveEnrichedHistory(c.env.DB, historyId, userPayload, enrichedData);

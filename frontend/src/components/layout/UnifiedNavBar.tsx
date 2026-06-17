@@ -50,12 +50,12 @@ const LogoSection: React.FC = memo(() => (
       <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 opacity-0 group-hover:opacity-20 blur-lg transition-all duration-300" />
       <img
         src="/logo.png"
-        alt="磁力快搜"
+        alt="Atlas"
         className="relative w-full h-full rounded-xl shadow-lg object-cover"
       />
     </div>
     <span className="text-lg sm:text-xl font-bold gradient-text display-font hidden sm:block">
-      磁力快搜
+      Atlas
     </span>
   </Link>
 ));
@@ -312,7 +312,8 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
             <div className="flex items-center gap-4 lg:gap-6 min-w-0 flex-shrink">
               <LogoSection />
 
-              {/* Tab 切换器 - 桌面端显示 */}
+              {/* Tab 切换器 - 桌面端显示，登录后可见 */}
+              {isAuthenticated && (
               <nav role="tablist" className="hidden md:flex items-center gap-1">
                 {Object.entries(SEARCH_TABS).map(([key, tab]) => (
                   <TabButton
@@ -323,11 +324,13 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   />
                 ))}
               </nav>
+              )}
             </div>
 
             {/* 右侧区域：用户 + 功能按钮 */}
             <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-              {/* 功能工具组 - 移动端精简显示 */}
+              {/* 功能工具组 - 登录后可见，移动端精简显示 */}
+              {isAuthenticated && (
               <div className="flex items-center gap-0.5">
                 {/* 代理切换 - 移动端仅显示图标 */}
                 <button
@@ -352,9 +355,12 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
               </div>
+              )}
 
-              {/* 分隔线 - 仅桌面端显示 */}
+              {/* 分隔线 - 仅桌面端、登录后显示 */}
+              {isAuthenticated && (
               <div className="hidden sm:block w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+              )}
 
               {/* 以下按钮移动端隐藏，避免溢出 */}
               <div className="hidden sm:flex items-center gap-0.5">
@@ -379,7 +385,8 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 </a>
               </div>
 
-              {/* 社区/管理员入口 - 移动端隐藏 */}
+              {/* 社区/管理员入口 - 登录后可见，移动端隐藏 */}
+              {isAuthenticated && (
               <div className="hidden sm:flex items-center gap-0.5">
                 {communityEnabled && (
                   <CommunityLink />
@@ -388,6 +395,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   <AdminLink />
                 )}
               </div>
+              )}
 
               {/* 用户菜单 - 移动端紧凑显示 */}
               <UserDropdown
@@ -401,7 +409,8 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         </div>
       </header>
 
-      {/* ── 移动端底部导航栏 ── */}
+      {/* ── 移动端底部导航栏 - 登录后可见 ── */}
+      {isAuthenticated && (
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom border-t border-slate-200/60 dark:border-slate-700/60"
         role="navigation"
@@ -418,6 +427,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
           ))}
         </div>
       </nav>
+      )}
 
       {/* ── 帮助模态框 ── */}
       <Modal
@@ -427,7 +437,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         size="lg"
       >
         <div className="text-sm text-slate-600 dark:text-slate-300 space-y-4">
-          <p><strong>磁力快搜</strong>是一站式磁力搜索工具，聚合多个资源站点，支持快速检索。</p>
+          <p><strong>Atlas</strong>是一站式聚合搜索引擎，覆盖 JAV / 动漫 / 影视，支持多源聚合搜索。</p>
 
           <div>
             <h3 className="font-semibold text-base mb-2">如何使用</h3>

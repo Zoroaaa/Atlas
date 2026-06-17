@@ -10,6 +10,7 @@ import {
   error,
   generateId,
   hashPassword,
+  hashToken,
   generateToken,
   getClientIP,
   logUserAction,
@@ -298,7 +299,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     const token = await generateToken(user.id, user.username, c.env.JWT_SECRET, expiryDays, userRole);
 
     // 创建 session
-    const tokenHash = await hashPassword(token);
+    const tokenHash = await hashToken(token);
     const sessionId = generateId();
     const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 

@@ -1,139 +1,204 @@
-# CodeSeek API 文档 (v2.0.0)
+# CodeSeek API 文档
 
-> 返回项目主页 | [架构设计文档](../backend-frontend-tree.md) | [配置说明文档](../config.md) | [部署指南文档](../deploy.md)
+> **Base URL**: `https://api.codeseek.pp.ua/api`
+>
+> **版本**: v4.0.0
+>
+> **认证方式**: Bearer Token（GitHub OAuth 登录获取）
 
-本文档详细说明CodeSeek项目的所有API接口，100%基于实际后端代码。
+---
+
+## 概述
+
+CodeSeek API 基于 Cloudflare Workers + Hono 框架构建，提供 JAV / 动漫 / 影视三大类别的聚合搜索服务。
+
+### 核心能力
+
+| 能力 | 说明 |
+|------|------|
+| **聚合搜索** | 统一入口，支持 3 大类别 × 10+ 搜索分类 |
+| **元数据聚合** | 多源数据合并、去重、评分 |
+| **资源发现** | 磁力链接 / 种子 / 网盘 / 直链 |
+| **用户体系** | OAuth 登录、收藏、历史 |
+| **社区互动** | 评论、评分、举报 |
+| **后台管理** | 源管理、用户管理、内容审核 |
+
+### 三层搜索架构
+
+```
+Category (大类)  →  Classification (分类)  →  Source (源实例)
+anime/movie/jav     bangumi/mikan/tmdb/...    数据库驱动的动态源
+```
+
+详见 [搜索 API](./search.md) 和 [搜索源管理](./sources.md)。
 
 ---
 
 ## 目录
 
-- [基础信息](#基础信息)
-- [模块文档](#模块文档)
-- [路由注册汇总](#路由注册汇总)
-- [API统计](#api统计)
+### 核心 API
+| 模块 | 文档 | 说明 |
+|------|------|------|
+| **[搜索](./search.md)** | [search.md](./search.md) | 统一搜索入口、动漫/影视/JAV 搜索详情、搜索历史 |
+| **[搜索源](./sources.md)** | [sources.md] | 三层架构说明、源 CRUD、健康检查、批量操作 |
+| **[认证](./auth.md)** | [auth.md] | GitHub OAuth 登录、Token 刷新、用户信息 |
+
+### 业务 API
+| 模块 | 路径前缀 | 说明 |
+|------|---------|------|
+| 用户 | `/api/user` | 个人信息、收藏管理、设置 |
+| 社区 | `/api/community` | 评论、评分、举报、排行榜 |
+| 反馈 | `/api/feedback` | 提交反馈、反馈列表（管理） |
+| JAV | `/api/jav` | JAV 详情、图片代理、演员作品 |
+| 管理 | `/api/admin` | 后台管理仪表盘、用户/评论/源管理 |
+| 系统 | `/api` (root) | 健康检查、版本信息、统计数据 |
+| 配置 | `/api/config` | 公开配置（搜索源列表、版本号等） |
 
 ---
 
-## 基础信息
+## 通用约定
 
-- **基础URL**: `/api`
-- **认证方式**: JWT Bearer Token（在请求头中添加 `Authorization: Bearer <token>`）
-- **响应格式**: JSON
-- **API框架**: Hono 4.6.0
-- **运行时**: Cloudflare Workers
-- **数据库**: Cloudflare D1 (SQLite)
+### 请求格式
 
-## 统一响应格式
+- **Content-Type**: `application/json`
+- **字符编码**: UTF-8
+- **认证头**: `Authorization: Bearer <token>`
 
-```typescript
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: {
-    code: string;
-    message: string;
-  };
+### 响应格式
+
+所有接口统一响应格式：
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "操作成功"
 }
 ```
 
-## 错误码说明
+错误响应：
 
-| 错误码 | HTTP状态码 | 说明 |
-|--------|-----------|------|
-| `VALIDATION_ERROR` | 400 | 参数验证失败 |
-| `AUTH_ERROR` | 401 | 认证失败/未授权 |
-| `FORBIDDEN` | 403 | 权限不足 |
-| `NOT_FOUND` | 404 | 资源不存在 |
-| `DUPLICATE_ERROR` | 400 | 资源已存在 |
-| `RATE_LIMIT` | 429 | 请求频率超限 |
-| `SERVER_ERROR` | 500 | 服务器内部错误 |
-| `LOCKED` | 423 | 账户被锁定 |
-
-## 认证要求汇总
-
-| 路由模块 | 认证方式 | 说明 |
-|---------|---------|------|
-| `/api/auth` | 无全局中间件 | 部分接口需要认证（单独验证） |
-| `/api/user` | 全局 authMiddleware | 所有接口需要认证 |
-| `/api/search` | 全局 authMiddleware | 所有接口需要认证 |
-| `/api/search-sources` | 全局 authMiddleware | 所有接口需要认证，部分需要管理员权限 |
-| `/api/community` | 全局 authMiddleware | 所有接口需要认证 |
-| `/api/config` | 全局 authMiddleware | 所有接口需要认证，部分需要管理员权限 |
-| `/api/admin` | 全局管理员中间件 | 所有接口需要管理员权限 |
-| `/api/jav` | 全局 authMiddleware | 所有接口需要认证 |
-| `/api/feedback` | 可选认证 | 用户接口可选认证，管理员接口需要管理员权限 |
-| `/api` (system) | 全局 authMiddleware | 大部分接口需要认证，`/public-config` 和 `/health` 为公开接口 |
-
----
-
-## 模块文档
-
-| 模块 | 文档 | 功能描述 |
-|------|------|---------|
-| 认证接口 | [auth.md](./auth.md) | 用户认证、登录注册、邮箱验证、密码管理、GitHub OAuth |
-| 用户数据接口 | [user.md](./user.md) | 用户设置、收藏、搜索历史、活动记录 |
-| 搜索接口 | [search.md](./search.md) | 搜索执行、建议、热门 |
-| 搜索源管理接口 | [sources.md](./sources.md) | 搜索源CRUD、分类管理、用户配置 |
-| 社区接口 | [community.md](./community.md) | 社区分享、标签、评论、举报、通知 |
-| 管理员接口 | [admin.md](./admin.md) | 用户管理、举报处理、统计、日志、会话管理 |
-| 系统配置接口 | [config.md](./config.md) | 系统配置管理、分析事件、邮件日志 |
-| 系统接口 | [system.md](./system.md) | 健康检查、状态检测、统计、行为记录 |
-| JAV榜单接口 | [jav.md](./jav.md) | JAV榜单、番号建议、详情、磁力链接 |
-| 用户反馈接口 | [feedback.md](./feedback.md) | 用户反馈提交、反馈管理、邮件通知 |
-
----
-
-## 路由注册汇总
-
-后端路由注册顺序（index.ts）：
-
-```typescript
-app.route('/api/auth', authRoutes);              // 认证路由
-app.route('/api/auth', githubOAuthRoutes);       // GitHub OAuth 路由
-app.route('/api/user', userRoutes);              // 用户路由
-app.route('/api/search', searchRoutes);          // 搜索路由
-app.route('/api/search-sources', sourceRoutes);  // 搜索源路由
-app.route('/api/community', communityRoutes);    // 社区路由
-app.route('/api/admin', adminRoutes);            // 管理员路由
-app.route('/api/config', configRoutes);          // 配置路由
-app.route('/api/jav', javRoutes);                // JAV榜单路由
-app.route('/api/feedback', feedbackRoutes);      // 用户反馈路由
-app.route('/api', systemRoutes);                 // 系统路由
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "人类可读的错误描述"
+  }
+}
 ```
 
-### 路由模块说明
+### 分页
 
-| 模块 | 路由前缀 | 文件 | 认证方式 | 功能 |
-|------|---------|------|---------|------|
-| authRoutes | /api/auth | routes/auth.ts | 无全局中间件 | 用户认证、登录注册、邮箱验证、密码管理 |
-| githubOAuthRoutes | /api/auth | routes/github-oauth.ts | 无全局中间件 | GitHub OAuth 第三方登录 |
-| userRoutes | /api/user | routes/user.ts | 全局authMiddleware | 用户设置、收藏、搜索历史、活动记录 |
-| searchRoutes | /api/search | routes/search.ts | 全局authMiddleware | 搜索执行、建议、热门 |
-| sourceRoutes | /api/search-sources | routes/sources.ts | 全局authMiddleware | 搜索源CRUD、分类管理、用户配置 |
-| communityRoutes | /api/community | routes/community.ts | 全局authMiddleware | 社区分享、标签、评论、举报、通知 |
-| adminRoutes | /api/admin | routes/admin.ts | 全局管理员中间件 | 用户管理、举报处理、统计、日志、会话管理 |
-| configRoutes | /api/config | routes/config.ts | 全局authMiddleware | 系统配置管理、分析事件、邮件日志 |
-| javRoutes | /api/jav | routes/jav.ts | 全局authMiddleware | JAV榜单、番号建议、详情、磁力链接 |
-| feedbackRoutes | /api/feedback | routes/feedback.ts | 可选认证 | 用户反馈提交、反馈管理、邮件通知 |
-| systemRoutes | /api | routes/system.ts | 全局authMiddleware（/public-config、/health公开） | 健康检查、状态检测、统计、行为记录 |
+所有列表接口支持统一分页参数：
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `page` | number | 1 | 页码（从 1 开始） |
+| `pageSize` | number | 20 | 每页条数（最大 100） |
+
+分页响应：
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 100,
+    "totalPages": 5
+  }
+}
+```
+
+### 错误码
+
+| HTTP 状态码 | 说明 |
+|------------|------|
+| 200 | 成功 |
+| 201 | 创建成功 |
+| 400 | 请求参数错误 |
+| 401 | 未认证（缺少/无效 Token） |
+| 403 | 无权限（非管理员等） |
+| 404 | 资源不存在 |
+| 429 | 请求频率超限 |
+| 500 | 服务器内部错误 |
+| 502 | 上游服务不可用 |
+| 503 | 服务暂时不可用 |
+
+### 速率限制
+
+| 接口类别 | 限制 |
+|---------|------|
+| 搜索接口 | 30 次/分钟 |
+| 认证接口 | 10 次/分钟 |
+| 写入接口（收藏/评论） | 20 次/分钟 |
+| 其他接口 | 60 次/分钟 |
+
+超出限制返回 `429` + `Retry-After` 头。
 
 ---
 
-## API统计
+## 快速开始
 
-| 路由模块 | API数量 | 认证要求 |
-|---------|--------|---------|
-| authRoutes | 19 | 部分需要认证 |
-| githubOAuthRoutes | 2 | 公开 |
-| userRoutes | 13 | 全部需要认证 |
-| searchRoutes | 3 | 全部需要认证 |
-| sourceRoutes | 25 | 全部需要认证，部分需要管理员权限 |
-| communityRoutes | 25 | 全部需要认证，部分需要管理员权限 |
-| adminRoutes | 21 | 全部需要管理员权限 |
-| configRoutes | 14 | 全部需要认证，部分需要管理员权限 |
-| systemRoutes | 10 | 大部分需要认证 |
-| javRoutes | 4 | 全部需要认证 |
-| feedbackRoutes | 6 | 用户接口可选认证，管理员接口需要管理员权限 |
-| **总计** | **142** | - |
+### 1. 获取 Token
+
+```bash
+# 发起 GitHub OAuth 登录
+curl https://api.codeseek.pp.ua/api/auth/github
+
+# 回调获取 code →换取 token
+curl -X POST https://api.codeseek.pp.ua/api/auth/github/callback \
+  -H "Content-Type: application/json" \
+  -d '{"code": "github_callback_code"}'
+
+# 响应: { "token": "eyJ...", "user": { ... } }
+```
+
+### 2. 搜索
+
+```bash
+# 动漫搜索
+curl -X POST https://api.codeseek.pp.ua/api/search \
+  -H "Authorization: Bearer eyJ..." \
+  -H "Content-Type: application/json" \
+  -d '{"category":"anime","classification":"bangumi","keyword":"葬送的芙莉莲"}'
+
+# 影视搜索
+curl -X POST https://api.codeseek.pp.ua/api/search \
+  -H "Authorization: Bearer eyJ..." \
+  -H "Content-Version: application/json" \
+  -d '{"category":"movie","classification":"tmdb","keyword":"inception"}'
+```
+
+### 3. 查看搜索源
+
+```bash
+# 获取所有源
+curl -H "Authorization: Bearer eyJ..." \
+  https://api.codeseek.pp.ua/api/search-sources
+
+# 获取动漫类别下的分类
+curl -H "Authorization: Bearer eyJ..." \
+  https://api.codeseek.pp.ua/api/search-sources/classifications/anime
+```
+
+---
+
+## 版本历史
+
+| 版本 | 日期 | 主要变更 |
+|------|------|---------|
+| **v4.0.0** | 2026-06 | 新增动漫/影视搜索；三层搜索架构重构；Provider 注册模式 |
+| v3.1.0 | 2026-05 | 社区评论系统；用户反馈机制；后台管理增强 |
+| v3.0.0 | 2026-04 | GitHub OAuth；用户体系；D1 数据库迁移 |
+| v2.0.0 | 2026-03 | MVP 上线；JAV 元数据 + 磁力搜索 |
+
+---
+
+## 相关文档
+
+- [项目 README](../../readme.md) — 项目介绍与快速开始
+- [部署指南](../deploy.md) — Cloudflare Workers 部署详解
+- [配置说明](../config.md) — 环境变量与功能开关
+- [更新日志](../changelogv4.0.0.md) — v4.0.0 详细变更记录

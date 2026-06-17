@@ -3,12 +3,14 @@ import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
   AlertCircle, Wifi, RefreshCw,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  Heart,
 } from 'lucide-react';
 import type {
   MovieEnrichedData,
   TMDBResult,
   ResourceItem,
 } from '@/types/search';
+import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -114,15 +116,16 @@ const MovieCard: React.FC<{
   item: TMDBResult;
   onSelect: (item: TMDBResult) => void;
   active: boolean;
-}> = ({ item, onSelect, active }) => (
-  <button
-    onClick={() => onSelect(item)}
-    className={`group text-left w-full flex gap-3 p-3 rounded-xl border transition-all ${
-      active
-        ? 'border-blue-500/60 bg-blue-500/10'
-        : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/40 hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/70'
-    }`}
-  >
+  isAuthenticated: boolean;
+  isFavorited: boolean;
+  onToggleFavorite: (item: TMDBResult) => void;
+}> = ({ item, onSelect, active, isAuthenticated, isFavorited, onToggleFavorite }) => (
+  <div className={`group text-left w-full flex gap-3 p-3 rounded-xl border transition-all ${
+    active
+      ? 'border-blue-500/60 bg-blue-500/10'
+      : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/40 hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/70'
+  }`}>
+    <button onClick={() => onSelect(item)} className="flex gap-3 min-w-0 flex-1 text-left">
     <div className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-700">
       {item.poster ? (
         <img
@@ -177,7 +180,25 @@ const MovieCard: React.FC<{
         )}
       </div>
     </div>
-  </button>
+    </button>
+
+    {/* 收藏按钮 */}
+    <div className="flex-shrink-0 self-center">
+      {isAuthenticated && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(item); }}
+          className={`p-1.5 rounded-lg transition-all ${
+            isFavorited
+              ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+              : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+          }`}
+          title={isFavorited ? '取消收藏' : '收藏'}
+        >
+          <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
+        </button>
+      )}
+    </div>
+  </div>
 );
 
 // ─── main component ──────────────────────────────────────────────────────────
@@ -185,15 +206,21 @@ const MovieCard: React.FC<{
 interface MovieSearchResultPanelProps {
   data: MovieEnrichedData;
   isDark?: boolean;
+  isAuthenticated?: boolean;
+  favorites?: FavoriteItem[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
+  onToggleFavorite?: (item: TMDBResult) => void;
 }
 
 export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   data,
   isDark: _isDark = true,
+  isAuthenticated = false,
+  favorites = [],
   onRefresh,
   onPageChange,
+  onToggleFavorite,
 }) => {
   const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(
     data.results.length > 0 ? data.results[0] : null
@@ -222,6 +249,14 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const handleSelectItem = (item: TMDBResult) => {
     setSelectedItem(item);
     setResourcePage(1);
+  };
+
+  // 收藏状态判断（用 source + id + title 组合 key）
+  const isMovieFavorited = (item: TMDBResult) => {
+    const url = item.source === 'douban'
+      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
+      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    return favorites.some(f => f.url === url);
   };
 
   // 统计资源类型
@@ -318,6 +353,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     selectedItem?.id === item.id &&
                     selectedItem?.mediaType === item.mediaType
                   }
+                  isAuthenticated={isAuthenticated}
+                  isFavorited={isMovieFavorited(item)}
+                  onToggleFavorite={(itm) => onToggleFavorite?.(itm)}
                 />
               ))}
             </div>
@@ -383,19 +421,40 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                         <p className="text-sm text-slate-500 mt-0.5">{selectedItem.originalTitle}</p>
                       )}
                     </div>
-                    <a
-                      href={
-                        selectedItem.source === 'douban'
-                          ? `https://movie.douban.com/subject/${Math.abs(selectedItem.id)}/`
-                          : `https://www.themoviedb.org/${selectedItem.mediaType}/${selectedItem.id}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary-500 hover:underline flex-shrink-0"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      {selectedItem.source === 'douban' ? '在豆瓣查看' : '在 TMDB 查看'}
-                    </a>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {isAuthenticated && onToggleFavorite && (
+                        <>
+                          <button
+                            onClick={() => onToggleFavorite(selectedItem)}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isMovieFavorited(selectedItem)
+                                ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                                : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+                            }`}
+                            title={isMovieFavorited(selectedItem) ? '取消收藏' : '收藏'}
+                          >
+                            <Heart className={`w-4 h-4 ${isMovieFavorited(selectedItem) ? 'fill-current' : ''}`} />
+                          </button>
+                          {!isMovieFavorited(selectedItem) && (
+                            <span className="text-xs font-medium text-rose-500 dark:text-rose-400 animate-pulse hidden sm:inline">
+                              收藏
+                            </span>
+                          )}
+                        </>
+                      )}
+                      <a
+                        href={
+                          selectedItem.source === 'douban'
+                            ? `https://movie.douban.com/subject/${Math.abs(selectedItem.id)}/`
+                            : `https://www.themoviedb.org/${selectedItem.mediaType}/${selectedItem.id}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-lg transition-all flex-shrink-0"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </div>
 
                   {/* 详细信息（InfoRow 风格） */}

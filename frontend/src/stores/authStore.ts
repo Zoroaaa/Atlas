@@ -7,7 +7,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  
+
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: true, // 初始状态为加载中，等待初始化完成
+      isLoading: true,
 
       setUser: (user) => {
         set({ 
@@ -73,10 +73,17 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
+      // 仅持久化 token（不可变凭证），不持久化 user（可变状态）
+      // 每次启动从服务端验证 token，避免残留数据导致假登录态
       partialize: (state) => ({
-        user: state.user,
-        token: state.token, // 直接持久化明文 token
-        isAuthenticated: state.isAuthenticated,
+        token: state.token,
+      }),
+      // 合并时忽略残留的 user 字段，强制为 null，等待 initAuth 从服务端恢复
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        token: (persistedState as { token?: string | null }).token ?? null,
+        user: null,
+        isAuthenticated: false,
       }),
     }
   )

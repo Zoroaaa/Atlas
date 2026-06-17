@@ -26,10 +26,15 @@ export const GitHubCallbackPage: React.FC = () => {
   const { setUser, setToken, persistToken } = useAuthStore();
   const notification = useNotification();
   const processed = useRef(false);
+  // 等待 zustand persist 从 localStorage 恢复完成，避免 hydration 覆盖新 token
+  const hasHydrated = useAuthStore.persist.hasHydrated();
 
   useEffect(() => {
     // 严格模式下 useEffect 会执行两次，用 ref 防止重复处理
     if (processed.current) return;
+
+    // persist 尚未 hydrate 完成，等下一轮 effect
+    if (!hasHydrated) return;
     processed.current = true;
 
     const token = searchParams.get('token');
@@ -55,12 +60,12 @@ export const GitHubCallbackPage: React.FC = () => {
       persistToken(token);
       setUser(user);
       notification.success('登录成功', `欢迎回来，${user.username}！`);
-      navigate('/dashboard', { replace: true });
+      navigate('/main', { replace: true });
     } catch {
       notification.error('登录失败', '用户数据解析失败，请重试');
       navigate('/login', { replace: true });
     }
-  }, []);
+  }, [hasHydrated]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
