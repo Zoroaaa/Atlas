@@ -13,7 +13,7 @@ const getMajorCategoryIdByTab = (tab: string): string | null => {
   return mapping[tab] ?? null;
 };
 
-export type SearchTabType = 'jav' | 'anime' | 'movie' | 'sources';
+export type SearchTabType = 'jav' | 'anime' | 'movie' | 'community' | 'sources';
 
 interface SourceState {
   majorCategories: MajorCategory[];

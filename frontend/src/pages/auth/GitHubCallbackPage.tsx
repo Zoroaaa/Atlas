@@ -65,7 +65,7 @@ export const GitHubCallbackPage: React.FC = () => {
       notification.error('登录失败', '用户数据解析失败，请重试');
       navigate('/login', { replace: true });
     }
-  }, [hasHydrated]);
+  }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">

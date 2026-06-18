@@ -65,7 +65,7 @@ interface DashboardOverview {
     failedToday: number;
   };
   community: {
-    sharedSources: number;
+    posts: number;
     reviews: number;
     pendingReports: number;
   };
@@ -346,8 +346,8 @@ export const AdminPanelOverview: React.FC = () => {
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-              <span className="text-sm text-slate-600 dark:text-slate-400">分享搜索源</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{data.community.sharedSources}</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">社区帖子</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{data.community.posts}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
               <span className="text-sm text-slate-600 dark:text-slate-400">用户评价</span>

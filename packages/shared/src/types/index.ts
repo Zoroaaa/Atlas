@@ -12,8 +12,11 @@ export type { SearchHistoryItem, FavoriteItem, SearchResult,
 export type { SourceStatus, SiteType, SearchSource, Category,
   MajorCategory, SourceCheckResult, UserSourceConfig, SourceStats } from './source';
 
-export type { CommunitySourceStatus, CommunitySourceReportStatus,
-  CommunitySharedSource, CommunitySourceReview, CommunitySourceTag } from './community';
+export type { PostStatus, PostType, LikeType,
+  CommunityPost, CommunityTag, CommunityComment,
+  CreatePostRequest, UpdatePostRequest, CreateCommentRequest,
+  CreateTagRequest, UpdateTagRequest, ReportRequest,
+  CommunityUserStats, CommunityStats, CommunityNotification } from './community';
 
 export type { ApiError, ApiSuccess, ApiResponse,
   PaginatedResponse, PaginationParams } from './common';

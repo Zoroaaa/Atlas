@@ -3,8 +3,6 @@ import { Heart, Download, Trash2, ExternalLink, Tag, ChevronDown, ChevronRight, 
 import { Loading, ProxyImage } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
-import { JAV_PANEL_HEIGHT, JAV_HEADER_HEIGHT } from '@/components/jav/JavRankingsPanel';
-import { HIST_PANEL_HEIGHT, HIST_HEADER_HEIGHT } from '@/components/search/SearchHistoryPanel';
 import { userApi } from '@/services/api/search';
 import { useToast } from '@/components/ui/Toast';
 
@@ -24,12 +22,9 @@ const getProxyImageUrl = (url: string): string => {
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
-// ─── 收藏面板高度由左侧面板决定（动态适配） ─────────────────────────
-// gap-3(12px) 或 gap-4(16px)，取 sm:gap-4 = 16px
-const GAP = 16;
-
-// Header 与左侧一致
-const FAV_HEADER_HEIGHT = 64;
+// ─── 收藏面板高度 ───────────────────────────────────────────────────
+const FAV_HEADER = 64;
+const FAV_EXPANDED = 800;
 
 interface FavoritesPanelProps {
   favorites: FavoriteItem[];
@@ -40,27 +35,13 @@ interface FavoritesPanelProps {
   onRemove: (id: string) => void;
   onExport: () => void;
   onUpdate: () => void;
-  hasJavRankings?: boolean;  // 默认 true 保持向后兼容
 }
 
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
-  favorites, isLoading: isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
-  hasJavRankings = true,  // 新增，默认true保持向后兼容
+  favorites, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
 }) => {
   const toast = useToast();
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-
-  // 根据是否有JAV热榜动态计算高度
-  const FAV_EXPANDED_HEIGHT = hasJavRankings
-    ? JAV_PANEL_HEIGHT + GAP + HIST_PANEL_HEIGHT
-    : HIST_PANEL_HEIGHT;
-
-  const FAV_COLLAPSED_HEIGHT = hasJavRankings
-    ? JAV_HEADER_HEIGHT + GAP + HIST_HEADER_HEIGHT
-    : HIST_HEADER_HEIGHT;
-
-  const totalHeight = show ? FAV_EXPANDED_HEIGHT : FAV_COLLAPSED_HEIGHT;
-  const contentHeight = totalHeight - FAV_HEADER_HEIGHT;
 
   const handleStatusChange = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'want' ? 'watched' : 'want';
@@ -73,7 +54,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
       } else {
         toast.error(result.message || '状态更新失败');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('状态更新失败');
     } finally {
       setUpdatingStatus(null);
@@ -93,10 +74,10 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
   return (
     <div
       className="collapsible-section animate-fade-in transition-all duration-300 overflow-hidden"
-      style={{ animationDelay: '150ms', height: totalHeight }}
+      style={{ animationDelay: '150ms', height: show ? FAV_EXPANDED : FAV_HEADER }}
     >
       {/* Header */}
-      <button onClick={onToggle} className="collapsible-header shrink-0" style={{ height: FAV_HEADER_HEIGHT }}>
+      <button onClick={onToggle} className="collapsible-header shrink-0" style={{ height: FAV_HEADER }}>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
             <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 dark:text-rose-400" />
@@ -127,7 +108,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
       {/* 内容区：固定剩余高度，列表内部滚动 */}
       <div
         className="collapsible-content flex flex-col overflow-hidden"
-        style={{ height: contentHeight }}
+        style={{ height: show ? FAV_EXPANDED - FAV_HEADER : 0 }}
       >
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">

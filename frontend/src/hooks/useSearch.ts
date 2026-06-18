@@ -142,6 +142,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     isAuthenticated,
     addToHistory,
     toast,
+    paginationConfig.defaultPageSize,
   ]);
 
   const loadMore = useCallback(async () => {
@@ -221,7 +222,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     } catch (err) {
       console.error('Failed to load suggestions:', err);
     }
-  }, [setSuggestions]);
+  }, [setSuggestions, validationRules.SEARCH_KEYWORD_MIN_LENGTH]);
 
   const loadTrending = useCallback(async () => {
     try {

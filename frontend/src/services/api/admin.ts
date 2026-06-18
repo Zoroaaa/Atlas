@@ -35,7 +35,7 @@ interface AdminStats {
     uniqueKeywords: number;
   };
   community: {
-    sharedSources: number;
+    posts: number;
     tags: number;
     reviews: number;
     pendingReports: number;
@@ -307,7 +307,7 @@ export const adminApi = {
       failedToday: number;
     };
     community: {
-      sharedSources: number;
+      posts: number;
       reviews: number;
       pendingReports: number;
     };
@@ -458,9 +458,9 @@ export const adminApi = {
     status?: string;
   } = {}): Promise<PaginatedResponse<{
     id: string;
-    shared_source_id: string;
-    source_name: string;
-    source_url_template: string;
+    post_id: string;
+    title: string;
+    post_type: string;
     reporter_user_id: string;
     reporter_username: string;
     report_reason: string;
@@ -478,9 +478,9 @@ export const adminApi = {
       data: {
         reports: Array<{
           id: string;
-          shared_source_id: string;
-          source_name: string;
-          source_url_template: string;
+          post_id: string;
+          title: string;
+          post_type: string;
           reporter_user_id: string;
           reporter_username: string;
           report_reason: string;

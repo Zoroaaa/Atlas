@@ -1,9 +1,25 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
+
+// 构建时自动注入 SW 缓存版本号（时间戳），确保每次构建 SW 文件内容不同
+function injectSwVersion(): Plugin {
+  return {
+    name: 'inject-sw-version',
+    closeBundle() {
+      const swPath = path.resolve(__dirname, 'dist/sw.js')
+      if (!fs.existsSync(swPath)) return
+      const content = fs.readFileSync(swPath, 'utf-8')
+      const version = `v${Date.now()}`
+      fs.writeFileSync(swPath, content.replace('__SW_CACHE_VERSION__', version))
+      console.log(`[SW] 缓存版本已注入: ${version}`)
+    }
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), injectSwVersion()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

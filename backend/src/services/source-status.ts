@@ -288,7 +288,7 @@ export const analyzePageContent = (
   };
 };
 
-export const updateTagUsageCount = async (env: Env, tagIds: string[], increment = 1): Promise<void> => {
+export const updateTagUsageCount = async (env: Env, tagIds: string[]): Promise<void> => {
   if (!Array.isArray(tagIds) || tagIds.length === 0) {
     return;
   }
@@ -297,11 +297,11 @@ export const updateTagUsageCount = async (env: Env, tagIds: string[], increment 
     for (const tagId of tagIds) {
       if (tagId && typeof tagId === 'string') {
         await env.DB.prepare(
-          `UPDATE community_source_tags 
-           SET usage_count = usage_count + ?, updated_at = ?
-           WHERE id = ? AND tag_active = 1`
+          `UPDATE community_tags
+           SET tag_active = 1, updated_at = ?
+           WHERE id = ?`
         )
-          .bind(increment, Date.now(), tagId)
+          .bind(Date.now(), tagId)
           .run();
       }
     }
@@ -378,29 +378,26 @@ export const saveSingleStatusToCache = async (
 export const updateUserStatsAfterDelete = async (env: Env, userId: string): Promise<void> => {
   try {
     const realStats = (await env.DB.prepare(
-      `SELECT COUNT(*) as shared_count FROM community_shared_sources 
+      `SELECT COUNT(*) as posts_count FROM community_posts
        WHERE user_id = ? AND status = 'active'`
     )
       .bind(userId)
-      .first()) as { shared_count: number };
+      .first()) as { posts_count: number };
 
     await env.DB.prepare(
       `INSERT OR REPLACE INTO community_user_stats (
-        id, user_id, shared_sources_count, updated_at,
-        total_downloads, total_likes, total_views, reviews_given,
-        sources_downloaded, tags_created, reputation_score, contribution_level,
+        id, user_id, posts_count, updated_at,
+        likes_received, favorites_received, comments_count,
+        reputation_score, contribution_level,
         created_at
       ) VALUES (
         COALESCE((SELECT id FROM community_user_stats WHERE user_id = ?), ? || '_stats'),
         ?,
         ?,
         ?,
-        COALESCE((SELECT total_downloads FROM community_user_stats WHERE user_id = ?), 0),
-        COALESCE((SELECT total_likes FROM community_user_stats WHERE user_id = ?), 0),
-        COALESCE((SELECT total_views FROM community_user_stats WHERE user_id = ?), 0),
-        COALESCE((SELECT reviews_given FROM community_user_stats WHERE user_id = ?), 0),
-        COALESCE((SELECT sources_downloaded FROM community_user_stats WHERE user_id = ?), 0),
-        COALESCE((SELECT tags_created FROM community_user_stats WHERE user_id = ?), 0),
+        COALESCE((SELECT likes_received FROM community_user_stats WHERE user_id = ?), 0),
+        COALESCE((SELECT favorites_received FROM community_user_stats WHERE user_id = ?), 0),
+        COALESCE((SELECT comments_count FROM community_user_stats WHERE user_id = ?), 0),
         COALESCE((SELECT reputation_score FROM community_user_stats WHERE user_id = ?), 0),
         COALESCE((SELECT contribution_level FROM community_user_stats WHERE user_id = ?), 'beginner'),
         COALESCE((SELECT created_at FROM community_user_stats WHERE user_id = ?), strftime('%s', 'now') * 1000)
@@ -410,7 +407,7 @@ export const updateUserStatsAfterDelete = async (env: Env, userId: string): Prom
         userId,
         userId,
         userId,
-        realStats.shared_count || 0,
+        realStats.posts_count || 0,
         Date.now(),
         userId,
         userId,
@@ -424,7 +421,7 @@ export const updateUserStatsAfterDelete = async (env: Env, userId: string): Prom
       )
       .run();
 
-    console.log('用户统计更新成功，新的分享数:', realStats.shared_count);
+    console.log('用户统计更新成功，新的帖子数:', realStats.posts_count);
   } catch (error) {
     console.error('更新用户统计失败:', error);
   }

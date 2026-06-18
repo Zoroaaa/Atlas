@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   Loader2,
@@ -8,7 +8,6 @@ import { useSearchStore, useSourceStore, useAuthStore, useProxyStore } from '@/s
 import { searchApi, sourceApi, userApi, analyticsApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFeatureFlags } from '@/contexts';
 import type {
   SearchResult,
   FavoriteItem,
@@ -23,7 +22,7 @@ import type {
 } from '@/types';
 import type { BangumiSubject, TMDBResult } from '@/types/search';
 
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel } from '@/components/search';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel, AnnouncementPanel } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useJavDetail } from '@/hooks';
@@ -75,15 +74,14 @@ export const MainSearchPage: React.FC = () => {
     isEnabled: isProxyEnabled,
     initializeProxy,
   } = useProxyStore();
-  const { communityEnabled } = useFeatureFlags();
 
   // 从 URL 参数初始化 Tab 状态
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['jav', 'anime', 'movie', 'sources'].includes(tabParam)) {
+    if (tabParam && ['jav', 'anime', 'movie', 'sources', 'community'].includes(tabParam)) {
       setActiveTab(tabParam as SearchTabType);
     }
-  }, []);
+  }, [searchParams, setActiveTab]);
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() =>
@@ -106,6 +104,10 @@ export const MainSearchPage: React.FC = () => {
 
   // Tab 切换处理函数（包含 URL 同步和分类联动）
   const handleTabChange = useCallback((tab: SearchTabType) => {
+    if (tab === 'community') {
+      navigate('/community');
+      return;
+    }
     setActiveTab(tab);
     setSearchParams({ tab }, { replace: true });
     // anime/movie 走聚合模式，分类过滤无影响，统一重置为"全部"
@@ -113,7 +115,7 @@ export const MainSearchPage: React.FC = () => {
     // 切换 Tab 时清空上次搜索结果，避免展示错误类型数据
     setSearchResults([]);
     setEnrichedData(null);
-  }, [setActiveTab, setSearchParams]);
+  }, [setActiveTab, setSearchParams, navigate]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
     typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
   );
@@ -149,6 +151,7 @@ export const MainSearchPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
         const [majorCategoriesData, allCategoriesData, allSourcesData] = await Promise.all([
@@ -156,6 +159,7 @@ export const MainSearchPage: React.FC = () => {
           sourceApi.getCategories(),
           sourceApi.getSourcesWithUserConfig(),
         ]);
+        if (cancelled) return;
         if (majorCategoriesData.success && majorCategoriesData.data) {
           setMajorCategories(majorCategoriesData.data);
           setExpandedMajorCategories(new Set(majorCategoriesData.data.map(c => c.id)));
@@ -173,41 +177,46 @@ export const MainSearchPage: React.FC = () => {
     };
     loadData();
     initializeProxy();
-  }, [setMajorCategories, setCategories, initializeProxy, isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadHistory();
-      loadFavorites();
-    }
-  }, [isAuthenticated]);
+    return () => { cancelled = true; };
+  }, [setMajorCategories, setCategories, initializeProxy]);
 
   // 注意：不在 selectedCategory 变化时自动搜索，避免 Tab 切换等场景下触发意外搜索
   // 用户需要手动点击搜索按钮或按 Enter 键来执行搜索
 
-  // JAV详情提取成功后自动更新搜索历史
+  // JAV详情提取成功后自动更新搜索历史（防循环：用 ref 跟踪已处理的 code）
+  const updatedHistoryCodesRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!isAuthenticated || !javDetail || javDetailStatus !== 'success' || !searchHistory.length) return;
 
+    const code = javDetail.code.toUpperCase();
+    // 防止同一 code 重复更新（打破 searchHistory → effect 循环）
+    if (updatedHistoryCodesRef.current.has(code)) return;
+
+    let cancelled = false;
     const updateHistoryWithJavDetail = async () => {
       try {
         const targetHistory = searchHistory.find(h =>
-          h.query.toUpperCase().includes(javDetail!.code.toUpperCase()) ||
-          javDetail!.code.toUpperCase().includes(h.query.toUpperCase())
+          h.query.toUpperCase().includes(code) ||
+          code.includes(h.query.toUpperCase())
         );
 
         if (targetHistory) {
+          // 标记该 code 已处理
+          updatedHistoryCodesRef.current.add(code);
+
           await userApi.updateSearchHistory(targetHistory.id, {
-            title: javDetail.title,
-            code: javDetail.code,
-            actors: javDetail.actresses?.join(', '),
-            duration: javDetail.duration,
-            tags: javDetail.tags?.join(', '),
-            releaseDate: javDetail.releaseDate,
-            publisher: javDetail.publisher || javDetail.maker,
-            keyword: javDetail.code,
+            title: javDetail!.title,
+            code: javDetail!.code,
+            actors: javDetail!.actresses?.join(', '),
+            duration: javDetail!.duration,
+            tags: javDetail!.tags?.join(', '),
+            releaseDate: javDetail!.releaseDate,
+            publisher: javDetail!.publisher || javDetail!.maker,
+            keyword: javDetail!.code,
           });
 
+          if (cancelled) return;
           setSearchHistory(prev => prev.map(h =>
             h.id === targetHistory.id
               ? { ...h,
@@ -229,9 +238,10 @@ export const MainSearchPage: React.FC = () => {
     };
 
     updateHistoryWithJavDetail();
-  }, [javDetail, javDetailStatus, isAuthenticated]);
+    return () => { cancelled = true; };
+  }, [javDetail, javDetailStatus, isAuthenticated, searchHistory]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoadingHistory(true);
     try {
@@ -242,9 +252,9 @@ export const MainSearchPage: React.FC = () => {
     } finally {
       setIsLoadingHistory(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const loadFavorites = async () => {
+  const loadFavorites = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoadingFavorites(true);
     try {
@@ -255,7 +265,14 @@ export const MainSearchPage: React.FC = () => {
     } finally {
       setIsLoadingFavorites(false);
     }
-  };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadHistory();
+      loadFavorites();
+    }
+  }, [isAuthenticated, loadHistory, loadFavorites]);
 
   const handleSearch = useCallback(async (overrideKeyword?: string, page = 1) => {
     const query = overrideKeyword || keyword;
@@ -359,7 +376,7 @@ export const MainSearchPage: React.FC = () => {
     } finally {
       setSearching(false);
     }
-  }, [keyword, selectedCategory, setResults, setSearching, toast]);
+  }, [keyword, selectedCategory, setResults, setSearching, toast, activeTab, fetchJavDetail, javEnrichedDetail, loadHistory, resetJavDetail, user?.id]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -615,7 +632,6 @@ export const MainSearchPage: React.FC = () => {
         isAuthenticated={isAuthenticated}
         user={user}
         isAdmin={isAdmin}
-        communityEnabled={communityEnabled}
       />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -727,6 +743,8 @@ export const MainSearchPage: React.FC = () => {
               onClose={() => { resetJavDetail(); setJavEnrichedDetail(null); }}
               onFavorite={handleFavoriteJavDetail}
               isFavorited={(javEnrichedDetail || javDetail) ? favoritedCodes.has((javEnrichedDetail || javDetail)!.code) : false}
+              isAuthenticated={isAuthenticated}
+              onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
             />
           )}
 
@@ -740,6 +758,7 @@ export const MainSearchPage: React.FC = () => {
             onRefresh={() => handleSearch(keyword, enrichedPage)}
             onPageChange={(p) => handleSearch(keyword, p)}
             onToggleFavorite={handleToggleFavoriteAnime}
+            onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
           />
           ) : enrichedData && enrichedData.resultType === 'movie' ? (
             <MovieSearchResultPanel
@@ -750,6 +769,7 @@ export const MainSearchPage: React.FC = () => {
               onRefresh={() => handleSearch(keyword, enrichedPage)}
               onPageChange={(p) => handleSearch(keyword, p)}
               onToggleFavorite={handleToggleFavoriteMovie}
+              onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
             />
           ) : (
           <SearchResultsPanel
@@ -774,6 +794,7 @@ export const MainSearchPage: React.FC = () => {
                 <JavRankingsPanel onCodeClick={handleCodeClick} />
               )}
 
+              {/* 搜索历史（所有 Tab） */}
               {isAuthenticated && (
                 <SearchHistoryPanel
                   history={searchHistory}
@@ -786,9 +807,10 @@ export const MainSearchPage: React.FC = () => {
               )}
             </div>
 
-            {/* 右列：收藏 */}
-            {isAuthenticated && (
-              <div className="hidden lg:block self-start">
+            {/* 右列：公告(jav only) + 收藏 */}
+            <div className="hidden lg:flex flex-col gap-3 sm:gap-4 self-start">
+              {activeTab === 'jav' && <AnnouncementPanel />}
+              {isAuthenticated && (
                 <FavoritesPanel
                   favorites={favorites}
                   isLoading={isLoadingFavorites}
@@ -798,11 +820,9 @@ export const MainSearchPage: React.FC = () => {
                   onRemove={handleRemoveFavorite}
                   onExport={handleExportFavorites}
                   onUpdate={loadFavorites}
-                  hasJavRankings={activeTab === 'jav'}
                 />
-              </div>
-            )}
-
+              )}
+            </div>
           </div>
 
           {/* 移动端：我的收藏 */}
@@ -817,7 +837,6 @@ export const MainSearchPage: React.FC = () => {
                 onRemove={handleRemoveFavorite}
                 onExport={handleExportFavorites}
                 onUpdate={loadFavorites}
-                hasJavRankings={activeTab === 'jav'}
               />
             </div>
           )}

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.0.2';
+const CACHE_VERSION = '__SW_CACHE_VERSION__';
 const STATIC_CACHE_NAME = `codeseek-static-${CACHE_VERSION}`;
 const ASSETS_CACHE_NAME = `codeseek-assets-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `codeseek-dynamic-${CACHE_VERSION}`;
@@ -185,7 +185,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  if (STATIC_ASSETS.some(asset => url.pathname === asset || url.pathname === asset + '/')) {
+  // 静态资源（不含 index.html）用 cacheFirst
+  if (STATIC_ASSETS.some(asset => url.pathname === asset && asset !== '/' && asset !== '/index.html')) {
     event.respondWith(cacheFirst(request, STATIC_CACHE_NAME));
     return;
   }

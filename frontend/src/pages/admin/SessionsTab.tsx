@@ -31,11 +31,11 @@ export const SessionsTab: React.FC = () => {
       setTotalPages(result.totalPages);
       setTotal(result.total);
     } catch { toast.error('加载会话失败'); } finally { setLoading(false); }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, toast]);
 
   const loadStats = useCallback(async () => {
     try { setStats(await adminApi.getSessionsStats()); } catch { toast.error('加载统计数据失败'); }
-  }, []);
+  }, [toast]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
   useEffect(() => { loadStats(); }, [loadStats]);

@@ -10,6 +10,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
 import { authRoutes, githubOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
+import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
 // 注册搜索 Provider
 import { providerRegistry } from '@/services/search-provider';
@@ -80,6 +81,7 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/config', configRoutes);
 app.route('/api/jav', javRoutes);
 app.route('/api/feedback', feedbackRoutes);
+app.route('/api/announcements', announcementRoutes);
 app.route('/api', systemRoutes);
 
 app.notFound((c) => {

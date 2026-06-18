@@ -77,7 +77,7 @@ export const CategoryManager: React.FC = () => {
           setExpandedMajor(new Set(majorCategoriesRes.data.map(m => m.id)));
         }
       }
-      
+
       const categoriesRes = await sourceApi.getCategories();
       if (categoriesRes.success && categoriesRes.data) {
         setCategories(categoriesRes.data);
@@ -87,6 +87,7 @@ export const CategoryManager: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

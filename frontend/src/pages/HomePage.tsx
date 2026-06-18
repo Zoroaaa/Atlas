@@ -95,7 +95,6 @@ export const HomePage: React.FC = () => {
         isAuthenticated={isAuthenticated}
         user={user}
         isAdmin={isAdmin}
-        communityEnabled={enableRegistration}
       />
 
       {/* ── Hero Section ── */}

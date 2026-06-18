@@ -39,11 +39,11 @@ export const ActionsTab: React.FC = () => {
       setTotalPages(result.totalPages);
       setTotal(result.total);
     } catch { toast.error('加载日志失败'); } finally { setLoading(false); }
-  }, [page, userSearch, actionFilter]);
+  }, [page, userSearch, actionFilter, toast]);
 
   const loadStats = useCallback(async () => {
     try { setStats(await adminApi.getLogsStats()); } catch { toast.error('加载统计数据失败'); }
-  }, []);
+  }, [toast]);
 
   useEffect(() => { loadLogs(); }, [loadLogs]);
   useEffect(() => { loadStats(); }, [loadStats]);

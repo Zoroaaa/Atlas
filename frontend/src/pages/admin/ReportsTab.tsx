@@ -29,7 +29,7 @@ export const ReportsTab: React.FC = () => {
       setReports(response.items);
       setTotalPages(response.totalPages);
     } catch { toast.error('加载举报列表失败'); } finally { setLoading(false); }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, toast]);
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
@@ -58,7 +58,7 @@ export const ReportsTab: React.FC = () => {
               : reports.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-surface-500">暂无举报</td></tr>
               : reports.map((r: any) => (
                 <tr key={r.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
-                  <td className="px-4 py-3"><div className="font-medium text-surface-900 dark:text-surface-100">{r.source_name || '未知来源'}</div><div className="text-xs text-surface-500 mt-0.5">{r.reason || '-'}</div></td>
+                  <td className="px-4 py-3"><div className="font-medium text-surface-900 dark:text-surface-100">{r.title || '未知帖子'}</div><div className="text-xs text-surface-500 mt-0.5">{r.report_reason || '-'}</div></td>
                   <td className="px-4 py-3 text-surface-700 dark:text-surface-300">{r.reporter_username || '匿名'}</td>
                   <td className="px-4 py-3">
                     <span className={clsx('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', r.status === 'pending' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : r.status === 'resolved' ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>
@@ -76,7 +76,7 @@ export const ReportsTab: React.FC = () => {
 
       <Modal isOpen={handleModal.open} onClose={() => setHandleModal({ open: false, reportId: '' })} title="处理举报">
         <div className="space-y-4">
-          {[{ label: '处理结果', key: 'status', options: [{ v: 'resolved', l: '已解决' }, { v: 'dismissed', l: '驳回' }] }, { label: '处理动作', key: 'action', options: [{ v: '', l: '无动作' }, { v: 'warn_author', l: '警告作者' }, { v: 'remove_source', l: '删除搜索源' }] }].map(field => (
+          {[{ label: '处理结果', key: 'status', options: [{ v: 'resolved', l: '已解决' }, { v: 'dismissed', l: '驳回' }] }, { label: '处理动作', key: 'action', options: [{ v: '', l: '无动作' }, { v: 'warn_author', l: '警告作者' }, { v: 'remove_source', l: '删除帖子' }] }].map(field => (
             <div key={field.key}>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">{field.label}</label>
               <select value={handleForm[field.key as keyof typeof handleForm]} onChange={e => setHandleForm({ ...handleForm, [field.key]: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800">

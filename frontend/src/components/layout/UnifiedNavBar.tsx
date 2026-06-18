@@ -37,8 +37,6 @@ export interface UnifiedNavBarProps {
   user?: { username?: string; role?: string } | null;
   /** 是否管理员 */
   isAdmin: boolean;
-  /** 社区功能是否启用 */
-  communityEnabled?: boolean;
 }
 
 /* ── 子组件 ── */
@@ -70,6 +68,7 @@ interface TabButtonProps {
 }
 
 const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) => {
+  const isCommunity = tab.id === 'community';
   return (
     <button
       onClick={onClick}
@@ -77,13 +76,21 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       aria-selected={isActive}
       className={clsx(
         'px-3 xl:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
-        isActive
+        isCommunity && !isActive && [
+          'text-white shadow-md bg-gradient-to-r from-amber-400 via-orange-500 to-red-500',
+          'shadow-orange-500/30 animate-pulse-subtle hover:shadow-orange-500/50 hover:scale-105',
+        ],
+        isActive && !isCommunity
           ? clsx(
               'text-white shadow-md bg-gradient-to-br',
               tab.gradient,
               'shadow-blue-500/25'
             )
-          : 'font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+          : (!isCommunity && 'font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'),
+        isCommunity && isActive && [
+          'text-white shadow-lg bg-gradient-to-r from-amber-400 via-orange-500 to-red-500',
+          'shadow-orange-500/40 scale-105',
+        ]
       )}
     >
       <span className="tab-icon">{tab.icon}</span>
@@ -101,23 +108,39 @@ interface MobileTabProps {
   onClick: () => void;
 }
 
-const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) => (
-  <button
-    onClick={onClick}
-    className={clsx(
-      'flex flex-col items-center justify-center py-1.5 px-2 flex-1 transition-all duration-200',
-      isActive
-        ? 'text-blue-600 dark:text-blue-400 scale-105'
-        : 'text-slate-500 dark:text-slate-400'
-    )}
-    style={isActive ? { animation: 'bounceGentle 0.3s ease' } : undefined}
-  >
-    <span className="text-lg sm:text-xl">{tab.icon}</span>
-    <span className="text-[10px] xs:text-xs mt-0.5 font-medium leading-tight">
-      {tab.label.replace('搜索', '').replace('访问', '')}
-    </span>
-  </button>
-));
+const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) => {
+  const isCommunity = tab.id === 'community';
+  return (
+    <button
+      onClick={onClick}
+      className={clsx(
+        'flex flex-col items-center justify-center py-1.5 px-2 flex-1 transition-all duration-200',
+        isCommunity
+          ? [
+              isActive
+                ? 'text-orange-500 scale-105'
+                : 'text-orange-400 scale-100',
+              'relative',
+            ]
+          : isActive
+            ? 'text-blue-600 dark:text-blue-400 scale-105'
+            : 'text-slate-500 dark:text-slate-400'
+      )}
+      style={isActive ? { animation: 'bounceGentle 0.3s ease' } : undefined}
+    >
+      {isCommunity && (
+        <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+      )}
+      <span className={clsx(
+        'text-lg sm:text-xl',
+        isCommunity && 'drop-shadow-sm'
+      )}>{tab.icon}</span>
+      <span className="text-[10px] xs:text-xs mt-0.5 font-medium leading-tight">
+        {tab.label.replace('搜索', '').replace('访问', '')}
+      </span>
+    </button>
+  );
+});
 
 MobileTab.displayName = 'MobileTab';
 
@@ -273,7 +296,6 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   isAuthenticated,
   user,
   isAdmin,
-  communityEnabled = false,
 }) => {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
@@ -385,12 +407,9 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 </a>
               </div>
 
-              {/* 社区/管理员入口 - 登录后可见，移动端隐藏 */}
+              {/* 管理员入口 - 登录后可见，移动端隐藏 */}
               {isAuthenticated && (
               <div className="hidden sm:flex items-center gap-0.5">
-                {communityEnabled && (
-                  <CommunityLink />
-                )}
                 {isAdmin && (
                   <AdminLink />
                 )}

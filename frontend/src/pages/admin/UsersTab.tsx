@@ -41,11 +41,11 @@ export const UsersTab: React.FC = () => {
       setUsers(result.items);
       setTotalPages(result.totalPages);
     } catch { toast.error('加载失败'); } finally { setLoading(false); }
-  }, [page, search, statusFilter, roleFilter]);
+  }, [page, search, statusFilter, roleFilter, toast]);
 
   const loadStats = useCallback(async () => {
     try { setStats(await adminApi.getUsersStats()); } catch { toast.error('加载统计数据失败'); }
-  }, []);
+  }, [toast]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => { loadStats(); }, [loadStats]);

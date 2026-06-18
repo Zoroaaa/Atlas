@@ -5,7 +5,7 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
-import { Env, User, CommunitySourceReport, UserAction, JwtPayload, Role } from '@/types';
+import { Env, User, CommunityReport, UserAction, JwtPayload, Role } from '@/types';
 import { success, error, logUserAction } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
@@ -559,15 +559,15 @@ adminRoutes.get('/reports', async (c) => {
 
   try {
     const countResult = await c.env.DB.prepare(
-      'SELECT COUNT(*) as total FROM community_source_reports WHERE status = ?'
+      'SELECT COUNT(*) as total FROM community_reports WHERE status = ?'
     ).bind(status).first<{ total: number }>();
 
     const reports = await c.env.DB.prepare(
-      `SELECT r.*, 
-              s.source_name, s.source_url_template,
+      `SELECT r.*,
+              p.title, p.post_type,
               u.username as reporter_username
-       FROM community_source_reports r
-       LEFT JOIN community_shared_sources s ON r.shared_source_id = s.id
+       FROM community_reports r
+       LEFT JOIN community_posts p ON r.post_id = p.id
        LEFT JOIN users u ON r.reporter_user_id = u.id
        WHERE r.status = ?
        ORDER BY r.created_at DESC
@@ -603,8 +603,8 @@ adminRoutes.put('/reports/:id', async (c) => {
 
   try {
     const report = await c.env.DB.prepare(
-      'SELECT * FROM community_source_reports WHERE id = ?'
-    ).bind(reportId).first<CommunitySourceReport>();
+      'SELECT * FROM community_reports WHERE id = ?'
+    ).bind(reportId).first<CommunityReport>();
 
     if (!report) {
       return c.json(error('NOT_FOUND', '举报不存在'), 404);
@@ -613,15 +613,15 @@ adminRoutes.put('/reports/:id', async (c) => {
     const now = Date.now();
 
     await c.env.DB.prepare(`
-      UPDATE community_source_reports 
+      UPDATE community_reports
       SET status = ?, admin_user_id = ?, admin_action = ?, admin_notes = ?, resolved_at = ?, updated_at = ?
       WHERE id = ?
     `).bind(status, adminUser.userId, action || null, notes || null, now, now, reportId).run();
 
     if (status === 'resolved' && action === 'remove_source') {
       await c.env.DB.prepare(
-        "UPDATE community_shared_sources SET status = 'removed', updated_at = ? WHERE id = ?"
-      ).bind(now, report.shared_source_id).run();
+        "UPDATE community_posts SET status = 'hidden', updated_at = ? WHERE id = ?"
+      ).bind(now, report.post_id).run();
     }
 
     await logUserAction(c.env, adminUser.userId, 'admin_handle_report', {
@@ -679,11 +679,11 @@ adminRoutes.get('/stats', async (c) => {
     `).first();
 
     const communityStats = await c.env.DB.prepare(`
-      SELECT 
-        (SELECT COUNT(*) FROM community_shared_sources) as shared_sources,
-        (SELECT COUNT(*) FROM community_source_tags) as tags,
-        (SELECT COUNT(*) FROM community_source_reviews) as reviews,
-        (SELECT COUNT(*) FROM community_source_reports WHERE status = 'pending') as pending_reports
+      SELECT
+        (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
+        (SELECT COUNT(*) FROM community_tags WHERE tag_active = 1) as tags,
+        (SELECT COUNT(*) FROM community_comments) as reviews,
+        (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports
     `).first();
 
     const dailyActiveUsers = await c.env.DB.prepare(`
@@ -735,7 +735,7 @@ adminRoutes.get('/stats', async (c) => {
         uniqueKeywords: searchStats?.unique_keywords || 0,
       },
       community: {
-        sharedSources: communityStats?.shared_sources || 0,
+        posts: communityStats?.posts || 0,
         tags: communityStats?.tags || 0,
         reviews: communityStats?.reviews || 0,
         pendingReports: communityStats?.pending_reports || 0,
@@ -1305,10 +1305,10 @@ adminRoutes.get('/dashboard/overview', async (c) => {
     `).bind(oneDayAgo).first();
 
     const communityStats = await c.env.DB.prepare(`
-      SELECT 
-        (SELECT COUNT(*) FROM community_shared_sources) as shared_sources,
-        (SELECT COUNT(*) FROM community_source_reviews) as reviews,
-        (SELECT COUNT(*) FROM community_source_reports WHERE status = 'pending') as pending_reports
+      SELECT
+        (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
+        (SELECT COUNT(*) FROM community_comments) as reviews,
+        (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports
     `).first();
 
     const recentActions = await c.env.DB.prepare(`
@@ -1368,7 +1368,7 @@ adminRoutes.get('/dashboard/overview', async (c) => {
         failedToday: loginStats?.failed || 0,
       },
       community: {
-        sharedSources: communityStats?.shared_sources || 0,
+        posts: communityStats?.posts || 0,
         reviews: communityStats?.reviews || 0,
         pendingReports: communityStats?.pending_reports || 0,
       },

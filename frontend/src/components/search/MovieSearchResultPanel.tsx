@@ -12,6 +12,7 @@ import type {
 } from '@/types/search';
 import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ShareToCommunityButton } from '@/components/community';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -211,6 +212,7 @@ interface MovieSearchResultPanelProps {
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
   onToggleFavorite?: (item: TMDBResult) => void;
+  onLoginRequired?: () => void;
 }
 
 export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
@@ -221,6 +223,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   onRefresh,
   onPageChange,
   onToggleFavorite,
+  onLoginRequired,
 }) => {
   const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(
     data.results.length > 0 ? data.results[0] : null
@@ -288,12 +291,30 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
           )}
         </div>
         {onRefresh && (
-          <button
-            onClick={onRefresh}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            <RefreshCw className="w-3 h-3" /> 刷新
-          </button>
+          <div className="flex items-center gap-2">
+            <ShareToCommunityButton
+              postData={{
+                postType: 'movie',
+                title: data.results[0]?.title || data.keyword,
+                coverImage: data.results[0]?.poster || data.results[0]?.backdrop || '',
+                contentData: JSON.stringify({
+                  keyword: data.keyword,
+                  results: data.results,
+                  resources: data.resources,
+                  resourceTotal: data.resourceTotal,
+                }),
+              }}
+              isAuthenticated={isAuthenticated}
+              onLoginRequired={onLoginRequired}
+              size="small"
+            />
+            <button
+              onClick={onRefresh}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" /> 刷新
+            </button>
+          </div>
         )}
       </div>
 

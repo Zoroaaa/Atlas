@@ -208,77 +208,27 @@ export interface CommunitySourceTag {
   updated_at: number;
 }
 
-export interface CommunitySharedSource {
+export interface CommunityReport {
   id: string;
-  user_id: string;
-  source_name: string;
-  source_subtitle: string | null;
-  source_icon: string | null;
-  source_url_template: string;
-  source_category: string;
-  description: string | null;
-  tags: string | null;
-  status: string;
-  is_verified: number;
-  is_featured: number;
-  view_count: number;
-  download_count: number;
-  like_count: number;
-  rating_score: number;
-  rating_count: number;
-  created_at: number;
-  updated_at: number;
-  last_tested_at: number | null;
-}
-
-export interface CommunitySourceReview {
-  id: string;
-  shared_source_id: string;
-  user_id: string;
-  rating: number;
-  comment: string | null;
-  is_anonymous: number;
-  created_at: number;
-  updated_at: number;
-}
-
-export interface CommunitySourceLike {
-  id: string;
-  shared_source_id: string;
-  user_id: string;
-  like_type: string;
-  created_at: number;
-}
-
-export interface CommunitySourceDownload {
-  id: string;
-  shared_source_id: string;
-  user_id: string;
-  ip_address: string | null;
-  user_agent: string | null;
-  created_at: number;
-}
-
-export interface CommunitySourceReport {
-  id: string;
-  shared_source_id: string;
+  post_id: string;
   reporter_user_id: string;
   report_reason: string;
   report_details: string | null;
   status: string;
+  admin_user_id: string | null;
+  admin_action: string | null;
+  admin_notes: string | null;
+  resolved_at: number | null;
   created_at: number;
   updated_at: number;
 }
 
 export interface CommunityUserStats {
   user_id: string;
-  shared_sources_count: number;
-  total_downloads: number;
-  total_likes: number;
-  total_views: number;
-  reviews_given: number;
-  sources_downloaded: number;
-  tags_created: number;
+  posts_count: number;
+  likes_received: number;
+  favorites_received: number;
+  comments_count: number;
   reputation_score: number;
   contribution_level: string;
   created_at: number;

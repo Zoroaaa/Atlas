@@ -1,35 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
-import { RefreshCw, Bell, Heart, MessageSquare, Download, AlertTriangle, Inbox } from 'lucide-react';
+import { RefreshCw, Bell, Heart, MessageSquare, Bookmark, AlertTriangle, Inbox } from 'lucide-react';
 import { communityApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
-import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/stores';
+import type { CommunityNotification } from '@/types';
 import { Pagination } from './shared';
 
-interface NotificationItem {
-  id: string;
-  type: 'like' | 'review' | 'download' | 'report_resolved';
-  sourceId: string;
-  sourceName: string;
-  actorName: string;
-  content: string;
-  rating?: number;
-  createdAt: number;
-}
-
-const TYPE_CONFIG = {
+const TYPE_CONFIG: Record<CommunityNotification['type'], { icon: typeof Heart; label: string; color: string }> = {
   like: { icon: Heart, label: '点赞', color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
-  review: { icon: MessageSquare, label: '评价', color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
-  download: { icon: Download, label: '导入', color: 'text-green-500 bg-green-50 dark:bg-green-900/20' },
+  comment: { icon: MessageSquare, label: '评论', color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
+  favorite: { icon: Bookmark, label: '收藏', color: 'text-green-500 bg-green-50 dark:bg-green-900/20' },
   report_resolved: { icon: AlertTriangle, label: '举报处理', color: 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' },
 };
 
 export const NotificationsTab: React.FC = () => {
-  const toast = useToast();
   const { isAuthenticated } = useAuthStore();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<CommunityNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,17 +40,16 @@ export const NotificationsTab: React.FC = () => {
     if (!isAuthenticated) { setLoading(false); return; }
     setLoading(true);
     try {
-      const response = await communityApi.getNotifications(page, 20);
-      if (response.success && response.data) {
-        setNotifications(response.data.items || []);
-        setTotalPages(response.data.totalPages || 1);
-        setTotal(response.data.total || 0);
-      }
+      const response = await communityApi.getNotifications({ page, pageSize: 20 });
+      setNotifications(response.items || []);
+      setTotalPages(response.totalPages || 1);
+      setTotal(response.total || 0);
     } catch {
-      toast.error('加载通知失败');
+      // 静默失败，不阻塞 UI
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, isAuthenticated]);
 
   useEffect(() => { loadNotifications(); }, [loadNotifications]);
@@ -101,8 +88,8 @@ export const NotificationsTab: React.FC = () => {
           >
             <option value="">全部消息</option>
             <option value="like">点赞通知</option>
-            <option value="review">评价通知</option>
-            <option value="download">导入通知</option>
+            <option value="comment">评论通知</option>
+            <option value="favorite">收藏通知</option>
             <option value="report_resolved">举报处理</option>
           </select>
           <Button variant="outline" size="sm" onClick={loadNotifications}>
@@ -113,7 +100,7 @@ export const NotificationsTab: React.FC = () => {
 
       {/* 说明文字 */}
       <p className="text-xs text-surface-400">
-        当其他用户点赞、评价、导入你分享的搜索源，或你的搜索源举报被处理时，这里会显示相应通知。
+        当其他用户点赞、评论、收藏你的帖子，或举报被处理时，这里会显示相应通知。
       </p>
 
       {/* 内容区 */}
@@ -123,12 +110,13 @@ export const NotificationsTab: React.FC = () => {
         <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700">
           <Inbox className="w-12 h-12 text-surface-300" />
           <p className="text-surface-500 font-medium">暂无消息通知</p>
-          <p className="text-xs text-surface-400">在社区分享你的搜索源，获得互动后这里会显示通知</p>
+          <p className="text-xs text-surface-400">在社区分享内容并获得互动后，通知将显示在这里</p>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(n => {
             const config = TYPE_CONFIG[n.type];
+            if (!config) return null;
             const Icon = config.icon;
             return (
               <div
@@ -142,11 +130,11 @@ export const NotificationsTab: React.FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm text-surface-900 dark:text-surface-100">
-                        <span className="font-semibold">{n.actorName}</span>
+                        <span className="font-semibold">{n.actorName || '系统'}</span>
                         {' '}{n.content}
                       </p>
                       <p className="text-xs text-surface-400 mt-0.5">
-                        来源：<span className="text-surface-500">{n.sourceName}</span>
+                        帖子：<span className="text-surface-500">{n.postTitle}</span>
                       </p>
                     </div>
                     <span className="text-xs text-surface-400 whitespace-nowrap flex-shrink-0">{formatDate(n.createdAt)}</span>

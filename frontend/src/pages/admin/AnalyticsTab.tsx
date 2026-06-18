@@ -26,13 +26,13 @@ export const AnalyticsTab: React.FC = () => {
   useEffect(() => {
     const load = async () => { setLoading(true); try { setStats(await adminApi.getAnalyticsStats(days)); } catch { toast.error('加载分析数据失败'); } finally { setLoading(false); } };
     load();
-  }, [days]);
+  }, [days, toast]);
 
   useEffect(() => {
     if (activeView !== 'events') return;
     const load = async () => { setEventsLoading(true); try { const r = await adminApi.getAnalyticsEvents({ page, pageSize: 20, eventType: eventTypeFilter || undefined }); setEvents(r.items); setTotalPages(r.totalPages); } catch { toast.error('加载事件失败'); } finally { setEventsLoading(false); } };
     load();
-  }, [page, eventTypeFilter, activeView]);
+  }, [page, eventTypeFilter, activeView, toast]);
 
   return (
     <div className="space-y-5">

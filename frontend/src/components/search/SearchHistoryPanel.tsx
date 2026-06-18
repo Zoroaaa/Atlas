@@ -25,12 +25,8 @@ const getProxyImageUrl = (url: string): string => {
 };
 
 // ─── 高度常量（与 JavRankingsPanel 共享逻辑）────────────────────────
-// header: 64px（同 JAV 面板）
-// 内容区: p-3(12)*2 + 列表项(每项约80-100px)
-// footer: 约 36px
-// 总计 = 64 + 内容 + 36
-export const HIST_PANEL_HEIGHT = 400;
-export const HIST_HEADER_HEIGHT = 64;
+const HIST_PANEL_HEIGHT = 800;
+const HIST_HEADER_HEIGHT = 64;
 
 const CONTENT_H = HIST_PANEL_HEIGHT - HIST_HEADER_HEIGHT - 36;
 

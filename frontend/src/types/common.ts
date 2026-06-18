@@ -35,7 +35,7 @@ export interface AdminSystemStats {
     uniqueKeywords: number;
   };
   community: {
-    sharedSources: number;
+    posts: number;
     tags: number;
     reviews: number;
     pendingReports: number;

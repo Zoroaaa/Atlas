@@ -14,6 +14,7 @@ import {
 } from '@/utils/magnet';
 import { WebTorrentPlayer } from './WebTorrentPlayer';
 import { ProxyImage } from '@/components/ui';
+import { ShareToCommunityButton } from '@/components/community';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -37,6 +38,8 @@ interface JavDetailPanelProps {
   onClose: () => void;
   onFavorite?: (detail: JavDetail) => void;
   isFavorited?: boolean;
+  isAuthenticated?: boolean;
+  onLoginRequired?: () => void;
 }
 
 // ── 复制按钮（带反馈） ─────────────────────────────────────────────
@@ -271,7 +274,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
-export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onFavorite, isFavorited }) => {
+export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
   if (status === 'idle') return null;
 
   return (
@@ -311,6 +314,38 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 </span>
               )}
             </>
+          )}
+          {detail && status === 'success' && (
+            <ShareToCommunityButton
+              postData={{
+                postType: 'jav',
+                title: detail.title || detail.code,
+                coverImage: detail.cover ? getProxyImageUrl(resolveUrl(detail.cover, detail.detailUrl)) : '',
+                contentData: JSON.stringify({
+                  code: detail.code,
+                  title: detail.title,
+                  cover: detail.cover,
+                  releaseDate: detail.releaseDate,
+                  duration: detail.duration,
+                  publisher: detail.publisher,
+                  director: detail.director,
+                  maker: detail.maker,
+                  series: detail.series,
+                  tags: detail.tags,
+                  actresses: detail.actresses,
+                  detailUrl: detail.detailUrl,
+                  magnets: detail.magnets?.map(m => ({
+                    title: m.name,
+                    magnet: m.magnet,
+                    size: m.size,
+                    date: m.date,
+                  })),
+                }),
+              }}
+              isAuthenticated={isAuthenticated}
+              onLoginRequired={onLoginRequired}
+              size="small"
+            />
           )}
           <button
             onClick={onClose}

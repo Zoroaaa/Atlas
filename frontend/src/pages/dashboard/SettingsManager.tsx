@@ -40,7 +40,7 @@ export const SettingsManager: React.FC = () => {
         email: prev.email || user.email || '',
       }));
     }
-  }, [user?.username, user?.email]);
+  }, [user?.username, user?.email, user]);
   
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',

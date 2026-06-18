@@ -223,11 +223,20 @@ export function useAuth(): UseAuthReturn {
     }
   }, [logoutStore, toast]);
 
+  const [refreshUserCalled, setRefreshUserCalled] = useState(false);
+
+  // 当 token 存在但 user 为空时，自动刷新用户信息
+  // 防循环：用 refreshUserCalled 标记避免接口返回空数据时无限重试
   useEffect(() => {
-    if (!isInitializing && token && !user) {
+    if (!isInitializing && token && !user && !refreshUserCalled) {
+      setRefreshUserCalled(true);
       refreshUser();
     }
-  }, [token, user, refreshUser, isInitializing]);
+    // 用户主动登出或 token 失效后，允许下次登录时再次自动刷新
+    if (!token || isInitializing) {
+      setRefreshUserCalled(false);
+    }
+  }, [token, user, refreshUser, isInitializing, refreshUserCalled]);
 
   return {
     user,

@@ -91,7 +91,7 @@ const PageTracker: React.FC = () => {
       eventData: { path: location.pathname },
       referer: document.referrer || undefined,
     }).catch(() => {});
-  }, [location.pathname, isAuthenticated]);
+  }, [location.pathname, isAuthenticated, user?.id]);
 
   return null;
 };
@@ -132,15 +132,19 @@ const App: React.FC = () => {
           if (status === 401) {
             logout();
           } else {
-            setLoading(false); // 网络问题，保持登录态
+            // 网络问题，保持登录态
           }
+        } finally {
+          setLoading(false);
         }
       } else {
         logout();
+        setLoading(false);
       }
     };
 
     initAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -212,6 +216,7 @@ const App: React.FC = () => {
           <Route path="config" element={<AdminManager />} />
           <Route path="cleanup" element={<AdminManager />} />
           <Route path="feedback" element={<AdminManager />} />
+          <Route path="announcements" element={<AdminManager />} />
         </Route>
         
         <Route path="/admin" element={<GuardRoute requiredRole='admin'><DashboardLayout /></GuardRoute>}>

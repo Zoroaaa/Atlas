@@ -26,7 +26,10 @@ if ('serviceWorker' in navigator) {
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('发现新版本，刷新页面以更新');
+              // 新 SW 已安装完毕，通知用户刷新
+              if (confirm('发现新版本，是否立即更新？')) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
             }
           });
         }

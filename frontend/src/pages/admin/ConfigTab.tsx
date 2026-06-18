@@ -74,7 +74,7 @@ export const ConfigTab: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [notification]);
 
   useEffect(() => {
     loadConfigs();

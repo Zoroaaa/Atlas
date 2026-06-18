@@ -11,7 +11,7 @@ export type {
 } from '@codeseek/shared';
 
 // 搜索 Tab 类型
-export type SearchTabType = 'jav' | 'anime' | 'movie' | 'sources';
+export type SearchTabType = 'jav' | 'anime' | 'movie' | 'community' | 'sources';
 
 // Tab 配置接口
 export interface TabConfig {

@@ -9,11 +9,11 @@ import {
   LogOut,
   Search,
   ChevronLeft,
-  Share2,
+  Compass,
+  FileText,
+  Heart,
   Tag,
-  Star,
   Bell,
-  TrendingUp,
   X,
   LayoutDashboard,
   Shield,
@@ -30,12 +30,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'browse', label: '浏览社区', icon: <Share2 className="w-[18px] h-[18px]" />, path: '/community' },
-  { id: 'my-shares', label: '我的分享', icon: <Star className="w-[18px] h-[18px]" />, path: '/community/my-shares' },
-  { id: 'my-favorites', label: '我的收藏', icon: <Star className="w-[18px] h-[18px]" />, path: '/community/my-favorites' },
-  { id: 'tags', label: '标签管理', icon: <Tag className="w-[18px] h-[18px]" />, path: '/community/tags' },
-  { id: 'trending', label: '热门推荐', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/community/trending' },
-  { id: 'reports', label: '消息通知', icon: <Bell className="w-[18px] h-[18px]" />, path: '/community/reports' },
+  { id: 'browse', label: '发现', icon: <Compass className="w-[18px] h-[18px]" />, path: '/community' },
+  { id: 'my-posts', label: '我的帖子', icon: <FileText className="w-[18px] h-[18px]" />, path: '/community/my-shares' },
+  { id: 'my-favorites', label: '我的收藏', icon: <Heart className="w-[18px] h-[18px]" />, path: '/community/my-favorites' },
+  { id: 'tags', label: '标签', icon: <Tag className="w-[18px] h-[18px]" />, path: '/community/tags' },
+  { id: 'notifications', label: '通知', icon: <Bell className="w-[18px] h-[18px]" />, path: '/community/reports' },
 ];
 
 export const CommunityPanelLayout: React.FC = () => {

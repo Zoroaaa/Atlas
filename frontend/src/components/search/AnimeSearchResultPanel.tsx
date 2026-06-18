@@ -14,6 +14,7 @@ import type {
 import type { FavoriteItem } from '@/types';
 import { API_BASE_URL } from '@/constants';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ShareToCommunityButton } from '@/components/community';
 
 // ─── 图片代理（与 JAV 统一走后端 /api/jav/proxy-image）─────────────
 const getProxyImageUrl = (url: string): string => {
@@ -344,6 +345,7 @@ interface AnimeSearchResultPanelProps {
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
   onToggleFavorite?: (subject: BangumiSubject) => void;
+  onLoginRequired?: () => void;
 }
 
 export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
@@ -354,6 +356,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   onRefresh,
   onPageChange,
   onToggleFavorite,
+  onLoginRequired,
 }) => {
   const [localPage, setLocalPage] = useState(1);
   // 各源独立分页 state
@@ -414,12 +417,32 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
           )}
         </div>
         {onRefresh && (
-          <button
-            onClick={onRefresh}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            <RefreshCw className="w-3 h-3" /> 刷新
-          </button>
+          <div className="flex items-center gap-2">
+            <ShareToCommunityButton
+              postData={{
+                postType: 'anime',
+                title: data.bgm[0]?.nameCN || data.keyword,
+                coverImage: data.bgm[0]?.cover ? getProxyImageUrl(data.bgm[0].cover) : '',
+                contentData: JSON.stringify({
+                  keyword: data.keyword,
+                  bgm: data.bgm,
+                  nyaa: data.nyaa,
+                  mikan: data.mikan,
+                  animetosho: data.animetosho,
+                  showrss: data.showrss,
+                }),
+              }}
+              isAuthenticated={isAuthenticated}
+              onLoginRequired={onLoginRequired}
+              size="small"
+            />
+            <button
+              onClick={onRefresh}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" /> 刷新
+            </button>
+          </div>
         )}
       </div>
 

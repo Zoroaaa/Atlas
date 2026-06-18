@@ -325,7 +325,7 @@ export const FeedbackTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, typeFilter, priorityFilter, searchText]);
+  }, [page, statusFilter, typeFilter, priorityFilter, searchText, toast]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadItems(); }, [loadItems]);

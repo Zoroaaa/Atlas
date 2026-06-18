@@ -1,39 +1,36 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, Download, RefreshCw } from 'lucide-react';
-import { Card, Button, Loading, EmptyState, SourceIcon } from '@/components/ui';
-import { communityApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import React, { useState, useEffect } from 'react';
+import { Heart, RefreshCw, Compass } from 'lucide-react';
+import { Button, Loading, EmptyState } from '@/components/ui';
+import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
-import type { SharedSource, Tag } from '@/types';
-import { StarRating, Pagination } from './shared';
+import { PostCard } from './PostCard';
 
-export const FavoritesTab: React.FC<{ tags: Tag[]; onImport: (source: SharedSource) => void }> = ({ onImport }) => {
-  const toast = useToast();
+export const FavoritesTab: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
-  const [sources, setSources] = useState<SharedSource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    myFavorites,
+    postsLoading,
+    fetchMyFavorites,
+    toggleFavorite,
+  } = useCommunityStore();
+
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
 
-  const load = useCallback(async () => {
-    if (!isAuthenticated) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const res = await communityApi.getMyFavorites(page, 12);
-      if (res.success && res.data) {
-        setSources(res.data.items);
-        setTotalPages(res.data.totalPages);
-        setTotal(res.data.total);
-      }
-    } catch { toast.error('加载失败'); } finally { setLoading(false); }
-  }, [page, isAuthenticated]);
+  // 合并初始加载与分页为单个 effect，避免挂载时重复请求
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMyFavorites({ page });
+    }
+  }, [page, isAuthenticated, fetchMyFavorites]);
 
-  useEffect(() => { load(); }, [load]);
+  const handleRefresh = () => {
+    fetchMyFavorites({ page });
+  };
 
-  const handleImport = (source: SharedSource) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); return; }
-    onImport(source);
+  const handleUnfavorite = async (postId: string) => {
+    await toggleFavorite(postId);
+    // 刷新列表以反映变化
+    setTimeout(() => fetchMyFavorites({ page }), 300);
   };
 
   if (!isAuthenticated) {
@@ -41,69 +38,77 @@ export const FavoritesTab: React.FC<{ tags: Tag[]; onImport: (source: SharedSour
       <EmptyState
         icon={<Heart className="w-10 h-10" />}
         title="请先登录"
-        description="登录后可查看你点赞收藏的搜索源"
+        description="登录后可查看你收藏的帖子"
       />
     );
   }
 
-  if (loading) return <div className="flex justify-center py-12"><Loading /></div>;
+  if (postsLoading && myFavorites.length === 0) {
+    return <div className="flex justify-center py-12"><Loading /></div>;
+  }
 
   return (
     <div className="space-y-4">
+      {/* 标题栏 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-surface-500">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
           <Heart className="w-4 h-4 text-red-400" />
-          <span>你点赞收藏的搜索源（共 {total} 个）</span>
+          <span>我的收藏</span>
+          {myFavorites.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium">
+              {myFavorites.length}
+            </span>
+          )}
         </div>
-        <Button variant="outline" size="sm" onClick={load}>
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="w-4 h-4 mr-1" />刷新
         </Button>
       </div>
 
-      {sources.length === 0 ? (
+      {/* 收藏列表 */}
+      {myFavorites.length === 0 ? (
         <EmptyState
           icon={<Heart className="w-10 h-10" />}
           title="还没有收藏"
-          description="在社区浏览页点赞搜索源，它们将出现在这里"
+          description="在社区浏览时点击收藏按钮，喜欢的帖子将出现在这里"
+          action={
+            <Button variant="primary" onClick={() => window.location.hash = '#browse'}>
+              <Compass className="w-4 h-4 mr-1" />
+              去浏览
+            </Button>
+          }
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sources.map(source => (
-            <Card key={source.id} className="p-4">
-              <div className="flex items-center gap-3 min-w-0 mb-3">
-                <SourceIcon icon={source.sourceIcon} name={source.sourceName} size="md" />
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-surface-900 dark:text-surface-100 truncate text-sm">{source.sourceName}</h3>
-                  {source.sourceSubtitle && (
-                    <p className="text-xs text-surface-500 truncate">{source.sourceSubtitle}</p>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-surface-500 mt-0.5">
-                    <StarRating rating={Math.round(source.ratingScore)} />
-                    <span>({source.ratingCount})</span>
-                  </div>
-                </div>
-              </div>
-              {source.description && (
-                <p className="text-xs text-surface-500 line-clamp-2 mb-3">{source.description}</p>
-              )}
-              <div className="flex items-center justify-between pt-2 border-t border-surface-100 dark:border-surface-700">
-                <span className="text-xs text-surface-400">
-                  {source.sourceCategory} · by {source.authorName || '匿名'}
-                </span>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleImport(source)}
-                  leftIcon={<Download className="w-3.5 h-3.5" />}
-                >
-                  导入
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {myFavorites.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onLike={() => {} /* 收藏页不处理点赞，可扩展 */}
+                onFavorite={(id) => handleUnfavorite(id)}
+              />
+            ))}
+          </div>
+
+          {/* 分页 */}
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >上一页</Button>
+            <span className="mx-3 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-600">{page}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={myFavorites.length < 20}
+              onClick={() => setPage(p => p + 1)}
+            >下一页</Button>
+          </div>
+        </>
       )}
-      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
     </div>
   );
 };

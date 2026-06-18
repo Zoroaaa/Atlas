@@ -21,6 +21,7 @@ import {
   Globe,
   Trash2,
   MessageSquarePlus,
+  Megaphone,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { id: 'config', label: '系统配置', icon: <Settings className="w-[18px] h-[18px]" />, path: '/admin-panel/config' },
   { id: 'cleanup', label: '数据清理', icon: <Trash2 className="w-[18px] h-[18px]" />, path: '/admin-panel/cleanup' },
   { id: 'feedback', label: '用户反馈', icon: <MessageSquarePlus className="w-[18px] h-[18px]" />, path: '/admin-panel/feedback' },
+  { id: 'announcements', label: '网站公告', icon: <Megaphone className="w-[18px] h-[18px]" />, path: '/admin-panel/announcements' },
 ];
 
 export const AdminPanelLayout: React.FC = () => {

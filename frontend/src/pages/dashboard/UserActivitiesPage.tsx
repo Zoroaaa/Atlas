@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { clsx } from 'clsx';
 import {
   Activity,
@@ -75,7 +75,7 @@ export const UserActivitiesPage: React.FC = () => {
   const [actionFilter, setActionFilter] = useState('');
   const limit = 20;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [activitiesRes, statsRes] = await Promise.all([
@@ -96,11 +96,11 @@ export const UserActivitiesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, offset, actionFilter]);
 
   useEffect(() => {
     fetchData();
-  }, [offset, actionFilter]);
+  }, [offset, actionFilter, fetchData]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);

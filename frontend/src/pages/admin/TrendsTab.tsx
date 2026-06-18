@@ -18,7 +18,7 @@ export const TrendsTab: React.FC = () => {
       catch { toast.error('加载趋势数据失败'); } finally { setLoading(false); }
     };
     load();
-  }, [days]);
+  }, [days, toast]);
 
   const MiniChart: React.FC<{ data: { date: string; count: number }[]; color: string; title: string }> = ({ data, color, title }) => {
     const maxVal = Math.max(...data.map(d => d.count), 1);

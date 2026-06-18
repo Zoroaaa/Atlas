@@ -127,6 +127,7 @@ export default {
         'accordion-down': 'accordionDown 0.2s ease-out',
         'accordion-up': 'accordionUp 0.2s ease-out',
         'gradient-flow': 'gradientFlow 4s ease infinite',
+        'pulse-subtle': 'pulseSubtle 2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -149,6 +150,7 @@ export default {
           'to': { boxShadow: '0 0 30px rgba(59,130,246,0.5), 0 0 60px rgba(59,130,246,0.2)' }
         },
         gradientFlow: { '0%, 100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
+        pulseSubtle: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.85' } },
         accordionDown: { 'from': { height: '0' }, 'to': { height: 'var(--radix-accordion-content-height)' } },
         accordionUp: { 'from': { height: 'var(--radix-accordion-content-height)' }, 'to': { height: '0' } },
       },

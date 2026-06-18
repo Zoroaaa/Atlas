@@ -1,98 +1,117 @@
 import React, { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
-import { Award, Download, Eye, Heart, Calendar, User } from 'lucide-react';
-import { Card, Button, Loading, SourceIcon } from '@/components/ui';
+import { Award, Eye, Heart, Calendar, User, Film, Tv, MessageSquare, Bookmark } from 'lucide-react';
+import { Card, Loading, Badge } from '@/components/ui';
 import { communityApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
-import type { SharedSource, Tag } from '@/types';
-import { StarRating } from './shared';
+import type { CommunityPost } from '@/types/community';
 
-export const TrendingTab: React.FC<{ tags: Tag[]; onImport: (source: SharedSource) => void }> = ({ tags, onImport }) => {
+const POST_TYPE_CONFIG = {
+  jav: { label: '番号', icon: Film, color: 'text-rose-500' },
+  anime: { label: '动漫', icon: Tv, color: 'text-violet-500' },
+  movie: { label: '影视', icon: Film, color: 'text-blue-500' },
+};
+
+export const TrendingTab: React.FC = () => {
   const toast = useToast();
-  const [popular, setPopular] = useState<SharedSource[]>([]);
+  const [popular, setPopular] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTag, setSelectedTag] = useState<string>('all');
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const tagParam = selectedTag !== 'all' ? selectedTag : undefined;
-        const p = await communityApi.getPopularSources(10, tagParam);
-        if (p.success) setPopular(p.data);
-      } catch { toast.error('加载失败'); } finally { setLoading(false); }
+        const response = await communityApi.getPosts({ sort: 'hot', pageSize: 10 });
+        if (!cancelled) setPopular(response.items || []);
+      } catch { if (!cancelled) toast.error('加载失败'); } finally { if (!cancelled) setLoading(false); }
     };
     load();
-  }, [selectedTag]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) return <div className="flex justify-center py-12"><Loading /></div>;
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  const formatDate = (timestamp: number) => {
+    const d = new Date(timestamp);
+    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
   };
 
-  const handleImport = (source: SharedSource) => {
-    onImport(source);
-  };
+  const PostRow: React.FC<{ post: CommunityPost; rank: number }> = ({ post, rank }) => {
+    const typeConfig = POST_TYPE_CONFIG[post.postType];
+    const TypeIcon = typeConfig.icon;
 
-  const SourceRow: React.FC<{ source: SharedSource; rank: number }> = ({ source, rank }) => (
-    <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-all">
-      <div className={clsx('w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0', rank <= 3 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>{rank}</div>
-      <SourceIcon icon={source.sourceIcon} name={source.sourceName} size="sm" />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-surface-900 dark:text-surface-100 truncate">{source.sourceName}</p>
-        <div className="flex items-center gap-3 text-xs text-surface-500 mt-0.5">
-          <StarRating rating={Math.round(source.ratingScore)} />
-          <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{source.viewCount}</span>
-          <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{source.likeCount}</span>
-          <span className="flex items-center gap-0.5"><Download className="w-3 h-3" />{source.downloadCount}</span>
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+        <div className={clsx(
+          'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+          rank <= 3 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+        )}>
+          {rank}
+        </div>
+        {/* 封面缩略图 */}
+        <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+          {post.coverImage ? (
+            <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <TypeIcon className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate">{post.title}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <Badge variant="default" size="sm" className={typeConfig.color}>
+              <TypeIcon className="w-3 h-3 mr-1" />
+              {typeConfig.label}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+            <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{post.viewCount}</span>
+            <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{post.likeCount}</span>
+            <span className="flex items-center gap-0.5"><MessageSquare className="w-3 h-3" />{post.commentCount}</span>
+            <span className="flex items-center gap-0.5"><Bookmark className="w-3 h-3" />{post.favoriteCount}</span>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-xs text-slate-400 flex items-center gap-1 justify-end">
+            <Calendar className="w-3 h-3" />{formatDate(post.createdAt)}
+          </p>
+          <p className="text-xs text-slate-400 flex items-center gap-1 justify-end">
+            <User className="w-3 h-3" />{post.userName || '匿名'}
+          </p>
         </div>
       </div>
-      <div className="text-right shrink-0">
-        <p className="text-xs text-surface-400 flex items-center gap-1 justify-end"><Calendar className="w-3 h-3" />{formatDate(source.createdAt)}</p>
-        <p className="text-xs text-surface-400 flex items-center gap-1 justify-end"><User className="w-3 h-3" />{source.authorName || '匿名'}</p>
-      </div>
-      <Button variant="primary" size="sm" onClick={() => handleImport(source)} leftIcon={<Download className="w-3.5 h-3.5" />}>导入</Button>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-5">
       <Card className="p-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h3 className="font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Award className="w-5 h-5 text-yellow-500" />
             最受欢迎排行
           </h3>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-surface-500">按标签筛选：</span>
-            <select 
-              value={selectedTag} 
-              onChange={e => setSelectedTag(e.target.value)} 
-              className="px-3 py-1.5 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-            >
-              <option value="all">全部标签</option>
-              {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
         </div>
       </Card>
 
       <Card className="p-5">
-        <div className="mb-4 p-3 bg-surface-50 dark:bg-surface-800/50 rounded-lg">
-          <p className="text-sm text-surface-600 dark:text-surface-400">
+        <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             <strong>排序规则：</strong>按浏览量、点赞数综合排序，浏览量和点赞数越高排名越靠前。
           </p>
         </div>
-        
+
         <div className="space-y-1">
-          {popular.map((s, i) => <SourceRow key={s.id} source={s} rank={i + 1} />)}
+          {popular.map((post, i) => <PostRow key={post.id} post={post} rank={i + 1} />)}
         </div>
         {popular.length === 0 && (
           <div className="text-center py-8">
-            <Award className="w-12 h-12 mx-auto text-surface-300 mb-2" />
-            <p className="text-sm text-surface-400">暂无数据</p>
+            <Award className="w-12 h-12 mx-auto text-slate-300 mb-2" />
+            <p className="text-sm text-slate-400">暂无数据</p>
           </div>
         )}
       </Card>

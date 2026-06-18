@@ -38,6 +38,15 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     placeholder: '浏览所有可用资源站点...',
     description: '快速访问各类浏览型资源站点',
   },
+  community: {
+    id: 'community',
+    label: '社区',
+    icon: '🌐',
+    gradient: 'from-amber-400 via-orange-500 to-red-500',
+    majorCategoryId: null,
+    placeholder: '进入社区...',
+    description: '发现精彩内容，与同好交流互动',
+  },
 };
 
 /** 搜索类 Tab 列表（排除 sources 浏览型） */
