@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { getApiBaseUrl } from '@/constants';
 import type {
   User,
   LoginRequest,
@@ -19,9 +20,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 export const authApi = {
   loginWithGitHub: (): void => {
-    const base = import.meta.env.DEV
-      ? '/api'
-      : 'https://backend.codeseek.pp.ua/api';
+    const base = getApiBaseUrl();
     window.location.href = `${base}/auth/github`;
   },
 

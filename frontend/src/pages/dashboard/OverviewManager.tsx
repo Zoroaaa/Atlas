@@ -23,10 +23,10 @@ import { useFeatureFlags } from '@/contexts';
 import type { FavoriteItem, SearchHistoryItem, SearchSource, UserSourceConfig } from '@/types';
 
 const getUserLevel = (total: number) => {
-  if (total < 10)  return { label: '新手',   color: 'from-slate-400 to-slate-500',   icon: '🌱', next: 10,  prev: 0   };
+  if (total < 10)  return { label: '新手',   color: 'from-stone-400 to-stone-500',   icon: '🌱', next: 10,  prev: 0   };
   if (total < 50)  return { label: '熟练',   color: 'from-green-400 to-emerald-500', icon: '⚡', next: 50,  prev: 10  };
-  if (total < 200) return { label: '专业',   color: 'from-blue-400 to-cyan-500',     icon: '🎯', next: 200, prev: 50  };
-  if (total < 500) return { label: '专家',   color: 'from-purple-400 to-violet-500', icon: '🔥', next: 500, prev: 200 };
+  if (total < 200) return { label: '专业',   color: 'from-amber-400 to-amber-500',   icon: '🎯', next: 200, prev: 50  };
+  if (total < 500) return { label: '专家',   color: 'from-rose-400 to-rose-500',     icon: '🔥', next: 500, prev: 200 };
   return             { label: '大师',   color: 'from-amber-400 to-orange-500',   icon: '👑', next: Infinity, prev: 500 };
 };
 
@@ -468,8 +468,8 @@ export const OverviewManager: React.FC = () => {
         {/* 热门搜索 + 快速操作 */}
         <Card className="p-6 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
           <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-rose-600 dark:text-rose-400" />
             </div>
             搜索习惯
           </h3>
@@ -482,7 +482,7 @@ export const OverviewManager: React.FC = () => {
                   {userSearchStats.topSources.slice(0, 3).map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs flex items-center justify-center font-medium">
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] text-white text-xs flex items-center justify-center font-medium">
                           {index + 1}
                         </span>
                         <span className="text-sm text-surface-700 dark:text-surface-300 truncate max-w-[150px]">{item.source}</span>

@@ -18,6 +18,7 @@ import {
   User,
 } from 'lucide-react';
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState } from '@/components/ui';
+import { getBackendBaseUrl } from '@/constants';
 import { ProxyImage } from '@/components/ui';
 import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
@@ -34,9 +35,7 @@ const resolveUrl = (relativePath: string, referenceUrl: string): string => {
 };
 
 const getProxyImageUrl = (url: string): string => {
-  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? ''
-    : 'https://backend.codeseek.pp.ua';
+  const baseUrl = getBackendBaseUrl();
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
@@ -342,13 +341,13 @@ export const FavoritesManager: React.FC = () => {
                       </span>
                     )}
                     {favorite.releaseDate && (
-                      <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                         <Calendar className="w-3 h-3" />
                         {favorite.releaseDate}
                       </span>
                     )}
                     {favorite.publisher && (
-                      <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                      <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
                         <Building2 className="w-3 h-3" />
                         {favorite.publisher}
                       </span>
@@ -823,13 +822,13 @@ export const HistoryManager: React.FC = () => {
                             </span>
                           )}
                           {item.releaseDate && (
-                            <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <Calendar className="w-2.5 h-2.5" />
                               {item.releaseDate}
                             </span>
                           )}
                           {item.publisher && (
-                            <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                            <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
                               <Building2 className="w-2.5 h-2.5" />
                               {item.publisher}
                             </span>

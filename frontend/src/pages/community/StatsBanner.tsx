@@ -29,15 +29,15 @@ export const StatsBanner: React.FC = () => {
       label: '总帖子',
       value: communityStats.totalPosts,
       icon: FileText,
-      gradient: 'from-blue-400 to-blue-600',
-      color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
+      gradient: 'from-[#d4a853] to-[#f59e0b]',
+      color: 'text-amber-700 bg-amber-50 dark:bg-amber-900/20',
     },
     {
       label: '参与用户',
       value: communityStats.totalUsers,
       icon: Users,
-      gradient: 'from-violet-400 to-violet-600',
-      color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20',
+      gradient: 'from-[#e11d48] to-[#be123c]',
+      color: 'text-rose-700 bg-rose-50 dark:bg-rose-900/20',
     },
     {
       label: '总评论',
@@ -105,8 +105,8 @@ export const StatsBanner: React.FC = () => {
                 <item.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-slate-400">{item.label}</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                <p className="text-xs text-stone-400">{item.label}</p>
+                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">
                   {typeof item.value === 'number'
                     ? item.value.toLocaleString()
                     : item.value}
@@ -124,7 +124,7 @@ export const StatsBanner: React.FC = () => {
         <Card padding="md">
           <div className="flex items-center gap-2 mb-3">
             <Hash className="w-4 h-4 text-primary-500" />
-            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">热门标签</h3>
+            <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100">热门标签</h3>
           </div>
           <div className="flex flex-wrap gap-2">
             {hotTags.map((tag, idx) => (
@@ -149,14 +149,14 @@ export const StatsBanner: React.FC = () => {
         <Card padding="md">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="w-4 h-4 text-primary-500" />
-            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">最近动态</h3>
+            <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100">最近动态</h3>
           </div>
           {communityStats.recentActivity && communityStats.recentActivity.length > 0 ? (
             <div className="space-y-2 max-h-32 overflow-y-auto">
               {communityStats.recentActivity.slice(0, 5).map((activity, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors"
                 >
                   <Badge
                     variant={
@@ -170,17 +170,17 @@ export const StatsBanner: React.FC = () => {
                      activity.type === 'like' ? '点赞' :
                      activity.type === 'comment' ? '评论' : activity.type}
                   </Badge>
-                  <span className="flex-1 truncate text-slate-600 dark:text-slate-400">
+                  <span className="flex-1 truncate text-stone-600 dark:text-stone-400">
                     {activity.title || '新动态'}
                   </span>
-                  <span className="text-slate-400 shrink-0">
+                  <span className="text-stone-400 shrink-0">
                     {formatTime(activity.createdAt)}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 text-center py-4">暂无最近动态</p>
+            <p className="text-xs text-stone-400 text-center py-4">暂无最近动态</p>
           )}
         </Card>
       </div>

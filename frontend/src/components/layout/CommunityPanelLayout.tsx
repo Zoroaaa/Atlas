@@ -66,34 +66,34 @@ export const CommunityPanelLayout: React.FC = () => {
   const SidebarContent: React.FC<{ mobile?: boolean }> = ({ mobile = false }) => (
     <>
       <div className={clsx(
-        'flex items-center h-16 px-4 border-b border-slate-200/70 dark:border-slate-800',
+        'flex items-center h-16 px-4 border-b border-stone-200/70 dark:border-stone-800',
         !mobile && sidebarCollapsed ? 'justify-center' : 'justify-between'
       )}>
         {(!sidebarCollapsed || mobile) ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
               <Users className="w-4 h-4 text-white" />
             </div>
             <div>
               <span className="font-bold text-base gradient-text display-font">社区中心</span>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Community</p>
+              <p className="text-[10px] text-stone-500 dark:text-stone-400">Community</p>
             </div>
           </div>
         ) : (
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
             <Users className="w-4 h-4 text-white" />
           </div>
         )}
         {mobile ? (
           <button onClick={() => setMobileMenuOpen(false)}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-all">
+            className="p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:text-stone-300 dark:hover:bg-stone-800 transition-all">
             <X className="w-5 h-5" />
           </button>
         ) : (
           <button onClick={toggleSidebar}
             className={clsx(
-              'p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100',
-              'dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-all',
+              'p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100',
+              'dark:hover:text-stone-300 dark:hover:bg-stone-800 transition-all',
               sidebarCollapsed && 'mx-auto'
             )}>
             {sidebarCollapsed ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -104,7 +104,7 @@ export const CommunityPanelLayout: React.FC = () => {
       <nav className="flex-1 py-4 px-2.5 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         <div className="mb-5">
           {(!sidebarCollapsed || mobile) && (
-            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-600">
+            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400 dark:text-stone-600">
               社区功能
             </p>
           )}
@@ -118,12 +118,12 @@ export const CommunityPanelLayout: React.FC = () => {
                       onClick={() => handleNavClick(item.path)}
                       className={clsx('sidebar-nav-item w-full', active && 'active')}
                     >
-                      <span className={clsx('flex-shrink-0', active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400')}>
+                      <span className={clsx('flex-shrink-0', active ? 'text-teal-600 dark:text-teal-400' : 'text-stone-400')}>
                         {item.icon}
                       </span>
                       <span className="font-medium text-sm">{item.label}</span>
                       {item.badge && (
-                        <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                        <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 rounded-full">
                           {item.badge}
                         </span>
                       )}
@@ -136,23 +136,23 @@ export const CommunityPanelLayout: React.FC = () => {
                   <Link 
                     to={item.path} 
                     title={sidebarCollapsed ? item.label : undefined}
-                    className={clsx('sidebar-nav-item group', active && 'active', active && 'bg-emerald-50 dark:bg-emerald-900/20')}
+                    className={clsx('sidebar-nav-item group', active && 'active', active && 'bg-teal-50 dark:bg-teal-900/20')}
                   >
-                    <span className={clsx('flex-shrink-0', active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400')}>
+                    <span className={clsx('flex-shrink-0', active ? 'text-teal-600 dark:text-teal-400' : 'text-stone-400')}>
                       {item.icon}
                     </span>
                     {!sidebarCollapsed && (
                       <>
-                        <span className={clsx('font-medium text-sm', active && 'text-emerald-700 dark:text-emerald-300')}>{item.label}</span>
+                        <span className={clsx('font-medium text-sm', active && 'text-teal-700 dark:text-teal-300')}>{item.label}</span>
                         {item.badge && (
-                          <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                          <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400 rounded-full">
                             {item.badge}
                           </span>
                         )}
                       </>
                     )}
                     {sidebarCollapsed && (
-                      <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                      <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                         {item.label}
                       </div>
                     )}
@@ -164,24 +164,24 @@ export const CommunityPanelLayout: React.FC = () => {
         </div>
       </nav>
 
-      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800">
+      <div className="p-3 border-t border-stone-200/70 dark:border-stone-800">
         <div className={clsx('flex items-center gap-3', (!sidebarCollapsed || mobile) ? '' : 'justify-center')}>
-          <div className="user-avatar flex-shrink-0 text-sm bg-gradient-to-br from-emerald-500 to-teal-600">
+          <div className="user-avatar flex-shrink-0 text-sm bg-gradient-to-br from-teal-500 to-cyan-600">
             {user?.username?.charAt(0).toUpperCase()}
           </div>
           {(!sidebarCollapsed || mobile) && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate tracking-tight">
+                <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate tracking-tight">
                   {user?.username}
                 </p>
-                <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">
+                <p className="text-xs text-teal-500 dark:text-teal-400 font-medium">
                   社区成员
                 </p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                className="p-2 rounded-xl text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                 title="退出登录"
               >
                 <LogOut className="w-4 h-4" />
@@ -194,10 +194,10 @@ export const CommunityPanelLayout: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
+    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b] flex">
       <aside className={clsx(
         'hidden lg:flex flex-col fixed inset-y-0 left-0 z-30',
-        'bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800',
+        'bg-white dark:bg-[#111113] border-r border-stone-200/80 dark:border-stone-800',
         'transition-all duration-300 ease-out',
         sidebarCollapsed ? 'w-20' : 'w-64'
       )}>
@@ -213,7 +213,7 @@ export const CommunityPanelLayout: React.FC = () => {
 
       <aside className={clsx(
         'fixed inset-y-0 left-0 z-50 w-72 lg:hidden flex flex-col',
-        'bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800',
+        'bg-white dark:bg-[#111113] border-r border-stone-200/80 dark:border-stone-800',
         'transform transition-transform duration-300 ease-out',
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
@@ -224,39 +224,39 @@ export const CommunityPanelLayout: React.FC = () => {
         'flex-1 flex flex-col transition-all duration-300 min-w-0',
         sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
       )}>
-        <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/70 dark:border-slate-800">
+        <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-[#111113]/80 backdrop-blur-xl border-b border-stone-200/70 dark:border-stone-800">
           <div className="flex items-center justify-between h-full px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-all"
+                className="lg:hidden p-2 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <h1 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+              <h1 className="text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
                 {currentPageLabel}
               </h1>
             </div>
 
             <div className="flex items-center gap-2">
               <Link to="/main"
-                className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transition-all">
+                className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 transition-all">
                 <Search className="w-4 h-4" />
                 返回首页
               </Link>
               <Link to="/dashboard"
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-200 dark:border-slate-700">
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden lg:inline">控制台</span>
               </Link>
               <Link to="/community"
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 transition-all">
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 transition-all">
                 <Globe className="w-4 h-4" />
                 <span className="hidden lg:inline">社区</span>
               </Link>
               {isAdmin && (
                 <Link to="/admin-panel"
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-200 dark:border-slate-700">
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                   <Shield className="w-4 h-4" />
                   <span className="hidden lg:inline">管理看板</span>
                 </Link>

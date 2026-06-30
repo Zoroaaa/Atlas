@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchStore } from '@/stores';
 import { searchApi } from '@/services/api';
 import { useValidationRules, useSearchConfig } from '@/contexts';
+import { useSearchHistory } from './useSearchHistoryQuery';
+import type { SearchSuggestion } from '@/types';
 
 interface UseSearchSuggestionsOptions {
   debounceMs?: number;
@@ -13,7 +15,9 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
   const validationRules = useValidationRules();
   const searchConfig = useSearchConfig();
   const { debounceMs = searchConfig.searchDebounceMs, maxSuggestions = searchConfig.suggestionsMaxLimit, minChars = validationRules.SEARCH_KEYWORD_MIN_LENGTH } = options;
-  const { suggestions, setSuggestions, searchHistory, keyword } = useSearchStore();
+  const { keyword } = useSearchStore();
+  const { data: searchHistory = [] } = useSearchHistory(5);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,7 +42,7 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
     } finally {
       setIsLoading(false);
     }
-  }, [minChars, maxSuggestions, setSuggestions]);
+  }, [minChars, maxSuggestions]);
 
   const debouncedFetch = useCallback((query: string) => {
     if (debounceRef.current) {
@@ -61,7 +65,7 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
         clearTimeout(debounceRef.current);
       }
     };
-  }, [keyword, minChars, debouncedFetch, setSuggestions]);
+  }, [keyword, minChars, debouncedFetch]);
 
   const getHistorySuggestions = useCallback(() => {
     if (!keyword || keyword.length < 1) {
@@ -72,12 +76,21 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
       .slice(0, 5);
   }, [keyword, searchHistory]);
 
-  const getAllSuggestions = useCallback(() => {
-    const historySuggestions = getHistorySuggestions();
-    const apiSuggestions = suggestions.filter(
-      s => !historySuggestions.some(h => h.query.toLowerCase() === s.keyword.toLowerCase())
-    );
-    return [...historySuggestions, ...apiSuggestions].slice(0, maxSuggestions);
+  const getAllSuggestions = useCallback((): SearchSuggestionItem[] => {
+    const historyItems: SearchSuggestionItem[] = getHistorySuggestions().map(h => ({
+      id: `history-${h.id}`,
+      keyword: h.query,
+      type: 'history' as const,
+    }));
+    const apiItems: SearchSuggestionItem[] = suggestions
+      .filter(s => !historyItems.some(h => h.keyword.toLowerCase() === s.keyword.toLowerCase()))
+      .map(s => ({
+        id: `suggestion-${s.keyword}`,
+        keyword: s.keyword,
+        type: 'suggestion' as const,
+        count: s.count,
+      }));
+    return [...historyItems, ...apiItems].slice(0, maxSuggestions);
   }, [getHistorySuggestions, suggestions, maxSuggestions]);
 
   return {
@@ -90,7 +103,7 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
   };
 }
 
-export interface SearchSuggestion {
+export interface SearchSuggestionItem {
   id: string;
   keyword: string;
   type: 'history' | 'suggestion';

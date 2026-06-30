@@ -28,20 +28,20 @@ export const Loading: React.FC<LoadingProps> = ({
   const content = (
     <div className={clsx('flex flex-col items-center justify-center gap-3', className)}>
       <div className="relative">
-        <Loader2 className={clsx('animate-spin text-blue-500 dark:text-blue-400', sizeStyles[size])} />
+        <Loader2 className={clsx('animate-spin text-amber-500 dark:text-amber-400', sizeStyles[size])} />
         {size === 'lg' && (
-          <div className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping" style={{ animationDuration: '1.5s' }} />
+          <div className="absolute inset-0 rounded-full bg-amber-400/20 animate-ping" style={{ animationDuration: '1.5s' }} />
         )}
       </div>
       {text && (
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{text}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 font-medium">{text}</p>
       )}
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white/85 dark:bg-slate-900/85 backdrop-blur-md z-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-white/85 dark:bg-stone-900/85 backdrop-blur-md z-50">
         {content}
       </div>
     );
@@ -66,11 +66,11 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   return (
     <div
       className={clsx(
-        'bg-slate-200 dark:bg-slate-700/60',
+        'bg-stone-200 dark:bg-stone-700/60',
         // Shimmer animation
         'relative overflow-hidden',
         'before:absolute before:inset-0',
-        'before:bg-gradient-to-r before:from-transparent before:via-white/40 dark:before:via-slate-600/30 before:to-transparent',
+        'before:bg-gradient-to-r before:from-transparent before:via-white/40 dark:before:via-stone-600/30 before:to-transparent',
         'before:animate-[shimmer_1.5s_ease-in-out_infinite]',
         variant === 'text' && 'h-4 rounded-lg',
         variant === 'circular' && 'rounded-full',

@@ -42,15 +42,15 @@ interface ActivityStats {
 const actionColors: Record<string, { bg: string; text: string; icon: string }> = {
   login: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', icon: '✓' },
   login_failed: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', icon: '✗' },
-  logout: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-400', icon: '→' },
-  search: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', icon: '🔍' },
+  logout: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '→' },
+  search: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', icon: '🔍' },
   add_favorite: { bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-400', icon: '♥' },
-  remove_favorite: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-400', icon: '♡' },
-  sync_favorites: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400', icon: '↻' },
+  remove_favorite: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '♡' },
+  sync_favorites: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-400', icon: '↻' },
   update_settings: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', icon: '⚙' },
   change_password: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', icon: '🔒' },
   change_email: { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-700 dark:text-cyan-400', icon: '✉' },
-  clear_search_history: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-400', icon: '🗑' },
+  clear_search_history: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '🗑' },
   share_source: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', icon: '↗' },
   review_source: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', icon: '★' },
   report_source: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', icon: '⚠' },
@@ -147,12 +147,12 @@ export const UserActivitiesPage: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">我的活动记录</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">查看您最近的操作历史</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">我的活动记录</h1>
+          <p className="text-stone-500 dark:text-stone-400 mt-1">查看您最近的操作历史</p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           刷新
@@ -162,34 +162,34 @@ export const UserActivitiesPage: React.FC = () => {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="p-4 text-center">
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">总活动</p>
+            <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">{stats.total}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">总活动</p>
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.summary.logins}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">本月登录</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">本月登录</p>
           </Card>
           <Card className="p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.summary.thisWeekLogins}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">本周登录</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.summary.thisWeekLogins}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">本周登录</p>
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.summary.failedLogins}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">登录失败</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">登录失败</p>
           </Card>
         </div>
       )}
 
       <Card className="p-4">
         <div className="flex items-center gap-3">
-          <Filter className="w-4 h-4 text-slate-400" />
+          <Filter className="w-4 h-4 text-stone-400" />
           <select
             value={actionFilter}
             onChange={(e) => {
               setActionFilter(e.target.value);
               setOffset(0);
             }}
-            className="flex-1 sm:flex-none px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 sm:flex-none px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
             {actionFilterOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -218,15 +218,15 @@ export const UserActivitiesPage: React.FC = () => {
             {Object.entries(groupedActivities).map(([date, dateActivities]) => (
               <div key={date}>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">{date}</span>
-                  <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-sm font-semibold text-stone-600 dark:text-stone-400">{date}</span>
+                  <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
                 </div>
-                <Card className="divide-y divide-slate-100 dark:divide-slate-800">
+                <Card className="divide-y divide-stone-100 dark:divide-stone-800">
                   {dateActivities.map((activity) => {
-                    const colorStyle = actionColors[activity.action] || { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-400', icon: '•' };
+                    const colorStyle = actionColors[activity.action] || { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '•' };
                     return (
-                      <div key={activity.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <div key={activity.id} className="p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                         <div className="flex items-start gap-3">
                           <div className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold',
@@ -240,13 +240,13 @@ export const UserActivitiesPage: React.FC = () => {
                               <p className={clsx('font-medium', colorStyle.text)}>
                                 {activity.actionLabel}
                               </p>
-                              <span className="text-xs text-slate-400 flex items-center gap-1">
+                              <span className="text-xs text-stone-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
                                 {formatTime(activity.createdAt)}
                               </span>
                             </div>
                             {activity.data && Object.keys(activity.data).length > 0 && (
-                              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 truncate">
+                              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1 truncate">
                                 {Object.entries(activity.data).slice(0, 2).map(([key, value]) => (
                                   <span key={key} className="mr-3">
                                     {key}: {String(value).slice(0, 30)}
@@ -254,7 +254,7 @@ export const UserActivitiesPage: React.FC = () => {
                                 ))}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                            <div className="flex items-center gap-4 mt-2 text-xs text-stone-400">
                               {activity.ipAddress && (
                                 <span className="flex items-center gap-1">
                                   <MapPin className="w-3 h-3" />
@@ -281,7 +281,7 @@ export const UserActivitiesPage: React.FC = () => {
           {totalPages > 1 && (
             <Card className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-stone-500 dark:text-stone-400">
                   共 {total} 条记录，第 {currentPage}/{totalPages} 页
                 </p>
                 <div className="flex items-center gap-2">
@@ -291,8 +291,8 @@ export const UserActivitiesPage: React.FC = () => {
                     className={clsx(
                       'p-2 rounded-xl transition-colors',
                       offset === 0
-                        ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        ? 'text-stone-300 dark:text-stone-600 cursor-not-allowed'
+                        : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
                     )}
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -303,8 +303,8 @@ export const UserActivitiesPage: React.FC = () => {
                     className={clsx(
                       'p-2 rounded-xl transition-colors',
                       offset + limit >= total
-                        ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        ? 'text-stone-300 dark:text-stone-600 cursor-not-allowed'
+                        : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
                     )}
                   >
                     <ChevronRight className="w-5 h-5" />

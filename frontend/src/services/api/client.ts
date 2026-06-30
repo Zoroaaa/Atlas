@@ -25,7 +25,7 @@ interface RequestOptions {
   timeout?: number;
 }
 
-class ApiClient {
+export class ApiClient {
   private baseUrl: string;
   private maxRetries = API_CONFIG.MAX_RETRIES;
   private retryDelay = API_CONFIG.RETRY_DELAY;

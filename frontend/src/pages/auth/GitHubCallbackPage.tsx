@@ -68,12 +68,12 @@ export const GitHubCallbackPage: React.FC = () => {
   }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-[#0a0a0b]">
       <div className="text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center animate-pulse">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-stone-900 dark:bg-stone-800 flex items-center justify-center animate-pulse">
           <Github className="w-8 h-8 text-white" />
         </div>
-        <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">
+        <p className="text-stone-600 dark:text-stone-400 text-sm font-medium">
           正在处理 GitHub 登录…
         </p>
       </div>

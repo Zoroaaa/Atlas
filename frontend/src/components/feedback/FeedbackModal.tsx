@@ -25,8 +25,8 @@ const TYPE_OPTIONS = [
     value: 'other' as const,
     label: '其他',
     icon: MessageCircle,
-    activeClass: 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700',
-    iconClass: 'text-blue-500',
+    activeClass: 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700',
+    iconClass: 'text-amber-500',
   },
 ];
 
@@ -98,22 +98,22 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
-      <div className="relative w-full sm:max-w-lg bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full sm:max-w-lg bg-white dark:bg-stone-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-blue-50 to-violet-50 dark:from-slate-800/80 dark:to-slate-800/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-800 bg-gradient-to-r from-amber-50 to-rose-50 dark:from-stone-800/80 dark:to-stone-800/80">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shadow-sm">
               <MessageSquarePlus className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">反馈与建议</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">帮助我们持续改进</p>
+              <h3 className="font-bold text-stone-900 dark:text-stone-100 text-sm">反馈与建议</h3>
+              <p className="text-[11px] text-stone-500 dark:text-stone-400">帮助我们持续改进</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700 transition-all"
           >
             <X className="w-4 h-4" />
           </button>
@@ -125,8 +125,8 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
-            <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">感谢您的反馈！</h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+            <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100 mb-2">感谢您的反馈！</h4>
+            <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed mb-6">
               我们已收到您的反馈，将尽快进行处理。
               {(isAuthenticated ? user?.email : contactEmail) && (
                 <><br />处理结果将通过邮件告知您。</>
@@ -134,7 +134,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </p>
             <button
               onClick={handleClose}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-violet-600 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+              className="px-6 py-2.5 bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
             >
               关闭
             </button>
@@ -145,7 +145,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* 反馈类型 */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-2 uppercase tracking-wide">
                 反馈类型
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -160,11 +160,11 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         'flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all text-xs font-medium',
                         active
                           ? opt.activeClass
-                          : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+                          : 'border-stone-200 dark:border-stone-700 text-stone-500 hover:border-stone-300 dark:hover:border-stone-600'
                       )}
                     >
-                      <Icon className={clsx('w-4 h-4', active ? opt.iconClass : 'text-slate-400')} />
-                      <span className={active ? 'text-slate-800 dark:text-slate-200' : ''}>{opt.label}</span>
+                      <Icon className={clsx('w-4 h-4', active ? opt.iconClass : 'text-stone-400')} />
+                      <span className={active ? 'text-stone-800 dark:text-stone-200' : ''}>{opt.label}</span>
                     </button>
                   );
                 })}
@@ -173,7 +173,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* 标题 */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
                 标题 <span className="text-red-400">*</span>
               </label>
               <input
@@ -182,14 +182,14 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="简要描述您的问题或建议（5~100字）"
                 maxLength={100}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-400 transition-all"
               />
-              <p className="text-[11px] text-slate-400 mt-1 text-right">{title.length}/100</p>
+              <p className="text-[11px] text-stone-400 mt-1 text-right">{title.length}/100</p>
             </div>
 
             {/* 内容 */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
                 详细描述 <span className="text-red-400">*</span>
               </label>
               <textarea
@@ -204,9 +204,9 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 }
                 rows={5}
                 maxLength={2000}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all resize-none"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-400 transition-all resize-none"
               />
-              <p className="text-[11px] text-slate-400 mt-1 text-right">{content.length}/2000</p>
+              <p className="text-[11px] text-stone-400 mt-1 text-right">{content.length}/2000</p>
             </div>
 
             {/* 联系邮箱（已登录则显示已有邮箱，未登录必填） */}
@@ -219,7 +219,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
                   联系邮箱 <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -227,7 +227,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="用于接收处理结果通知"
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-400 transition-all"
                 />
               </div>
             )}
@@ -237,7 +237,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-500/25"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/25"
               >
                 {submitting ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />提交中...</>

@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/services/api/queryClient';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { apiClient } from '@/services/api';
 import { analyticsApi } from '@/services/api';
@@ -148,9 +150,10 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <BrowserRouter>
-      <PageTracker />
-      <Routes>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <PageTracker />
+        <Routes>
         {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar） */}
         <Route path="/" element={<AuthRedirect><HomePage /></AuthRedirect>} />
         <Route element={<MainLayout />}>
@@ -224,7 +227,8 @@ const App: React.FC = () => {
         </Route>
       </Routes>
       <ToastContainer />
-    </BrowserRouter>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 

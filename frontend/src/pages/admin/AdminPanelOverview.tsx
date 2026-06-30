@@ -88,10 +88,10 @@ interface StatCardProps {
 }
 
 const colorClasses = {
-  blue: 'from-blue-500 to-blue-600',
+  blue: 'from-[#d4a853] to-[#f59e0b]',
   green: 'from-green-500 to-green-600',
   red: 'from-red-500 to-red-600',
-  purple: 'from-purple-500 to-purple-600',
+  purple: 'from-rose-500 to-rose-600',
   orange: 'from-orange-500 to-orange-600',
   teal: 'from-teal-500 to-teal-600',
 };
@@ -100,12 +100,12 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon, trend
   <Card className="p-5 hover:shadow-lg transition-shadow">
     <div className="flex items-start justify-between">
       <div className="flex-1">
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
-        <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1 tracking-tight">
+        <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{title}</p>
+        <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 tracking-tight">
           {typeof value === 'number' ? value.toLocaleString() : value}
         </p>
         {subtitle && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subtitle}</p>
+          <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">{subtitle}</p>
         )}
         {trend !== undefined && (
           <div className={clsx(
@@ -114,7 +114,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon, trend
           )}>
             {trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             <span>{Math.abs(trend)}%</span>
-            {trendLabel && <span className="text-slate-400">{trendLabel}</span>}
+            {trendLabel && <span className="text-stone-400">{trendLabel}</span>}
           </div>
         )}
       </div>
@@ -155,12 +155,12 @@ const actionLabels: Record<string, string> = {
 const actionColors: Record<string, string> = {
   login: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   login_failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  logout: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
-  search: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  logout: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
+  search: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   add_favorite: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  remove_favorite: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
+  remove_favorite: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
   admin_update_user_status: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  admin_update_user_role: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  admin_update_user_role: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
 };
 
 export const AdminPanelOverview: React.FC = () => {
@@ -202,10 +202,10 @@ export const AdminPanelOverview: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertTriangle className="w-12 h-12 text-red-500" />
-        <p className="text-slate-600 dark:text-slate-400">{error || '暂无数据'}</p>
+        <p className="text-stone-600 dark:text-stone-400">{error || '暂无数据'}</p>
         <button
           onClick={fetchOverview}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           重新加载
@@ -233,12 +233,12 @@ export const AdminPanelOverview: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">看板概览</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">实时监控系统运行状态</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">看板概览</h1>
+          <p className="text-stone-500 dark:text-stone-400 mt-1">实时监控系统运行状态</p>
         </div>
         <button
           onClick={fetchOverview}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           刷新数据
@@ -310,8 +310,8 @@ export const AdminPanelOverview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">登录统计</h2>
-            <span className="text-xs text-slate-400">今日</span>
+            <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">登录统计</h2>
+            <span className="text-xs text-stone-400">今日</span>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
@@ -341,17 +341,17 @@ export const AdminPanelOverview: React.FC = () => {
 
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">社区统计</h2>
-            <Link to="/admin-panel/reports" className="text-xs text-blue-500 hover:text-blue-600">查看详情</Link>
+            <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">社区统计</h2>
+            <Link to="/admin-panel/reports" className="text-xs text-amber-500 hover:text-amber-600">查看详情</Link>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-              <span className="text-sm text-slate-600 dark:text-slate-400">社区帖子</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{data.community.posts}</span>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50">
+              <span className="text-sm text-stone-600 dark:text-stone-400">社区帖子</span>
+              <span className="font-semibold text-stone-900 dark:text-stone-100">{data.community.posts}</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-              <span className="text-sm text-slate-600 dark:text-slate-400">用户评价</span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{data.community.reviews}</span>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50">
+              <span className="text-sm text-stone-600 dark:text-stone-400">用户评价</span>
+              <span className="font-semibold text-stone-900 dark:text-stone-100">{data.community.reviews}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20">
               <span className="text-sm text-orange-600 dark:text-orange-400">待处理举报</span>
@@ -363,35 +363,35 @@ export const AdminPanelOverview: React.FC = () => {
 
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">最近活动</h2>
-          <Link to="/admin-panel/actions" className="text-xs text-blue-500 hover:text-blue-600">查看全部</Link>
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">最近活动</h2>
+          <Link to="/admin-panel/actions" className="text-xs text-amber-500 hover:text-amber-600">查看全部</Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">用户</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">行为</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">详情</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">时间</th>
+              <tr className="border-b border-stone-200 dark:border-stone-700">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">用户</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">行为</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">详情</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">时间</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {data.recentActions.slice(0, 10).map((action, index) => (
-                <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <tr key={index} className="hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                   <td className="py-3 px-4">
-                    <span className="font-medium text-slate-900 dark:text-slate-100">{action.username}</span>
+                    <span className="font-medium text-stone-900 dark:text-stone-100">{action.username}</span>
                   </td>
                   <td className="py-3 px-4">
                     <span className={clsx(
                       'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium',
-                      actionColors[action.action] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                      actionColors[action.action] || 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400'
                     )}>
                       {actionLabels[action.action] || action.action}
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="text-sm text-slate-500 dark:text-slate-400 truncate max-w-xs block">
+                    <span className="text-sm text-stone-500 dark:text-stone-400 truncate max-w-xs block">
                       {action.data && Object.keys(action.data).length > 0 
                         ? JSON.stringify(action.data).slice(0, 50) + '...'
                         : '-'
@@ -399,7 +399,7 @@ export const AdminPanelOverview: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <span className="text-sm text-slate-400 dark:text-slate-500 flex items-center justify-end gap-1">
+                    <span className="text-sm text-stone-400 dark:text-stone-500 flex items-center justify-end gap-1">
                       <Clock className="w-3 h-3" />
                       {formatTime(action.createdAt)}
                     </span>

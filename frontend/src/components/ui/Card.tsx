@@ -30,15 +30,15 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={clsx(
-        'bg-white dark:bg-slate-900/80',
-        'rounded-2xl border border-slate-200/80 dark:border-slate-700/50',
+        'bg-white dark:bg-stone-900/80',
+        'rounded-2xl border border-stone-200/80 dark:border-stone-700/50',
         'transition-all duration-200',
         paddingStyles[padding],
         hover && [
           'cursor-pointer',
           'hover:-translate-y-0.5',
-          'hover:shadow-lg hover:shadow-blue-500/8 dark:hover:shadow-blue-500/5',
-          'hover:border-blue-200 dark:hover:border-blue-700/50',
+          'hover:shadow-lg hover:shadow-amber-500/8 dark:hover:shadow-amber-500/5',
+          'hover:border-amber-200 dark:hover:border-amber-700/50',
         ],
         onClick && 'cursor-pointer',
         className
@@ -67,11 +67,11 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   return (
     <div className={clsx('flex items-start justify-between', className)}>
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
           {title}
         </h3>
         {subtitle && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">
             {subtitle}
           </p>
         )}
@@ -99,7 +99,7 @@ export const CardFooter: React.FC<CardFooterProps> = ({ children, className }) =
   return (
     <div
       className={clsx(
-        'mt-4 pt-4 border-t border-slate-100 dark:border-slate-800',
+        'mt-4 pt-4 border-t border-stone-100 dark:border-stone-800',
         className
       )}
     >

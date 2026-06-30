@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { apiClient } from '@/services/api/client';
+import { getApiBaseUrl } from '@/constants';
 
 export interface ParsedMagnet {
   infoHash: string;    // 40位小写hex
@@ -68,10 +69,7 @@ export async function downloadTorrentFile(
 
   // 1. 优先：后端代理
   // 动态获取API地址（与 services/api/client.ts 逻辑保持一致）
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const apiBase = (hostname === 'localhost' || hostname === '127.0.0.1')
-    ? '/api'
-    : 'https://backend.codeseek.pp.ua/api';
+  const apiBase = getApiBaseUrl();
   const backendUrl = `${apiBase}/jav/torrent/${hash}`;
 
   try {

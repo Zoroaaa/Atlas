@@ -53,7 +53,7 @@ export const CategoryManager: React.FC = () => {
     name: '',
     description: '',
     icon: '',
-    color: '#3B82F6',
+    color: '#d4a853',
   });
   
   const [categoryForm, setCategoryForm] = useState<CreateCategoryRequest>({
@@ -61,7 +61,7 @@ export const CategoryManager: React.FC = () => {
     name: '',
     description: '',
     icon: '',
-    color: '#3B82F6',
+    color: '#d4a853',
     defaultSearchable: true,
     defaultSiteType: 'search',
     searchPriority: 0,
@@ -119,7 +119,7 @@ export const CategoryManager: React.FC = () => {
           name: '',
           description: '',
           icon: '',
-          color: '#3B82F6',
+          color: '#d4a853',
         });
         loadData(true);
       }
@@ -180,7 +180,7 @@ export const CategoryManager: React.FC = () => {
           name: '',
           description: '',
           icon: '',
-          color: '#3B82F6',
+          color: '#d4a853',
           defaultSearchable: true,
           defaultSiteType: 'search',
           searchPriority: 0,
@@ -240,7 +240,7 @@ export const CategoryManager: React.FC = () => {
       name: majorCategory.name,
       description: majorCategory.description || '',
       icon: majorCategory.icon || '',
-      color: majorCategory.color || '#3B82F6',
+      color: majorCategory.color || '#d4a853',
     });
     setMajorCategoryModal({ isOpen: true, mode: 'edit', data: majorCategory });
   };
@@ -251,7 +251,7 @@ export const CategoryManager: React.FC = () => {
       name: '',
       description: '',
       icon: '',
-      color: '#3B82F6',
+      color: '#d4a853',
       defaultSearchable: true,
       defaultSiteType: 'search',
       searchPriority: 0,
@@ -265,7 +265,7 @@ export const CategoryManager: React.FC = () => {
       name: category.name,
       description: category.description || '',
       icon: category.icon || '',
-      color: category.color || '#3B82F6',
+      color: category.color || '#d4a853',
       defaultSearchable: category.defaultSearchable,
       defaultSiteType: category.defaultSiteType,
       searchPriority: category.searchPriority,
@@ -314,7 +314,7 @@ export const CategoryManager: React.FC = () => {
               name: '',
               description: '',
               icon: '',
-              color: '#3B82F6',
+              color: '#d4a853',
             });
             setMajorCategoryModal({ isOpen: true, mode: 'create', data: null });
           }}
@@ -348,7 +348,7 @@ export const CategoryManager: React.FC = () => {
                   <ChevronRight className={`w-4 h-4 shrink-0 text-surface-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                   <div 
                     className="w-9 h-9 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md"
-                    style={{ backgroundColor: majorCategory.color || '#3B82F6' }}
+                    style={{ backgroundColor: majorCategory.color || '#d4a853' }}
                   >
                     {majorCategory.icon ? (
                       <span className="text-lg sm:text-2xl">{majorCategory.icon}</span>
@@ -401,7 +401,7 @@ export const CategoryManager: React.FC = () => {
                           {/* Icon */}
                           <div 
                             className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm"
-                            style={{ backgroundColor: category.color || '#3B82F6' }}
+                            style={{ backgroundColor: category.color || '#d4a853' }}
                           >
                             {category.icon ? (
                               <span className="text-base sm:text-lg">{category.icon}</span>

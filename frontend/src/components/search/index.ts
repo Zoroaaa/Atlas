@@ -7,3 +7,4 @@ export { SourcesSidebar, default } from './SourcesSidebar';
 export { AnimeSearchResultPanel } from './AnimeSearchResultPanel';
 export { MovieSearchResultPanel } from './MovieSearchResultPanel';
 export { AnnouncementPanel } from './AnnouncementBanner';
+export { SearchSuggestionsDropdown } from './SearchSuggestionsDropdown';

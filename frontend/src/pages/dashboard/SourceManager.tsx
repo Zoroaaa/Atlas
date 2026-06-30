@@ -643,7 +643,7 @@ export const SourceManager: React.FC = () => {
                     <ChevronRight className={`w-4 h-4 shrink-0 text-surface-400 transition-transform duration-200 ${isMajorExpanded ? 'rotate-90' : ''}`} />
                     <div 
                       className="w-9 h-9 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md"
-                      style={{ backgroundColor: majorCategory.color || '#3B82F6' }}
+                      style={{ backgroundColor: majorCategory.color || '#d4a853' }}
                     >
                       {majorCategory.icon ? (
                         <span className="text-lg sm:text-2xl">{majorCategory.icon}</span>

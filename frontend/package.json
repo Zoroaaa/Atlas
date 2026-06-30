@@ -9,34 +9,40 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "generate-icons": "node scripts/generate-icons.mjs"
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@codeseek/shared": "*",
+    "@tanstack/react-query": "^5.101.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.441.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-router-dom": "^6.26.2",
-    "zustand": "^4.5.5"
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "19",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.20",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
-    "postcss": "^8.4.45",
+    "jsdom": "^29.1.1",
     "sharp": "^0.34.5",
-    "tailwindcss": "^3.4.11",
+    "tailwindcss": "^4.3.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vitest": "^4.1.9"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.28.1"

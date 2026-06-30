@@ -16,19 +16,19 @@ import { Pagination, TableWrapper } from './shared';
 const TYPE_CONFIG: Record<string, { label: string; icon: React.FC<any>; color: string }> = {
   bug: { label: '问题反馈', icon: Bug, color: 'text-red-500' },
   suggestion: { label: '优化建议', icon: Lightbulb, color: 'text-amber-500' },
-  other: { label: '其他', icon: MessageCircle, color: 'text-blue-500' },
+  other: { label: '其他', icon: MessageCircle, color: 'text-amber-500' },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: '待处理', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
-  processing: { label: '处理中', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  processing: { label: '处理中', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   resolved: { label: '已解决', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  closed: { label: '已关闭', color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400' },
+  closed: { label: '已关闭', color: 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-400' },
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-  low: { label: '低', color: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' },
-  normal: { label: '普通', color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
+  low: { label: '低', color: 'bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400' },
+  normal: { label: '普通', color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
   high: { label: '高', color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' },
   urgent: { label: '紧急', color: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' },
 };
@@ -40,7 +40,7 @@ const fmtDate = (ts: number | null | undefined) =>
 
 const StatsCards: React.FC<{ stats: FeedbackStats | null; loading: boolean }> = ({ stats, loading }) => {
   const cards = [
-    { label: '总计', value: stats?.total ?? 0, icon: MessageCircle, color: 'from-blue-500 to-violet-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { label: '总计', value: stats?.total ?? 0, icon: MessageCircle, color: 'from-[#d4a853] to-[#f59e0b]', bg: 'bg-amber-50 dark:bg-amber-900/20' },
     { label: '待处理', value: stats?.pending ?? 0, icon: Clock, color: 'from-orange-400 to-amber-500', bg: 'bg-orange-50 dark:bg-orange-900/20' },
     { label: '问题报告', value: stats?.bugs ?? 0, icon: Bug, color: 'from-red-400 to-rose-500', bg: 'bg-red-50 dark:bg-red-900/20' },
     { label: '优化建议', value: stats?.suggestions ?? 0, icon: Lightbulb, color: 'from-amber-400 to-yellow-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
@@ -53,14 +53,14 @@ const StatsCards: React.FC<{ stats: FeedbackStats | null; loading: boolean }> = 
       {cards.map((c) => {
         const Icon = c.icon;
         return (
-          <div key={c.label} className={clsx('rounded-xl p-4', c.bg, 'border border-slate-200/50 dark:border-slate-700/50')}>
+          <div key={c.label} className={clsx('rounded-xl p-4', c.bg, 'border border-stone-200/50 dark:border-stone-700/50')}>
             <div className={clsx('w-8 h-8 rounded-lg bg-gradient-to-br mb-3 flex items-center justify-center', c.color)}>
               <Icon className="w-4 h-4 text-white" />
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            <div className="text-2xl font-bold text-stone-900 dark:text-stone-100">
               {loading ? '—' : c.value}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{c.label}</div>
+            <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{c.label}</div>
           </div>
         );
       })}
@@ -142,37 +142,37 @@ const HandleModal: React.FC<{
       <div className="space-y-5 max-h-[65vh] overflow-y-auto px-1">
 
         {/* 反馈信息概览 */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800 cursor-pointer" onClick={() => setShowDetail(!showDetail)}>
+        <div className="rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-stone-50 dark:bg-stone-800 cursor-pointer" onClick={() => setShowDetail(!showDetail)}>
             <div className="flex items-center gap-2.5">
               <TypeIcon className={clsx('w-4 h-4', typeConf.color)} />
-              <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{item.title}</span>
+              <span className="font-semibold text-sm text-stone-900 dark:text-stone-100">{item.title}</span>
               <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium', STATUS_CONFIG[item.status]?.color)}>{STATUS_CONFIG[item.status]?.label}</span>
             </div>
-            {showDetail ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            {showDetail ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
           </div>
 
           {showDetail && (
-            <div className="px-4 py-3 space-y-2 text-sm border-t border-slate-200 dark:border-slate-700">
+            <div className="px-4 py-3 space-y-2 text-sm border-t border-stone-200 dark:border-stone-700">
               <div className="flex gap-2 flex-wrap">
-                <span className="text-slate-500">类型：</span><span>{typeConf.label}</span>
-                <span className="text-slate-500 ml-4">提交人：</span><span>{item.username || '未登录用户'}</span>
-                <span className="text-slate-500 ml-4">时间：</span><span>{fmtDate(item.created_at)}</span>
+                <span className="text-stone-500">类型：</span><span>{typeConf.label}</span>
+                <span className="text-stone-500 ml-4">提交人：</span><span>{item.username || '未登录用户'}</span>
+                <span className="text-stone-500 ml-4">时间：</span><span>{fmtDate(item.created_at)}</span>
               </div>
               {contactEmail && (
                 <div className="flex gap-2">
-                  <span className="text-slate-500">联系邮箱：</span>
-                  <span className="text-blue-600 dark:text-blue-400">{contactEmail}</span>
+                  <span className="text-stone-500">联系邮箱：</span>
+                  <span className="text-amber-600 dark:text-amber-400">{contactEmail}</span>
                   {item.email_sent ? <span title="已发送过回复邮件"><MailCheck className="w-4 h-4 text-green-500 ml-1" /></span> : null}
                 </div>
               )}
               {item.page_url && (
                 <div className="flex gap-2">
-                  <span className="text-slate-500">页面：</span>
-                  <span className="text-xs text-slate-600 dark:text-slate-400 break-all">{item.page_url}</span>
+                  <span className="text-stone-500">页面：</span>
+                  <span className="text-xs text-stone-600 dark:text-stone-400 break-all">{item.page_url}</span>
                 </div>
               )}
-              <div className="mt-2 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 whitespace-pre-wrap text-xs leading-relaxed">
+              <div className="mt-2 p-3 bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 whitespace-pre-wrap text-xs leading-relaxed">
                 {item.content}
               </div>
             </div>
@@ -182,11 +182,11 @@ const HandleModal: React.FC<{
         {/* 状态 + 优先级 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">处理状态</label>
+            <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">处理状态</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             >
               <option value="pending">待处理</option>
               <option value="processing">处理中</option>
@@ -195,11 +195,11 @@ const HandleModal: React.FC<{
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">优先级</label>
+            <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">优先级</label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             >
               <option value="low">低</option>
               <option value="normal">普通</option>
@@ -211,7 +211,7 @@ const HandleModal: React.FC<{
 
         {/* 回复内容 */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
             回复用户（将在邮件中展示）
           </label>
           <textarea
@@ -219,13 +219,13 @@ const HandleModal: React.FC<{
             onChange={(e) => setAdminReply(e.target.value)}
             placeholder="填写后用户将通过邮件收到您的回复。如不填写则不发送邮件..."
             rows={4}
-            className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+            className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
           />
         </div>
 
         {/* 内部备注 */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
             内部备注（仅管理员可见，不发送给用户）
           </label>
           <textarea
@@ -233,24 +233,24 @@ const HandleModal: React.FC<{
             onChange={(e) => setAdminNotes(e.target.value)}
             placeholder="记录处理进展、关联 Issue 等内部信息..."
             rows={2}
-            className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+            className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
           />
         </div>
 
         {/* 发送邮件选项 */}
         {adminReply.trim() && contactEmail && (
           <div
-            className="flex items-center gap-3 p-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 cursor-pointer"
+            className="flex items-center gap-3 p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 cursor-pointer"
             onClick={() => setSendEmail(!sendEmail)}
           >
-            <div className={clsx('w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-all', sendEmail ? 'bg-blue-500 border-blue-500' : 'border-slate-300 dark:border-slate-600')}>
+            <div className={clsx('w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-all', sendEmail ? 'bg-amber-500 border-amber-500' : 'border-stone-300 dark:border-stone-600')}>
               {sendEmail && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">发送回复邮件</p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">发送至：{contactEmail}</p>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">发送回复邮件</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">发送至：{contactEmail}</p>
             </div>
-            <Mail className="w-4 h-4 text-blue-500 ml-auto" />
+            <Mail className="w-4 h-4 text-amber-500 ml-auto" />
           </div>
         )}
 
@@ -262,7 +262,7 @@ const HandleModal: React.FC<{
         )}
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-stone-200 dark:border-stone-700">
         <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
         <Button variant="primary" size="sm" onClick={handleSubmit} disabled={submitting}>
           {submitting ? '处理中...' : '确认处理'}
@@ -363,22 +363,22 @@ export const FeedbackTab: React.FC = () => {
 
       {/* 筛选栏 */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 flex-1 min-w-[180px] max-w-xs border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
+        <div className="flex items-center gap-1 flex-1 min-w-[180px] max-w-xs border border-stone-200 dark:border-stone-700 rounded-xl overflow-hidden bg-white dark:bg-stone-800">
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="搜索标题或内容..."
-            className="flex-1 px-3 py-2 text-sm bg-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
+            className="flex-1 px-3 py-2 text-sm bg-transparent text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none"
           />
-          <button onClick={handleSearch} className="px-3 py-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+          <button onClick={handleSearch} className="px-3 py-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
             <Search className="w-4 h-4" />
           </button>
         </div>
 
         <select value={statusFilter} onChange={handleFilterChange(setStatusFilter)}
-          className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+          className="px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
           <option value="">全部状态</option>
           <option value="pending">待处理</option>
           <option value="processing">处理中</option>
@@ -387,7 +387,7 @@ export const FeedbackTab: React.FC = () => {
         </select>
 
         <select value={typeFilter} onChange={handleFilterChange(setTypeFilter)}
-          className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+          className="px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
           <option value="">全部类型</option>
           <option value="bug">问题反馈</option>
           <option value="suggestion">优化建议</option>
@@ -395,7 +395,7 @@ export const FeedbackTab: React.FC = () => {
         </select>
 
         <select value={priorityFilter} onChange={handleFilterChange(setPriorityFilter)}
-          className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+          className="px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/50">
           <option value="">全部优先级</option>
           <option value="urgent">紧急</option>
           <option value="high">高</option>
@@ -407,7 +407,7 @@ export const FeedbackTab: React.FC = () => {
           <RefreshCw className="w-4 h-4 mr-1.5" />刷新
         </Button>
 
-        <span className="text-xs text-slate-400 ml-auto">共 {total} 条</span>
+        <span className="text-xs text-stone-400 ml-auto">共 {total} 条</span>
       </div>
 
       {/* 表格 */}
@@ -422,9 +422,9 @@ export const FeedbackTab: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">加载中...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-stone-500">加载中...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">暂无反馈数据</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-stone-500">暂无反馈数据</td></tr>
             ) : items.map((item) => {
               const typeConf = TYPE_CONFIG[item.type] || TYPE_CONFIG.other;
               const TypeIcon = typeConf.icon;
@@ -436,14 +436,14 @@ export const FeedbackTab: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <TypeIcon className={clsx('w-4 h-4 flex-shrink-0', typeConf.color)} />
-                      <span className="text-xs text-slate-600 dark:text-slate-400">{typeConf.label}</span>
+                      <span className="text-xs text-stone-600 dark:text-stone-400">{typeConf.label}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 max-w-[220px]">
-                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={item.title}>{item.title}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {item.username ? <span className="text-blue-500">{item.username}</span> : <span className="italic">未登录</span>}
-                      {contactEmail && <span className="text-slate-400 ml-1">· {contactEmail}</span>}
+                    <div className="font-medium text-stone-900 dark:text-stone-100 truncate" title={item.title}>{item.title}</div>
+                    <div className="text-xs text-stone-500 mt-0.5">
+                      {item.username ? <span className="text-amber-500">{item.username}</span> : <span className="italic">未登录</span>}
+                      {contactEmail && <span className="text-stone-400 ml-1">· {contactEmail}</span>}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -456,12 +456,12 @@ export const FeedbackTab: React.FC = () => {
                     {item.email_sent ? (
                       <span className="flex items-center gap-1 text-green-500 text-xs"><MailCheck className="w-3.5 h-3.5" />已发</span>
                     ) : contactEmail ? (
-                      <span className="flex items-center gap-1 text-slate-400 text-xs"><Mail className="w-3.5 h-3.5" />未发</span>
+                      <span className="flex items-center gap-1 text-stone-400 text-xs"><Mail className="w-3.5 h-3.5" />未发</span>
                     ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+                      <span className="text-stone-300 dark:text-stone-600 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(item.created_at)}</td>
+                  <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">{fmtDate(item.created_at)}</td>
                   <td className="px-4 py-3">
                     <Button variant="outline" size="sm" onClick={() => openHandle(item)}>
                       {item.status === 'pending' || item.status === 'processing' ? '处理' : '查看'}

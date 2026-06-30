@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSearchStore, useAuthStore } from '@/stores';
+import { useAuthStore } from '@/stores';
 import { userApi } from '@/services/api';
 import { useNotification } from './useNotification';
 import type { FavoriteItem, AddFavoriteRequest } from '@/types';
@@ -17,7 +17,7 @@ interface UseFavoritesReturn {
 export function useFavorites(): UseFavoritesReturn {
   const notification = useNotification();
   const { isAuthenticated } = useAuthStore();
-  const { favorites, setFavorites, addToFavorites, removeFromFavorites } = useSearchStore();
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadFavorites = useCallback(async () => {
@@ -35,7 +35,7 @@ export function useFavorites(): UseFavoritesReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, setFavorites, notification]);
+  }, [isAuthenticated, notification]);
 
   const addFavorite = useCallback(async (data: AddFavoriteRequest): Promise<boolean> => {
     if (!isAuthenticated) {
@@ -46,7 +46,7 @@ export function useFavorites(): UseFavoritesReturn {
     try {
       const response = await userApi.addFavorite(data);
       if (response.success && response.data) {
-        addToFavorites(response.data);
+        setFavorites(prev => [response.data, ...prev]);
         notification.favorite.added();
         return true;
       }
@@ -57,13 +57,13 @@ export function useFavorites(): UseFavoritesReturn {
       notification.favorite.addFailed();
       return false;
     }
-  }, [isAuthenticated, addToFavorites, notification]);
+  }, [isAuthenticated, notification]);
 
   const removeFavorite = useCallback(async (id: string): Promise<boolean> => {
     try {
       const response = await userApi.removeFavorite(id);
       if (response.success) {
-        removeFromFavorites(id);
+        setFavorites(prev => prev.filter(f => f.id !== id));
         notification.favorite.removed();
         return true;
       }
@@ -74,7 +74,7 @@ export function useFavorites(): UseFavoritesReturn {
       notification.favorite.removeFailed();
       return false;
     }
-  }, [removeFromFavorites, notification]);
+  }, [notification]);
 
   const isFavorited = useCallback((url: string): boolean => {
     return favorites.some(f => f.url === url);

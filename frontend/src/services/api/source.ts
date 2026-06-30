@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { getApiBaseUrl } from '@/constants';
 import type {
   MajorCategory,
   Category,
@@ -449,9 +450,7 @@ export const sourceApi = {
       return apiClient.get(`/search-sources/export?${params.toString()}`);
     }
     
-    const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? '/api'
-      : 'https://backend.codeseek.pp.ua/api';
+    const baseUrl = getApiBaseUrl();
     const response = await fetch(`${baseUrl}/search-sources/export?${params.toString()}`);
     return response.blob();
   },

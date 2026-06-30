@@ -1,81 +1,77 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Search,
-  Loader2,
-  Filter,
-} from 'lucide-react';
-import { useSearchStore, useSourceStore, useAuthStore, useProxyStore } from '@/stores';
-import { searchApi, sourceApi, userApi, analyticsApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { Search, Loader2, Filter } from 'lucide-react';
+import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type {
-  SearchResult,
-  FavoriteItem,
-  SearchHistoryItem,
-  MajorCategory,
-  Category,
-  SearchSource,
-  UserSourceConfig,
-  JavDetail,
-  EnrichedSearchData,
-  JavEnrichedData,
-} from '@/types';
-import type { BangumiSubject, TMDBResult } from '@/types/search';
-
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel, AnnouncementPanel } from '@/components/search';
+import type { SearchTabType } from '@/types/source';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
-import { useJavDetail } from '@/hooks';
+import { useSearchFlow } from '@/hooks/useSearchFlow';
+import { useFavoritesManager } from '@/hooks/useFavoritesManager';
+import { useSearchHistoryManager } from '@/hooks/useSearchHistoryManager';
+import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
+import { useSourceManager } from '@/hooks/useSourceManager';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
-import type { SearchTabType } from '@/types/source';
-
-interface SearchResultItem extends SearchResult {
-  subtitle?: string;
-  siteType?: string;
-  category?: string;
-  description?: string;
-}
-
-interface SourceWithUserConfig extends SearchSource {
-  userConfig?: UserSourceConfig | null;
-}
-
-interface CategoryWithSources extends Category {
-  sources: SourceWithUserConfig[];
-}
-
-interface MajorCategoryWithCategories extends MajorCategory {
-  categories: CategoryWithSources[];
-}
-
-const getSiteTypeBadge = (siteType?: string) => {
-  const map: Record<string, string> = {
-    search: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    browse: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-    reference: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  };
-  return map[siteType || 'search'] || map.search;
-};
-
-const getSiteTypeLabel = (siteType?: string) => {
-  const map: Record<string, string> = { search: '搜索', browse: '浏览', reference: '参考' };
-  return map[siteType || 'search'] || '搜索';
-};
+import { getSiteTypeBadge, getSiteTypeLabel } from '@/utils/siteType';
 
 export const MainSearchPage: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
-  const { keyword, setKeyword, setResults, isSearching, setSearching } = useSearchStore();
-  const { majorCategories, setMajorCategories, categories, setCategories, activeTab, setActiveTab } = useSourceStore();
-  const {
-    isEnabled: isProxyEnabled,
-    initializeProxy,
-  } = useProxyStore();
+  const { activeTab, setActiveTab } = useSourceStore();
+  const { isEnabled: isProxyEnabled, initializeProxy } = useProxyStore();
+  const { isDark: darkMode } = useDarkMode();
 
-  // 从 URL 参数初始化 Tab 状态
+  const javFlow = useJavSearchFlow();
+  const sourceManager = useSourceManager();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // ── URL 同步：搜索时更新 URL ──
+  const programmaticUrlRef = useRef(false);
+  const handleSearchUrlSync = useCallback((keyword: string) => {
+    programmaticUrlRef.current = true;
+    setSearchParams({ tab: activeTab, q: keyword }, { replace: true });
+  }, [setSearchParams, activeTab]);
+
+  const searchFlow = useSearchFlow({
+    activeTab,
+    selectedCategory,
+    setSelectedCategory,
+    majorCategories: sourceManager.majorCategories,
+    categories: sourceManager.categories,
+    fetchJavDetail: javFlow.fetchJavDetail,
+    resetJavDetail: javFlow.resetJavDetail,
+    javEnrichedDetail: javFlow.javEnrichedDetail,
+    setJavEnrichedDetail: javFlow.setJavEnrichedDetail,
+    onSearch: handleSearchUrlSync,
+  });
+
+  const favoritesManager = useFavoritesManager({ keyword: searchFlow.keyword });
+  const historyManager = useSearchHistoryManager();
+
+  // ── UI-only state ──
+  const [showHistory, setShowHistory] = useState(true);
+  const [showFavorites, setShowFavorites] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
+    typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
+  );
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // ── URL 初始化 + 浏览器前进/后退恢复搜索 ──
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    if (!qParam) return;
+    if (programmaticUrlRef.current) {
+      programmaticUrlRef.current = false;
+      return;
+    }
+    searchFlow.setKeyword(qParam);
+    searchFlow.handleSearch(qParam);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['jav', 'anime', 'movie', 'sources', 'community'].includes(tabParam)) {
@@ -83,559 +79,36 @@ export const MainSearchPage: React.FC = () => {
     }
   }, [searchParams, setActiveTab]);
 
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(() =>
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
-  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
-  const [enrichedData, setEnrichedData] = useState<EnrichedSearchData | null>(null);
-  const [enrichedPage, setEnrichedPage] = useState(1);
-
-  // 响应系统/用户主题切换
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setDarkMode(document.documentElement.classList.contains('dark'));
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
-  const [showHistory, setShowHistory] = useState(true);
-  const [showFavorites, setShowFavorites] = useState(true);
-
-  // Tab 切换处理函数（包含 URL 同步和分类联动）
-  const handleTabChange = useCallback((tab: SearchTabType) => {
-    if (tab === 'community') {
-      navigate('/community');
-      return;
-    }
-    setActiveTab(tab);
-    setSearchParams({ tab }, { replace: true });
-    // anime/movie 走聚合模式，分类过滤无影响，统一重置为"全部"
-    setSelectedCategory(null);
-    // 切换 Tab 时清空上次搜索结果，避免展示错误类型数据
-    setSearchResults([]);
-    setEnrichedData(null);
-  }, [setActiveTab, setSearchParams, navigate]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() =>
-    typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
-  );
-
-
-
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
-
-  // JAV 磁力提取
-  const { detail: javDetail, status: javDetailStatus, fetch: fetchJavDetail, reset: resetJavDetail } = useJavDetail();
-  // JAV Provider 模式：搜索接口已返回 detail 时直接复用（无需二次请求 /api/jav/detail）
-  const [javEnrichedDetail, setJavEnrichedDetail] = useState<JavDetail | null>(null);
-  const [allSources, setAllSources] = useState<SourceWithUserConfig[]>([]);
-  const [expandedMajorCategories, setExpandedMajorCategories] = useState<Set<string>>(new Set());
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [isBatchChecking, setIsBatchChecking] = useState(false);
-  const [batchCheckResults, setBatchCheckResults] = useState<Record<string, {
-    status: string;
-    available: boolean;
-    responseTime: number;
-    error: string | null;
-  }>>({});
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setViewMode('list');
-    };
+    const handleResize = () => { if (window.innerWidth < 768) setViewMode('list'); };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadData = async () => {
-      try {
-        const [majorCategoriesData, allCategoriesData, allSourcesData] = await Promise.all([
-          sourceApi.getMajorCategories(),
-          sourceApi.getCategories(),
-          sourceApi.getSourcesWithUserConfig(),
-        ]);
-        if (cancelled) return;
-        if (majorCategoriesData.success && majorCategoriesData.data) {
-          setMajorCategories(majorCategoriesData.data);
-          setExpandedMajorCategories(new Set(majorCategoriesData.data.map(c => c.id)));
-        }
-        if (allCategoriesData.success && allCategoriesData.data) {
-          setCategories(allCategoriesData.data);
-          setExpandedCategories(new Set(allCategoriesData.data.map(c => c.id)));
-        }
-        if (allSourcesData.success && allSourcesData.data) {
-          setAllSources(allSourcesData.data);
-        }
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      }
-    };
-    loadData();
-    initializeProxy();
-    return () => { cancelled = true; };
-  }, [setMajorCategories, setCategories, initializeProxy]);
+  useEffect(() => { initializeProxy(); }, [initializeProxy]);
 
-  // 注意：不在 selectedCategory 变化时自动搜索，避免 Tab 切换等场景下触发意外搜索
-  // 用户需要手动点击搜索按钮或按 Enter 键来执行搜索
-
-  // JAV详情提取成功后自动更新搜索历史（防循环：用 ref 跟踪已处理的 code）
-  const updatedHistoryCodesRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!isAuthenticated || !javDetail || javDetailStatus !== 'success' || !searchHistory.length) return;
-
-    const code = javDetail.code.toUpperCase();
-    // 防止同一 code 重复更新（打破 searchHistory → effect 循环）
-    if (updatedHistoryCodesRef.current.has(code)) return;
-
-    let cancelled = false;
-    const updateHistoryWithJavDetail = async () => {
-      try {
-        const targetHistory = searchHistory.find(h =>
-          h.query.toUpperCase().includes(code) ||
-          code.includes(h.query.toUpperCase())
-        );
-
-        if (targetHistory) {
-          // 标记该 code 已处理
-          updatedHistoryCodesRef.current.add(code);
-
-          await userApi.updateSearchHistory(targetHistory.id, {
-            title: javDetail!.title,
-            code: javDetail!.code,
-            actors: javDetail!.actresses?.join(', '),
-            duration: javDetail!.duration,
-            tags: javDetail!.tags?.join(', '),
-            releaseDate: javDetail!.releaseDate,
-            publisher: javDetail!.publisher || javDetail!.maker,
-            keyword: javDetail!.code,
-          });
-
-          if (cancelled) return;
-          setSearchHistory(prev => prev.map(h =>
-            h.id === targetHistory.id
-              ? { ...h,
-                  title: javDetail!.title,
-                  code: javDetail!.code,
-                  actors: javDetail!.actresses?.join(', '),
-                  duration: javDetail!.duration,
-                  tags: javDetail!.tags?.join(', '),
-                  releaseDate: javDetail!.releaseDate,
-                  publisher: javDetail!.publisher || javDetail!.maker,
-                  keyword: javDetail!.code,
-                }
-              : h
-          ));
-        }
-      } catch (error) {
-        console.error('Failed to update search history with JAV detail:', error);
-      }
-    };
-
-    updateHistoryWithJavDetail();
-    return () => { cancelled = true; };
-  }, [javDetail, javDetailStatus, isAuthenticated, searchHistory]);
-
-  const loadHistory = useCallback(async () => {
-    if (!isAuthenticated) return;
-    setIsLoadingHistory(true);
-    try {
-      const response = await userApi.getSearchHistory(20);
-      if (response.success && response.data) setSearchHistory(response.data.history);
-    } catch (error) {
-      console.error('Failed to load history:', error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, [isAuthenticated]);
-
-  const loadFavorites = useCallback(async () => {
-    if (!isAuthenticated) return;
-    setIsLoadingFavorites(true);
-    try {
-      const response = await userApi.getFavorites();
-      if (response.success && response.data) setFavorites(response.data.favorites);
-    } catch (error) {
-      console.error('Failed to load favorites:', error);
-    } finally {
-      setIsLoadingFavorites(false);
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadHistory();
-      loadFavorites();
-    }
-  }, [isAuthenticated, loadHistory, loadFavorites]);
-
-  const handleSearch = useCallback(async (overrideKeyword?: string, page = 1) => {
-    const query = overrideKeyword || keyword;
-    if (!query.trim()) {
-      toast.warning('请输入搜索关键词');
-      return;
-    }
-    const sessionId = sessionStorage.getItem('analytics_session_id') || (() => {
-      const id = Math.random().toString(36).slice(2);
-      sessionStorage.setItem('analytics_session_id', id);
-      return id;
-    })();
-    analyticsApi.recordEvent({
-      userId: user?.id,
-      sessionId,
-      eventType: 'search',
-      eventData: { keyword: query.trim() },
-    }).catch(() => {});
-    setSearching(true);
-    setEnrichedData(null); // 重置聚合数据
-    setEnrichedPage(page);
-    try {
-      const response = await searchApi.search({
-        keyword: query.trim(),
-        categoryId: selectedCategory || undefined,
-        majorCategoryId: SEARCH_TABS[activeTab].majorCategoryId || undefined,
-        page,
-      }) as unknown as {
-        success: boolean;
-        data: { keyword: string; results: Array<{ id: string; name: string; subtitle?: string; icon?: string; url: string; siteType: string; category: string; description?: string }> } | EnrichedSearchData;
-      };
-      if (response.success && response.data) {
-        // ── 检测聚合响应（anime / movie / jav）──
-        let isEnriched = false;
-        if ('resultType' in response.data && ['anime', 'movie', 'jav'].includes(response.data.resultType as string)) {
-          setEnrichedData(response.data as EnrichedSearchData);
-          isEnriched = true;
-
-          // ★ JAV Hybrid：从同一响应中提取 detail 和 results，分别渲染两个面板
-          if (response.data.resultType === 'jav') {
-            const javData = response.data as JavEnrichedData;
-            // 提取 detail → 直接设置（跳过 /api/jav/detail 二次请求）
-            if (javData.detail) {
-              setJavEnrichedDetail(javData.detail as unknown as JavDetail);
-            }
-            // 提取 results → 设置到 searchResults（用于 SearchResultsPanel 多源列表）
-            if (javData.results) {
-              const mapped = javData.results.map(r => ({
-                sourceId: r.id,
-                sourceName: r.name,
-                sourceIcon: r.icon,
-                url: r.url,
-                subtitle: r.subtitle,
-                siteType: r.siteType,
-                category: r.category,
-                description: r.description,
-              }));
-              setSearchResults(mapped as unknown as SearchResult[]);
-              setSearchResults(mapped);
-            }
-          } else {
-            // anime/movie：清空通用搜索结果（原有行为）
-            setSearchResults([]);
-          }
-        } else {
-          // ── 通用模式：搜索源 URL 列表 ──
-          const mappedResults: SearchResultItem[] = (response.data as { results: any[] }).results.map(r => ({
-            sourceId: r.id,
-            sourceName: r.name,
-            sourceIcon: r.icon,
-            url: r.url,
-            subtitle: r.subtitle,
-            siteType: r.siteType,
-            category: r.category,
-            description: r.description,
-          }));
-          setResults(mappedResults as unknown as SearchResult[]);
-          setSearchResults(mappedResults);
-          if (mappedResults.length === 0) {
-            toast.info('未找到结果', '尝试更换关键词搜索');
-          }
-        }
-        if (!isEnriched) {
-          loadHistory();
-        }
-        // 若输入符合番号格式且当前在 JAV tab，自动触发磁力提取
-        // ★ Provider 模式下 detail 已在搜索响应中，无需二次请求 /api/jav/detail
-        const trimmed = query.trim().toUpperCase();
-        if (activeTab === 'jav' && /^[A-Z]{2,8}-?\d{2,6}$/.test(trimmed)) {
-          // 仅当 Provider 未返回 detail 时才触发二次请求（fallback 兼容）
-          if (!javEnrichedDetail) {
-            fetchJavDetail(trimmed);
-          }
-        } else {
-          resetJavDetail();
-          setJavEnrichedDetail(null);
-        }
-      }
-    } catch {
-      toast.error('搜索失败', '请稍后重试');
-    } finally {
-      setSearching(false);
-    }
-  }, [keyword, selectedCategory, setResults, setSearching, toast, activeTab, fetchJavDetail, javEnrichedDetail, loadHistory, resetJavDetail, user?.id]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
-  };
-
-  const getFavoriteId = (url: string) => favorites.find(f => f.url === url)?.id;
-
-  const handleToggleFavorite = async (result: SearchResultItem) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
-    const existingFavoriteId = getFavoriteId(result.url || '');
-    if (existingFavoriteId) {
-      try {
-        await userApi.removeFavorite(existingFavoriteId);
-        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
-    } else {
-      try {
-        const response = await userApi.addFavorite({
-          title: result.sourceName,
-          url: result.url || '',
-          subtitle: result.subtitle,
-          keyword: keyword.trim() || undefined,
-        });
-        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
-    }
-  };
-
-  const handleFavoriteJavDetail = async (detail: JavDetail) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
-    const detailUrl = detail.detailUrl || `https://javdb.com/search?q=${detail.code}&f=all`;
-    const existingFavoriteId = getFavoriteId(detailUrl);
-    if (existingFavoriteId) {
-      try {
-        await userApi.removeFavorite(existingFavoriteId);
-        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
-    } else {
-      try {
-        const response = await userApi.addFavorite({
-          title: detail.title,
-          url: detailUrl,
-          code: detail.code,
-          cover: detail.cover,
-          actors: detail.actresses?.join(', '),
-          duration: detail.duration,
-          tags: detail.tags?.join(', '),
-          releaseDate: detail.releaseDate,
-          publisher: detail.publisher || detail.maker,
-          keyword: detail.code,
-        });
-        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
-    }
-  };
-
-  // 动漫收藏（Bangumi 条目）
-  const handleToggleFavoriteAnime = async (subject: BangumiSubject) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
-    const existingFavoriteId = getFavoriteId(subject.url);
-    if (existingFavoriteId) {
-      try {
-        await userApi.removeFavorite(existingFavoriteId);
-        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
-    } else {
-      try {
-        const response = await userApi.addFavorite({
-          title: subject.nameCN || subject.name,
-          url: subject.url,
-          cover: subject.cover,
-          subtitle: subject.name !== subject.nameCN ? subject.name : undefined,
-          tags: subject.tags?.join(', '),
-          keyword: keyword.trim() || undefined,
-        });
-        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
-    }
-  };
-
-  // 影视收藏（TMDB / 豆瓣条目）
-  const handleToggleFavoriteMovie = async (item: TMDBResult) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
-    const url = item.source === 'douban'
-      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
-      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
-    const existingFavoriteId = getFavoriteId(url);
-    if (existingFavoriteId) {
-      try {
-        await userApi.removeFavorite(existingFavoriteId);
-        setFavorites(prev => prev.filter(f => f.id !== existingFavoriteId));
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
-    } else {
-      try {
-        const response = await userApi.addFavorite({
-          title: item.title,
-          url,
-          cover: item.poster ?? undefined,
-          subtitle: item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : undefined,
-          tags: item.year ? String(item.year) : undefined,
-          keyword: keyword.trim() || undefined,
-        });
-        if (response.success && response.data) setFavorites(prev => [response.data, ...prev]);
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
-    }
-  };
-
-  const handleRemoveFavorite = async (id: string) => {
-    try {
-      await userApi.removeFavorite(id);
-      setFavorites(prev => prev.filter(f => f.id !== id));
-      toast.success('已移除收藏');
-    } catch { toast.error('移除失败', '请稍后重试'); }
-  };
-
-  const handleExportFavorites = () => {
-    const data = JSON.stringify(favorites, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `favorites-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('导出成功');
-  };
-
-  const handleClearHistory = async () => {
-    if (!confirm('确定要清空所有搜索历史吗？')) return;
-    try {
-      await userApi.clearSearchHistory();
-      setSearchHistory([]);
-      toast.success('历史已清空');
-    } catch { toast.error('清空失败', '请稍后重试'); }
-  };
-
-  const toggleMajorCategory = (id: string) => {
-    const next = new Set(expandedMajorCategories);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setExpandedMajorCategories(next);
-  };
-
-  const toggleCategory = (id: string) => {
-    const next = new Set(expandedCategories);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setExpandedCategories(next);
-  };
-
-  const getMajorCategoriesWithCategories = (): MajorCategoryWithCategories[] =>
-    majorCategories.map(mc => {
-      const cats = categories.filter(c => c.majorCategoryId === mc.id);
-      const categoriesWithSources: CategoryWithSources[] = cats.map(cat => ({
-        ...cat,
-        sources: allSources.filter(s => s.categoryId === cat.id),
-      })).filter(c => c.sources.length > 0);
-      return { ...mc, categories: categoriesWithSources };
-    }).filter(mc => mc.categories.length > 0);
-
-  const handleBatchCheckSources = async () => {
-    const checkableSources = allSources.filter(s => s.searchable || s.homepageUrl);
-    if (checkableSources.length === 0) { toast.warning('没有可检查的搜索源'); return; }
-    setIsBatchChecking(true);
-    setBatchCheckResults({});
-    let totalAvailable = 0;
-    let totalChecked = 0;
-    try {
-      const sourceIds = checkableSources.map(s => s.id);
-      for (let i = 0; i < sourceIds.length; i += 20) {
-        const batch = sourceIds.slice(i, i + 20);
-        try {
-          const response = await sourceApi.batchCheckSourceStatus(batch);
-          if (response.success && response.data) {
-            const newResults: typeof batchCheckResults = {};
-            response.data.results.forEach(result => {
-              newResults[result.sourceId] = { status: result.status, available: result.available, responseTime: result.responseTime, error: result.error };
-              if (result.available) totalAvailable++;
-              totalChecked++;
-            });
-            setBatchCheckResults(prev => ({ ...prev, ...newResults }));
-          }
-        } catch { /* 单批失败不中断 */ }
-      }
-      const unavailable = totalChecked - totalAvailable;
-      if (unavailable === 0) {
-        toast.success(`检查完成：全部 ${totalChecked} 个搜索源均可正常访问 ✓`);
-      } else {
-        toast.warning(`检查完成：${totalAvailable}/${totalChecked} 可用，${unavailable} 个无法访问`);
-      }
-    } catch { toast.error('批量检查失败', '请检查网络连接后重试'); }
-    finally { setIsBatchChecking(false); }
-  };
-
-  const handleCheckSingleSource = async (sourceId: string) => {
-    try {
-      const response = await sourceApi.checkSourceStatus(sourceId);
-      if (response.success && response.data) {
-        setBatchCheckResults(prev => ({
-          ...prev,
-          [sourceId]: { status: response.data.status, available: response.data.available, responseTime: response.data.responseTime, error: response.data.error },
-        }));
-        const { status, available, responseTime, error } = response.data;
-        if (available) {
-          toast.success(status === 'restricted' ? '在线（访问受限）' : '在线', `响应时间 ${responseTime}ms`);
-        } else {
-          toast.error('检查失败', status === 'timeout' ? '请求超时' : error || '无法访问');
-        }
-      }
-    } catch { toast.error('检查失败', '请检查网络连接后重试'); }
-  };
+  // ── Tab 切换 ──
+  const handleTabChange = useCallback((tab: SearchTabType) => {
+    if (tab === 'community') { navigate('/community'); return; }
+    setActiveTab(tab);
+    const params: Record<string, string> = { tab };
+    if (searchFlow.keyword.trim()) params.q = searchFlow.keyword.trim();
+    programmaticUrlRef.current = true;
+    setSearchParams(params, { replace: true });
+    setSelectedCategory(null);
+    searchFlow.resetResults();
+  }, [setActiveTab, setSearchParams, navigate, searchFlow.keyword, searchFlow.resetResults]);
 
   const isAdmin = isAuthenticated && user != null && (user.role === 'admin' || user.role === 'super_admin');
 
-  const favoritedCodes = React.useMemo(() => {
-    const codes = new Set<string>();
-    favorites.forEach(f => { if (f.code) codes.add(f.code); });
-    return codes;
-  }, [favorites]);
-  const searchableCategories = categories.filter(cat => {
-    const mc = majorCategories.find(mc => mc.id === cat.majorCategoryId);
-    // 双重门控：属于当前Tab对应的大类 AND 分类本身标记为可搜索
-    const isInCurrentMajorCategory = mc?.id === SEARCH_TABS[activeTab].majorCategoryId;
-    return isInCurrentMajorCategory && cat.defaultSearchable === true;
-  });
-
-  const handleCodeClick = (code: string) => {
-    setKeyword(code);
-    handleSearch(code);
-  };
+  const renderFavoritesPanel = () => isAuthenticated && (
+    <FavoritesPanel favorites={favoritesManager.favorites} isLoading={favoritesManager.isLoadingFavorites} show={showFavorites} isProxyEnabled={isProxyEnabled} onToggle={() => setShowFavorites(!showFavorites)} onRemove={favoritesManager.handleRemoveFavorite} onExport={favoritesManager.handleExportFavorites} onUpdate={() => favoritesManager.refetchFavorites()} />
+  );
 
   return (
     <div className="min-h-screen page-bg pb-16 md:pb-0">
-
-      {/* 新的统一导航栏 */}
-      <UnifiedNavBar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        isAuthenticated={isAuthenticated}
-        user={user}
-        isAdmin={isAdmin}
-      />
-
+      <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-
         <div className="mb-4 sm:mb-6 animate-fade-in">
           <h1 className="text-lg sm:text-xl lg:text-2xl text-heading">
             嗨，<span className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
@@ -645,206 +118,80 @@ export const MainSearchPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-caption mt-0.5">{SEARCH_TABS[activeTab].description}</p>
         </div>
 
-        {/* 搜索框区域：仅在搜索类 Tab 显示（sources Tab 不需要） */}
         {activeTab !== 'sources' && (
-        <div className="bg-white dark:bg-surface-900/80 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 p-3 sm:p-5 mb-4 sm:mb-6 backdrop-blur-sm animate-slide-up relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-accent-500 to-cyan-500"></div>
+        <div className="bg-white dark:bg-[#111113]/80 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 p-3 sm:p-5 mb-4 sm:mb-6 backdrop-blur-sm animate-slide-up relative overflow-visible">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-accent-500 to-amber-500"></div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 relative z-10">
             <div className="search-input-wrapper">
               <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <input
-                type="text"
-                placeholder={SEARCH_TABS[activeTab].placeholder}
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="search-input"
-              />
+              <input type="text" placeholder={SEARCH_TABS[activeTab].placeholder} value={searchFlow.keyword}
+                onChange={(e) => searchFlow.setKeyword(e.target.value)} onKeyDown={searchFlow.handleKeyDown}
+                onFocus={() => setIsInputFocused(true)} onBlur={() => setTimeout(() => setIsInputFocused(false), 200)}
+                className="search-input" />
+              <SearchSuggestionsDropdown suggestions={searchFlow.suggestions}
+                visible={isInputFocused && searchFlow.showSuggestions && searchFlow.keyword.length > 0}
+                isLoading={searchFlow.isLoadingSuggestions} onSelect={searchFlow.handleSuggestionSelect}
+                onClose={() => searchFlow.setShowSuggestions(false)} />
             </div>
-            <button
-              onClick={() => handleSearch()}
-              disabled={isSearching}
-              className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift"
-            >
-              {isSearching
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Search className="w-4 h-4" strokeWidth={2.5} />}
+            <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
+              {searchFlow.isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" strokeWidth={2.5} />}
               <span>搜索</span>
             </button>
           </div>
-
-          {/* 分类过滤：仅 JAV tab 显示，anime/movie 走聚合模式无需过滤 */}
-          {searchableCategories.length > 0 && activeTab === 'jav' && (
+          {searchFlow.searchableCategories.length > 0 && activeTab === 'jav' && (
             <div className="category-filter-wrapper">
               <div className="flex items-center gap-1.5 shrink-0">
                 <Filter className="w-3.5 h-3.5 text-surface-400" />
                 <span className="text-xs text-surface-400 font-medium hidden sm:inline">分类</span>
               </div>
               <div className="flex items-center gap-1.5 flex-nowrap">
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={`category-filter-btn ${selectedCategory === null ? 'active' : ''}`}
-                >
-                  全部
-                </button>
-                {searchableCategories
-                  .filter(cat => {
-                    const mc = majorCategories.find(mc => mc.id === cat.majorCategoryId);
-                    return mc?.id === SEARCH_TABS[activeTab].majorCategoryId;
-                  })
-                  .map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`category-filter-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                    >
-                      {category.icon && <span className="mr-1">{category.icon}</span>}
-                      {category.name}
-                    </button>
-                  ))}
+                <button onClick={() => searchFlow.setSelectedCategory(null)} className={`category-filter-btn ${selectedCategory === null ? 'active' : ''}`}>全部</button>
+                {searchFlow.searchableCategories.map((category) => (
+                  <button key={category.id} onClick={() => searchFlow.setSelectedCategory(category.id)} className={`category-filter-btn ${selectedCategory === category.id ? 'active' : ''}`}>
+                    {category.icon && <span className="mr-1">{category.icon}</span>}{category.name}
+                  </button>
+                ))}
               </div>
             </div>
           )}
         </div>
         )}
 
-        {/* 根据 Tab 渲染不同内容 */}
         {activeTab === 'sources' ? (
-          /* 搜索源访问：仅显示搜索源管理面板（全宽） */
-          <SourcesSidebar
-            show={true}
-            layoutMode="panel"
-            collapsible={false}
-            defaultExpanded={true}
-            allSources={allSources}
-            majorCategoriesWithCategories={getMajorCategoriesWithCategories()}
-            expandedMajorCategories={expandedMajorCategories}
-            expandedCategories={expandedCategories}
-            batchCheckResults={batchCheckResults}
-            isBatchChecking={isBatchChecking}
-            isProxyEnabled={isProxyEnabled}
-            onToggle={() => {}}
-            onToggleMajorCategory={toggleMajorCategory}
-            onToggleCategory={toggleCategory}
-            onBatchCheck={handleBatchCheckSources}
-            onCheckSingle={handleCheckSingleSource}
-            getSiteTypeBadge={getSiteTypeBadge}
-            getSiteTypeLabel={getSiteTypeLabel}
-          />
+          <SourcesSidebar show={true} layoutMode="panel" collapsible={false} defaultExpanded={true} allSources={sourceManager.allSources} majorCategoriesWithCategories={sourceManager.getMajorCategoriesWithCategories()} expandedMajorCategories={sourceManager.expandedMajorCategories} expandedCategories={sourceManager.expandedCategories} batchCheckResults={sourceManager.batchCheckResults} isBatchChecking={sourceManager.isBatchChecking} isProxyEnabled={isProxyEnabled} onToggle={() => {}} onToggleMajorCategory={sourceManager.toggleMajorCategory} onToggleCategory={sourceManager.toggleCategory} onBatchCheck={sourceManager.handleBatchCheckSources} onCheckSingle={sourceManager.handleCheckSingleSource} getSiteTypeBadge={getSiteTypeBadge} getSiteTypeLabel={getSiteTypeLabel} />
         ) : (
         <>
-          {/* JAV详情面板：全宽显示（优先使用 Provider 搜索返回的 detail，无需二次请求） */}
           {activeTab === 'jav' && (
-            <JavDetailPanel
-              detail={javEnrichedDetail || javDetail}
-              status={javEnrichedDetail ? 'success' : javDetailStatus}
-              onClose={() => { resetJavDetail(); setJavEnrichedDetail(null); }}
-              onFavorite={handleFavoriteJavDetail}
-              isFavorited={(javEnrichedDetail || javDetail) ? favoritedCodes.has((javEnrichedDetail || javDetail)!.code) : false}
-              isAuthenticated={isAuthenticated}
-              onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
-            />
+            <JavDetailPanel detail={javFlow.javDetail} status={javFlow.javDetailStatus} onClose={() => javFlow.resetJavDetail()} onFavorite={favoritesManager.handleFavoriteJavDetail} isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false} isAuthenticated={isAuthenticated} onLoginRequired={() => { navigate('/login'); }} />
           )}
-
-          {/* 搜索结果面板：根据数据类型渲染不同 Panel */}
-          {enrichedData && enrichedData.resultType === 'anime' ? (
-          <AnimeSearchResultPanel
-            data={enrichedData}
-            isDark={darkMode}
-            isAuthenticated={isAuthenticated}
-            favorites={favorites}
-            onRefresh={() => handleSearch(keyword, enrichedPage)}
-            onPageChange={(p) => handleSearch(keyword, p)}
-            onToggleFavorite={handleToggleFavoriteAnime}
-            onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
-          />
-          ) : enrichedData && enrichedData.resultType === 'movie' ? (
-            <MovieSearchResultPanel
-              data={enrichedData}
-              isDark={darkMode}
-              isAuthenticated={isAuthenticated}
-              favorites={favorites}
-              onRefresh={() => handleSearch(keyword, enrichedPage)}
-              onPageChange={(p) => handleSearch(keyword, p)}
-              onToggleFavorite={handleToggleFavoriteMovie}
-              onLoginRequired={() => { toast.warning('请先登录'); navigate('/login'); }}
-            />
+          {searchFlow.enrichedData && searchFlow.enrichedData.resultType === 'anime' ? (
+          <AnimeSearchResultPanel data={searchFlow.enrichedData} isDark={darkMode} isAuthenticated={isAuthenticated} favorites={favoritesManager.favorites} onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)} onPageChange={(p) => searchFlow.handleSearch(searchFlow.keyword, p)} onToggleFavorite={favoritesManager.handleToggleFavoriteAnime} onLoginRequired={() => { navigate('/login'); }} />
+          ) : searchFlow.enrichedData && searchFlow.enrichedData.resultType === 'movie' ? (
+            <MovieSearchResultPanel data={searchFlow.enrichedData} isDark={darkMode} isAuthenticated={isAuthenticated} favorites={favoritesManager.favorites} onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)} onPageChange={(p) => searchFlow.handleSearch(searchFlow.keyword, p)} onToggleFavorite={favoritesManager.handleToggleFavoriteMovie} onLoginRequired={() => { navigate('/login'); }} />
           ) : (
-          <SearchResultsPanel
-            results={searchResults}
-            viewMode={viewMode}
-            isAuthenticated={isAuthenticated}
-            isProxyEnabled={isProxyEnabled}
-            favorites={favorites}
-            categories={categories}
-            majorCategories={majorCategories}
-            onViewModeChange={setViewMode}
-            onClose={() => { setSearchResults([]); setEnrichedData(null); resetJavDetail(); }}
-            onToggleFavorite={handleToggleFavorite}
-          />
+          <SearchResultsPanel results={searchFlow.searchResults} viewMode={viewMode} isAuthenticated={isAuthenticated} isProxyEnabled={isProxyEnabled} favorites={favoritesManager.favorites} categories={sourceManager.categories} majorCategories={sourceManager.majorCategories} onViewModeChange={setViewMode} onClose={() => searchFlow.resetResults()} onToggleFavorite={favoritesManager.handleToggleFavorite} />
           )}
-
-          {/* 主内容区：左侧排行+历史(2列) / 右侧收藏(1列) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-
             <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
-              {activeTab === 'jav' && (
-                <JavRankingsPanel onCodeClick={handleCodeClick} />
-              )}
-
-              {/* 搜索历史（所有 Tab） */}
+              {activeTab === 'jav' && <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />}
               {isAuthenticated && (
-                <SearchHistoryPanel
-                  history={searchHistory}
-                  isLoading={isLoadingHistory}
-                  show={showHistory}
-                  onToggle={() => setShowHistory(!showHistory)}
-                  onItemClick={(query) => setKeyword(query)}
-                  onClear={handleClearHistory}
-                />
+                <SearchHistoryPanel history={historyManager.searchHistory} isLoading={historyManager.isLoadingHistory} show={showHistory} onToggle={() => setShowHistory(!showHistory)} onItemClick={(query) => searchFlow.setKeyword(query)} onClear={historyManager.handleClearHistory} />
               )}
             </div>
-
-            {/* 右列：公告(jav only) + 收藏 */}
             <div className="hidden lg:flex flex-col gap-3 sm:gap-4 self-start">
               {activeTab === 'jav' && <AnnouncementPanel />}
-              {isAuthenticated && (
-                <FavoritesPanel
-                  favorites={favorites}
-                  isLoading={isLoadingFavorites}
-                  show={showFavorites}
-                  isProxyEnabled={isProxyEnabled}
-                  onToggle={() => setShowFavorites(!showFavorites)}
-                  onRemove={handleRemoveFavorite}
-                  onExport={handleExportFavorites}
-                  onUpdate={loadFavorites}
-                />
-              )}
+              {renderFavoritesPanel()}
             </div>
           </div>
-
-          {/* 移动端：我的收藏 */}
+          {activeTab === 'jav' && <div className="lg:hidden mt-3 sm:mt-4"><AnnouncementPanel /></div>}
           {isAuthenticated && (
-            <div className="lg:hidden mt-3 sm:mt-4">
-              <FavoritesPanel
-                favorites={favorites}
-                isLoading={isLoadingFavorites}
-                show={showFavorites}
-                isProxyEnabled={isProxyEnabled}
-                onToggle={() => setShowFavorites(!showFavorites)}
-                onRemove={handleRemoveFavorite}
-                onExport={handleExportFavorites}
-                onUpdate={loadFavorites}
-              />
-            </div>
+            <div className="lg:hidden mt-3 sm:mt-4">{renderFavoritesPanel()}</div>
           )}
         </>
         )}
       </div>
-
-      {/* 悬浮反馈按钮 */}
       <FeedbackButton />
     </div>
   );

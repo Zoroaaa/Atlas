@@ -186,7 +186,7 @@ export const RegisterPage: React.FC = () => {
         error={errors.password}
         leftIcon={<Lock className="w-5 h-5" />}
         rightIcon={
-          <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+          <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
         }
@@ -208,13 +208,13 @@ export const RegisterPage: React.FC = () => {
           type="checkbox"
           checked={agreed}
           onChange={(e) => setAgreed(e.target.checked)}
-          className="mt-0.5 rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500 w-4 h-4 flex-shrink-0"
+          className="mt-0.5 rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-500 w-4 h-4 flex-shrink-0"
         />
-        <span className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+        <span className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
           我已阅读并同意{' '}
-          <Link to="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">服务条款</Link>
+          <Link to="/terms" className="text-amber-700 dark:text-amber-400 hover:underline">服务条款</Link>
           {' '}和{' '}
-          <Link to="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">隐私政策</Link>
+          <Link to="/privacy" className="text-amber-700 dark:text-amber-400 hover:underline">隐私政策</Link>
         </span>
       </label>
 
@@ -234,13 +234,13 @@ export const RegisterPage: React.FC = () => {
   const renderVerifyStep = () => (
     <div className="space-y-6" onKeyDown={handleKeyDown}>
       <div className="text-center py-2">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 flex items-center justify-center">
-          <ShieldCheck className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 flex items-center justify-center">
+          <ShieldCheck className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1.5 tracking-tight">验证邮箱地址</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-1.5 tracking-tight">验证邮箱地址</h3>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
           验证码已发送到{' '}
-          <span className="font-semibold text-slate-900 dark:text-slate-100">{maskedEmail}</span>
+          <span className="font-semibold text-stone-900 dark:text-stone-100">{maskedEmail}</span>
         </p>
       </div>
 
@@ -257,9 +257,9 @@ export const RegisterPage: React.FC = () => {
         />
 
         {countdown > 0 ? (
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
-            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            验证码将在 <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{formatCountdown(countdown)}</span> 后过期
+          <div className="flex items-center justify-center gap-2 text-sm text-stone-500">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            验证码将在 <span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatCountdown(countdown)}</span> 后过期
           </div>
         ) : (
           <p className="text-center text-sm text-red-500 dark:text-red-400">验证码已过期</p>
@@ -269,7 +269,7 @@ export const RegisterPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setCurrentStep('form')}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200"
+            className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-200"
           >
             返回修改
           </button>
@@ -288,7 +288,7 @@ export const RegisterPage: React.FC = () => {
             type="button"
             onClick={handleResendCode}
             disabled={countdown > 0 || isLoading}
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="text-sm text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {countdown > 0 ? `重新发送 (${formatCountdown(countdown)})` : '重新发送验证码'}
           </button>
@@ -302,11 +302,11 @@ export const RegisterPage: React.FC = () => {
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
         <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 className="display-font text-xl font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">注册成功！</h3>
-      <p className="text-slate-600 dark:text-slate-400 mb-6">欢迎加入{appInfo.NAME}，即将跳转到控制台...</p>
+      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">注册成功！</h3>
+      <p className="text-stone-600 dark:text-stone-400 mb-6">欢迎加入{appInfo.NAME}，即将跳转到控制台...</p>
       <div className="flex items-center justify-center gap-2">
         {[0, 150, 300].map((delay, i) => (
-          <div key={i} className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+          <div key={i} className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
         ))}
       </div>
     </div>
@@ -326,30 +326,30 @@ export const RegisterPage: React.FC = () => {
 
   if (!enableRegistration) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-400/6 dark:bg-blue-500/5 rounded-full blur-[100px]" />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-400/6 dark:bg-violet-500/4 rounded-full blur-[100px]" />
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
+          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
           <div className="absolute inset-0 grid-dots opacity-50" />
         </div>
 
         <div className="w-full max-w-md relative">
-          <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-8 transition-colors text-sm font-medium group">
+          <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             返回首页
           </Link>
 
-          <div className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/50 p-7 sm:p-8 text-center"
+          <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8 text-center"
             style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <Lock className="w-6 h-6 text-slate-400" />
+            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
+              <Lock className="w-6 h-6 text-stone-400" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">注册功能暂未开放</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">管理员尚未开放注册功能，请稍后再试</p>
+            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-2">注册功能暂未开放</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">管理员尚未开放注册功能，请稍后再试</p>
             <div className="flex gap-3">
               <button
                 onClick={() => navigate('/')}
-                className="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-600 transition-all"
+                className="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all"
               >
                 返回首页
               </button>
@@ -362,8 +362,8 @@ export const RegisterPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-600">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+          <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
               <Search className="w-3 h-3 text-white" />
             </div>
             <span className="text-xs font-medium">{appInfo.NAME}</span>
@@ -374,22 +374,22 @@ export const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
       {/* Ambient bg */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-400/6 dark:bg-blue-500/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-400/6 dark:bg-violet-500/4 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
         <div className="absolute inset-0 grid-dots opacity-50" />
       </div>
 
       <div className="w-full max-w-md relative">
 
-        <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-8 transition-colors text-sm font-medium group">
+        <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           返回首页
         </Link>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/50 p-7 sm:p-8"
+        <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
 
           {/* Step indicators */}
@@ -402,16 +402,16 @@ export const RegisterPage: React.FC = () => {
                   <React.Fragment key={step}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
                       isActive
-                        ? 'bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg'
+                        ? 'bg-gradient-to-br from-[#d4a853] to-[#f59e0b] text-white shadow-lg'
                         : isDone
                         ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-400 dark:text-stone-500'
                     }`}>
                       {isDone ? <CheckCircle className="w-4 h-4" /> : index + 1}
                     </div>
                     {index < 1 && (
                       <div className={`h-px w-16 transition-all duration-500 ${
-                        isDone ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'
+                        isDone ? 'bg-emerald-400' : 'bg-stone-200 dark:bg-stone-700'
                       }`} />
                     )}
                   </React.Fragment>
@@ -421,11 +421,11 @@ export const RegisterPage: React.FC = () => {
           )}
 
           <div className="text-center mb-7">
-            <h1 className="display-font text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-1.5">
+            <h1 className="display-font text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1.5">
               {getStepTitle()}
             </h1>
             {getStepDescription() && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">{getStepDescription()}</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400">{getStepDescription()}</p>
             )}
           </div>
 
@@ -438,9 +438,9 @@ export const RegisterPage: React.FC = () => {
 
           {currentStep === 'form' && (
             <div className="mt-6 text-center">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-stone-600 dark:text-stone-400">
                 已有账号？{' '}
-                <Link to="/login" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold transition-colors">
+                <Link to="/login" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-semibold transition-colors">
                   立即登录
                 </Link>
               </p>
@@ -449,8 +449,8 @@ export const RegisterPage: React.FC = () => {
         </div>
 
         {/* Brand */}
-        <div className="mt-6 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-600">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+        <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />
           </div>
           <span className="text-xs font-medium">{appInfo.NAME}</span>

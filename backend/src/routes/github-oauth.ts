@@ -93,7 +93,7 @@ githubOAuthRoutes.get('/github', async (c) => {
   }
 
   const state = generateState();
-  const backendUrl = (c.env.BACKEND_URL || 'https://backend.codeseek.pp.ua').replace(/\/$/, '');
+  const backendUrl = (c.env.BACKEND_URL || 'https://atlasapi.wort.uk').replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/github/callback`;
 
   const params = new URLSearchParams({
@@ -120,8 +120,8 @@ githubOAuthRoutes.get('/github', async (c) => {
 githubOAuthRoutes.get('/github/callback', async (c) => {
   const clientId = c.env.GITHUB_CLIENT_ID;
   const clientSecret = c.env.GITHUB_CLIENT_SECRET;
-  const frontendBase = (c.env.FRONTEND_URL || 'https://codeseek.pp.ua').replace(/\/$/, '');
-  const backendUrl = (c.env.BACKEND_URL || 'https://backend.codeseek.pp.ua').replace(/\/$/, '');
+  const frontendBase = (c.env.FRONTEND_URL || CONFIG.DEFAULT_URLS.FRONTEND).replace(/\/$/, '');
+  const backendUrl = (c.env.BACKEND_URL || CONFIG.DEFAULT_URLS.BACKEND).replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/github/callback`;
 
   if (!clientId || !clientSecret) {

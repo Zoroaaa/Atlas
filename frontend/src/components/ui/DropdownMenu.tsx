@@ -45,7 +45,7 @@ const DropdownMenuItem = memo<{
     return (
       <div
         role="separator"
-        className="my-1.5 border-t border-slate-100 dark:border-slate-800"
+        className="my-1.5 border-t border-stone-100 dark:border-stone-800"
       />
     );
   }
@@ -60,16 +60,16 @@ const DropdownMenuItem = memo<{
       ? 'opacity-50 cursor-not-allowed pointer-events-none'
       : item.danger
         ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
+        : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800',
     // 焦点状态
-    isActive && !item.disabled && 'bg-slate-100 dark:bg-slate-800'
+    isActive && !item.disabled && 'bg-stone-100 dark:bg-stone-800'
   );
 
   const content = (
     <>
       {/* 左侧图标 */}
       {item.icon && (
-        <span className="w-4 h-4 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
+        <span className="w-4 h-4 flex items-center justify-center text-stone-400 dark:text-stone-500 shrink-0">
           {item.icon}
         </span>
       )}
@@ -81,7 +81,7 @@ const DropdownMenuItem = memo<{
           'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-medium rounded-full',
           item.danger
             ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+            : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
         )}>
           {item.badge}
         </span>
@@ -144,8 +144,8 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
-  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // 过滤出可交互的菜单项（排除分隔线）
   const interactiveItems = items.filter(item => !item.divider);
@@ -348,8 +348,8 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           className={clsx(
             'absolute z-50 mt-2 min-w-[200px] max-h-[400px] overflow-y-auto py-1.5',
             'rounded-xl border shadow-lg backdrop-blur-md',
-            'bg-white/95 dark:bg-slate-900/95',
-            'border-slate-200/60 dark:border-slate-700/60',
+            'bg-white/95 dark:bg-stone-900/95',
+            'border-stone-200/60 dark:border-stone-700/60',
             // 动画
             isClosing
               ? 'animate-fade-out animate-slide-up'

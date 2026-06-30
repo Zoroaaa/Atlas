@@ -5,6 +5,7 @@ import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
 import { userApi } from '@/services/api/search';
 import { useToast } from '@/components/ui/Toast';
+import { getBackendBaseUrl } from '@/constants';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -16,9 +17,7 @@ const resolveUrl = (relativePath: string, referenceUrl: string): string => {
 };
 
 const getProxyImageUrl = (url: string): string => {
-  const baseUrl = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? ''
-    : 'https://backend.codeseek.pp.ua';
+  const baseUrl = getBackendBaseUrl();
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
@@ -190,13 +189,13 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                         </span>
                       )}
                       {item.releaseDate && (
-                        <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                           <Calendar className="w-3 h-3" />
                           {item.releaseDate}
                         </span>
                       )}
                       {item.publisher && (
-                        <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                        <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
                           <Building2 className="w-3 h-3" />
                           {item.publisher}
                         </span>

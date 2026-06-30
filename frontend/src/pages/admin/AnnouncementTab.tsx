@@ -13,14 +13,14 @@ import { Pagination, TableWrapper, formatDate } from './shared';
 // ─── 类型样式映射 ─────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.FC<any>; color: string; bg: string }> = {
-  info: { label: '信息', icon: Info, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+  info: { label: '信息', icon: Info, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
   warning: { label: '注意', icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
   success: { label: '好消息', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
   error: { label: '重要', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
 };
 
 const TYPE_BADGE: Record<string, string> = {
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  info: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   error: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -95,35 +95,35 @@ const FormModal: React.FC<{
       <div className="space-y-5 max-h-[65vh] overflow-y-auto px-1">
         {/* 标题 */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">标题</label>
+          <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">标题</label>
           <input
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             placeholder="输入公告标题..."
-            className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
           />
         </div>
 
         {/* 内容 */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">内容</label>
+          <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">内容</label>
           <textarea
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
             placeholder="输入公告内容..."
             rows={6}
-            className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+            className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
           />
         </div>
 
         {/* 类型 + 开关 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">类型</label>
+            <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">类型</label>
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as AnnouncementForm['type'] })}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             >
               <option value="info">信息</option>
               <option value="warning">注意</option>
@@ -140,27 +140,27 @@ const FormModal: React.FC<{
         {/* 时间范围 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">生效时间（可选）</label>
+            <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">生效时间（可选）</label>
             <input
               type="datetime-local"
               value={form.startTime ? new Date(form.startTime).toISOString().slice(0, 16) : ''}
               onChange={(e) => setForm({ ...form, startTime: e.target.value ? new Date(e.target.value).getTime() : null })}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wide">失效时间（可选）</label>
+            <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">失效时间（可选）</label>
             <input
               type="datetime-local"
               value={form.endTime ? new Date(form.endTime).toISOString().slice(0, 16) : ''}
               onChange={(e) => setForm({ ...form, endTime: e.target.value ? new Date(e.target.value).getTime() : null })}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-stone-200 dark:border-stone-700">
         <Button variant="outline" size="sm" onClick={onClose}>取消</Button>
         <Button variant="primary" size="sm" onClick={handleSubmit} disabled={submitting}>
           {submitting ? '提交中...' : (isEdit ? '保存修改' : '发布')}
@@ -178,11 +178,11 @@ const ToggleSwitch: React.FC<{ label: string; checked: boolean; onChange: (v: bo
     className={clsx(
       'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all',
       checked
-        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
+        ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+        : 'bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-500'
     )}
   >
-    <div className={clsx('w-4 h-4 rounded flex items-center justify-center border transition-all', checked ? 'bg-blue-500 border-blue-500' : 'border-slate-300')}>
+    <div className={clsx('w-4 h-4 rounded flex items-center justify-center border transition-all', checked ? 'bg-amber-500 border-amber-500' : 'border-stone-300')}>
       {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
     </div>
     {label}
@@ -258,7 +258,7 @@ export const AnnouncementTab: React.FC = () => {
             <RefreshCw className="w-4 h-4 mr-1" />刷新
           </Button>
         </div>
-        <span className="text-xs text-slate-400">共 {total} 条</span>
+        <span className="text-xs text-stone-400">共 {total} 条</span>
       </div>
 
       {/* 表格 */}
@@ -273,9 +273,9 @@ export const AnnouncementTab: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">加载中...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-500">加载中...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">暂无公告，点击上方按钮发布第一条公告</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-stone-500">暂无公告，点击上方按钮发布第一条公告</td></tr>
             ) : items.map((item) => {
               const tc = TYPE_CONFIG[item.type] || TYPE_CONFIG.info;
               const TypeIcon = tc.icon;
@@ -285,8 +285,8 @@ export const AnnouncementTab: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <TypeIcon className={clsx('w-4 h-4 flex-shrink-0', tc.color)} />
                       <div>
-                        <div className="font-medium text-slate-900 dark:text-slate-100 truncate" title={item.title}>{item.title}</div>
-                        <div className="text-xs text-slate-500 truncate mt-0.5 line-clamp-1">{item.content}</div>
+                        <div className="font-medium text-stone-900 dark:text-stone-100 truncate" title={item.title}>{item.title}</div>
+                        <div className="text-xs text-stone-500 truncate mt-0.5 line-clamp-1">{item.content}</div>
                       </div>
                       <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', TYPE_BADGE[item.type])}>{tc.label}</span>
                     </div>
@@ -295,18 +295,18 @@ export const AnnouncementTab: React.FC = () => {
                     <button onClick={() => handleToggleActive(item)} title={item.is_active ? '点击禁用' : '点击启用'}>
                       {item.is_active === 1
                         ? <Eye className="w-4 h-4 text-green-500" />
-                        : <EyeOff className="w-4 h-4 text-slate-400" />}
+                        : <EyeOff className="w-4 h-4 text-stone-400" />}
                     </button>
                   </td>
                   <td className="px-4 py-3">
                     <button onClick={() => handleTogglePin(item)} title={item.is_pinned ? '取消置顶' : '置顶'}>
                       {item.is_pinned === 1
                         ? <Pin className="w-4 h-4 text-red-500" />
-                        : <PinOff className="w-4 h-4 text-slate-400" />}
+                        : <PinOff className="w-4 h-4 text-stone-400" />}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{item.admin_username || '-'}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(item.created_at)}</td>
+                  <td className="px-4 py-3 text-xs text-stone-500">{item.admin_username || '-'}</td>
+                  <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">{formatDate(item.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <Button variant="outline" size="sm" onClick={() => setFormModal({ open: true, editItem: item })}>
@@ -314,7 +314,7 @@ export const AnnouncementTab: React.FC = () => {
                       </Button>
                       <button
                         onClick={() => setDeleteConfirm(item)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="删除"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -334,7 +334,7 @@ export const AnnouncementTab: React.FC = () => {
 
       {/* 删除确认 */}
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="确认删除">
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">确定要删除公告「{deleteConfirm?.title}」吗？此操作不可撤销。</p>
+        <p className="text-sm text-stone-600 dark:text-stone-400 mb-4">确定要删除公告「{deleteConfirm?.title}」吗？此操作不可撤销。</p>
         <div className="flex justify-end gap-3">
           <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>取消</Button>
           <Button variant="primary" size="sm" onClick={handleDelete} className="!bg-red-500 hover:!bg-red-600">确认删除</Button>

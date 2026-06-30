@@ -16,8 +16,22 @@
 /** API 基础地址 — 与部署环境强绑定，改了需重新构建 */
 export const API_BASE_URL = {
   LOCAL: '/api',
-  PRODUCTION: 'https://backend.codeseek.pp.ua/api',
+  PRODUCTION: 'https://atlasapi.wort.uk/api',
 } as const;
+
+/** 根据当前 hostname 获取正确的 API 基础地址 */
+export function getApiBaseUrl(): string {
+  if (typeof window === 'undefined') return API_BASE_URL.LOCAL;
+  const hostname = window.location.hostname;
+  return (hostname === 'localhost' || hostname === '127.0.0.1')
+    ? API_BASE_URL.LOCAL
+    : API_BASE_URL.PRODUCTION;
+}
+
+/** 获取后端基础地址（不含 /api） */
+export function getBackendBaseUrl(): string {
+  return getApiBaseUrl().replace(/\/api$/, '');
+}
 
 /** API 请求行为配置 — 纯客户端重试策略 */
 export const API_CONFIG = {

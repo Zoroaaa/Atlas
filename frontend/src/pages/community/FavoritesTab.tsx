@@ -51,7 +51,7 @@ export const FavoritesTab: React.FC = () => {
     <div className="space-y-4">
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
+        <div className="flex items-center gap-2 text-sm text-stone-500">
           <Heart className="w-4 h-4 text-red-400" />
           <span>我的收藏</span>
           {myFavorites.length > 0 && (
@@ -99,7 +99,7 @@ export const FavoritesTab: React.FC = () => {
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
             >上一页</Button>
-            <span className="mx-3 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-600">{page}</span>
+            <span className="mx-3 px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600">{page}</span>
             <Button
               variant="outline"
               size="sm"

@@ -94,8 +94,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     <div className="space-y-4">
       {/* 标题 */}
       <div className="flex items-center gap-2">
-        <MessageSquare className="w-5 h-5 text-slate-500" />
-        <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+        <MessageSquare className="w-5 h-5 text-stone-500" />
+        <h3 className="font-semibold text-stone-900 dark:text-stone-100">
           评论 ({comments.length})
         </h3>
       </div>
@@ -132,11 +132,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
           {[1, 2, 3].map((i) => (
             <Card key={i} padding="md">
               <div className="flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                <div className="w-9 h-9 rounded-full bg-stone-200 dark:bg-stone-700 animate-pulse" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-                  <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
-                  <div className="h-3 w-2/3 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                  <div className="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded animate-pulse" />
+                  <div className="h-3 w-full bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
+                  <div className="h-3 w-2/3 bg-stone-100 dark:bg-stone-800 rounded animate-pulse" />
                 </div>
               </div>
             </Card>
@@ -144,9 +144,9 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         </div>
       ) : comments.length === 0 ? (
         <Card padding="lg" className="text-center">
-          <MessageSquare className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">快来发表第一条评论</p>
-          <p className="text-xs text-slate-400 mt-1">分享你的看法和感受</p>
+          <MessageSquare className="w-12 h-12 mx-auto text-stone-300 mb-3" />
+          <p className="text-sm font-medium text-stone-600 dark:text-stone-400">快来发表第一条评论</p>
+          <p className="text-xs text-stone-400 mt-1">分享你的看法和感受</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -158,10 +158,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                   <img
                     src={comment.userAvatar}
                     alt={comment.userName}
-                    className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
+                    className="w-9 h-9 rounded-full object-cover ring-1 ring-stone-200 dark:ring-stone-700 shrink-0"
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-xs font-bold text-white shrink-0">
                     {comment.userName?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
@@ -169,11 +169,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                 {/* 内容区 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                    <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
                       {comment.userName || '匿名用户'}
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                      <span className="text-xs text-stone-400 whitespace-nowrap">
                         {formatDate(comment.createdAt)}
                       </span>
                       {/* 删除按钮 - 仅自己的评论显示 */}
@@ -182,7 +182,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                           onClick={() => handleDelete(comment.id)}
                           className={clsx(
                             'p-1 rounded-lg transition-all',
-                            'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                            'text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                           )}
                           title="删除评论"
                         >
@@ -191,7 +191,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed break-words">
+                  <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed break-words">
                     {comment.content}
                   </p>
                 </div>

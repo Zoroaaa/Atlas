@@ -117,10 +117,10 @@ export const MyPostsTab: React.FC = () => {
       {userStats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: '发布帖子', value: userStats.postsCount, icon: FileText, color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
+            { label: '发布帖子', value: userStats.postsCount, icon: FileText, color: 'text-amber-700 bg-amber-50 dark:bg-amber-900/20' },
             { label: '获得点赞', value: userStats.likesReceived, icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
             { label: '被收藏', value: userStats.favoritesReceived, icon: Bookmark, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
-            { label: '收到评论', value: userStats.commentsCount, icon: MessageSquare, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
+            { label: '收到评论', value: userStats.commentsCount, icon: MessageSquare, color: 'text-rose-700 bg-rose-50 dark:bg-rose-900/20' },
           ].map(item => (
             <Card key={item.label} padding="md">
               <div className="flex items-center gap-3">
@@ -128,8 +128,8 @@ export const MyPostsTab: React.FC = () => {
                   <item.icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400">{item.label}</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{item.value}</p>
+                  <p className="text-xs text-stone-400">{item.label}</p>
+                  <p className="text-lg font-bold text-stone-900 dark:text-stone-100">{item.value}</p>
                 </div>
               </div>
             </Card>
@@ -147,8 +147,8 @@ export const MyPostsTab: React.FC = () => {
               className={clsx(
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
                 statusFilter === config.value
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-stone-200 dark:hover:bg-stone-700'
               )}
             >
               {config.label}
@@ -175,11 +175,11 @@ export const MyPostsTab: React.FC = () => {
             <Card key={post.id} padding="md" hover>
               <div className="flex gap-4">
                 {/* 封面缩略图 */}
-                <div className="w-24 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+                <div className="w-24 h-16 rounded-lg overflow-hidden shrink-0 bg-stone-100 dark:bg-stone-800">
                   {post.coverImage ? (
                     <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                    <div className="w-full h-full flex items-center justify-center text-stone-300">
                       <FileText className="w-6 h-6" />
                     </div>
                   )}
@@ -189,7 +189,7 @@ export const MyPostsTab: React.FC = () => {
                 <div className="flex-1 min-w-0 flex flex-col">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{post.title}</h3>
+                      <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100 truncate">{post.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge
                           variant={STATUS_BADGE[post.status]?.variant || 'default'}
@@ -197,7 +197,7 @@ export const MyPostsTab: React.FC = () => {
                         >
                           {STATUS_BADGE[post.status]?.label || post.status}
                         </Badge>
-                        <span className="text-xs text-slate-400 uppercase">{post.postType}</span>
+                        <span className="text-xs text-stone-400 uppercase">{post.postType}</span>
                       </div>
                     </div>
 
@@ -206,7 +206,7 @@ export const MyPostsTab: React.FC = () => {
                       {(post.status === 'active' || post.status === 'rejected') && (
                         <button
                           onClick={() => openEdit(post)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                          className="p-1.5 rounded-lg text-stone-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
                           title="编辑"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -214,7 +214,7 @@ export const MyPostsTab: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleDelete(post.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                        className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                         title="删除"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -224,16 +224,16 @@ export const MyPostsTab: React.FC = () => {
 
                   {/* 推荐语 */}
                   {post.caption && (
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1 flex-1">{post.caption}</p>
+                    <p className="text-xs text-stone-500 line-clamp-2 mt-1 flex-1">{post.caption}</p>
                   )}
 
                   {/* 底部数据 */}
-                  <div className="flex items-center gap-4 pt-2 mt-auto border-t border-slate-100 dark:border-slate-800/50 text-xs text-slate-400">
+                  <div className="flex items-center gap-4 pt-2 mt-auto border-t border-stone-100 dark:border-stone-800/50 text-xs text-stone-400">
                     <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{post.viewCount}</span>
                     <span className="flex items-center gap-1"><Heart className="w-3 h-3" />{post.likeCount}</span>
                     <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{post.commentCount}</span>
                     <span className="flex items-center gap-1"><Bookmark className="w-3 h-3" />{post.favoriteCount}</span>
-                    <span className="ml-auto text-slate-400">
+                    <span className="ml-auto text-stone-400">
                       {new Date(post.createdAt).toLocaleDateString('zh-CN')}
                     </span>
                   </div>
@@ -250,7 +250,7 @@ export const MyPostsTab: React.FC = () => {
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
             >上一页</Button>
-            <span className="mx-3 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-600">{page}</span>
+            <span className="mx-3 px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600">{page}</span>
             <Button
               variant="outline"
               size="sm"

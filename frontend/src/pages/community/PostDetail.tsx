@@ -30,8 +30,8 @@ interface PostDetailProps {
 
 const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
-  anime: { label: '动漫', icon: Tv, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
-  movie: { label: '影视', icon: Film, color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
+  anime: { label: '动漫', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
+  movie: { label: '影视', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
 };
 
 const formatDate = (timestamp: number) => {
@@ -60,26 +60,26 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
     <div className="grid grid-cols-2 gap-3 text-sm">
       {data.code && (
         <div>
-          <span className="text-slate-400">番号</span>
-          <p className="font-mono font-semibold text-slate-900 dark:text-slate-100">{data.code}</p>
+          <span className="text-stone-400">番号</span>
+          <p className="font-mono font-semibold text-stone-900 dark:text-stone-100">{data.code}</p>
         </div>
       )}
       {data.releaseDate && (
         <div>
-          <span className="text-slate-400">发布日期</span>
-          <p className="text-slate-700 dark:text-slate-300">{data.releaseDate}</p>
+          <span className="text-stone-400">发布日期</span>
+          <p className="text-stone-700 dark:text-stone-300">{data.releaseDate}</p>
         </div>
       )}
       {data.duration && (
         <div>
-          <span className="text-slate-400">时长</span>
-          <p className="text-slate-700 dark:text-slate-300">{data.duration}</p>
+          <span className="text-stone-400">时长</span>
+          <p className="text-stone-700 dark:text-stone-300">{data.duration}</p>
         </div>
       )}
       {(data.studio || data.publisher || data.maker) && (
         <div>
-          <span className="text-slate-400">制作商</span>
-          <p className="text-slate-700 dark:text-slate-300">{data.studio || data.publisher || data.maker}</p>
+          <span className="text-stone-400">制作商</span>
+          <p className="text-stone-700 dark:text-stone-300">{data.studio || data.publisher || data.maker}</p>
         </div>
       )}
     </div>
@@ -87,7 +87,7 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
     {/* 演员列表 */}
     {data.actresses && Array.isArray(data.actresses) && data.actresses.length > 0 && (
       <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">
+        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
           <Users className="w-4 h-4" />
           演员 ({data.actresses.length})
         </h4>
@@ -104,10 +104,10 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
     {/* 标签 */}
     {data.tags && Array.isArray(data.tags) && data.tags.length > 0 && (
       <div>
-        <h4 className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">标签</h4>
+        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">标签</h4>
         <div className="flex flex-wrap gap-1.5">
           {data.tags.map((tag: string, idx: number) => (
-            <span key={idx} className="px-2.5 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+            <span key={idx} className="px-2.5 py-1 text-xs rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
               {tag}
             </span>
           ))}
@@ -118,7 +118,7 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
     {/* 磁力链接列表 */}
     {(data.magnetLinks || data.magnets) && Array.isArray(data.magnetLinks || data.magnets) && (data.magnetLinks || data.magnets).length > 0 && (
       <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">
+        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
           <LinkIcon className="w-4 h-4" />
           磁力链接 ({(data.magnetLinks || data.magnets).length})
         </h4>
@@ -143,7 +143,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     )}
 
     {/* BGM 信息和评分 */}
-    <div className="flex flex-wrap items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+    <div className="flex flex-wrap items-center gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
       {data.rating && (
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -153,11 +153,11 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
                 'w-5 h-5',
                 star <= Math.round(data.rating / 2)
                   ? 'fill-warning-500 text-warning-500'
-                  : 'text-slate-300 dark:text-slate-600'
+                  : 'text-stone-300 dark:text-stone-600'
               )}
             />
           ))}
-          <span className="font-bold text-slate-900 dark:text-slate-100 ml-1">{data.rating}</span>
+          <span className="font-bold text-stone-900 dark:text-stone-100 ml-1">{data.rating}</span>
         </div>
       )}
       {data.bgmId && (
@@ -166,10 +166,10 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </Badge>
       )}
       {data.episodeCount && (
-        <span className="text-sm text-slate-600 dark:text-slate-400">共 {data.episodeCount} 集</span>
+        <span className="text-sm text-stone-600 dark:text-stone-400">共 {data.episodeCount} 集</span>
       )}
       {data.airDate && (
-        <span className="text-sm text-slate-500 flex items-center gap-1">
+        <span className="text-sm text-stone-500 flex items-center gap-1">
           <Calendar className="w-3.5 h-3.5" />{data.airDate}
         </span>
       )}
@@ -178,8 +178,8 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 简介 */}
     {data.synopsis && (
       <div>
-        <h4 className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">简介</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line">
+        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">简介</h4>
+        <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed whitespace-pre-line">
           {data.synopsis}
         </p>
       </div>
@@ -188,7 +188,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 资源列表 */}
     {data.resources && Array.isArray(data.resources) && data.resources.length > 0 && (
       <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">
+        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
           <Download className="w-4 h-4" />
           资源 ({data.resources.length})
         </h4>
@@ -214,28 +214,28 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
     {/* TMDB 信息 */}
     {(data.tmdbRating || data.releaseDate || data.runtime) && (
-      <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-center">
+      <div className="grid grid-cols-3 gap-3 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl text-center">
         {data.tmdbRating && (
           <div>
             <div className="flex justify-center items-center gap-1 mb-1">
               <Star className="w-4 h-4 fill-warning-500 text-warning-500" />
-              <span className="font-bold text-lg text-slate-900 dark:text-slate-100">{data.tmdbRating}</span>
+              <span className="font-bold text-lg text-stone-900 dark:text-stone-100">{data.tmdbRating}</span>
             </div>
-            <span className="text-xs text-slate-400">TMDB评分</span>
+            <span className="text-xs text-stone-400">TMDB评分</span>
           </div>
         )}
         {data.releaseDate && (
           <div>
-            <Calendar className="w-5 h-5 mx-auto mb-1 text-slate-400" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{data.releaseDate}</p>
-            <span className="text-xs text-slate-400">上映日期</span>
+            <Calendar className="w-5 h-5 mx-auto mb-1 text-stone-400" />
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{data.releaseDate}</p>
+            <span className="text-xs text-stone-400">上映日期</span>
           </div>
         )}
         {data.runtime && (
           <div>
-            <Clock className="w-5 h-5 mx-auto mb-1 text-slate-400" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{data.runtime}分钟</p>
-            <span className="text-xs text-slate-400">片长</span>
+            <Clock className="w-5 h-5 mx-auto mb-1 text-stone-400" />
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{data.runtime}分钟</p>
+            <span className="text-xs text-stone-400">片长</span>
           </div>
         )}
       </div>
@@ -244,8 +244,8 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 简介 */}
     {data.overview && (
       <div>
-        <h4 className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">简介</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line">
+        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">简介</h4>
+        <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed whitespace-pre-line">
           {data.overview}
         </p>
       </div>
@@ -254,7 +254,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 下载资源 */}
     {data.downloadResources && Array.isArray(data.downloadResources) && data.downloadResources.length > 0 && (
       <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">
+        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
           <Download className="w-4 h-4" />
           下载资源 ({data.downloadResources.length})
         </h4>
@@ -284,14 +284,14 @@ const MagnetLinkItem: React.FC<{ link: any; index: number }> = ({ link, index })
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg group hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-      <span className="text-xs font-mono text-slate-400 w-6 shrink-0">#{index}</span>
-      <code className="flex-1 text-xs text-slate-600 dark:text-slate-400 truncate font-mono">
+    <div className="flex items-center gap-2 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg group hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+      <span className="text-xs font-mono text-stone-400 w-6 shrink-0">#{index}</span>
+      <code className="flex-1 text-xs text-stone-600 dark:text-stone-400 truncate font-mono">
         {magnetUrl.slice(0, 60)}...
       </code>
       <button
         onClick={handleCopy}
-        className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-0 group-hover:opacity-100"
+        className="shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-0 group-hover:opacity-100"
         title="复制磁力链接"
       >
         <Copy className="w-3.5 h-3.5" />
@@ -318,19 +318,19 @@ const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, in
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg group hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-      <span className="text-xs font-semibold text-white w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shrink-0">
+    <div className="flex items-center gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg group hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+      <span className="text-xs font-semibold text-white w-6 h-6 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shrink-0">
         {index}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{name}</p>
+        <p className="text-sm font-medium text-stone-700 dark:text-stone-300 truncate">{name}</p>
         {resource.size && (
-          <span className="text-xs text-slate-400">{resource.size}</span>
+          <span className="text-xs text-stone-400">{resource.size}</span>
         )}
       </div>
       <button
         onClick={handleCopy}
-        className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+        className="shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
         title="复制链接"
       >
         <Copy className="w-3.5 h-3.5" />
@@ -372,12 +372,12 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   if (postsLoading && !currentPost) {
     return (
       <div className="animate-pulse space-y-6">
-        <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-        <div className="aspect-[16/9] bg-slate-200 dark:bg-slate-700 rounded-xl" />
+        <div className="h-8 w-48 bg-stone-200 dark:bg-stone-700 rounded-xl" />
+        <div className="aspect-[16/9] bg-stone-200 dark:bg-stone-700 rounded-xl" />
         <div className="space-y-3">
-          <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-          <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
-          <div className="h-4 w-2/3 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+          <div className="h-6 w-3/4 bg-stone-200 dark:bg-stone-700 rounded-xl" />
+          <div className="h-4 w-full bg-stone-100 dark:bg-stone-800 rounded-lg" />
+          <div className="h-4 w-2/3 bg-stone-100 dark:bg-stone-800 rounded-lg" />
         </div>
       </div>
     );
@@ -386,7 +386,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   if (!currentPost) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-500">帖子不存在或已被删除</p>
+        <p className="text-stone-500">帖子不存在或已被删除</p>
         {onBack && (
           <Button variant="outline" onClick={onBack} className="mt-4">
             返回
@@ -454,19 +454,19 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               <img
                 src={currentPost.coverImage}
                 alt={currentPost.title}
-                className="w-full max-h-[360px] object-contain bg-slate-100 dark:bg-slate-800"
+                className="w-full max-h-[360px] object-contain bg-stone-100 dark:bg-stone-800"
               />
             </div>
           )}
 
           {/* 标题 */}
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 leading-tight">
             {currentPost.title}
           </h1>
 
           {/* 推荐语 */}
           {currentPost.caption && (
-            <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed italic border-l-3 border-blue-400 pl-4 py-1 bg-blue-50/50 dark:bg-blue-900/10 rounded-r-lg">
+            <p className="text-base text-stone-600 dark:text-stone-400 leading-relaxed italic border-l-3 border-amber-400 pl-4 py-1 bg-amber-50/50 dark:bg-amber-900/10 rounded-r-lg">
               "{currentPost.caption}"
             </p>
           )}
@@ -477,24 +477,24 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               <img
                 src={currentPost.userAvatar}
                 alt={currentPost.userName}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-200 dark:ring-slate-700"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-stone-200 dark:ring-stone-700"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-sm font-bold text-white">
                 {currentPost.userName?.charAt(0)?.toUpperCase() || '?'}
               </div>
             )}
             <div className="flex-1">
-              <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">
+              <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">
                 {currentPost.userName || '匿名用户'}
               </p>
-              <p className="text-xs text-slate-400">{formatDate(currentPost.createdAt)}</p>
+              <p className="text-xs text-stone-400">{formatDate(currentPost.createdAt)}</p>
             </div>
           </div>
 
           {/* 互动操作栏 */}
-          <div className="flex items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-4 text-sm text-slate-500">
+          <div className="flex items-center gap-4 pt-4 border-t border-stone-100 dark:border-stone-800">
+            <div className="flex items-center gap-4 text-sm text-stone-500">
               <span className="flex items-center gap-1"><Eye className="w-4 h-4" />{currentPost.viewCount.toLocaleString()}</span>
               <span className="flex items-center gap-1"><MessageSquare className="w-4 h-4" />{currentPost.commentCount}</span>
             </div>
@@ -506,7 +506,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all',
                   currentPost.isLiked
                     ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
-                    : 'text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    : 'text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                 )}
               >
                 <Heart className={clsx('w-4 h-4', currentPost.isLiked && 'fill-current')} />
@@ -518,7 +518,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all',
                   currentPost.isFavorited
                     ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                    : 'text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                    : 'text-stone-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
                 )}
               >
                 <Bookmark className={clsx('w-4 h-4', currentPost.isFavorited && 'fill-current')} />
@@ -526,7 +526,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               </button>
               <button
                 onClick={handleShare}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
               >
                 <Share2 className="w-4 h-4" />
                 分享
@@ -557,8 +557,8 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
 
       {/* 相关推荐 */}
       {relatedPosts.length > 0 && (
-        <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-lg">
+        <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-stone-800">
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-lg">
             相关推荐
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

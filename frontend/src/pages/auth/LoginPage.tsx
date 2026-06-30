@@ -77,12 +77,12 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
 
       {/* Ambient background */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-400/6 dark:bg-blue-500/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-violet-400/6 dark:bg-violet-500/4 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
         {/* Grid dots */}
         <div className="absolute inset-0 grid-dots opacity-50" />
       </div>
@@ -90,25 +90,25 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-md relative">
 
         {/* Back link */}
-        <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-8 transition-colors text-sm font-medium group">
+        <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           返回首页
         </Link>
 
         {/* Card */}
-        <div className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/50 p-7 sm:p-8"
+        <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
 
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center"
-              style={{ boxShadow: '0 8px 24px rgba(79,158,255,0.35)' }}>
+            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center"
+              style={{ boxShadow: '0 8px 24px rgba(212,168,83,0.35)' }}>
               <Lock className="w-6 h-6 text-white" />
             </div>
-            <h1 className="display-font text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-1.5">
+            <h1 className="display-font text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1.5">
               欢迎回来
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-stone-500 dark:text-stone-400">
               登录您的账号继续使用
             </p>
           </div>
@@ -141,7 +141,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
@@ -150,11 +150,11 @@ export const LoginPage: React.FC = () => {
             />
 
             <div className="flex items-center justify-between text-xs sm:text-sm">
-              <label className="flex items-center gap-2 text-slate-600 dark:text-slate-400 cursor-pointer select-none py-2 -my-2">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500 flex-shrink-0" />
+              <label className="flex items-center gap-2 text-stone-600 dark:text-stone-400 cursor-pointer select-none py-2 -my-2">
+                <input type="checkbox" className="w-4 h-4 rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-500 flex-shrink-0" />
                 <span>记住我</span>
               </label>
-              <Link to="/forgot-password" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium">
+              <Link to="/forgot-password" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 transition-colors font-medium">
                 忘记密码？
               </Link>
             </div>
@@ -171,9 +171,9 @@ export const LoginPage: React.FC = () => {
 
           {/* OAuth 分割线 */}
           <div className="mt-5 flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">或通过以下方式登录</span>
-            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+            <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
+            <span className="text-xs text-stone-400 dark:text-stone-500 whitespace-nowrap">或通过以下方式登录</span>
+            <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
           </div>
 
           {/* GitHub 登录按钮 */}
@@ -182,10 +182,10 @@ export const LoginPage: React.FC = () => {
             onClick={handleGitHubLogin}
             disabled={isGithubLoading || isLoading}
             className="mt-4 w-full flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl font-semibold text-sm
-              bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700
-              text-white border border-slate-700 dark:border-slate-600
+              bg-stone-900 hover:bg-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700
+              text-white border border-stone-700 dark:border-stone-600
               transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-500"
           >
             {isGithubLoading
               ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -197,14 +197,14 @@ export const LoginPage: React.FC = () => {
           {/* Footer */}
           <div className="mt-6 text-center">
             {enableRegistration ? (
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-stone-600 dark:text-stone-400">
                 还没有账号？{' '}
-                <Link to="/register" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold transition-colors">
+                <Link to="/register" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-semibold transition-colors">
                   立即注册
                 </Link>
               </p>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-stone-500 dark:text-stone-400">
                 注册功能暂未开放
               </p>
             )}
@@ -212,8 +212,8 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Brand watermark */}
-        <div className="mt-6 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-600">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+        <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />
           </div>
           <span className="text-xs font-medium">{appInfo.NAME}</span>

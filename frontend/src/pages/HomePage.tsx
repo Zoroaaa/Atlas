@@ -79,13 +79,13 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden pb-16 md:pb-0">
+    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b] overflow-hidden pb-16 md:pb-0">
 
       {/* ── Ambient background orbs ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-blue-400/8 dark:bg-blue-500/6 blur-[120px]" />
-        <div className="absolute top-1/3 right-1/5 w-[400px] h-[400px] rounded-full bg-violet-400/8 dark:bg-violet-500/5 blur-[100px]" />
-        <div className="absolute bottom-0 left-1/2 w-[500px] h-[500px] rounded-full bg-cyan-400/6 dark:bg-cyan-500/4 blur-[120px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-amber-400/8 dark:bg-amber-500/6 blur-[120px]" />
+        <div className="absolute top-1/3 right-1/5 w-[400px] h-[400px] rounded-full bg-rose-400/8 dark:bg-rose-500/5 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/2 w-[500px] h-[500px] rounded-full bg-amber-300/6 dark:bg-amber-500/4 blur-[120px]" />
       </div>
 
       {/* ── Navigation - 使用统一导航栏 ── */}
@@ -102,13 +102,13 @@ export const HomePage: React.FC = () => {
         <div className="max-w-5xl mx-auto text-center">
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-200/60 dark:border-blue-500/20 bg-blue-50/80 dark:bg-blue-500/8 text-blue-600 dark:text-blue-400 text-xs sm:text-sm font-medium mb-8 animate-fade-in backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200/60 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/8 text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-8 animate-fade-in backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>简洁高效的磁力搜索工具</span>
           </div>
 
           {/* Headline */}
-          <h1 className="display-font text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-6 sm:mb-8 leading-[1.05] tracking-tight animate-fade-in animation-delay-100">
+          <h1 className="display-font text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-stone-900 dark:text-white mb-6 sm:mb-8 leading-[1.05] tracking-tight animate-fade-in animation-delay-100">
             一站式
             <span className="gradient-text"> 磁力搜索 </span>
             <br className="hidden sm:block" />
@@ -116,7 +116,7 @@ export const HomePage: React.FC = () => {
           </h1>
 
           {/* Subhead */}
-          <p className="text-base sm:text-lg lg:text-xl text-slate-600 dark:text-slate-400 mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
+          <p className="text-base sm:text-lg lg:text-xl text-stone-600 dark:text-stone-400 mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
             聚合多个优质资源站点，提供快速、安全、便捷的搜索体验。
             支持云端同步、智能收藏，让资源管理更轻松。
           </p>
@@ -132,7 +132,7 @@ export const HomePage: React.FC = () => {
             </button>
             <button
               onClick={() => navigate('/login')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-base border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-base border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 hover:text-amber-700 dark:hover:text-amber-400 transition-all duration-200 bg-white/60 dark:bg-stone-800/60 backdrop-blur-sm"
             >
               已有账号？登录
             </button>
@@ -147,7 +147,7 @@ export const HomePage: React.FC = () => {
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="display-font text-2xl sm:text-3xl font-bold gradient-text mb-1">{stat.num}</div>
-                <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-500">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-stone-500 dark:text-stone-500">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -160,13 +160,13 @@ export const HomePage: React.FC = () => {
 
           {/* Section header */}
           <div className="text-center mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-semibold mb-4 uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 text-xs font-semibold mb-4 uppercase tracking-wider">
               产品特色
             </div>
-            <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
+            <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
               专为搜索体验而生
             </h2>
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-stone-600 dark:text-stone-400 max-w-2xl mx-auto">
               我们致力于提供最佳的磁力搜索体验，以下是我们产品的核心功能
             </p>
           </div>
@@ -176,7 +176,7 @@ export const HomePage: React.FC = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="group relative p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800/70 hover:border-blue-200 dark:hover:border-blue-800/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                className="group relative p-5 sm:p-6 rounded-2xl bg-white dark:bg-stone-900/70 border border-stone-200/70 dark:border-stone-800/70 hover:border-amber-200 dark:hover:border-amber-800/60 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
                 style={{
                   boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
                   animationDelay: `${index * 60}ms`,
@@ -193,10 +193,10 @@ export const HomePage: React.FC = () => {
                   {feature.icon}
                 </div>
 
-                <h3 className="relative text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
+                <h3 className="relative text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">
                   {feature.title}
                 </h3>
-                <p className="relative text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="relative text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -206,46 +206,46 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ── How it works ── */}
-      <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 bg-slate-100/50 dark:bg-slate-900/40">
+      <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 bg-stone-100/50 dark:bg-stone-900/40">
         <div className="max-w-4xl mx-auto">
 
           <div className="text-center mb-12 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-semibold mb-4 uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-200/80 dark:bg-stone-800 text-stone-600 dark:text-stone-400 text-xs font-semibold mb-4 uppercase tracking-wider">
               使用流程
             </div>
-            <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
+            <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
               三步开始搜索之旅
             </h2>
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+            <p className="text-sm sm:text-base text-stone-600 dark:text-stone-400">
               简单三步，立即体验高效搜索
             </p>
           </div>
 
           <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
             {/* Connector line */}
-            <div className="hidden sm:block absolute top-8 left-1/6 right-1/6 h-px bg-gradient-to-r from-transparent via-blue-300/40 dark:via-blue-600/20 to-transparent" />
+            <div className="hidden sm:block absolute top-8 left-1/6 right-1/6 h-px bg-gradient-to-r from-transparent via-amber-300/40 dark:via-amber-600/20 to-transparent" />
 
             {[
-              { step: '01', title: '注册账号', desc: '快速注册，开启个性化体验', icon: <Settings className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-blue-500 to-violet-600' },
-              { step: '02', title: '搜索资源', desc: '输入关键词，一键搜索全网', icon: <Search className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-cyan-500 to-blue-600' },
+              { step: '01', title: '注册账号', desc: '快速注册，开启个性化体验', icon: <Settings className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-[#d4a853] to-[#f59e0b]' },
+              { step: '02', title: '搜索资源', desc: '输入关键词，一键搜索全网', icon: <Search className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-amber-400 to-[#d4a853]' },
               { step: '03', title: '收藏管理', desc: '收藏喜爱的资源，随时查看', icon: <Heart className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-rose-500 to-pink-600' },
             ].map((item, index) => (
               <div key={index} className="text-center group relative">
                 {/* Step badge */}
-                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 text-slate-400 dark:text-slate-500 text-xs font-bold mb-5 border border-slate-200/80 dark:border-slate-700/80 relative">
+                <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-700 text-stone-400 dark:text-stone-500 text-xs font-bold mb-5 border border-stone-200/80 dark:border-stone-700/80 relative">
                   <div className={`absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-gradient-to-br ${item.gradient} text-white text-xs font-bold flex items-center justify-center shadow-lg`}>
                     {index + 1}
                   </div>
                   <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white`}
-                    style={{ boxShadow: '0 4px 12px rgba(79,158,255,0.25)' }}>
+                    style={{ boxShadow: '0 4px 12px rgba(212,168,83,0.25)' }}>
                     {item.icon}
                   </div>
                 </div>
 
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
+                <h3 className="text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">
                   {item.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
                   {item.desc}
                 </p>
               </div>
@@ -259,8 +259,8 @@ export const HomePage: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="relative rounded-3xl overflow-hidden p-8 sm:p-12 lg:p-16 text-center"
             style={{
-              background: 'linear-gradient(135deg, #1e40af 0%, #5b21b6 50%, #0891b2 100%)',
-              boxShadow: '0 24px 80px rgba(59,130,246,0.25), 0 4px 16px rgba(0,0,0,0.2)',
+              background: 'linear-gradient(135deg, #92400e 0%, #78350f 50%, #b45309 100%)',
+              boxShadow: '0 24px 80px rgba(212,168,83,0.25), 0 4px 16px rgba(0,0,0,0.2)',
             }}>
 
             {/* Inner ambient glow */}
@@ -283,7 +283,7 @@ export const HomePage: React.FC = () => {
                 {enableRegistration ? (
                   <button
                     onClick={() => navigate('/register')}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold bg-white text-blue-700 hover:bg-blue-50 transition-all duration-200 text-sm sm:text-base shadow-lg shadow-black/20"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold bg-white text-amber-900 hover:bg-amber-50 transition-all duration-200 text-sm sm:text-base shadow-lg shadow-black/20"
                   >
                     免费注册
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -294,7 +294,7 @@ export const HomePage: React.FC = () => {
                   className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold transition-all duration-200 text-sm sm:text-base backdrop-blur-sm ${
                     enableRegistration 
                       ? 'border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50' 
-                      : 'bg-white text-blue-700 hover:bg-blue-50 shadow-lg shadow-black/20'
+                      : 'bg-white text-amber-900 hover:bg-amber-50 shadow-lg shadow-black/20'
                   }`}
                 >
                   {enableRegistration ? '已有账号' : '立即登录'}
@@ -311,7 +311,7 @@ export const HomePage: React.FC = () => {
         onClose={() => setIsHelpModalOpen(false)}
         title="使用说明"
       >
-        <div className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed">
+        <div className="text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed">
           <p className="mb-4">
             Atlas是一个开源聚合搜索引擎，覆盖 JAV / 动漫 / 影视，帮助您一站式找到所需资源。
           </p>

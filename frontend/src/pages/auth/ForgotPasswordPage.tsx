@@ -133,10 +133,10 @@ export const ForgotPasswordPage: React.FC = () => {
   const renderEmailStep = () => (
     <form onSubmit={handleSendCode} className="space-y-5">
       <div className="text-center py-2">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 flex items-center justify-center">
-          <Mail className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 flex items-center justify-center">
+          <Mail className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">输入您的邮箱，我们将发送验证码</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">输入您的邮箱，我们将发送验证码</p>
       </div>
       <Input label="邮箱" type="email" placeholder="请输入注册邮箱" value={email}
         onChange={(e) => setEmail(e.target.value)} error={error}
@@ -151,28 +151,28 @@ export const ForgotPasswordPage: React.FC = () => {
   const renderVerifyStep = () => (
     <form onSubmit={handleResetPassword} className="space-y-5">
       <div className="text-center mb-2">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 flex items-center justify-center">
-          <ShieldCheck className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 flex items-center justify-center">
+          <ShieldCheck className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-stone-500 dark:text-stone-400">
           验证码已发送到{' '}
-          <span className="font-semibold text-slate-900 dark:text-slate-100">{maskedEmail}</span>
+          <span className="font-semibold text-stone-900 dark:text-stone-100">{maskedEmail}</span>
         </p>
       </div>
 
       <Input label="验证码" type="text" placeholder={`请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`} value={verificationCode}
         onChange={handleCodeChange} fullWidth className="text-center text-2xl tracking-[0.5em] font-mono" maxLength={validationRules.VERIFICATION_CODE_LENGTH + 1} />
 
-      <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-center text-sm text-stone-500 dark:text-stone-400">
         {countdown > 0
-          ? <>有效期 15 分钟，<span className="text-blue-600 dark:text-blue-400 font-semibold tabular-nums">{formatCountdown(countdown)}</span> 后可重发</>
+          ? <>有效期 15 分钟，<span className="text-amber-700 dark:text-amber-400 font-semibold tabular-nums">{formatCountdown(countdown)}</span> 后可重发</>
           : '未收到验证码？可以重新发送'}
       </p>
 
       <Input label="新密码" type={showPassword ? 'text' : 'password'} placeholder={`请输入新密码（至少${validationRules.PASSWORD_MIN_LENGTH}位）`}
         value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
         leftIcon={<Lock className="w-5 h-5" />}
-        rightIcon={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+        rightIcon={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>} fullWidth />
 
@@ -182,7 +182,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={() => setCurrentStep('email')}
-          className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200">
+          className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-200">
           返回
         </button>
         <button type="submit" disabled={isLoading}
@@ -194,7 +194,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
       <div className="text-center">
         <button type="button" onClick={handleResendCode} disabled={countdown > 0 || isLoading}
-          className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          className="text-sm text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
           {countdown > 0 ? `重新发送 (${formatCountdown(countdown)})` : '重新发送验证码'}
         </button>
       </div>
@@ -206,8 +206,8 @@ export const ForgotPasswordPage: React.FC = () => {
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
         <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 className="display-font text-xl font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">密码重置成功！</h3>
-      <p className="text-slate-600 dark:text-slate-400 mb-7">请使用新密码登录您的账户</p>
+      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">密码重置成功！</h3>
+      <p className="text-stone-600 dark:text-stone-400 mb-7">请使用新密码登录您的账户</p>
       <button onClick={() => navigate('/login')}
         className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white btn-gradient">
         前往登录
@@ -228,20 +228,20 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-400/6 dark:bg-blue-500/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-400/6 dark:bg-violet-500/4 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
         <div className="absolute inset-0 grid-dots opacity-50" />
       </div>
 
       <div className="w-full max-w-md relative">
-        <Link to="/login" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-8 transition-colors text-sm font-medium group">
+        <Link to="/login" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           返回登录
         </Link>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/50 p-7 sm:p-8"
+        <div className="rounded-2xl bg-white dark:bg-stone-900/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
 
           {/* Steps */}
@@ -253,13 +253,13 @@ export const ForgotPasswordPage: React.FC = () => {
                 return (
                   <React.Fragment key={step}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
-                      isActive ? 'bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg'
+                      isActive ? 'bg-gradient-to-br from-[#d4a853] to-[#f59e0b] text-white shadow-lg'
                         : isDone ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-400 dark:text-stone-500'
                     }`}>
                       {isDone ? <CheckCircle className="w-4 h-4" /> : index + 1}
                     </div>
-                    {index < 1 && <div className={`h-px w-16 transition-all duration-500 ${isDone ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'}`} />}
+                    {index < 1 && <div className={`h-px w-16 transition-all duration-500 ${isDone ? 'bg-emerald-400' : 'bg-stone-200 dark:bg-stone-700'}`} />}
                   </React.Fragment>
                 );
               })}
@@ -267,8 +267,8 @@ export const ForgotPasswordPage: React.FC = () => {
           )}
 
           <div className="text-center mb-6">
-            <h1 className="display-font text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-1.5">{getStepTitle()}</h1>
-            {getStepDescription() && <p className="text-sm text-slate-500 dark:text-slate-400">{getStepDescription()}</p>}
+            <h1 className="display-font text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1.5">{getStepTitle()}</h1>
+            {getStepDescription() && <p className="text-sm text-stone-500 dark:text-stone-400">{getStepDescription()}</p>}
           </div>
 
           {currentStep !== 'success' && <div className="accent-line mb-6" />}
@@ -278,8 +278,8 @@ export const ForgotPasswordPage: React.FC = () => {
           {currentStep === 'success' && renderSuccessStep()}
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-600">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+        <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />
           </div>
           <span className="text-xs font-medium">磁力快搜</span>

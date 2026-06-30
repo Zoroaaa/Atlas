@@ -14,7 +14,7 @@ import { useSearchStore, useAuthStore } from '@/stores';
 import { searchApi, userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useValidationRules, useUserLimits, usePaginationConfig } from '@/contexts';
-import type { SearchResult, SearchHistoryItem } from '@/types';
+import type { SearchResult, SearchHistoryItem, SearchSuggestion } from '@/types';
 
 interface UseSearchOptions {
   autoSaveHistory?: boolean;
@@ -32,7 +32,7 @@ interface UseSearchReturn {
   hasMore: boolean;
   selectedSources: string[];
   searchHistory: SearchHistoryItem[];
-  suggestions: Array<{ keyword: string; count: number }>;
+  suggestions: SearchSuggestion[];
   performSearch: (searchKeyword?: string, page?: number) => Promise<void>;
   loadMore: () => Promise<void>;
   clearResults: () => void;
@@ -53,31 +53,16 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const { autoSaveHistory = true, maxHistoryItems = userLimits.maxSearchHistory } = options;
   const toast = useToast();
   const { isAuthenticated } = useAuthStore();
-  const {
-    keyword,
-    setKeyword,
-    results,
-    setResults,
-    appendResults,
-    isSearching,
-    setSearching,
-    currentPage,
-    setCurrentPage,
-    totalResults,
-    setTotalResults,
-    hasMore,
-    setHasMore,
-    searchHistory,
-    setSearchHistory,
-    addToHistory,
-    clearHistory,
-    removeFromHistory,
-    suggestions,
-    setSuggestions,
-  } = useSearchStore();
+  const { keyword, setKeyword, currentPage, setCurrentPage } = useSearchStore();
 
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isSearching, setSearching] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
 
   const performSearch = useCallback(async (searchKeyword?: string, page = 1) => {
     const query = searchKeyword || keyword;
@@ -98,28 +83,41 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       if (response.success && response.data) {
-        const { results: searchResults, pagination } = response.data;
-        
-        if (page === 1) {
-          setResults(searchResults);
-        } else {
-          appendResults(searchResults);
-        }
+        // useSearch 只处理通用搜索结果（BasicSearchData），不处理聚合响应
+        if ('results' in response.data && !('resultType' in response.data)) {
+          const { results: rawResults, pagination } = response.data;
+          // 后端返回 id/name，前端模型使用 sourceId/sourceName
+          const searchResults: SearchResult[] = rawResults.map(r => ({
+            sourceId: r.id,
+            sourceName: r.name,
+            sourceIcon: r.icon,
+            url: r.url,
+            description: r.description,
+          }));
 
-        setTotalResults(pagination.total);
-        setCurrentPage(pagination.page);
-        setHasMore(pagination.hasMore);
+          if (page === 1) {
+            setResults(searchResults);
+          } else {
+            setResults(prev => [...prev, ...searchResults]);
+          }
 
-        if (autoSaveHistory && isAuthenticated && searchResults.length > 0) {
-          const historyItem: SearchHistoryItem = {
-            id: crypto.randomUUID(),
-            userId: '',
-            query: query.trim(),
-            source: selectedSources.join(','),
-            resultsCount: pagination.total,
-            createdAt: Date.now(),
-          };
-          addToHistory(historyItem);
+          if (pagination) {
+            setTotalResults(pagination.total);
+            setCurrentPage(pagination.page);
+            setHasMore(pagination.hasMore);
+          }
+
+          if (autoSaveHistory && isAuthenticated && searchResults.length > 0) {
+            const historyItem: SearchHistoryItem = {
+              id: crypto.randomUUID(),
+              userId: '',
+              query: query.trim(),
+              source: selectedSources.join(','),
+              resultsCount: pagination?.total ?? 0,
+              createdAt: Date.now(),
+            };
+            setSearchHistory(prev => [historyItem, ...prev]);
+          }
         }
       }
     } catch (err) {
@@ -132,17 +130,11 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   }, [
     keyword,
     selectedSources,
-    setSearching,
-    setResults,
-    appendResults,
-    setTotalResults,
-    setCurrentPage,
-    setHasMore,
     autoSaveHistory,
     isAuthenticated,
-    addToHistory,
     toast,
     paginationConfig.defaultPageSize,
+    setCurrentPage,
   ]);
 
   const loadMore = useCallback(async () => {
@@ -156,7 +148,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setCurrentPage(1);
     setHasMore(false);
     setError(null);
-  }, [setResults, setTotalResults, setCurrentPage, setHasMore]);
+  }, [setCurrentPage]);
 
   const resetSearch = useCallback(() => {
     setKeyword('');
@@ -187,26 +179,26 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     } catch (err) {
       console.error('Failed to load search history:', err);
     }
-  }, [isAuthenticated, maxHistoryItems, setSearchHistory]);
+  }, [isAuthenticated, maxHistoryItems]);
 
   const deleteHistoryItem = useCallback(async (id: string) => {
     try {
       await userApi.deleteSearchHistoryItem(id);
-      removeFromHistory(id);
+      setSearchHistory(prev => prev.filter(h => h.id !== id));
     } catch (_err) {
       toast.error('删除失败', '无法删除搜索历史');
     }
-  }, [removeFromHistory, toast]);
+  }, [toast]);
 
   const clearAllHistory = useCallback(async () => {
     try {
       await userApi.clearSearchHistory();
-      clearHistory();
+      setSearchHistory([]);
       toast.success('已清空', '搜索历史已清空');
     } catch (_err) {
       toast.error('清空失败', '无法清空搜索历史');
     }
-  }, [clearHistory, toast]);
+  }, [toast]);
 
   const loadSuggestions = useCallback(async (keyword: string) => {
     if (!keyword || keyword.length < validationRules.SEARCH_KEYWORD_MIN_LENGTH) {
@@ -222,7 +214,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     } catch (err) {
       console.error('Failed to load suggestions:', err);
     }
-  }, [setSuggestions, validationRules.SEARCH_KEYWORD_MIN_LENGTH]);
+  }, [validationRules.SEARCH_KEYWORD_MIN_LENGTH]);
 
   const loadTrending = useCallback(async () => {
     try {
@@ -233,7 +225,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     } catch (err) {
       console.error('Failed to load trending:', err);
     }
-  }, [setSuggestions]);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {

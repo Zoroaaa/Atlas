@@ -26,7 +26,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ text, label, className =
     <button
       onClick={copy}
       title={label ?? '复制链接'}
-      className={`p-1 rounded text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all ${className}`}
+      className={`p-1 rounded text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all ${className}`}
     >
       {copied
         ? <Check className="w-3.5 h-3.5 text-emerald-500" />

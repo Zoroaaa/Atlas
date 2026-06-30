@@ -32,12 +32,12 @@ export const actionLabels: Record<string, string> = {
 export const actionColors: Record<string, string> = {
   login: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   login_failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  logout: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
-  search: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  logout: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
+  search: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   add_favorite: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
   share_source: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   admin_update_user_status: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  admin_update_user_role: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  admin_update_user_role: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
 };
 
 export const Pagination: React.FC<{ page: number; totalPages: number; onPageChange: (p: number) => void }> = ({ page, totalPages, onPageChange }) => {
@@ -68,9 +68,9 @@ interface StatCardProps {
 }
 
 const colorClasses: Record<string, { bg: string; iconBg: string }> = {
-  blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', iconBg: 'bg-gradient-to-br from-blue-500 to-blue-600' },
+  blue: { bg: 'bg-amber-50 dark:bg-amber-900/20', iconBg: 'bg-gradient-to-br from-[#d4a853] to-[#f59e0b]' },
   green: { bg: 'bg-green-50 dark:bg-green-900/20', iconBg: 'bg-gradient-to-br from-green-500 to-green-600' },
-  purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', iconBg: 'bg-gradient-to-br from-purple-500 to-purple-600' },
+  purple: { bg: 'bg-rose-50 dark:bg-rose-900/20', iconBg: 'bg-gradient-to-br from-rose-500 to-rose-600' },
   orange: { bg: 'bg-orange-50 dark:bg-orange-900/20', iconBg: 'bg-gradient-to-br from-orange-500 to-orange-600' },
   red: { bg: 'bg-red-50 dark:bg-red-900/20', iconBg: 'bg-gradient-to-br from-red-500 to-red-600' },
   teal: { bg: 'bg-teal-50 dark:bg-teal-900/20', iconBg: 'bg-gradient-to-br from-teal-500 to-teal-600' },

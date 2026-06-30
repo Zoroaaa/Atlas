@@ -134,7 +134,7 @@ export const UsersTab: React.FC = () => {
                       <button onClick={() => handleToggleStatus(user.id, user.isActive)} className={clsx('p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700', user.isActive ? 'text-surface-500 hover:text-error-600' : 'text-surface-500 hover:text-success-600')} title={user.isActive ? '禁用' : '启用'}>
                         {user.isActive ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                       </button>
-                      <button onClick={() => setPermissionsModal({ open: true, userId: user.id, current: user.permissions || [] })} className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 hover:text-purple-600" title="管理权限"><Shield className="w-4 h-4" /></button>
+                      <button onClick={() => setPermissionsModal({ open: true, userId: user.id, current: user.permissions || [] })} className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 hover:text-rose-600" title="管理权限"><Shield className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -156,9 +156,9 @@ export const UsersTab: React.FC = () => {
               <h4 className="font-medium mb-3">统计数据</h4>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { icon: LogIn, color: 'text-blue-500', value: selectedUser.stats?.totalLoginCount ?? 0, label: '总登录' },
+                  { icon: LogIn, color: 'text-amber-500', value: selectedUser.stats?.totalLoginCount ?? 0, label: '总登录' },
                   { icon: Search, color: 'text-green-500', value: selectedUser.stats?.totalSearchCount ?? 0, label: '搜索次数' },
-                  { icon: Server, color: 'text-purple-500', value: selectedUser.stats?.activeSessions ?? 0, label: '活跃会话' },
+                  { icon: Server, color: 'text-rose-500', value: selectedUser.stats?.activeSessions ?? 0, label: '活跃会话' },
                   { icon: Activity, color: 'text-orange-500', value: selectedUser.stats?.favoritesCount ?? 0, label: '收藏数' },
                   { icon: Database, color: 'text-teal-500', value: selectedUser.stats?.historyCount ?? 0, label: '历史记录' },
                   { icon: Award, color: 'text-primary-500', value: selectedUser.loginCount ?? 0, label: '累计登录' },

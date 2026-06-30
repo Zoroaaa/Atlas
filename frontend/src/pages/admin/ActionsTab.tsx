@@ -105,7 +105,7 @@ export const ActionsTab: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 font-medium text-surface-900 dark:text-surface-100">{log.username || '匿名'}</td>
                     <td className="px-4 py-3">
-                      <span className={clsx('inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium', actionColors[log.action] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400')}>
+                      <span className={clsx('inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium', actionColors[log.action] || 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400')}>
                         {actionLabels[log.action] || log.action}
                       </span>
                     </td>

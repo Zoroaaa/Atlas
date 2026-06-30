@@ -39,7 +39,7 @@ const CODE_COLORS = [
   'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
   'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 border-primary-200 dark:border-primary-800',
-  'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800',
+  'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
 ];
 
 const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void; emptyText?: string }> = ({
@@ -115,7 +115,7 @@ type TabId = 'censored' | 'uncensored' | 'hd' | 'subtitle' | 'genres' | 'actress
 interface TabDef { id: TabId; label: string; short: string; icon: React.ElementType; color: string; bg: string; }
 const TABS: TabDef[] = [
   { id: 'censored',   label: '有码精选', short: '有码', icon: Film,     color: 'text-rose-600 dark:text-rose-400',      bg: 'bg-rose-100 dark:bg-rose-900/30' },
-  { id: 'uncensored', label: '无码精选', short: '无码', icon: Eye,      color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-100 dark:bg-purple-900/30' },
+  { id: 'uncensored', label: '无码精选', short: '无码', icon: Eye,      color: 'text-rose-600 dark:text-rose-400',        bg: 'bg-rose-100 dark:bg-rose-900/30' },
   { id: 'hd',         label: '高清专区', short: '高清', icon: Tv,       color: 'text-sky-600 dark:text-sky-400',         bg: 'bg-sky-100 dark:bg-sky-900/30' },
   { id: 'subtitle',   label: '字幕专区', short: '字幕', icon: FileText, color: 'text-teal-600 dark:text-teal-400',       bg: 'bg-teal-100 dark:bg-teal-900/30' },
   { id: 'genres',     label: '随机类别', short: '类别', icon: Tag,      color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-100 dark:bg-amber-900/30' },
@@ -139,7 +139,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
     // 固定总高度：展开时 JAV_PANEL_HEIGHT，收缩时 JAV_HEADER_HEIGHT
     <div
       className="collapsible-section animate-fade-in transition-all duration-300 overflow-hidden shrink-0"
-      style={{ height: expanded ? JAV_PANEL_HEIGHT : JAV_HEADER_HEIGHT }}
+      style={{ height: expanded ? JAV_PANEL_HEIGHT : JAV_HEADER_HEIGHT, maxHeight: expanded ? '60vh' : undefined }}
     >
       {/* Header */}
       <button onClick={() => setExpanded(!expanded)} className="collapsible-header" style={{ height: JAV_HEADER_HEIGHT }}>

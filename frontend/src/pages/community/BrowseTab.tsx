@@ -111,7 +111,7 @@ export const BrowseTab: React.FC = () => {
           {/* 类型筛选 + 排序 + 视图切换 */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* 类型筛选 */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+            <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
               {TYPE_FILTERS.map((filter) => (
                 <button
                   key={filter.key}
@@ -122,8 +122,8 @@ export const BrowseTab: React.FC = () => {
                   className={clsx(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
                     postTypeFilter === filter.key
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                      ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm'
+                      : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
                   )}
                 >
                   {filter.icon && <filter.icon className="w-3.5 h-3.5" />}
@@ -134,7 +134,7 @@ export const BrowseTab: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {/* 排序切换 */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+              <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
                 {SORT_OPTIONS.map((sort) => (
                   <button
                     key={sort.key}
@@ -145,8 +145,8 @@ export const BrowseTab: React.FC = () => {
                     className={clsx(
                       'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all',
                       sortBy === sort.key
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm'
+                        : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
                     )}
                   >
                     <sort.icon className="w-3 h-3" />
@@ -156,14 +156,14 @@ export const BrowseTab: React.FC = () => {
               </div>
 
               {/* 视图切换 */}
-              <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+              <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={clsx(
                     'p-1.5 rounded-md transition-all',
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white dark:bg-stone-700 text-stone-900 shadow-sm'
+                      : 'text-stone-400 hover:text-stone-600'
                   )}
                   title="网格视图"
                 >
@@ -174,8 +174,8 @@ export const BrowseTab: React.FC = () => {
                   className={clsx(
                     'p-1.5 rounded-md transition-all',
                     viewMode === 'list'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600'
+                      ? 'bg-white dark:bg-stone-700 text-stone-900 shadow-sm'
+                      : 'text-stone-400 hover:text-stone-600'
                   )}
                   title="列表视图"
                 >
@@ -194,8 +194,8 @@ export const BrowseTab: React.FC = () => {
 
       {/* 帖子数量提示 */}
       {!postsLoading && postsTotal > 0 && (
-        <p className="text-sm text-slate-400">
-          共找到 <span className="font-semibold text-slate-600 dark:text-slate-300">{postsTotal}</span> 个帖子
+        <p className="text-sm text-stone-400">
+          共找到 <span className="font-semibold text-stone-600 dark:text-stone-300">{postsTotal}</span> 个帖子
         </p>
       )}
 
@@ -241,7 +241,7 @@ export const BrowseTab: React.FC = () => {
           {/* 分页 */}
           {postsTotal > 20 && (
             <div className="flex items-center justify-between pt-4">
-              <span className="text-sm text-slate-400">共 {postsTotal} 条</span>
+              <span className="text-sm text-stone-400">共 {postsTotal} 条</span>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -251,7 +251,7 @@ export const BrowseTab: React.FC = () => {
                 >
                   上一页
                 </Button>
-                <span className="flex items-center px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-600 dark:text-slate-400">
+                <span className="flex items-center px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600 dark:text-stone-400">
                   {page}
                 </span>
                 <Button

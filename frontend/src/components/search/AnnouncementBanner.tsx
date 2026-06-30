@@ -12,7 +12,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
 };
 
 const TYPE_STYLE: Record<string, { dot: string; badge: string }> = {
-  info:    { dot: 'bg-blue-500', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  info:    { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   warning: { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   success: { dot: 'bg-green-500', badge: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   error:   { dot: 'bg-red-500', badge: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -33,7 +33,7 @@ export const AnnouncementPanel: React.FC = () => {
   return (
     <div
       className="collapsible-section animate-fade-in transition-all duration-300 overflow-hidden shrink-0"
-      style={{ height: show ? JAV_PANEL_HEIGHT : HEADER }}
+      style={{ height: show ? JAV_PANEL_HEIGHT : HEADER, maxHeight: show ? '60vh' : undefined }}
     >
       <button
         onClick={() => setShow(!show)}
@@ -41,8 +41,8 @@ export const AnnouncementPanel: React.FC = () => {
         style={{ height: HEADER }}
       >
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-            <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-600 dark:text-violet-400" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
           </div>
           <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">网站公告</span>
           {hasData && (
@@ -63,7 +63,7 @@ export const AnnouncementPanel: React.FC = () => {
                 className={clsx(
                   'rounded-xl p-3 border transition-colors',
                   style.badge,
-                  item.is_pinned === 1 && 'ring-1 ring-inset ring-violet-200 dark:ring-violet-800'
+                  item.is_pinned === 1 && 'ring-1 ring-inset ring-amber-200 dark:ring-amber-800'
                 )}
               >
                 <div className="flex items-start gap-2.5">
@@ -73,10 +73,10 @@ export const AnnouncementPanel: React.FC = () => {
                       <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', style.dot)} />
                       <h4 className="font-medium text-sm truncate">{item.title}</h4>
                       {item.is_pinned === 1 && (
-                        <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">置顶</span>
+                        <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">置顶</span>
                       )}
                     </div>
-                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-2">{item.content}</p>
+                    <p className="text-xs leading-relaxed text-stone-600 dark:text-stone-400 line-clamp-2">{item.content}</p>
                   </div>
                 </div>
               </div>

@@ -3,30 +3,35 @@ import { camelizeKeys } from '@/utils';
 import type {
   SearchHistoryItem,
   FavoriteItem,
-  SearchSuggestion,
-  TrendingSearch,
-  SearchRequest,
-  SearchResponse,
   AddFavoriteRequest,
   SaveSearchHistoryRequest,
 } from '@/types';
+import type {
+  SearchEndpointResponse,
+  SearchSuggestionsResponse,
+  SearchTrendingResponse,
+  FavoritesResponse,
+  SearchHistoryResponse,
+  SearchStatsResponse,
+} from './types';
 
 export const searchApi = {
-  search: async (data: SearchRequest): Promise<SearchResponse> => {
-    return apiClient.post<SearchResponse>('/search', data);
+  search: async (data: {
+    keyword: string;
+    sourceIds?: string[];
+    categoryId?: string;
+    majorCategoryId?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<SearchEndpointResponse> => {
+    return apiClient.post<SearchEndpointResponse>('/search', data);
   },
 
-  getSuggestions: async (keyword: string, limit = 10): Promise<{ 
-    success: boolean; 
-    data: SearchSuggestion[] 
-  }> => {
+  getSuggestions: async (keyword: string, limit = 10): Promise<SearchSuggestionsResponse> => {
     return apiClient.get(`/search/suggestions?keyword=${encodeURIComponent(keyword)}&limit=${limit}`);
   },
 
-  getTrending: async (limit = 20, hours = 24): Promise<{ 
-    success: boolean; 
-    data: TrendingSearch[] 
-  }> => {
+  getTrending: async (limit = 20, hours = 24): Promise<SearchTrendingResponse> => {
     return apiClient.get(`/search/trending?limit=${limit}&hours=${hours}`);
   },
 };
@@ -47,10 +52,7 @@ export const userApi = {
     return apiClient.put('/user/settings', { settings });
   },
 
-  getFavorites: async (): Promise<{ 
-    success: boolean; 
-    data: { favorites: FavoriteItem[] } 
-  }> => {
+  getFavorites: async (): Promise<FavoritesResponse> => {
     const response = await apiClient.get<{ success: boolean; data: { favorites: Array<{
       id: string;
       userId: string;
@@ -97,7 +99,7 @@ export const userApi = {
         }
       };
     }
-    return { success: false, data: { favorites: [] } };
+    return { success: false };
   },
 
   addFavorite: async (data: AddFavoriteRequest): Promise<{ 
@@ -120,10 +122,7 @@ export const userApi = {
     return apiClient.patch(`/user/favorites/${id}/status`, { status });
   },
 
-  getSearchHistory: async (limit = 50): Promise<{
-    success: boolean;
-    data: { history: SearchHistoryItem[] }
-  }> => {
+  getSearchHistory: async (limit = 50): Promise<SearchHistoryResponse> => {
     const response = await apiClient.get<{ success: boolean; data: { history: Array<Record<string, unknown>> } }>(`/user/search-history?limit=${limit}`);
 
     if (response.success && response.data) {
@@ -132,7 +131,7 @@ export const userApi = {
         data: { history: camelizeKeys<SearchHistoryItem[]>(response.data.history) }
       };
     }
-    return { success: false, data: { history: [] } };
+    return { success: false };
   },
 
   saveSearchHistory: async (data: SaveSearchHistoryRequest): Promise<{ 
@@ -165,17 +164,7 @@ export const userApi = {
     return apiClient.put(`/user/search-history/${id}`, data);
   },
 
-  getSearchStats: async (): Promise<{ 
-    success: boolean; 
-    data: {
-      totalSearches: number;
-      topSources: Array<{ source: string; count: number }>;
-      recentSearches: Array<{ query: string; createdAt: number }>;
-      searchGrowthPercent: number;
-      thisWeekSearches: number;
-      lastWeekSearches: number;
-    } 
-  }> => {
+  getSearchStats: async (): Promise<SearchStatsResponse> => {
     const response = await apiClient.get<{
       success: boolean;
       data: {
@@ -204,17 +193,7 @@ export const userApi = {
         }
       };
     }
-    return { 
-      success: false, 
-      data: {
-        totalSearches: 0,
-        topSources: [],
-        recentSearches: [],
-        searchGrowthPercent: 0,
-        thisWeekSearches: 0,
-        lastWeekSearches: 0,
-      }
-    };
+    return { success: false };
   },
 
   updateSourceConfig: async (sourceId: string, config: {

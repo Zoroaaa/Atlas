@@ -16,7 +16,7 @@ export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 glass">
@@ -31,7 +31,7 @@ export const MainLayout: React.FC = () => {
                 title="刷新页面"
               >
                 <div className="relative w-10 h-10">
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 opacity-0 group-hover:opacity-20 blur-lg transition-all" />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] opacity-0 group-hover:opacity-20 blur-lg transition-all" />
                   <img
                     src="/logo.png"
                     alt="磁力快搜"
@@ -59,7 +59,7 @@ export const MainLayout: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-all duration-200 active:scale-95"
+                className="p-2 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200 active:scale-95"
                 aria-label="切换主题"
               >
                 {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -83,7 +83,7 @@ export const MainLayout: React.FC = () => {
 
               <button
                 onClick={() => setSidebarOpen(!isSidebarOpen)}
-                className="md:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-all duration-200"
+                className="md:hidden p-2 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
               >
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -98,7 +98,7 @@ export const MainLayout: React.FC = () => {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/40 backdrop-blur-sm">
+      <footer className="border-t border-stone-200/60 dark:border-stone-800/60 bg-white/50 dark:bg-stone-900/40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
@@ -107,11 +107,11 @@ export const MainLayout: React.FC = () => {
                 alt="磁力快搜"
                 className="w-8 h-8 rounded-xl shadow-md object-cover"
               />
-              <span className="font-semibold text-slate-700 dark:text-slate-300 tracking-tight">
+              <span className="font-semibold text-stone-700 dark:text-stone-300 tracking-tight">
                 磁力快搜
               </span>
             </div>
-            <p className="text-sm text-slate-400 dark:text-slate-500">
+            <p className="text-sm text-stone-400 dark:text-stone-500">
               © {new Date().getFullYear()} 磁力快搜. 保留所有权利.
             </p>
           </div>
@@ -132,8 +132,8 @@ const NavLink: React.FC<NavLinkProps> = ({ to, children }) => {
       to={to}
       className={clsx(
         'px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200',
-        'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80',
-        'dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800'
+        'text-stone-600 hover:text-stone-900 hover:bg-stone-100/80',
+        'dark:text-stone-400 dark:hover:text-stone-100 dark:hover:bg-stone-800'
       )}
     >
       {children}

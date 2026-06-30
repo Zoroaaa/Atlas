@@ -17,7 +17,7 @@ import { ShareToCommunityButton } from '@/components/community';
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const ratingColor = (n: number) =>
-  n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-slate-400';
+  n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-stone-400';
 
 const mediaTypeLabel = (t: 'movie' | 'tv') =>
   t === 'movie' ? '电影' : '剧集';
@@ -26,7 +26,7 @@ const mediaTypeLabel = (t: 'movie' | 'tv') =>
 
 function ResourceCard({ item }: { item: ResourceItem }) {
   return (
-    <div className="grid grid-cols-[1fr_auto] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+    <div className="grid grid-cols-[1fr_auto] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
       {/* 左侧：标题 + 元信息 */}
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -38,11 +38,11 @@ function ResourceCard({ item }: { item: ResourceItem }) {
             <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 rounded">EZTV</span>
           )}
           {item.source === 'tpb' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-400 rounded">TPB</span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-stone-100 text-stone-600 dark:bg-stone-800/60 dark:text-stone-400 rounded">TPB</span>
           )}
           {/* 资源类型标签 */}
           {item.resourceType === 'drive' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 rounded">网盘</span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">网盘</span>
           )}
           {item.resourceType === 'direct' && (
             <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">直链</span>
@@ -53,7 +53,7 @@ function ResourceCard({ item }: { item: ResourceItem }) {
               href={item.driveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate"
+              className="text-xs text-amber-600 dark:text-amber-400 hover:underline truncate"
               title={item.title}
             >
               {item.title}
@@ -67,13 +67,13 @@ function ResourceCard({ item }: { item: ResourceItem }) {
               {item.title}
             </a>
           ) : (
-            <span className="text-xs text-slate-600 dark:text-slate-300 truncate">{item.title}</span>
+            <span className="text-xs text-stone-600 dark:text-stone-300 truncate">{item.title}</span>
           )}
         </div>
-        <div className="flex flex-wrap gap-x-3 mt-1 text-[10px] text-slate-500">
+        <div className="flex flex-wrap gap-x-3 mt-1 text-[10px] text-stone-500">
           {item.size && <span>{item.size}</span>}
           {item.date && <span>{item.date}</span>}
-          <span className="text-slate-400">{item.sourceLabel}</span>
+          <span className="text-stone-400">{item.sourceLabel}</span>
         </div>
       </div>
 
@@ -86,7 +86,7 @@ function ResourceCard({ item }: { item: ResourceItem }) {
               target="_blank"
               rel="noopener noreferrer"
               title="打开网盘链接"
-              className="p-1 rounded text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+              className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
@@ -100,7 +100,7 @@ function ResourceCard({ item }: { item: ResourceItem }) {
             <a
               href={item.magnet}
               title="打开磁力链接（唤起BT客户端）"
-              className="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+              className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
             >
               <Magnet className="w-3.5 h-3.5" />
             </a>
@@ -123,11 +123,11 @@ const MovieCard: React.FC<{
 }> = ({ item, onSelect, active, isAuthenticated, isFavorited, onToggleFavorite }) => (
   <div className={`group text-left w-full flex gap-3 p-3 rounded-xl border transition-all ${
     active
-      ? 'border-blue-500/60 bg-blue-500/10'
-      : 'border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800/40 hover:border-blue-500/30 hover:bg-slate-50 dark:hover:bg-slate-800/70'
+      ? 'border-amber-500/60 bg-amber-500/10'
+      : 'border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-amber-500/30 hover:bg-stone-50 dark:hover:bg-stone-800/70'
   }`}>
     <button onClick={() => onSelect(item)} className="flex gap-3 min-w-0 flex-1 text-left">
-    <div className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-700">
+    <div className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-stone-200 dark:bg-stone-700">
       {item.poster ? (
         <img
           src={item.poster}
@@ -139,9 +139,9 @@ const MovieCard: React.FC<{
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           {item.mediaType === 'movie' ? (
-            <Film className="w-5 h-5 text-slate-400" />
+            <Film className="w-5 h-5 text-stone-400" />
           ) : (
-            <Tv2 className="w-5 h-5 text-slate-400" />
+            <Tv2 className="w-5 h-5 text-stone-400" />
           )}
         </div>
       )}
@@ -149,14 +149,14 @@ const MovieCard: React.FC<{
 
     <div className="min-w-0 flex-1">
       <p className={`font-medium text-sm leading-tight truncate ${
-        active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-100 group-hover:text-blue-500'
+        active ? 'text-amber-600 dark:text-amber-400' : 'text-stone-800 dark:text-stone-100 group-hover:text-amber-500'
       }`}>
         {item.title}
       </p>
       {item.originalTitle && item.originalTitle !== item.title && (
-        <p className="text-xs text-slate-500 truncate mt-0.5">{item.originalTitle}</p>
+        <p className="text-xs text-stone-500 truncate mt-0.5">{item.originalTitle}</p>
       )}
-      <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-slate-400">
+      <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-stone-400">
         {item.source === 'douban' ? (
           <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">豆瓣</span>
         ) : (
@@ -164,8 +164,8 @@ const MovieCard: React.FC<{
         )}
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
           item.mediaType === 'movie'
-            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-            : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+            : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
         }`}>
           {mediaTypeLabel(item.mediaType)}
         </span>
@@ -191,7 +191,7 @@ const MovieCard: React.FC<{
           className={`p-1.5 rounded-lg transition-all ${
             isFavorited
               ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-              : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+              : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
           }`}
           title={isFavorited ? '取消收藏' : '收藏'}
         >
@@ -270,22 +270,22 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
     <div className="space-y-5">
       {/* stats bar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs text-slate-500">
+        <div className="flex items-center gap-3 text-xs text-stone-500">
           <span>{data.total} 条影视</span>
           <span>·</span>
           <span>{data.resourceTotal} 条资源</span>
           {magnetCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
               磁力 {magnetCount}
             </span>
           )}
           {driveCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
               网盘 {driveCount}
             </span>
           )}
           {data.resourceSources && data.resourceSources.length > 0 && (
-            <span className="text-slate-400">
+            <span className="text-stone-400">
               来自 {data.resourceSources.join(' / ')}
             </span>
           )}
@@ -310,7 +310,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             />
             <button
               onClick={onRefresh}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
             >
               <RefreshCw className="w-3 h-3" /> 刷新
             </button>
@@ -347,9 +347,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
       {/* completely empty state */}
       {results.length === 0 && resources.length === 0 && !data.tmdbError && !data.doubanError && !data.tpbError && !data.eztvError && (
         <div className="text-center py-16">
-          <Wifi className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">未找到相关结果</p>
-          <p className="text-xs text-slate-400 mt-1">尝试更换关键词</p>
+          <Wifi className="w-10 h-10 text-stone-400 mx-auto mb-3" />
+          <p className="text-sm text-stone-500">未找到相关结果</p>
+          <p className="text-xs text-stone-400 mt-1">尝试更换关键词</p>
         </div>
       )}
 
@@ -358,11 +358,11 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
         {results.length > 0 ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-1 h-4 rounded-full bg-blue-500" />
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <div className="w-1 h-4 rounded-full bg-amber-500" />
+              <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-300">
                 影视匹配
               </h2>
-              <span className="ml-auto text-xs text-slate-400">{results.length} 条</span>
+              <span className="ml-auto text-xs text-stone-400">{results.length} 条</span>
             </div>
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
               {results.map((item) => (
@@ -387,20 +387,20 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                 <button
                   disabled={data.page <= 1}
                   onClick={() => onPageChange(data.page - 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
-                             hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                             dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" /> 上页
                 </button>
-                <span className="flex items-center px-3 text-xs text-slate-500">
+                <span className="flex items-center px-3 text-xs text-stone-500">
                   第 {data.page} 页
                 </span>
                 <button
                   onClick={() => onPageChange(data.page + 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
-                             hover:bg-slate-200 hover:text-slate-700 transition-all
-                             dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                             hover:bg-stone-200 hover:text-stone-700 transition-all
+                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                 >
                   下页 <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -408,9 +408,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             )}
           </div>
         ) : !data.tmdbError && !data.doubanError ? (
-          <div className="rounded-xl border p-6 text-center bg-white dark:bg-slate-800/30 border-slate-200 dark:border-slate-700">
-            <Film className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-            <p className="text-sm text-slate-500">未找到影视匹配结果</p>
+          <div className="rounded-xl border p-6 text-center bg-white dark:bg-stone-800/30 border-stone-200 dark:border-stone-700">
+            <Film className="w-8 h-8 text-stone-400 mx-auto mb-2" />
+            <p className="text-sm text-stone-500">未找到影视匹配结果</p>
           </div>
         ) : null}
 
@@ -418,14 +418,14 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
         <div className="min-w-0 space-y-5">
           {/* selected item detail（增强版元数据展示） */}
           {selectedItem && (
-            <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
               {/* 封面 + 基本信息 */}
               <div className="flex gap-4 sm:gap-5 p-4 sm:p-5">
                 {selectedItem.poster || selectedItem.backdrop ? (
                   <img
                     src={selectedItem.backdrop ?? selectedItem.poster!}
                     alt={selectedItem.title}
-                    className="hidden sm:block w-48 h-28 object-cover rounded-lg flex-shrink-0 bg-slate-200 dark:bg-slate-700 shadow-md"
+                    className="hidden sm:block w-48 h-28 object-cover rounded-lg flex-shrink-0 bg-stone-200 dark:bg-stone-700 shadow-md"
                     loading="lazy"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
@@ -435,11 +435,11 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                      <h3 className="text-base sm:text-lg font-bold text-stone-900 dark:text-stone-100 leading-snug">
                         {selectedItem.title}
                       </h3>
                       {selectedItem.originalTitle !== selectedItem.title && (
-                        <p className="text-sm text-slate-500 mt-0.5">{selectedItem.originalTitle}</p>
+                        <p className="text-sm text-stone-500 mt-0.5">{selectedItem.originalTitle}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -450,7 +450,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                             className={`p-1.5 rounded-lg transition-all ${
                               isMovieFavorited(selectedItem)
                                 ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-                                : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+                                : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
                             }`}
                             title={isMovieFavorited(selectedItem) ? '取消收藏' : '收藏'}
                           >
@@ -471,7 +471,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-lg transition-all flex-shrink-0"
+                        className="flex items-center gap-1 text-xs text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-lg transition-all flex-shrink-0"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
@@ -492,25 +492,25 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                       )}
                       <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
                         selectedItem.mediaType === 'movie'
-                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                          ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
                       }`}>
                         {mediaTypeLabel(selectedItem.mediaType)}
                       </span>
                       {selectedItem.year && (
-                        <span className="flex items-center gap-1 text-xs text-slate-500">
+                        <span className="flex items-center gap-1 text-xs text-stone-500">
                           <Calendar className="w-3 h-3" />{selectedItem.year}
                         </span>
                       )}
                       {selectedItem.rating > 0 && (
                         <span className={`flex items-center gap-1 text-sm font-semibold ${ratingColor(selectedItem.rating)}`}>
                           <Star className="w-3.5 h-3.5 fill-current" />{selectedItem.rating.toFixed(1)}
-                          <span className="text-xs text-slate-400 font-normal">({selectedItem.voteCount} 人评价)</span>
+                          <span className="text-xs text-stone-400 font-normal">({selectedItem.voteCount} 人评价)</span>
                         </span>
                       )}
                     </div>
                     {selectedItem.overview && (
-                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3 mt-2">
+                      <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-3 mt-2">
                         {selectedItem.overview}
                       </p>
                     )}
@@ -521,24 +521,24 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
           )}
 
           {/* resource links（增强版资源列表） */}
-          <div className="bg-white dark:bg-slate-900/90 rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+          <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
             {/* 标题栏 */}
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                  <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 dark:text-purple-400" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+                  <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
                 </div>
-                <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">
                   下载资源
                 </span>
                 {displayResources.length > 0 && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
+                  <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
                     {displayResources.length} 条
                   </span>
                 )}
               </div>
               {displayResources.length > 0 && (
-                <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                <div className="flex items-center gap-1 text-[10px] text-stone-400">
                   <Magnet className="w-3 h-3" />
                   点击名称唤起客户端 · 图标复制链接
                 </div>
@@ -549,13 +549,13 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             <div className="p-4 sm:p-5">
               {displayResources.length === 0 ? (
                 <div className="text-center py-8">
-                  <Magnet className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">未抓取到资源</p>
-                  <p className="text-xs text-slate-400 mt-2">
+                  <Magnet className="w-8 h-8 text-stone-400 mx-auto mb-2" />
+                  <p className="text-sm text-stone-500">未抓取到资源</p>
+                  <p className="text-xs text-stone-400 mt-2">
                     可直接前往
-                    <a href={`https://yts.mx/movies?query_term=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mx-1">YTS</a>·
-                    <a href={`https://1337x.to/search/${encodeURIComponent(data.keyword)}/1/`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mx-1">1337x</a>·
-                    <a href={`https://www.lightbt.top/search?q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mx-1">LightBT</a>
+                    <a href={`https://yts.mx/movies?query_term=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">YTS</a>·
+                    <a href={`https://1337x.to/search/${encodeURIComponent(data.keyword)}/1/`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">1337x</a>·
+                    <a href={`https://www.lightbt.top/search?q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">LightBT</a>
                     搜索
                   </p>
                 </div>
@@ -563,7 +563,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                 <>
                   <div className="space-y-1.5">
                     {/* 表头 */}
-                    <div className="grid grid-cols-[1fr_80px] gap-2 px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100 dark:border-slate-800">
+                    <div className="grid grid-cols-[1fr_80px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
                       <span>资源名称</span>
                       <span className="text-right">操作</span>
                     </div>
@@ -577,7 +577,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     {pagedResources.length > 5 && (
                       <button
                         onClick={() => setShowAllResources(!showAllResources)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-slate-400 hover:text-primary-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-lg transition-all"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-stone-400 hover:text-primary-500 hover:bg-stone-50 dark:hover:bg-stone-800/40 rounded-lg transition-all"
                       >
                         {showAllResources
                           ? <><ChevronUp className="w-3.5 h-3.5" />收起</>
@@ -588,26 +588,26 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
 
                   {/* 分页 */}
                   {displayResources.length > RES_PAGE_SIZE && (
-                    <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
                       <button
                         disabled={resourcePage <= 1}
                         onClick={() => setResourcePage(p => p - 1)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
-                                   hover:bg-slate-200 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                                   dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                                   hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                                   dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" /> 上一页
                       </button>
-                      <span className="text-xs text-slate-500 px-2">
+                      <span className="text-xs text-stone-500 px-2">
                         {resourcePage} / {resTotalPages}
-                        <span className="ml-1 text-slate-400">（共 {displayResources.length} 条）</span>
+                        <span className="ml-1 text-stone-400">（共 {displayResources.length} 条）</span>
                       </span>
                       <button
                         disabled={resourcePage >= resTotalPages}
                         onClick={() => setResourcePage(p => p + 1)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-500
-                                   hover:bg-slate-200 hover:text-slate-700 transition-all
-                                   dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                                   hover:bg-stone-200 hover:text-stone-700 transition-all
+                                   dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                       >
                         下一页 <ChevronRight className="w-3.5 h-3.5" />
                       </button>

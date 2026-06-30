@@ -1,5 +1,7 @@
+/// <reference types="vitest" />
 import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import fs from 'fs'
 
@@ -19,7 +21,7 @@ function injectSwVersion(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), injectSwVersion()],
+  plugins: [tailwindcss(), react(), injectSwVersion()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -55,6 +57,11 @@ export default defineConfig({
       }
     }
   },
-  publicDir: 'public'
+  publicDir: 'public',
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+  }
 })
 

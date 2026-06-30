@@ -16,6 +16,16 @@
 export const CONFIG = {
 
   // ==================================================================
+  // 默认域名配置 — 仅作为环境变量未设置时的 fallback
+  // 实际部署时应在 wrangler.toml 中配置 FRONTEND_URL 和 BACKEND_URL
+  // ==================================================================
+
+  DEFAULT_URLS: {
+    FRONTEND: 'https://atlas.wort.uk',
+    BACKEND: 'https://atlasapi.wort.uk',
+  },
+
+  // ==================================================================
   // 固定枚举值 — 代码逻辑依赖，不可热改
   // ==================================================================
 
@@ -73,8 +83,8 @@ export const CONFIG = {
     ALLOW_HEADERS: ['Content-Type', 'Authorization', 'X-Requested-With'],
     EXPOSE_HEADERS: ['Content-Length', 'X-Request-Id'],
     ALLOWED_ORIGINS: [
-      'https://codeseek.pp.ua',
-      'https://www.codeseek.pp.ua',
+      'https://atlas.wort.uk',
+      'https://www.atlas.wort.uk',
       'http://localhost:3000',
       'http://127.0.0.1:3000',
     ],

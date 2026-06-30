@@ -21,10 +21,10 @@ import type { SearchHistoryItem, FavoriteItem } from '@/types';
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
 const getUserLevel = (total: number): { label: string; color: string; next: number } => {
-  if (total < 10)  return { label: '新手',   color: 'from-slate-400 to-slate-500',     next: 10  };
+  if (total < 10)  return { label: '新手',   color: 'from-stone-400 to-stone-500',     next: 10  };
   if (total < 50)  return { label: '熟练',   color: 'from-green-400 to-emerald-500',   next: 50  };
-  if (total < 200) return { label: '专业',   color: 'from-blue-400 to-cyan-500',       next: 200 };
-  if (total < 500) return { label: '专家',   color: 'from-purple-400 to-violet-500',   next: 500 };
+  if (total < 200) return { label: '专业',   color: 'from-amber-400 to-amber-500',     next: 200 };
+  if (total < 500) return { label: '专家',   color: 'from-rose-400 to-rose-500',       next: 500 };
   return             { label: '大师',   color: 'from-amber-400 to-orange-500',    next: Infinity };
 };
 
@@ -187,7 +187,7 @@ const SourceUsageBar: React.FC<{
   rank: number;
 }> = ({ name, count, total, rank }) => {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-  const rankColors = ['from-amber-400 to-yellow-500', 'from-slate-300 to-slate-400', 'from-amber-600 to-amber-700'];
+  const rankColors = ['from-amber-400 to-yellow-500', 'from-stone-300 to-stone-400', 'from-amber-600 to-amber-700'];
   const barColor = rank <= 3 ? 'bg-gradient-to-r from-primary-500 to-primary-400' : 'bg-gradient-to-r from-surface-400 to-surface-300 dark:from-surface-600 dark:to-surface-500';
 
   return (
@@ -359,7 +359,7 @@ export const StatsManager: React.FC = () => {
       {/* ── 页头 ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shadow-lg shadow-amber-500/25">
             <BarChart2 className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -523,7 +523,7 @@ export const StatsManager: React.FC = () => {
               >
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                   i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-                  : i === 1 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  : i === 1 ? 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
                   : i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
                   : 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-400'
                 }`}>

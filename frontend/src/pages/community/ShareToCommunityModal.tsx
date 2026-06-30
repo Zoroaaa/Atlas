@@ -20,8 +20,8 @@ interface ShareToCommunityModalProps {
 
 const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'text-rose-500' },
-  anime: { label: '动漫', icon: Tv, color: 'text-violet-500' },
-  movie: { label: '影视', icon: Film, color: 'text-blue-500' },
+  anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
+  movie: { label: '影视', icon: Film, color: 'text-amber-500' },
 };
 
 export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
@@ -114,12 +114,12 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
       <div className="space-y-5">
         {/* 预览卡片区 */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
             预览内容
           </label>
-          <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="flex gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
             {/* 封面预览 */}
-            <div className="w-24 h-32 rounded-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
+            <div className="w-24 h-32 rounded-lg overflow-hidden shrink-0 bg-stone-200 dark:bg-stone-700">
               {initialData.coverImage ? (
                 <img
                   src={initialData.coverImage}
@@ -141,11 +141,11 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
                   {typeConfig.label}
                 </span>
               </div>
-              <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug">
+              <h4 className="font-semibold text-sm text-stone-900 dark:text-stone-100 line-clamp-2 leading-snug">
                 {initialData.title}
               </h4>
               {caption && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 italic">
+                <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 italic">
                   "{caption}"
                 </p>
               )}
@@ -166,7 +166,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
 
         {/* 标签选择器 */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
             选择标签（可选）
           </label>
           <div className="flex flex-wrap gap-2">
@@ -179,7 +179,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
                   'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
                   selectedTags.includes(tag.id)
                     ? 'text-white shadow-md'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
                 )}
                 style={
                   selectedTags.includes(tag.id)
@@ -191,7 +191,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
               </button>
             ))}
             {tags.length === 0 && (
-              <span className="text-sm text-slate-400">暂无可用标签</span>
+              <span className="text-sm text-stone-400">暂无可用标签</span>
             )}
           </div>
         </div>

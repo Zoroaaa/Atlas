@@ -40,7 +40,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
 
   const getCategoryBadge = (categoryId?: string) => {
     const category = categories.find(c => c.id === categoryId);
-    if (!category) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    if (!category) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
     const majorCategory = majorCategories.find(mc => mc.id === category.majorCategoryId);
     if (majorCategory?.color) return 'bg-opacity-20 text-opacity-90';
     return 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300';
@@ -62,8 +62,8 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
 
   const getSiteTypeBadge = (siteType?: string) => {
     const map: Record<string, { label: string; cls: string }> = {
-      search: { label: '搜索', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
-      browse: { label: '浏览', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+      search: { label: '搜索', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+      browse: { label: '浏览', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
       reference: { label: '参考', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
     };
     return map[siteType || 'search'] || map.search;

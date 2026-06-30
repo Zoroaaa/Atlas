@@ -49,12 +49,12 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
     {/* Header */}
     <button onClick={onToggle} className="collapsible-header" style={{ height: HIST_HEADER_HEIGHT }}>
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
         </div>
         <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">搜索历史</span>
         {history.length > 0 && (
-          <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+          <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
             {history.length}
           </span>
         )}
@@ -121,12 +121,12 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                               </span>
                             )}
                             {item.releaseDate && (
-                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                                 <Calendar className="w-2 h-2" />{item.releaseDate}
                               </span>
                             )}
                             {item.publisher && (
-                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 truncate max-w-[100px]">
+                              <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 truncate max-w-[100px]">
                                 <Building2 className="w-2 h-2 shrink-0" />{item.publisher}
                               </span>
                             )}
@@ -188,13 +188,13 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                               </span>
                             )}
                             {item.releaseDate && (
-                              <span className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                                 <Calendar className="w-2.5 h-2.5" />
                                 {item.releaseDate}
                               </span>
                             )}
                             {item.publisher && (
-                              <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                              <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
                                 <Building2 className="w-2.5 h-2.5" />
                                 {item.publisher}
                               </span>

@@ -11,7 +11,7 @@ export const TagsTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3B82F6');
+  const [newTagColor, setNewTagColor] = useState('#d4a853');
 
   useEffect(() => {
     fetchTags();
@@ -77,10 +77,10 @@ export const TagsTab: React.FC = () => {
 
         {/* 新建标签表单 */}
         {showCreateForm && (
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+          <div className="mt-4 pt-4 border-t border-stone-200 dark:border-stone-700 space-y-3">
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
                   标签名称 *
                 </label>
                 <input
@@ -88,17 +88,17 @@ export const TagsTab: React.FC = () => {
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
                   placeholder="输入标签名称"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">颜色</label>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">颜色</label>
                 <input
                   type="color"
                   value={newTagColor}
                   onChange={(e) => setNewTagColor(e.target.value)}
-                  className="h-10 w-16 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer"
+                  className="h-10 w-16 rounded-lg border border-stone-300 dark:border-stone-600 cursor-pointer"
                 />
               </div>
               <Button variant="primary" onClick={handleCreateTag}>创建</Button>
@@ -109,8 +109,8 @@ export const TagsTab: React.FC = () => {
 
       {/* 标签统计 */}
       {!tagsLoading && tags.length > 0 && (
-        <p className="text-sm text-slate-400">
-          共 <span className="font-semibold text-slate-600">{tags.length}</span> 个标签
+        <p className="text-sm text-stone-400">
+          共 <span className="font-semibold text-stone-600">{tags.length}</span> 个标签
           {searchQuery && `（搜索结果：${sortedTags.length}）`}
         </p>
       )}
@@ -160,19 +160,19 @@ export const TagsTab: React.FC = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span
-                      className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate"
+                      className="font-semibold text-sm text-stone-900 dark:text-stone-100 truncate"
                       style={{ color: tag.tagColor }}
                     >
                       #{tag.tagName}
                     </span>
                   </div>
                   {tag.tagDescription && (
-                    <p className="text-xs text-slate-500 line-clamp-1">{tag.tagDescription}</p>
+                    <p className="text-xs text-stone-500 line-clamp-1">{tag.tagDescription}</p>
                   )}
                 </div>
 
                 {/* 使用数 */}
-                <div className="shrink-0 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors">
+                <div className="shrink-0 px-2 py-1 rounded-full bg-stone-100 dark:bg-stone-800 text-xs text-stone-500 group-hover:bg-stone-200 dark:group-hover:bg-stone-700 transition-colors">
                   {tag.postsCount || 0} 帖子
                 </div>
               </div>

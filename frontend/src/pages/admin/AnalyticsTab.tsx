@@ -56,9 +56,9 @@ export const AnalyticsTab: React.FC = () => {
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
-                { title: '总事件数', value: stats.totalEvents, icon: <Zap className="w-6 h-6 text-white" />, color: 'bg-gradient-to-br from-blue-500 to-blue-600' },
+                { title: '总事件数', value: stats.totalEvents, icon: <Zap className="w-6 h-6 text-white" />, color: 'bg-gradient-to-br from-[#d4a853] to-[#f59e0b]' },
                 { title: '独立用户', value: stats.uniqueUsers, icon: <Users className="w-6 h-6 text-white" />, color: 'bg-gradient-to-br from-green-500 to-green-600' },
-                { title: '独立会话', value: stats.uniqueSessions, icon: <Server className="w-6 h-6 text-white" />, color: 'bg-gradient-to-br from-purple-500 to-purple-600' },
+                { title: '独立会话', value: stats.uniqueSessions, icon: <Server className="w-6 h-6 text-white" />, color: 'bg-gradient-to-br from-rose-500 to-rose-600' },
               ].map(c => (
                 <div key={c.title} className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-5">
                   <div className="flex items-center justify-between">
@@ -157,7 +157,7 @@ export const AnalyticsTab: React.FC = () => {
                     <tr key={e.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
                       <td className="px-4 py-3 text-surface-500 text-xs whitespace-nowrap">{formatDate(e.createdAt)}</td>
                       <td className="px-4 py-3 font-medium text-surface-900 dark:text-surface-100">{e.username || '匿名'}</td>
-                      <td className="px-4 py-3"><span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{e.eventType}</span></td>
+                      <td className="px-4 py-3"><span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{e.eventType}</span></td>
                       <td className="px-4 py-3 text-surface-500 text-xs">{e.ipAddress || '-'}</td>
                       <td className="px-4 py-3 text-surface-400 text-xs font-mono">{e.sessionId?.slice(-8) || '-'}</td>
                       <td className="px-4 py-3 text-surface-400 text-xs">{e.eventData && Object.keys(e.eventData).length > 0 ? <span title={JSON.stringify(e.eventData, null, 2)} className="cursor-help underline decoration-dotted text-primary-600">查看</span> : '-'}</td>

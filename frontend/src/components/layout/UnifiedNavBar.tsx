@@ -45,7 +45,7 @@ export interface UnifiedNavBarProps {
 const LogoSection: React.FC = memo(() => (
   <Link to="/" className="flex items-center gap-2.5 group">
     <div className="relative w-9 h-9 sm:w-10 sm:h-10">
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 opacity-0 group-hover:opacity-20 blur-lg transition-all duration-300" />
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] opacity-0 group-hover:opacity-20 blur-lg transition-all duration-300" />
       <img
         src="/logo.png"
         alt="Atlas"
@@ -84,9 +84,9 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
           ? clsx(
               'text-white shadow-md bg-gradient-to-br',
               tab.gradient,
-              'shadow-blue-500/25'
+              'shadow-amber-500/25'
             )
-          : (!isCommunity && 'font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'),
+          : (!isCommunity && 'font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800'),
         isCommunity && isActive && [
           'text-white shadow-lg bg-gradient-to-r from-amber-400 via-orange-500 to-red-500',
           'shadow-orange-500/40 scale-105',
@@ -123,8 +123,8 @@ const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) =>
               'relative',
             ]
           : isActive
-            ? 'text-blue-600 dark:text-blue-400 scale-105'
-            : 'text-slate-500 dark:text-slate-400'
+            ? 'text-amber-700 dark:text-amber-400 scale-105'
+            : 'text-stone-500 dark:text-stone-400'
       )}
       style={isActive ? { animation: 'bounceGentle 0.3s ease' } : undefined}
     >
@@ -156,14 +156,14 @@ const UserDropdown: React.FC<UserDropdownProps> = memo(
   ({ isAuthenticated, user, navigate, handleLogout }) => (
     <DropdownMenu
       trigger={
-        <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200">
+        <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200">
           {isAuthenticated ? (
             <>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-blue-500 to-violet-600 shadow-sm">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#d4a853] to-[#f59e0b] shadow-sm">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <span className="hidden sm:inline text-sm font-medium">{user?.username}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
             </>
           ) : (
             <>
@@ -194,7 +194,7 @@ UserDropdown.displayName = 'UserDropdown';
 const AdminLink: React.FC = memo(() => (
   <Link
     to="/admin-panel"
-    className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+    className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
     title="管理后台"
   >
     <ShieldAlert className="w-4 h-4" />
@@ -207,7 +207,7 @@ AdminLink.displayName = 'AdminLink';
 const CommunityLink: React.FC = memo(() => (
   <Link
     to="/community"
-    className="p-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
+    className="p-2 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
     title="社区"
   >
     <Globe className="w-4 h-4" />
@@ -261,12 +261,12 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
       </button>
 
       {/* 分隔线 */}
-      <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+      <div className="w-px h-5 bg-stone-200 dark:bg-stone-700 mx-1" />
 
       {/* 帮助按钮 */}
       <button
         onClick={() => setIsHelpModalOpen(true)}
-        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+        className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
         title="使用说明"
       >
         <HelpCircle className="w-4 h-4" />
@@ -274,10 +274,10 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
 
       {/* GitHub 链接 */}
       <a
-        href="https://github.com/Zoroaaa/codeseek"
+        href="https://github.com/Zoroaaa/Atlas"
         target="_blank"
         rel="noopener noreferrer"
-        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+        className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
         title="GitHub"
       >
         <Github className="w-4 h-4" />
@@ -381,7 +381,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
               {/* 分隔线 - 仅桌面端、登录后显示 */}
               {isAuthenticated && (
-              <div className="hidden sm:block w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+              <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-1" />
               )}
 
               {/* 以下按钮移动端隐藏，避免溢出 */}
@@ -389,7 +389,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 {/* 帮助按钮 */}
                 <button
                   onClick={() => setIsHelpModalOpen(true)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+                  className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
                   title="使用说明"
                 >
                   <HelpCircle className="w-4 h-4" />
@@ -400,7 +400,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   href="https://github.com/Zoroaaa/codeseek"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+                  className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
                   title="GitHub"
                 >
                   <Github className="w-4 h-4" />
@@ -431,7 +431,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
       {/* ── 移动端底部导航栏 - 登录后可见 ── */}
       {isAuthenticated && (
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom border-t border-slate-200/60 dark:border-slate-700/60"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom border-t border-stone-200/60 dark:border-stone-700/60"
         role="navigation"
         aria-label="主导航"
       >
@@ -455,7 +455,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         title="使用说明"
         size="lg"
       >
-        <div className="text-sm text-slate-600 dark:text-slate-300 space-y-4">
+        <div className="text-sm text-stone-600 dark:text-stone-300 space-y-4">
           <p><strong>Atlas</strong>是一站式聚合搜索引擎，覆盖 JAV / 动漫 / 影视，支持多源聚合搜索。</p>
 
           <div>
@@ -478,7 +478,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
             </ul>
           </div>
 
-          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs">
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs">
             提示：输入 JAV 畗号格式（如 SONE-520）会自动触发详情提取
           </div>
         </div>

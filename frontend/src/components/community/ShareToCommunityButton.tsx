@@ -51,7 +51,7 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
       <button
         onClick={handleClick}
         className={`inline-flex items-center rounded-lg font-medium transition-all
-          bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600
+          bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600
           text-white shadow-sm hover:shadow-md active:scale-[0.97]
           disabled:opacity-50 disabled:cursor-not-allowed
           ${sizeStyles[size]}

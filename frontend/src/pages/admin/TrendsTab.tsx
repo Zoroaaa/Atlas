@@ -54,9 +54,9 @@ export const TrendsTab: React.FC = () => {
         <>
           {trends && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MiniChart data={trends.userRegistrations || []} color="bg-blue-400 dark:bg-blue-500" title="用户注册趋势" />
+              <MiniChart data={trends.userRegistrations || []} color="bg-amber-400 dark:bg-amber-500" title="用户注册趋势" />
               <MiniChart data={trends.dailySearches || []} color="bg-green-400 dark:bg-green-500" title="每日搜索趋势" />
-              <MiniChart data={(trends.dailyLogins || []).map((d: any) => ({ date: d.date, count: d.success ?? d.total }))} color="bg-purple-400 dark:bg-purple-500" title="每日登录（成功）" />
+              <MiniChart data={(trends.dailyLogins || []).map((d: any) => ({ date: d.date, count: d.success ?? d.total }))} color="bg-rose-400 dark:bg-rose-500" title="每日登录（成功）" />
               <MiniChart data={trends.dailyActiveUsers || []} color="bg-orange-400 dark:bg-orange-500" title="每日活跃用户" />
             </div>
           )}
@@ -84,7 +84,7 @@ export const TrendsTab: React.FC = () => {
                 <div className="space-y-2">
                   {(behavior.topActiveUsers || []).slice(0, 10).map((user: any, idx: number) => (
                     <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-700/50">
-                      <div className={clsx('w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0', idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-slate-100 text-slate-700' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>{idx + 1}</div>
+                      <div className={clsx('w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0', idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-stone-100 text-stone-700' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>{idx + 1}</div>
                       <div className="flex-1 min-w-0"><div className="font-medium text-sm text-surface-900 dark:text-surface-100 truncate">{user.username}</div></div>
                       <div className="text-sm font-bold text-primary-600 dark:text-primary-400 shrink-0">{user.action_count}</div>
                     </div>

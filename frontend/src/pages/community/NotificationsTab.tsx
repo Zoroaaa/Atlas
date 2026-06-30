@@ -10,7 +10,7 @@ import { Pagination } from './shared';
 
 const TYPE_CONFIG: Record<CommunityNotification['type'], { icon: typeof Heart; label: string; color: string }> = {
   like: { icon: Heart, label: '点赞', color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
-  comment: { icon: MessageSquare, label: '评论', color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
+  comment: { icon: MessageSquare, label: '评论', color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
   favorite: { icon: Bookmark, label: '收藏', color: 'text-green-500 bg-green-50 dark:bg-green-900/20' },
   report_resolved: { icon: AlertTriangle, label: '举报处理', color: 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' },
 };

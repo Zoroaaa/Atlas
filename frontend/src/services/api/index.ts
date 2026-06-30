@@ -10,3 +10,25 @@ export { feedbackApi } from './feedback';
 export type { FeedbackSubmit, FeedbackItem, FeedbackStats, AdminHandleFeedback } from './feedback';
 export { announcementApi } from './announcement';
 export type { Announcement, AnnouncementForm } from './announcement';
+export type {
+  ApiResponse,
+  ApiOkResponse,
+  ApiFailResponse,
+  SearchEndpointResponse,
+  SearchResponseItem,
+  BasicSearchData,
+  SearchSuggestionsResponse,
+  SearchTrendingResponse,
+  FavoritesResponse,
+  SearchHistoryResponse,
+  AuthMeResponse,
+  UserSettingsResponse,
+  SearchStatsResponse,
+  MajorCategoriesResponse,
+  CategoriesResponse,
+  SourcesResponse,
+  SourcesWithUserConfigResponse,
+  SourceStatsResponse,
+  SourceStatusCheckResponse,
+  SystemStatsResponse,
+} from './types';
