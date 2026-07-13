@@ -359,16 +359,25 @@ searchRoutes.get('/suggestions', async (c) => {
   }
 
   // ── 通用模式：基于全局搜索历史统计 ──
+  // 数据量不大时直接查历史表；缓存和前端防抖是控制请求量的关键
   try {
+    const trimmedKeyword = keyword.trim();
+    if (trimmedKeyword.length < R.SUGGESTIONS.MIN_KEYWORD_LENGTH) {
+      return c.json(success([]));
+    }
+
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const suggestions = await c.env.DB.prepare(
       `SELECT query as keyword, COUNT(*) as count
        FROM user_search_history
-       WHERE query LIKE ?
+       WHERE created_at > ? AND query LIKE ?
        GROUP BY query
        ORDER BY count DESC
        LIMIT ?`
-    ).bind(`${keyword}%`, limit).all<{ keyword: string; count: number }>();
+    ).bind(thirtyDaysAgo, `${trimmedKeyword}%`, limit).all<{ keyword: string; count: number }>();
 
+    // CDN 缓存 60 秒，减少重复前缀的请求压力
+    c.header('Cache-Control', 'public, max-age=60');
     return c.json(success(suggestions.results || []));
   } catch (err) {
     console.error('Get suggestions error:', err);

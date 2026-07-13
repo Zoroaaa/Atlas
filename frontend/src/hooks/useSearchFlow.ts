@@ -146,6 +146,20 @@ export function useSearchFlow({
 
           if (response.data.resultType === 'jav') {
             const javData = response.data as JavEnrichedData;
+
+            // 检查是否有具体错误信息（如"未找到番号"、"无效格式"）
+            const errorMsg = javData.errors?.search;
+            if (errorMsg && javData.total === 0) {
+              // 区分不同错误类型，给出更精确的提示
+              if (errorMsg.includes('未找到') || errorMsg.includes('无该')) {
+                toast.info('无该资源', errorMsg);
+              } else if (errorMsg.includes('格式') || errorMsg.includes('无效')) {
+                toast.warning('格式有误', errorMsg);
+              } else {
+                toast.info('暂无结果', errorMsg);
+              }
+            }
+
             if (javData.detail) {
               setJavEnrichedDetail(javData.detail as JavDetail);
             }
@@ -164,6 +178,15 @@ export function useSearchFlow({
             }
           } else {
             setSearchResults([]);
+            // Anime/Movie: 检查聚合搜索的各数据源错误
+            const enriched = response.data as EnrichedSearchData;
+            if ('errors' in enriched && enriched.total === 0) {
+              const errors = enriched.errors as Record<string, string | null>;
+              const errorKeys = Object.keys(errors).filter(k => errors[k]);
+              if (errorKeys.length > 0) {
+                toast.info('暂无相关资源', '尝试更换关键词或稍后再试');
+              }
+            }
           }
         } else {
           const basicData = response.data as { results: SearchResponseItem[] };

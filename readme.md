@@ -33,7 +33,7 @@
 
 | 资源类型 | 链接 | 备注 |
 |---------|------|------|
-| 在线体验 | [https://codeseek.pp.ua](https://codeseek.pp.ua) | 体验完整功能 |
+| 在线体验 | [https://atlas.wort.uk/](https://atlas.wort.uk/) | 体验完整功能 |
 
 </div>
 

@@ -1175,10 +1175,12 @@ adminRoutes.get('/analytics/events', async (c) => {
   const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
   const eventType = c.req.query('eventType');
   const userId = c.req.query('userId');
+  const days = parseInt(c.req.query('days') || '7'); // 默认查询最近7天，避免全表扫描
 
   try {
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
+    const startTime = Date.now() - days * CONFIG.Stats.DAY_IN_MS;
+    let whereClause = 'WHERE e.created_at > ?';
+    const params: (string | number)[] = [startTime];
 
     if (eventType) {
       whereClause += ' AND e.event_type = ?';

@@ -27,8 +27,8 @@ export const searchApi = {
     return apiClient.post<SearchEndpointResponse>('/search', data);
   },
 
-  getSuggestions: async (keyword: string, limit = 10): Promise<SearchSuggestionsResponse> => {
-    return apiClient.get(`/search/suggestions?keyword=${encodeURIComponent(keyword)}&limit=${limit}`);
+  getSuggestions: async (keyword: string, limit = 10, signal?: AbortSignal): Promise<SearchSuggestionsResponse> => {
+    return apiClient.get(`/search/suggestions?keyword=${encodeURIComponent(keyword)}&limit=${limit}`, signal);
   },
 
   getTrending: async (limit = 20, hours = 24): Promise<SearchTrendingResponse> => {

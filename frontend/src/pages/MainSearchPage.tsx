@@ -128,11 +128,19 @@ export const MainSearchPage: React.FC = () => {
               </div>
               <input type="text" placeholder={SEARCH_TABS[activeTab].placeholder} value={searchFlow.keyword}
                 onChange={(e) => searchFlow.setKeyword(e.target.value)} onKeyDown={searchFlow.handleKeyDown}
-                onFocus={() => setIsInputFocused(true)} onBlur={() => setTimeout(() => setIsInputFocused(false), 200)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => {
+                  // 延迟关闭，避免点击建议项时触发 onBlur 导致无法选中
+                  setTimeout(() => setIsInputFocused(false), 200);
+                }}
                 className="search-input" />
               <SearchSuggestionsDropdown suggestions={searchFlow.suggestions}
-                visible={isInputFocused && searchFlow.showSuggestions && searchFlow.keyword.length > 0}
-                isLoading={searchFlow.isLoadingSuggestions} onSelect={searchFlow.handleSuggestionSelect}
+                visible={isInputFocused && searchFlow.showSuggestions && searchFlow.keyword.trim().length > 0}
+                isLoading={searchFlow.isLoadingSuggestions}
+                onSelect={(item) => {
+                  searchFlow.handleSuggestionSelect(item);
+                  setIsInputFocused(false); // 选中后关闭建议框
+                }}
                 onClose={() => searchFlow.setShowSuggestions(false)} />
             </div>
             <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
