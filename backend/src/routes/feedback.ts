@@ -7,6 +7,7 @@ import { Hono, Context, Next } from 'hono';
 import { Env, JwtPayload } from '@/types';
 import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
 import { feedbackSchema } from '@/utils/validators';
+import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
@@ -150,7 +151,7 @@ feedbackRoutes.get('/my', async (c) => {
 });
 
 // -----------------------------------------------------------------------
-// 管理员专用路由 — 需要 admin 权限
+// 管理员专用路由 — 需要 admin 权限（实时数据库查询）
 // -----------------------------------------------------------------------
 const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload | null> => {
   const authHeader = c.req.header('Authorization');
@@ -158,7 +159,11 @@ const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload |
   const token = authHeader.slice(7);
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return null;
-  if (payload.role !== 'admin' && payload.role !== 'super_admin') return null;
+
+  // 实时查询数据库确认管理员权限
+  const isAdmin = await checkIsAdmin(c.env.DB, payload.userId);
+  if (!isAdmin) return null;
+
   return payload;
 };
 

@@ -5,13 +5,14 @@
 import { Hono, Context, Next } from 'hono';
 import { Env, JwtPayload } from '@/types';
 import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
+import { checkIsAdmin } from '@/middleware/auth';
 
 export const announcementRoutes = new Hono<{ Bindings: Env }>();
 
 const VALID_TYPES = ['info', 'warning', 'success', 'error'];
 
 // -----------------------------------------------------------------------
-// 管理员鉴权中间件
+// 管理员鉴权中间件 - 实时从数据库查询权限
 // -----------------------------------------------------------------------
 const adminAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
   const authHeader = c.req.header('Authorization');
@@ -19,7 +20,11 @@ const adminAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
   const token = authHeader.slice(7);
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return c.json(error('AUTH_ERROR', '认证失败'), 401);
-  if (payload.role !== 'admin' && payload.role !== 'super_admin') return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
+
+  // 实时查询数据库确认管理员权限
+  const isAdmin = await checkIsAdmin(c.env.DB, payload.userId);
+  if (!isAdmin) return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
+
   c.set('user', payload);
   await next();
 };

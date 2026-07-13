@@ -5,14 +5,16 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
-import { Env, SystemConfig, EmailSendLog, ConfigChangeLog, ConfigGroup, JwtPayload } from '@/types';
+import { Env, SystemConfig, EmailSendLog, ConfigChangeLog, ConfigGroup } from '@/types';
 import { success, error, generateId } from '@/utils';
-import { authMiddleware } from '@/middleware';
+import { authMiddleware, checkIsAdmin, checkIsSuperAdmin } from '@/middleware/auth';
 import { ConfigService } from '@/services';
 
 export const configRoutes = new Hono<{ Bindings: Env }>();
 
 configRoutes.use('*', authMiddleware);
+
+// 不再使用本地权限检查函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
 
 const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string; configType: string; configGroup: string; isPublic: number; isSensitive: number; validationRules?: string }> = {
   'site_name': { value: '磁力快搜', description: '网站名称', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
@@ -31,14 +33,6 @@ const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string
   'password_reset_log_retention_days': { value: '30', description: '密码重置日志保留天数', configType: 'integer', configGroup: 'cleanup', isPublic: 0, isSensitive: 0, validationRules: '{"min": 7, "max": 90}' },
   'user_actions_retention_days': { value: '90', description: '用户行为日志保留天数', configType: 'integer', configGroup: 'cleanup', isPublic: 0, isSensitive: 0, validationRules: '{"min": 30, "max": 365}' },
   'security_event_retention_days': { value: '90', description: '安全事件保留天数', configType: 'integer', configGroup: 'cleanup', isPublic: 0, isSensitive: 0, validationRules: '{"min": 30, "max": 365}' },
-};
-
-const checkAdminRole = (user: JwtPayload): boolean => {
-  return user.role === 'admin' || user.role === 'super_admin';
-};
-
-const checkSuperAdminRole = (user: JwtPayload): boolean => {
-  return user.role === 'super_admin';
 };
 
 async function logConfigChange(
@@ -163,7 +157,7 @@ configRoutes.get('/public', async (c) => {
 configRoutes.get('/all', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -182,7 +176,7 @@ configRoutes.get('/all', async (c) => {
 configRoutes.get('/groups', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -221,7 +215,7 @@ configRoutes.get('/groups', async (c) => {
 configRoutes.get('/logs', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -270,7 +264,7 @@ configRoutes.get('/logs', async (c) => {
 configRoutes.get('/export', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -304,7 +298,7 @@ configRoutes.get('/export', async (c) => {
 configRoutes.get('/analytics/stats', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -361,7 +355,7 @@ configRoutes.get('/analytics/stats', async (c) => {
 configRoutes.get('/email/logs', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -412,7 +406,7 @@ configRoutes.get('/email/logs', async (c) => {
 configRoutes.post('/import', async (c) => {
   const user = c.get('user');
   
-  if (!checkSuperAdminRole(user)) {
+  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -538,7 +532,7 @@ configRoutes.post('/analytics/events', async (c) => {
 configRoutes.put('/batch', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -612,7 +606,7 @@ configRoutes.put('/batch', async (c) => {
 configRoutes.post('/reset/:key', async (c) => {
   const user = c.get('user');
   
-  if (!checkSuperAdminRole(user)) {
+  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -674,7 +668,7 @@ configRoutes.get('/:key', async (c) => {
 configRoutes.put('/:key', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -739,7 +733,7 @@ configRoutes.put('/:key', async (c) => {
 configRoutes.delete('/:key', async (c) => {
   const user = c.get('user');
   
-  if (!checkSuperAdminRole(user)) {
+  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 

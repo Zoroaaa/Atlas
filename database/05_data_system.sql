@@ -11,11 +11,10 @@
 -- ===============================================
 
 INSERT OR IGNORE INTO roles (id, name, display_name, description, permissions, is_system, priority, created_at, updated_at)
-VALUES 
+VALUES
     ('super_admin', 'super_admin', '超级管理员', '拥有系统最高权限，可以管理所有用户和系统配置', '["*"]', 1, 100, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('admin', 'admin', '管理员', '可以管理用户、查看统计数据、处理举报等', '["user:read", "user:write", "stats:read", "report:read", "report:write", "source:read", "source:write", "community:read", "community:write"]', 1, 50, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('user', 'user', '普通用户', '普通注册用户，拥有基本的搜索和收藏功能', '["search", "favorite", "history", "sync", "community:share", "community:review"]', 1, 10, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('guest', 'guest', '访客用户', '未登录用户，只能使用基础搜索功能', '["search"]', 1, 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
+    ('user', 'user', '普通用户', '普通注册用户，拥有基本的搜索和收藏功能', '["search", "favorite", "history", "sync", "community:share", "community:review"]', 1, 10, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
 
 -- ===============================================
 -- 2. 配置分组初始化数据（精简版）

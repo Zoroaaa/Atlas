@@ -9,7 +9,7 @@ import { Env, User, CommunityReport, UserAction, JwtPayload, Role } from '@/type
 import { success, error, logUserAction } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
-import { authMiddleware, adminMiddleware } from '@/middleware/auth';
+import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
 
 const R = VALIDATION_RULES;
@@ -263,12 +263,22 @@ adminRoutes.get('/users/:id', async (c) => {
 /**
  * 更新用户角色
  * PUT /api/admin/users/:id/role
+ * 
+ * 权限规则：
+ * - 只有超级管理员可以修改用户角色
+ * - 管理员无权修改任何用户角色
  */
 adminRoutes.put('/users/:id/role', async (c) => {
   const userId = c.req.param('id');
   const body = await c.req.json();
   const { roleId } = body;
   const adminUser = c.get('user') as JwtPayload;
+
+  // 权限检查：只有超级管理员可以修改用户角色
+  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  if (!isSuperAdmin) {
+    return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户角色'), 403);
+  }
 
   if (!roleId) {
     return c.json(error('VALIDATION_ERROR', '请指定角色'), 400);
@@ -283,10 +293,6 @@ adminRoutes.put('/users/:id/role', async (c) => {
       return c.json(error('NOT_FOUND', '角色不存在'), 404);
     }
 
-    if (role.is_system !== 1 && adminUser.role !== 'super_admin') {
-      return c.json(error('FORBIDDEN', '只有超级管理员可以分配自定义角色'), 403);
-    }
-
     const user = await c.env.DB.prepare(
       'SELECT id, username, role_id FROM users WHERE id = ?'
     ).bind(userId).first<User>();
@@ -295,13 +301,15 @@ adminRoutes.put('/users/:id/role', async (c) => {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
-    if (user.role_id === 'super_admin' && adminUser.role !== 'super_admin') {
-      return c.json(error('FORBIDDEN', '无法修改超级管理员角色'), 403);
-    }
-
+    // 更新角色
     await c.env.DB.prepare(
       'UPDATE users SET role_id = ?, updated_at = ? WHERE id = ?'
     ).bind(roleId, Date.now(), userId).run();
+
+    // 清除该用户所有session，强制重新登录获取新token
+    await c.env.DB.prepare(
+      'DELETE FROM user_sessions WHERE user_id = ?'
+    ).bind(userId).run();
 
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_role', {
       targetUserId: userId,
@@ -310,7 +318,7 @@ adminRoutes.put('/users/:id/role', async (c) => {
       newRole: roleId,
     }, c);
 
-    return c.json(success({ roleId, roleName: role.display_name }, '角色已更新'));
+    return c.json(success({ roleId, roleName: role.display_name }, '角色已更新，用户需要重新登录'));
   } catch (err) {
     console.error('Update user role error:', err);
     return c.json(error('SERVER_ERROR', '更新角色失败'), 500);
@@ -463,6 +471,10 @@ adminRoutes.get('/login-stats', async (c) => {
 /**
  * 更新用户状态
  * PUT /api/admin/users/:id/status
+ * 
+ * 权限规则：
+ * - 超级管理员：可以禁用/启用任意用户（包括其他超级管理员）
+ * - 管理员：只能禁用/启用普通用户，不能操作管理员或超级管理员
  */
 adminRoutes.put('/users/:id/status', async (c) => {
   const userId = c.req.param('id');
@@ -471,16 +483,37 @@ adminRoutes.put('/users/:id/status', async (c) => {
   const adminUser = c.get('user') as JwtPayload;
 
   try {
+    // 获取当前管理员的角色级别
+    const adminRole = await c.env.DB.prepare(
+      'SELECT r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
+    ).bind(adminUser.userId).first<{ role_name: string; priority: number }>();
+    const adminPriority = adminRole?.priority || 10;
+
+    // 获取目标用户信息
     const user = await c.env.DB.prepare(
-      'SELECT id, username, role_id FROM users WHERE id = ?'
-    ).bind(userId).first<User>();
+      'SELECT u.id, u.username, u.role_id, r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
+    ).bind(userId).first<User & { role_name: string; priority: number }>();
 
     if (!user) {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
-    if (user.role_id === 'super_admin' && adminUser.role !== 'super_admin') {
-      return c.json(error('FORBIDDEN', '无法禁用超级管理员'), 403);
+    const targetPriority = user.priority || 10;
+
+    // 权限隔离：管理员只能操作优先级低于自己的用户
+    // 超级管理员(priority=100) 可以操作所有人
+    // 管理员(priority=50) 只能操作普通用户(priority=10)
+    if (targetPriority >= adminPriority) {
+      // 目标用户优先级 >= 当前管理员优先级，需要检查是否为超级管理员
+      const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+      if (!isSuperAdmin) {
+        return c.json(error('FORBIDDEN', '无法操作同级或更高级别的用户'), 403);
+      }
+    }
+
+    // 自我保护：不能禁用自己
+    if (userId === adminUser.userId && !isActive) {
+      return c.json(error('FORBIDDEN', '不能禁用自己'), 403);
     }
 
     await c.env.DB.prepare(
@@ -496,6 +529,7 @@ adminRoutes.put('/users/:id/status', async (c) => {
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_status', {
       targetUserId: userId,
       targetUsername: user.username,
+      targetRole: user.role_name,
       isActive,
       reason,
     }, c);
@@ -510,12 +544,20 @@ adminRoutes.put('/users/:id/status', async (c) => {
 /**
  * 更新用户权限
  * PUT /api/admin/users/:id/permissions
+ * 
+ * 权限规则：只有超级管理员可以修改用户权限
  */
 adminRoutes.put('/users/:id/permissions', async (c) => {
   const userId = c.req.param('id');
   const body = await c.req.json();
   const { permissions } = body;
   const adminUser = c.get('user') as JwtPayload;
+
+  // 权限检查：只有超级管理员可以修改用户权限
+  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  if (!isSuperAdmin) {
+    return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户权限'), 403);
+  }
 
   if (!Array.isArray(permissions)) {
     return c.json(error('VALIDATION_ERROR', '权限必须是数组'), 400);
@@ -876,12 +918,20 @@ adminRoutes.get('/logs', async (c) => {
  * POST /api/admin/cleanup
  * 手动清理过期数据（仅清理需要动态配置保留天数的表）
  * 
+ * 权限规则：只有超级管理员可以执行数据清理（高危操作）
+ * 
  * 说明：
  * - user_sessions、email_verifications、security_lockouts 由触发器实时清理
  * - password_reset_logs、user_actions、user_security_events 需要动态配置保留天数
  */
 adminRoutes.post('/cleanup', async (c) => {
   const adminUser = c.get('user') as JwtPayload;
+
+  // 权限检查：只有超级管理员可以执行数据清理
+  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  if (!isSuperAdmin) {
+    return c.json(error('FORBIDDEN', '只有超级管理员可以执行数据清理'), 403);
+  }
 
   try {
     const configService = new ConfigService(c.env);
@@ -1057,21 +1107,47 @@ adminRoutes.get('/sessions', async (c) => {
 /**
  * 强制终止会话
  * DELETE /api/admin/sessions/:id
+ * 
+ * 权限规则：
+ * - 超级管理员：可以终止任意用户的会话
+ * - 管理员：只能终止普通用户的会话，不能终止管理员或超级管理员的会话
  */
 adminRoutes.delete('/sessions/:id', async (c) => {
   const sessionId = c.req.param('id');
   const adminUser = c.get('user') as JwtPayload;
 
   try {
+    // 获取会话信息和用户角色
     const session = await c.env.DB.prepare(`
-      SELECT s.*, u.username
+      SELECT s.*, u.username, r.name as role_name, r.priority
       FROM user_sessions s
       LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN roles r ON u.role_id = r.id
       WHERE s.id = ?
     `).bind(sessionId).first();
 
     if (!session) {
       return c.json(error('NOT_FOUND', '会话不存在'), 404);
+    }
+
+    // 获取当前管理员的角色级别
+    const adminRole = await c.env.DB.prepare(
+      'SELECT r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
+    ).bind(adminUser.userId).first<{ role_name: string; priority: number }>();
+    const adminPriority = adminRole?.priority || 10;
+    const targetPriority = (session as any).priority || 10;
+
+    // 权限隔离：管理员只能终止优先级低于自己的用户的会话
+    if (targetPriority >= adminPriority) {
+      const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+      if (!isSuperAdmin) {
+        return c.json(error('FORBIDDEN', '无法终止同级或更高级别用户的会话'), 403);
+      }
+    }
+
+    // 不能终止自己的会话（防止误操作）
+    if ((session as any).user_id === adminUser.userId) {
+      return c.json(error('FORBIDDEN', '不能终止自己的会话'), 403);
     }
 
     await c.env.DB.prepare('DELETE FROM user_sessions WHERE id = ?').bind(sessionId).run();
@@ -1080,6 +1156,7 @@ adminRoutes.delete('/sessions/:id', async (c) => {
       sessionId,
       targetUserId: (session as any).user_id,
       targetUsername: (session as any).username,
+      targetRole: (session as any).role_name,
     }, c);
 
     return c.json(success(null, '会话已终止'));

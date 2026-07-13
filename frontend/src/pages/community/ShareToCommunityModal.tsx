@@ -5,6 +5,7 @@ import { Modal, Button, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/components/ui/Toast';
+import { getBackendBaseUrl } from '@/constants';
 
 interface ShareToCommunityModalProps {
   open: boolean;
@@ -22,6 +23,29 @@ const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'text-rose-500' },
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500' },
+};
+
+/**
+ * 规范化并重新代理图片URL
+ */
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return '';
+
+  const proxyMatch = url.match(/[?&]url=([^&]+)/);
+  if (proxyMatch) {
+    const originalUrl = decodeURIComponent(proxyMatch[1]);
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+  }
+
+  if (url.startsWith('/')) return url;
+
+  if (url.startsWith('http')) {
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+
+  return url;
 };
 
 export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
@@ -122,7 +146,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
             <div className="w-24 h-32 rounded-lg overflow-hidden shrink-0 bg-stone-200 dark:bg-stone-700">
               {initialData.coverImage ? (
                 <img
-                  src={initialData.coverImage}
+                  src={normalizeImageUrl(initialData.coverImage)}
                   alt={initialData.title}
                   className="w-full h-full object-cover"
                 />

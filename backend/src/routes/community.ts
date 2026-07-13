@@ -14,7 +14,7 @@ import {
   ReportRequest,
 } from '@codeseek/shared';
 import { success, error, generateId } from '@/utils';
-import { authMiddleware } from '@/middleware';
+import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
@@ -672,7 +672,7 @@ communityRoutes.put('/posts/:id/status', async (c) => {
     return c.json(error('VALIDATION_ERROR', '无效的状态值'), 400);
   }
 
-  if (user.role !== 'admin' && user.role !== 'super_admin') {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -707,7 +707,7 @@ communityRoutes.put('/posts/:id/feature', async (c) => {
     return c.json(error('VALIDATION_ERROR', 'isFeatured 必须为布尔值'), 400);
   }
 
-  if (user.role !== 'admin' && user.role !== 'super_admin') {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -921,7 +921,7 @@ communityRoutes.delete('/comments/:id', async (c) => {
       return c.json(error('NOT_FOUND', '评论不存在'), 404);
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const isAdmin = await checkIsAdmin(c.env.DB, user.userId);
     if (comment.user_id !== user.userId && !isAdmin) {
       return c.json(error('FORBIDDEN', '无权删除此评论'), 403);
     }

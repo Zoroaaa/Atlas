@@ -5,9 +5,9 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
-import { Env, SearchSource, SearchSourceCategory, MajorCategory, UserSearchSourceConfig, JwtPayload } from '@/types';
+import { Env, SearchSource, SearchSourceCategory, MajorCategory, UserSearchSourceConfig } from '@/types';
 import { success, error, generateId } from '@/utils';
-import { authMiddleware } from '@/middleware';
+import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { VALIDATION_RULES } from '@/constants';
 
 const R = VALIDATION_RULES;
@@ -16,9 +16,7 @@ export const sourceRoutes = new Hono<{ Bindings: Env }>();
 
 sourceRoutes.use('*', authMiddleware);
 
-const checkAdminRole = (user: JwtPayload): boolean => {
-  return user.role === 'admin' || user.role === 'super_admin';
-};
+// 不再使用本地 checkAdminRole 函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
 
 sourceRoutes.get('/major-categories', async (c) => {
   try {
@@ -355,8 +353,8 @@ sourceRoutes.get('/with-user-config/:userId', async (c) => {
   const requestedUserId = c.req.param('userId');
   const currentUser = c.get('user');
 
-  if (requestedUserId !== currentUser.userId &&
-      currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
+  const isAdmin = await checkIsAdmin(c.env.DB, currentUser.userId);
+  if (requestedUserId !== currentUser.userId && !isAdmin) {
     return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
   }
 
@@ -450,7 +448,7 @@ sourceRoutes.post('/:id/increment-usage', async (c) => {
 sourceRoutes.post('/major-categories', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -509,7 +507,7 @@ sourceRoutes.post('/major-categories', async (c) => {
 sourceRoutes.post('/categories', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -596,7 +594,7 @@ sourceRoutes.put('/categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '分类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !checkAdminRole(user)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统分类仅管理员可修改'), 403);
     }
 
@@ -658,7 +656,7 @@ sourceRoutes.delete('/categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '分类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !checkAdminRole(user)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统分类仅管理员可删除'), 403);
     }
 
@@ -770,7 +768,7 @@ sourceRoutes.post('/', async (c) => {
 sourceRoutes.put('/major-categories/:id', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -785,7 +783,7 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '大类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !checkAdminRole(user)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统大类仅管理员可修改'), 403);
     }
 
@@ -863,7 +861,7 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
 sourceRoutes.delete('/major-categories/:id', async (c) => {
   const user = c.get('user');
   
-  if (!checkAdminRole(user)) {
+  if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -878,7 +876,7 @@ sourceRoutes.delete('/major-categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '大类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !checkAdminRole(user)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统大类仅管理员可删除'), 403);
     }
 
@@ -934,7 +932,7 @@ sourceRoutes.put('/:id', async (c) => {
       return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
-    if (existingSource.is_system && !checkAdminRole(user)) {
+    if (existingSource.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可修改'), 403);
     }
 
@@ -1008,7 +1006,7 @@ sourceRoutes.delete('/:id', async (c) => {
       return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
-    if (existingSource.is_system && !checkAdminRole(user)) {
+    if (existingSource.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可删除'), 403);
     }
 

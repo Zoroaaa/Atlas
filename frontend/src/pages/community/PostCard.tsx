@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import { Heart, Star, MessageSquare, Eye, Bookmark, Users, Film, Tv } from 'lucide-react';
 import { Card, Badge, ProxyImage } from '@/components/ui';
 import type { CommunityPost } from '@/types/community';
+import { getBackendBaseUrl } from '@/constants';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -15,6 +16,33 @@ const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'bg-rose-500', badgeVariant: 'error' as const },
   anime: { label: '动漫', icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
   movie: { label: '影视', icon: Film, color: 'bg-amber-500', badgeVariant: 'primary' as const },
+};
+
+/**
+ * 规范化并重新代理图片URL
+ * 解决问题：数据库中可能存储了旧域名的代理URL，需要更新为新域名
+ */
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return '';
+
+  // 如果是代理URL（包含/api/jav/proxy-image），提取原始URL并重新代理
+  const proxyMatch = url.match(/[?&]url=([^&]+)/);
+  if (proxyMatch) {
+    const originalUrl = decodeURIComponent(proxyMatch[1]);
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+  }
+
+  // 如果是相对路径，直接返回
+  if (url.startsWith('/')) return url;
+
+  // 如果是完整的原始URL（非代理），添加代理
+  if (url.startsWith('http')) {
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+
+  return url;
 };
 
 const formatDate = (timestamp: number) => {
@@ -75,7 +103,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
       <div className="relative aspect-[16/10] max-h-[200px] overflow-hidden bg-stone-100 dark:bg-stone-800" onClick={(e) => e.stopPropagation()}>
         {post.coverImage ? (
           <ProxyImage
-            src={post.coverImage}
+            src={normalizeImageUrl(post.coverImage)}
             alt={post.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />

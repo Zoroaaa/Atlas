@@ -16,12 +16,14 @@ import {
   Download,
   Calendar,
   Clock,
+  Flag,
 } from 'lucide-react';
-import { Card, Button, Badge } from '@/components/ui';
+import { Card, Button, Badge, Modal, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { CommentsSection } from './CommentsSection';
 import { PostCard } from './PostCard';
 import { useToast } from '@/components/ui/Toast';
+import { getBackendBaseUrl } from '@/constants';
 
 interface PostDetailProps {
   postId: string;
@@ -32,6 +34,33 @@ const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
+};
+
+/**
+ * 规范化并重新代理图片URL
+ * 解决问题：数据库中可能存储了旧域名的代理URL，需要更新为新域名
+ */
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return '';
+
+  // 如果是代理URL（包含/api/jav/proxy-image），提取原始URL并重新代理
+  const proxyMatch = url.match(/[?&]url=([^&]+)/);
+  if (proxyMatch) {
+    const originalUrl = decodeURIComponent(proxyMatch[1]);
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+  }
+
+  // 如果是相对路径，直接返回
+  if (url.startsWith('/')) return url;
+
+  // 如果是完整的原始URL（非代理），添加代理
+  if (url.startsWith('http')) {
+    const baseUrl = getBackendBaseUrl();
+    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+
+  return url;
 };
 
 const formatDate = (timestamp: number) => {
@@ -52,7 +81,7 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
     {/* 封面大图 */}
     {(data.coverImage || data.cover) && (
       <div className="rounded-xl overflow-hidden">
-        <img src={data.coverImage || data.cover} alt={data.title || ''} className="w-full max-h-[400px] object-cover" />
+        <img src={normalizeImageUrl(data.coverImage || data.cover)} alt={data.title || ''} className="w-full max-h-[400px] object-cover" />
       </div>
     )}
 
@@ -138,7 +167,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 封面 */}
     {(data.coverImage || data.cover) && (
       <div className="rounded-xl overflow-hidden">
-        <img src={data.coverImage || data.cover} alt={data.title || ''} className="w-full max-h-[350px] object-cover" />
+        <img src={normalizeImageUrl(data.coverImage || data.cover)} alt={data.title || ''} className="w-full max-h-[350px] object-cover" />
       </div>
     )}
 
@@ -208,7 +237,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     {/* 海报 */}
     {(data.posterPath || data.coverImage || data.cover) && (
       <div className="rounded-xl overflow-hidden max-w-xs mx-auto">
-        <img src={data.posterPath || data.coverImage || data.cover} alt={data.title || ''} className="w-full object-cover" />
+        <img src={normalizeImageUrl(data.posterPath || data.coverImage || data.cover)} alt={data.title || ''} className="w-full object-cover" />
       </div>
     )}
 
@@ -352,6 +381,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   } = useCommunityStore();
 
   const [relatedPosts, setRelatedPosts] = useState<typeof posts>([]);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   useEffect(() => {
     if (postId) {
@@ -415,6 +448,31 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
     });
   };
 
+  const handleReport = async () => {
+    if (!reportReason.trim()) {
+      toast.error('请选择或填写举报原因');
+      return;
+    }
+
+    setReportSubmitting(true);
+    try {
+      const { communityApi } = await import('@/services/api');
+      await communityApi.reportPost(postId, {
+        reason: reportReason.trim(),
+        details: reportDetails.trim() || undefined,
+      });
+      toast.success('举报已提交，我们会尽快处理');
+      setReportModalOpen(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch (error: any) {
+      const message = error?.message || '举报失败，请重试';
+      toast.error(message);
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   // 根据类型选择渲染器
   const renderContent = () => {
     switch (currentPost.postType) {
@@ -452,7 +510,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           {currentPost.coverImage && (
             <div className="rounded-xl overflow-hidden -mt-2 -mx-2 mb-4">
               <img
-                src={currentPost.coverImage}
+                src={normalizeImageUrl(currentPost.coverImage)}
                 alt={currentPost.title}
                 className="w-full max-h-[360px] object-contain bg-stone-100 dark:bg-stone-800"
               />
@@ -531,6 +589,13 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
                 <Share2 className="w-4 h-4" />
                 分享
               </button>
+              <button
+                onClick={() => setReportModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+              >
+                <Flag className="w-4 h-4" />
+                举报
+              </button>
             </div>
           </div>
         </div>
@@ -574,6 +639,74 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           </div>
         </div>
       )}
+
+      {/* 举报弹窗 */}
+      <Modal
+        isOpen={reportModalOpen}
+        onClose={() => {
+          setReportModalOpen(false);
+          setReportReason('');
+          setReportDetails('');
+        }}
+        title="举报帖子"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
+              举报原因 <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-2">
+              {['内容违规', '虚假信息', '侵犯版权', '恶意广告', '其他原因'].map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  onClick={() => setReportReason(reason)}
+                  className={clsx(
+                    'w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all',
+                    reportReason === reason
+                      ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
+                      : 'bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700'
+                  )}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <TextArea
+            label="详细说明（可选）"
+            value={reportDetails}
+            onChange={(e) => setReportDetails(e.target.value)}
+            placeholder="请详细描述您要举报的问题..."
+            rows={3}
+            fullWidth
+          />
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReportModalOpen(false);
+                setReportReason('');
+                setReportDetails('');
+              }}
+              disabled={reportSubmitting}
+            >
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleReport}
+              isLoading={reportSubmitting}
+              disabled={!reportReason.trim()}
+            >
+              提交举报
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
