@@ -557,6 +557,26 @@
     box-shadow: 0 0 0 3px rgba(212,168,83,0.15), 0 6px 24px rgba(212,168,83,0.06);
   }
 
+  .search-input-error {
+    border-color: rgba(239,68,68,0.6) !important;
+  }
+  .search-input-error:hover {
+    border-color: rgba(239,68,68,0.7) !important;
+    background: rgba(254,242,242,0.97);
+  }
+  .dark .search-input-error:hover {
+    border-color: rgba(239,68,68,0.5) !important;
+    background: rgba(45,20,20,0.9);
+  }
+  .search-input-error:focus {
+    border-color: rgba(239,68,68,0.6) !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.12), 0 6px 24px rgba(239,68,68,0.08);
+  }
+  .dark .search-input-error:focus {
+    border-color: rgba(239,68,68,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.15), 0 6px 24px rgba(239,68,68,0.06);
+  }
+
   .search-btn {
     @apply px-6 py-3 rounded-2xl font-semibold text-stone-900;
     background: linear-gradient(135deg, #d4a853 0%, #f59e0b 100%);

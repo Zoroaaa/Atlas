@@ -14,6 +14,10 @@ export type {
 export const TAB_IDS = ['jav', 'anime', 'movie', 'manga', 'sources', 'community'] as const;
 export type SearchTabType = typeof TAB_IDS[number];
 
+// JAV 子搜索模式
+export const JAV_SUB_MODES = ['code', 'actress', 'title'] as const;
+export type JavSubMode = typeof JAV_SUB_MODES[number];
+
 // Tab 配置接口
 export interface TabConfig {
   id: SearchTabType;

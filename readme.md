@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/logo.png" alt="Atlas Logo" width="120" height="120">
+<img src="frontend/public/logo.svg" alt="Atlas Logo" width="120" height="120">
 
 # Atlas
 

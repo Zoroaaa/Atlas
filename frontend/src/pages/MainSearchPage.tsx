@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Loader2, Filter } from 'lucide-react';
 import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { SearchTabType } from '@/types/source';
+import type { SearchTabType, JavSubMode } from '@/types/source';
 import { TAB_IDS } from '@/types/source';
 import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
@@ -29,6 +29,7 @@ export const MainSearchPage: React.FC = () => {
   const javFlow = useJavSearchFlow();
   const sourceManager = useSourceManager();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [javSubMode, setJavSubMode] = useState<JavSubMode>('code');
 
   // ── URL 同步：搜索时更新 URL ──
   const programmaticUrlRef = useRef(false);
@@ -47,6 +48,7 @@ export const MainSearchPage: React.FC = () => {
     resetJavDetail: javFlow.resetJavDetail,
     javEnrichedDetail: javFlow.javEnrichedDetail,
     setJavEnrichedDetail: javFlow.setJavEnrichedDetail,
+    javSubMode,
     onSearch: handleSearchUrlSync,
   });
 
@@ -123,19 +125,49 @@ export const MainSearchPage: React.FC = () => {
         {activeTab !== 'sources' && (
         <div className="bg-white dark:bg-[#111113]/80 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 p-3 sm:p-5 mb-4 sm:mb-6 backdrop-blur-sm animate-slide-up relative overflow-visible">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-accent-500 to-amber-500"></div>
+          {/* JAV 子搜索模式切换 */}
+          {activeTab === 'jav' && (
+            <div className="flex gap-2 mb-3 relative z-10">
+              {[
+                { id: 'code' as const, label: '番号搜索', placeholder: '输入番号搜索，如 SONE-520' },
+                { id: 'actress' as const, label: '女优搜索', placeholder: '输入女优名搜索' },
+                { id: 'title' as const, label: '影片标题', placeholder: '输入影片标题搜索' },
+              ].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setJavSubMode(sub.id)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                    javSubMode === sub.id
+                      ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-sm'
+                      : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 relative z-10">
             <div className="search-input-wrapper">
               <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <input type="text" placeholder={SEARCH_TABS[activeTab].placeholder} value={searchFlow.keyword}
+              <input type="text" placeholder={
+                activeTab === 'jav'
+                  ? javSubMode === 'code'
+                    ? '输入番号搜索，如 SONE-520'
+                    : javSubMode === 'actress'
+                      ? '输入女优名搜索'
+                      : '输入影片标题搜索'
+                  : SEARCH_TABS[activeTab].placeholder
+              } value={searchFlow.keyword}
                 onChange={(e) => searchFlow.setKeyword(e.target.value)} onKeyDown={searchFlow.handleKeyDown}
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => {
                   // 延迟关闭，避免点击建议项时触发 onBlur 导致无法选中
                   setTimeout(() => setIsInputFocused(false), 200);
                 }}
-                className="search-input" />
+                className={`search-input ${activeTab === 'jav' && javSubMode === 'code' && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid ? 'search-input-error' : ''}`} />
               <SearchSuggestionsDropdown suggestions={searchFlow.suggestions}
                 visible={isInputFocused && searchFlow.showSuggestions && searchFlow.keyword.trim().length > 0}
                 isLoading={searchFlow.isLoadingSuggestions}
@@ -145,11 +177,26 @@ export const MainSearchPage: React.FC = () => {
                 }}
                 onClose={() => searchFlow.setShowSuggestions(false)} />
             </div>
-            <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
+            <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching || (activeTab === 'jav' && javSubMode === 'code' && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid)} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
               {searchFlow.isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" strokeWidth={2.5} />}
               <span>搜索</span>
             </button>
           </div>
+          {/* JAV 子模式提示 */}
+          {activeTab === 'jav' && (
+            <div className="relative z-10">
+              {/* 番号格式错误提示：仅在输入框未聚焦时显示，避免与搜索建议冲突 */}
+              {javSubMode === 'code' && !isInputFocused && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid && (
+                <p className="text-xs text-red-400 mt-2 ml-1">格式請按照【SONE-520】或【SONE520】搜尋</p>
+              )}
+              {javSubMode === 'actress' && (
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：請嘗試按照維基百科使用繁體中文名或是日文名，如【水菜麗】請改成【みづなれい】搜尋</p>
+              )}
+              {javSubMode === 'title' && (
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：請嘗試縮短字數，並優先使用【日文】搜尋</p>
+              )}
+            </div>
+          )}
           {searchFlow.searchableCategories.length > 0 && activeTab === 'jav' && (
             <div className="category-filter-wrapper">
               <div className="flex items-center gap-1.5 shrink-0">

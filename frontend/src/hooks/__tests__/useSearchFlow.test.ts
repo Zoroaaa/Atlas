@@ -80,6 +80,7 @@ const defaultOptions = {
   resetJavDetail: vi.fn(),
   javEnrichedDetail: null,
   setJavEnrichedDetail: vi.fn(),
+  javSubMode: 'code' as const,
   onSearch: vi.fn(),
 };
 

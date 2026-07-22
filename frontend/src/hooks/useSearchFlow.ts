@@ -5,12 +5,17 @@ import { userApi, analyticsApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { SEARCH_TABS } from '@/config/tabs';
-import type { SearchTabType } from '@/types/source';
+import type { SearchTabType, JavSubMode } from '@/types/source';
 import type { EnrichedSearchData, JavEnrichedData } from '@/types/search';
 import type { JavDetail } from '@/types/jav';
 import type { SearchEndpointResponse, SearchResponseItem } from '@/services/api/types';
 import type { SearchResult, MajorCategory, Category } from '@/types';
 import type { SearchSuggestionItem } from './useSearchSuggestions';
+
+/** JAV 番号格式：字母(2-8位) + 可选横杠 + 数字(2-6位)，如 URVRSP-589、BUFE-133 */
+export function isValidJavCode(code: string): boolean {
+  return /^[A-Za-z]{2,8}-?\d{2,6}$/.test(code.trim());
+}
 
 export interface SearchResultItem extends SearchResult {
   subtitle?: string;
@@ -29,6 +34,7 @@ interface UseSearchFlowOptions {
   resetJavDetail: () => void;
   javEnrichedDetail: JavDetail | null;
   setJavEnrichedDetail: (detail: JavDetail | null) => void;
+  javSubMode: JavSubMode;
   onSearch?: (keyword: string) => void;
 }
 
@@ -42,6 +48,7 @@ export function useSearchFlow({
   resetJavDetail,
   javEnrichedDetail,
   setJavEnrichedDetail,
+  javSubMode,
   onSearch,
 }: UseSearchFlowOptions) {
   const toast = useToast();
@@ -113,6 +120,11 @@ export function useSearchFlow({
     const query = overrideKeyword || keyword;
     if (!query.trim()) {
       toast.warning('请输入搜索关键词');
+      return;
+    }
+    // JAV 番号搜索格式校验：仅 code 模式生效
+    if (activeTab === 'jav' && javSubMode === 'code' && !isValidJavCode(query)) {
+      toast.warning('格式有误', '格式請按照【SONE-520】或【SONE520】搜尋');
       return;
     }
     // 关闭搜索建议
@@ -220,7 +232,7 @@ export function useSearchFlow({
     } finally {
       setSearching(false);
     }
-  }, [keyword, selectedCategory, toast, activeTab, fetchJavDetail, javEnrichedDetail, resetJavDetail, user?.id, searchMutation, setJavEnrichedDetail, setShowSuggestions, onSearch]);
+  }, [keyword, selectedCategory, toast, activeTab, javSubMode, fetchJavDetail, javEnrichedDetail, resetJavDetail, user?.id, searchMutation, setJavEnrichedDetail, setShowSuggestions, onSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -241,6 +253,11 @@ export function useSearchFlow({
     setEnrichedData(null);
   }, []);
 
+  // JAV 输入格式校验：仅在 JAV tab + code 模式且输入非空时生效
+  const javFormatValid = activeTab === 'jav' && javSubMode === 'code' && keyword.trim().length > 0
+    ? isValidJavCode(keyword)
+    : true;
+
   return {
     keyword,
     setKeyword,
@@ -255,6 +272,7 @@ export function useSearchFlow({
     handleKeyDown,
     handleCodeClick,
     resetResults,
+    javFormatValid,
     // Search suggestions
     suggestions,
     isLoadingSuggestions,

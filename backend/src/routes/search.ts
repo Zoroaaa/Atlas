@@ -163,11 +163,11 @@ async function saveEnrichedHistory(
 searchRoutes.post('/', async (c) => {
   const userPayload = c.get('user');
 
-  // 搜索接口速率限制：每用户每分钟最多 15 次
+  // 搜索接口速率限制：每用户每分钟最多 5 次
   const rateLimitKey = userPayload ? `search:${userPayload.userId}` : `search:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
-  const rl = checkRateLimit(rateLimitKey);
+  const rl = checkRateLimit(rateLimitKey, 60_000, 5);
   if (!rl.allowed) {
-    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+    return c.json(error('RATE_LIMITED', '搜索请求过于频繁，请稍后再试'), 429);
   }
 
   const body = await c.req.json();

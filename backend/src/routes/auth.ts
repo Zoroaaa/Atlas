@@ -212,10 +212,17 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     return c.json(error('VALIDATION_ERROR', `密码至少需要${passwordMinLength}个字符`), 400);
   }
 
+  const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
+
+  // 邮箱域名白名单验证：只允许主流邮箱注册
+  if (!emailVerificationUtils.isTrustedEmailDomain(normalizedEmail)) {
+    return c.json(error('VALIDATION_ERROR', '请使用主流邮箱注册（如 Gmail、QQ邮箱、163邮箱等）'), 400);
+  }
+
   try {
     const existingUser = await c.env.DB.prepare(
       'SELECT id FROM users WHERE username = ? OR email = ?'
-    ).bind(username, email).first();
+    ).bind(username, normalizedEmail).first();
 
     if (existingUser) {
       return c.json(error('VALIDATION_ERROR', '用户名或邮箱已被注册'), 400);
@@ -227,7 +234,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
         SELECT * FROM email_verifications 
         WHERE email = ? AND verification_code = ? AND verification_type = 'registration' AND expires_at > ?
         ORDER BY created_at DESC LIMIT 1
-      `).bind(email, verificationCode, Date.now()).first<EmailVerification>();
+      `).bind(normalizedEmail, verificationCode, Date.now()).first<EmailVerification>();
 
       if (!verification) {
         return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
@@ -258,7 +265,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
       `).bind(
         userId,
         username,
-        email,
+        normalizedEmail,
         passwordHash,
         now,
         now,
@@ -283,13 +290,13 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
       ),
     ]);
 
-    await logUserAction(c.env, userId, 'register', { username, email }, c);
+    await logUserAction(c.env, userId, 'register', { username, email: normalizedEmail }, c);
 
     return c.json(success({
       user: {
         id: userId,
         username,
-        email,
+        email: normalizedEmail,
         permissions: [...CONFIG.Roles.DEFAULT_PERMISSIONS],
         settings: {},
         isActive: true,
@@ -729,8 +736,9 @@ authRoutes.post('/send-registration-code', async (c) => {
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
 
-  if (emailVerificationUtils.isTempEmail(normalizedEmail)) {
-    return c.json(error('VALIDATION_ERROR', '不支持临时邮箱，请使用常用邮箱'), 400);
+  // 邮箱域名白名单验证：只允许主流邮箱注册
+  if (!emailVerificationUtils.isTrustedEmailDomain(normalizedEmail)) {
+    return c.json(error('VALIDATION_ERROR', '请使用主流邮箱注册（如 Gmail、QQ邮箱、163邮箱等）'), 400);
   }
 
   try {

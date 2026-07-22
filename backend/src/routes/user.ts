@@ -10,6 +10,7 @@ import { success, error, generateId, logUserAction } from '@/utils';
 import { authMiddleware } from '@/middleware/auth';
 import { userActivitySchema } from '@/utils/validators';
 import { CONFIG, VALIDATION_RULES } from '@/constants';
+import { checkRateLimit } from '@/utils/rate-limit';
 
 const R = VALIDATION_RULES;
 
@@ -101,6 +102,13 @@ userRoutes.get('/favorites', async (c) => {
 
 userRoutes.post('/favorites', async (c) => {
   const user = c.get('user');
+
+  // 收藏接口速率限制：每用户每分钟最多 5 次
+  const rateLimitKey = `favorite:${user.userId}`;
+  const rl = checkRateLimit(rateLimitKey, 60_000, 5);
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '收藏操作过于频繁，请稍后再试'), 429);
+  }
 
   try {
     const body = await c.req.json();
