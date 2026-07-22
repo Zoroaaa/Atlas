@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 600" width="1920" height="600">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0b"/>
+      <stop offset="50%" style="stop-color:#0f0d0c"/>
+      <stop offset="100%" style="stop-color:#1c1917"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#d4a853"/>
+      <stop offset="50%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#e11d48"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#d4a853;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#d4a853;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="leftGlow" cx="20%" cy="50%" r="40%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.08"/>
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="rightGlow" cx="80%" cy="50%" r="40%">
+      <stop offset="0%" style="stop-color:#e11d48;stop-opacity:0.06"/>
+      <stop offset="100%" style="stop-color:#e11d48;stop-opacity:0"/>
+    </radialGradient>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:transparent"/>
+      <stop offset="30%" style="stop-color:#d4a853;stop-opacity:0.3"/>
+      <stop offset="70%" style="stop-color:#f59e0b;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:transparent"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1920" height="600" fill="url(#bgGrad)"/>
+
+  <!-- Ambient glows -->
+  <rect width="1920" height="600" fill="url(#centerGlow)"/>
+  <rect width="1920" height="600" fill="url(#leftGlow)"/>
+  <rect width="1920" height="600" fill="url(#rightGlow)"/>
+
+  <!-- Grid dots -->
+  <g opacity="0.03">
+    <pattern id="dots" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
+      <circle cx="24" cy="24" r="1.5" fill="#d4a853"/>
+    </pattern>
+    <rect width="1920" height="600" fill="url(#dots)"/>
+  </g>
+
+  <!-- Decorative horizontal lines -->
+  <line x1="200" y1="100" x2="1720" y2="100" stroke="url(#lineGrad)" stroke-width="0.5"/>
+  <line x1="400" y1="500" x2="1520" y2="500" stroke="url(#lineGrad)" stroke-width="0.5"/>
+
+  <!-- Network nodes - representing multi-source search -->
+  <g opacity="0.2">
+    <!-- Connection lines -->
+    <line x1="300" y1="200" x2="600" y2="300" stroke="#d4a853" stroke-width="1"/>
+    <line x1="600" y1="300" x2="960" y2="250" stroke="#d4a853" stroke-width="1"/>
+    <line x1="960" y1="250" x2="1320" y2="320" stroke="#f59e0b" stroke-width="1"/>
+    <line x1="1320" y1="320" x2="1620" y2="220" stroke="#e11d48" stroke-width="1"/>
+    <line x1="300" y1="400" x2="600" y2="300" stroke="#d4a853" stroke-width="1"/>
+    <line x1="1620" y1="380" x2="1320" y2="320" stroke="#e11d48" stroke-width="1"/>
+    <line x1="600" y1="300" x2="960" y2="400" stroke="#d4a853" stroke-width="0.5" opacity="0.5"/>
+    <line x1="960" y1="250" x2="960" y2="400" stroke="#f59e0b" stroke-width="0.5" opacity="0.5"/>
+    <line x1="1320" y1="320" x2="960" y2="400" stroke="#e11d48" stroke-width="0.5" opacity="0.5"/>
+
+    <!-- Nodes -->
+    <circle cx="300" cy="200" r="5" fill="#d4a853"/>
+    <circle cx="300" cy="400" r="4" fill="#d4a853" opacity="0.7"/>
+    <circle cx="600" cy="300" r="6" fill="#d4a853"/>
+    <circle cx="960" cy="250" r="7" fill="#f59e0b"/>
+    <circle cx="960" cy="400" r="4" fill="#f59e0b" opacity="0.6"/>
+    <circle cx="1320" cy="320" r="6" fill="#e11d48"/>
+    <circle cx="1620" cy="220" r="5" fill="#e11d48"/>
+    <circle cx="1620" cy="380" r="4" fill="#e11d48" opacity="0.7"/>
+
+    <!-- Node labels -->
+    <text x="300" y="185" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="10" fill="#d4a853" opacity="0.6">DMM</text>
+    <text x="600" y="285" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="10" fill="#d4a853" opacity="0.6">Bangumi</text>
+    <text x="960" y="235" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="10" fill="#f59e0b" opacity="0.6">TMDB</text>
+    <text x="1320" y="305" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="10" fill="#e11d48" opacity="0.6">MangaDex</text>
+    <text x="1620" y="205" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="10" fill="#e11d48" opacity="0.6">JavBus</text>
+  </g>
+
+  <!-- Central compass -->
+  <g transform="translate(960, 280)" opacity="0.15">
+    <circle cx="0" cy="0" r="150" fill="none" stroke="#d4a853" stroke-width="1.5"/>
+    <circle cx="0" cy="0" r="130" fill="none" stroke="#d4a853" stroke-width="0.5"/>
+    <polygon points="0,-110 16,-10 0,0 -16,-10" fill="#d4a853"/>
+    <polygon points="0,110 16,10 0,0 -16,10" fill="#e11d48"/>
+    <circle cx="0" cy="0" r="6" fill="#d4a853"/>
+  </g>
+
+  <!-- Main content -->
+  <text x="960" y="260" text-anchor="middle" font-family="Sora, sans-serif" font-weight="800" font-size="72" letter-spacing="10" fill="url(#goldGrad)">ATLAS</text>
+
+  <text x="960" y="310" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="500" font-size="20" fill="#d6d3d1" letter-spacing="3">开源聚合搜索引擎</text>
+
+  <text x="960" y="350" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="400" font-size="15" fill="#78716c" letter-spacing="1">JAV / 动漫 / 影视 / 漫画 · 多源聚合 · 云端同步</text>
+
+  <!-- Bottom accent line -->
+  <line x1="760" y1="420" x2="1160" y2="420" stroke="url(#goldGrad)" stroke-width="1" opacity="0.3"/>
+
+  <!-- URL -->
+  <text x="960" y="460" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="500" font-size="13" fill="#d4a853" opacity="0.5" letter-spacing="2">atlas.wort.uk</text>
+
+  <!-- Corner decorations -->
+  <g opacity="0.1">
+    <line x1="60" y1="60" x2="120" y2="60" stroke="#d4a853" stroke-width="1.5"/>
+    <line x1="60" y1="60" x2="60" y2="120" stroke="#d4a853" stroke-width="1.5"/>
+  </g>
+  <g opacity="0.1">
+    <line x1="1860" y1="60" x2="1800" y2="60" stroke="#d4a853" stroke-width="1.5"/>
+    <line x1="1860" y1="60" x2="1860" y2="120" stroke="#d4a853" stroke-width="1.5"/>
+  </g>
+  <g opacity="0.1">
+    <line x1="60" y1="540" x2="120" y2="540" stroke="#e11d48" stroke-width="1.5"/>
+    <line x1="60" y1="540" x2="60" y2="480" stroke="#e11d48" stroke-width="1.5"/>
+  </g>
+  <g opacity="0.1">
+    <line x1="1860" y1="540" x2="1800" y2="540" stroke="#e11d48" stroke-width="1.5"/>
+    <line x1="1860" y1="540" x2="1860" y2="480" stroke="#e11d48" stroke-width="1.5"/>
+  </g>
+</svg>

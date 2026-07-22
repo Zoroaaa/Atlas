@@ -15,7 +15,7 @@ import {
 import { WebTorrentPlayer } from './WebTorrentPlayer';
 import { ProxyImage } from '@/components/ui';
 import { ShareToCommunityButton } from '@/components/community';
-import { getBackendBaseUrl } from '@/constants';
+import { getProxyImageUrl } from '@/utils/imageProxy';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -24,11 +24,6 @@ const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   } catch {
     return relativePath;
   }
-};
-
-const getProxyImageUrl = (url: string): string => {
-  const baseUrl = getBackendBaseUrl();
-  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
 interface JavDetailPanelProps {

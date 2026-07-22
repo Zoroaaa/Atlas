@@ -177,4 +177,19 @@ export interface JavEnrichedData {
   }>;
 }
 
-export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData;
+export interface MangaEnrichedData {
+  resultType: 'manga';
+  keyword: string;
+  page: number;
+  total: number;
+  errors: Record<string, string | null>;
+  manga: Array<{
+    id: string;
+    title: string;
+    cover: string;
+    status: string;
+    tags: string[];
+  }>;
+}
+
+export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData | MangaEnrichedData;

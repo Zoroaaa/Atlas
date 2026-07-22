@@ -150,6 +150,10 @@ export const userApi = {
     return apiClient.delete(`/user/search-history/${id}`);
   },
 
+  batchDeleteSearchHistory: async (ids: string[]): Promise<{ success: boolean; data: { deletedCount: number }; message: string }> => {
+    return apiClient.post('/user/search-history/batch-delete', { ids });
+  },
+
   updateSearchHistory: async (id: string, data: {
     title?: string;
     subtitle?: string;

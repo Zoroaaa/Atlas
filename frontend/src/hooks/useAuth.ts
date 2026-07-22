@@ -79,7 +79,7 @@ export function useAuth(): UseAuthReturn {
         setUser(response.data.user);
         setToken(response.data.token);
         persistToken(response.data.token);
-        toast.success('注册成功', '欢迎加入磁力快搜');
+        toast.success('注册成功', '欢迎加入 Atlas');
         return true;
       }
       toast.error('注册失败', response.message || '注册失败');

@@ -3,7 +3,8 @@ import { Search, Loader2, Filter } from 'lucide-react';
 import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType } from '@/types/source';
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnimeSearchResultPanel, MovieSearchResultPanel, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
+import { TAB_IDS } from '@/types/source';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
 import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
@@ -15,6 +16,7 @@ import { useDarkMode } from '@/hooks/useDarkMode';
 import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
 import { getSiteTypeBadge, getSiteTypeLabel } from '@/utils/siteType';
+import { getResultPanel } from '@/config/resultPanels';
 
 export const MainSearchPage: React.FC = () => {
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ export const MainSearchPage: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['jav', 'anime', 'movie', 'sources', 'community'].includes(tabParam)) {
+    if (tabParam && TAB_IDS.includes(tabParam as SearchTabType)) {
       setActiveTab(tabParam as SearchTabType);
     }
   }, [searchParams, setActiveTab]);
@@ -174,18 +176,55 @@ export const MainSearchPage: React.FC = () => {
           {activeTab === 'jav' && (
             <JavDetailPanel detail={javFlow.javDetail} status={javFlow.javDetailStatus} onClose={() => javFlow.resetJavDetail()} onFavorite={favoritesManager.handleFavoriteJavDetail} isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false} isAuthenticated={isAuthenticated} onLoginRequired={() => { navigate('/login'); }} />
           )}
-          {searchFlow.enrichedData && searchFlow.enrichedData.resultType === 'anime' ? (
-          <AnimeSearchResultPanel data={searchFlow.enrichedData} isDark={darkMode} isAuthenticated={isAuthenticated} favorites={favoritesManager.favorites} onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)} onPageChange={(p) => searchFlow.handleSearch(searchFlow.keyword, p)} onToggleFavorite={favoritesManager.handleToggleFavoriteAnime} onLoginRequired={() => { navigate('/login'); }} />
-          ) : searchFlow.enrichedData && searchFlow.enrichedData.resultType === 'movie' ? (
-            <MovieSearchResultPanel data={searchFlow.enrichedData} isDark={darkMode} isAuthenticated={isAuthenticated} favorites={favoritesManager.favorites} onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)} onPageChange={(p) => searchFlow.handleSearch(searchFlow.keyword, p)} onToggleFavorite={favoritesManager.handleToggleFavoriteMovie} onLoginRequired={() => { navigate('/login'); }} />
-          ) : (
-          <SearchResultsPanel results={searchFlow.searchResults} viewMode={viewMode} isAuthenticated={isAuthenticated} isProxyEnabled={isProxyEnabled} favorites={favoritesManager.favorites} categories={sourceManager.categories} majorCategories={sourceManager.majorCategories} onViewModeChange={setViewMode} onClose={() => searchFlow.resetResults()} onToggleFavorite={favoritesManager.handleToggleFavorite} />
-          )}
+          {(() => {
+            const resultType = searchFlow.enrichedData?.resultType;
+            const Panel = getResultPanel(resultType);
+
+            if (searchFlow.enrichedData && Panel) {
+              const commonProps = {
+                isDark: darkMode,
+                isAuthenticated,
+                isProxyEnabled,
+                favorites: favoritesManager.favorites,
+                onLoginRequired: () => navigate('/login'),
+              };
+              const getToggleFavorite = () => {
+                if (resultType === 'anime') return favoritesManager.handleToggleFavoriteAnime;
+                if (resultType === 'manga') return favoritesManager.handleToggleFavoriteManga;
+                return favoritesManager.handleToggleFavoriteMovie;
+              };
+              return (
+                <Panel
+                  data={searchFlow.enrichedData}
+                  {...commonProps}
+                  onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)}
+                  onPageChange={(p: number) => searchFlow.handleSearch(searchFlow.keyword, p)}
+                  onToggleFavorite={getToggleFavorite()}
+                />
+              );
+            }
+
+            // jav 以及任何未注册专属面板的类型，都走这里——props 形状和 Panel 分支不通用，不能合并
+            return (
+              <SearchResultsPanel
+                results={searchFlow.searchResults}
+                viewMode={viewMode}
+                isAuthenticated={isAuthenticated}
+                isProxyEnabled={isProxyEnabled}
+                favorites={favoritesManager.favorites}
+                categories={sourceManager.categories}
+                majorCategories={sourceManager.majorCategories}
+                onViewModeChange={setViewMode}
+                onClose={() => searchFlow.resetResults()}
+                onToggleFavorite={favoritesManager.handleToggleFavorite}
+              />
+            );
+          })()}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
               {activeTab === 'jav' && <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />}
               {isAuthenticated && (
-                <SearchHistoryPanel history={historyManager.searchHistory} isLoading={historyManager.isLoadingHistory} show={showHistory} onToggle={() => setShowHistory(!showHistory)} onItemClick={(query) => searchFlow.setKeyword(query)} onClear={historyManager.handleClearHistory} />
+                <SearchHistoryPanel history={historyManager.searchHistory} isLoading={historyManager.isLoadingHistory} show={showHistory} onToggle={() => setShowHistory(!showHistory)} onItemClick={(query) => searchFlow.setKeyword(query)} onClear={historyManager.handleClearHistory} onDeleteSelected={historyManager.handleDeleteSelected} />
               )}
             </div>
             <div className="hidden lg:flex flex-col gap-3 sm:gap-4 self-start">

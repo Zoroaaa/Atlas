@@ -10,6 +10,7 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     majorCategoryId: 'jav_sources',
     placeholder: '输入番号、关键词搜索资源...',
     description: '搜索日本成人视频番号和相关资源',
+    pinned: true,
   },
   anime: {
     id: 'anime',
@@ -19,6 +20,7 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     majorCategoryId: 'anime_sources',
     placeholder: '输入动漫名称、番剧名称...',
     description: '搜索动漫、番剧、漫画等ACG资源',
+    pinned: true,
   },
   movie: {
     id: 'movie',
@@ -28,6 +30,17 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     majorCategoryId: 'movie_sources',
     placeholder: '输入电影、电视剧名称...',
     description: '搜索电影、电视剧、综艺等影视资源',
+    pinned: true,
+  },
+  manga: {
+    id: 'manga',
+    label: '漫画搜索',
+    icon: '📖',
+    gradient: 'from-purple-500 to-indigo-600',
+    majorCategoryId: 'manga_sources',
+    placeholder: '输入漫画名称...',
+    description: '搜索漫画资源',
+    pinned: true,
   },
   sources: {
     id: 'sources',
@@ -37,6 +50,7 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     majorCategoryId: null,
     placeholder: '浏览所有可用资源站点...',
     description: '快速访问各类浏览型资源站点',
+    pinned: false,
   },
   community: {
     id: 'community',
@@ -46,6 +60,7 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     majorCategoryId: null,
     placeholder: '进入社区...',
     description: '发现精彩内容，与同好交流互动',
+    pinned: false,
   },
 };
 
@@ -56,3 +71,9 @@ export const SEARCH_ONLY_TABS: TabConfig[] = Object.values(SEARCH_TABS).filter(
 
 /** 所有 Tab 的有序列表（按定义顺序） */
 export const ALL_TABS: TabConfig[] = Object.values(SEARCH_TABS);
+
+/** 常驻主导航的 Tab 列表 */
+export const PINNED_TABS: TabConfig[] = ALL_TABS.filter((t) => t.pinned);
+
+/** 溢出到"更多"菜单的 Tab 列表 */
+export const OVERFLOW_TABS: TabConfig[] = ALL_TABS.filter((t) => !t.pinned);

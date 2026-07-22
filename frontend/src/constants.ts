@@ -35,7 +35,7 @@ export function getBackendBaseUrl(): string {
 
 /** API 请求行为配置 — 纯客户端重试策略 */
 export const API_CONFIG = {
-  MAX_RETRIES: 3,
+  MAX_RETRIES: 2,
   RETRY_DELAY: 1000,
   DEFAULT_TIMEOUT: 15000,
 } as const;

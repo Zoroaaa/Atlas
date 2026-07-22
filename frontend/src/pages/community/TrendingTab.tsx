@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Film, Tv, BookOpen, Eye, Heart, MessageSquare, Bookmark, Calendar, User, Award } from 'lucide-react';
 import { clsx } from 'clsx';
-import { Award, Eye, Heart, Calendar, User, Film, Tv, MessageSquare, Bookmark } from 'lucide-react';
 import { Card, Loading, Badge } from '@/components/ui';
 import { communityApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
@@ -10,6 +10,7 @@ const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'text-rose-500' },
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500' },
+  manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500' },
 };
 
 export const TrendingTab: React.FC = () => {

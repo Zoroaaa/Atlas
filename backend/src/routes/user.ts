@@ -434,6 +434,36 @@ userRoutes.delete('/search-history/:id', async (c) => {
   }
 });
 
+// 批量删除搜索历史
+userRoutes.post('/search-history/batch-delete', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const body = await c.req.json();
+    const { ids } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return c.json(error('VALIDATION_ERROR', '请提供要删除的历史记录ID'), 400);
+    }
+
+    if (ids.length > 100) {
+      return c.json(error('VALIDATION_ERROR', '一次最多删除100条记录'), 400);
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    const result = await c.env.DB.prepare(
+      `DELETE FROM user_search_history WHERE id IN (${placeholders}) AND user_id = ?`
+    ).bind(...ids, user.userId).run();
+
+    return c.json(success({
+      deletedCount: result.meta.changes || 0
+    }, `已删除 ${result.meta.changes || 0} 条记录`));
+  } catch (err) {
+    console.error('Batch delete search history error:', err);
+    return c.json(error('SERVER_ERROR', '批量删除失败'), 500);
+  }
+});
+
 userRoutes.get('/search-stats', async (c) => {
   const user = c.get('user');
 

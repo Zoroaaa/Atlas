@@ -282,7 +282,7 @@ export const ForgotPasswordPage: React.FC = () => {
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />
           </div>
-          <span className="text-xs font-medium">磁力快搜</span>
+          <span className="text-xs font-medium">Atlas</span>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { Share2 } from 'lucide-react';
 import { ShareToCommunityModal } from '@/pages/community/ShareToCommunityModal';
 
 export interface SharePostData {
-  postType: 'jav' | 'anime' | 'movie';
+  postType: 'jav' | 'anime' | 'movie' | 'manga';
   title: string;
   coverImage: string;
   contentData: string;

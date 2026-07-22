@@ -17,7 +17,7 @@ let lastFetchTime = 0;
 function getDefaultConfig(): PublicConfig {
   return {
     appVersion: '2.0.0',
-    siteName: '磁力快搜',
+    siteName: 'Atlas',
     siteDescription: '搜索全网资源，一步直达',
     allowRegistration: true,
     communityEnabled: true,

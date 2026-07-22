@@ -4,10 +4,10 @@
 
 # Atlas
 
-**开源聚合搜索引擎 — JAV / 动漫 / 影视，一站式搜索**
+**开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -45,11 +45,9 @@
 
 | 文档 | 说明 | 链接 |
 |------|------|------|
-| **API 接口文档** | 完整的 RESTful API 接口说明，包含搜索接口（JAV/动漫/影视三大类别）、认证方式、源管理等 | [docs/api/index.md](docs/api/index.md) |
-| **架构设计文档** | 前后端目录结构、技术栈版本、部署架构、数据库模块化设计详解 | [docs/backend-frontend-tree.md](docs/backend-frontend-tree.md) |
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、**v4.0（动漫&影视搜索+架构升级）** | [docs/changelogv2.0.md](docs/changelogv2.0.md) / [docs/changelogv3.0.md](docs/changelogv3.0.md) / [docs/changelogv3.1.0.md](docs/changelogv3.1.0.md) / [docs/changelogv4.0.0.md](docs/changelogv4.0.0.md) |
+| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、v4.0（动漫&影视搜索+架构升级）、**v4.1（漫画搜索+架构优化）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -66,7 +64,8 @@
 - **JAV 搜索**: DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力多源搜索
 - **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + Nyaa 磁力 + ShowRSS 订阅
 - **影视搜索**: TMDB 电影剧集 + YTS 电影种子 + EZTV 剧集种子 + TPB 兜底磁力
-- **一站式体验**: 三大类别统一入口，一次搜索聚合多源结果
+- **漫画搜索**: MangaDex 漫画元数据 + 13个搜索源聚合
+- **一站式体验**: 四大类别统一入口，一次搜索聚合多源结果
 
 #### 2. 现代化技术架构
 - **React 19 + TypeScript**: 采用最新的 React 特性，配合 TypeScript 实现完整的类型安全
@@ -126,15 +125,16 @@ Resend                → 现代邮件服务、高送达率、实时追踪
 
 ## 核心功能
 
-### 1. 智能搜索系统 (v4.0 三层架构重构)
+### 1. 智能搜索系统 (v4.1 四层架构重构)
 
-#### 三大搜索类别
+#### 四大搜索类别
 
 | 类别 | 数据源 | 说明 |
 |------|--------|------|
 | **JAV** | DMM/FANZA / JavBus / JavDB | 成人影片元数据 + 磁力聚合 |
 | **动漫** | Bangumi / Mikan / Nyaa / ShowRSS | 番剧元数据 + 字幕组 + 磁力链接 |
 | **影视** | TMDB / YTS / EZTV / TPB | 电影剧集元数据 + 种子资源 |
+| **漫画** | MangaDex / 13个搜索源 | 漫画元数据 + 资源聚合 |
 
 #### 三层搜索架构
 
@@ -154,6 +154,9 @@ Category (大类)        Classification (分类)         Source (源实例)
 │             │       │ yts              │       │ YTS          │
 │             │       │ eztv             │       │ EZTV         │
 │             │       │ tpb              │       │ TPB          │
+├─────────────┤       ├──────────────────┐       ├──────────────┤
+│   manga     │ ────> │ mangadex         │ ────> │ MangaDex API │
+│             │       │ sources          │       │ 13个搜索源   │
 └─────────────┘       └──────────────────┘       └──────────────┘
 ```
 
@@ -165,7 +168,8 @@ Category (大类)        Classification (分类)         Source (源实例)
 #### 多源聚合搜索
 - **一键聚合**: 选择类别和分类，输入关键词，结果统一展示
 - **智能排序**: 根据搜索源优先级、使用频率、可用状态智能排序结果
-- **分类筛选**: 支持按大类（JAV/动漫/影视）和子分类筛选搜索源
+- **分类筛选**: 支持按大类（JAV/动漫/影视/漫画）和子分类筛选搜索源
+- **固定源管理**: 一键固定常用搜索源，个性化定制（v4.1新增）
 - **历史记录**: 自动保存搜索历史（含封面图），支持快速重搜和历史统计
 
 #### 搜索建议与热门
@@ -259,22 +263,24 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    前端层 (v4.0.0)                      │
+│                    前端层 (v4.1.0)                      │
 │  • React 19 + TypeScript                                │
 │  • Vite 构建工具                                         │
 │  • Tailwind CSS 样式框架                                 │
 │  • Zustand 状态管理                                      │
 │  • React Router 路由管理                                 │
 │  • AnimeSearchResultPanel / MovieSearchResultPanel      │
+│  • MangaSearchResultPanel (v4.1新增)                    │
 │  • 部署：Cloudflare Pages                                │
 ├─────────────────────────────────────────────────────────┤
-│                  Provider 层 (v4.0 新增)                 │
+│                  Provider 层 (v4.1 扩展)                 │
 │  • SearchProvider 接口 + ProviderRegistry 注册中心       │
 │  • anime-provider (Bangumi/Mikan/Nyaa/ShowRSS)          │
 │  • movie-provider (TMDB/YTS/EZTV/TPB)                   │
+│  • manga-provider (MangaDex/13个搜索源)                 │
 │  • jav-provider (Metadata/Magnet)                       │
 ├─────────────────────────────────────────────────────────┤
-│                  后端服务层 (v4.0.0)                     │
+│                  后端服务层 (v4.1.0)                     │
 │  • Hono 框架 (轻量级 Web 框架)                           │
 │  • TypeScript 类型安全                                   │
 │  • Cloudflare Workers (边缘计算)                         │
@@ -305,11 +311,12 @@ cd Atlas
 # 安装依赖
 pnpm install
 
-# 初始化数据库（含 v4.0 新增的动漫/影视搜索源）
+# 初始化数据库（含 v4.1 新增的动漫/影视/漫画搜索源）
 npx wrangler d1 create atlas-db
 npx wrangler d1 execute atlas-db --file=database/schema.sql
 npx wrangler d1 execute atlas-db --file=database/06_data_search_sources.sql
 npx wrangler d1 execute atlas-db --file=database/13_schema_history_cover.sql
+npx wrangler d1 execute atlas-db --file=database/14_index_manga_optimization.sql
 
 # 本地开发
 pnpm dev
@@ -321,7 +328,7 @@ pnpm build && cd backend && npx wrangler deploy
 [查看详细部署指南](docs/deploy.md)
 [查看配置说明](docs/config.md)
 [查看完整 API 文档](docs/api/index.md)
-[查看 v4.0 变更日志](docs/changelogv4.0.0.md)
+[查看 v4.1 变更日志](docs/changelogv4.1.0.md)
 
 ## 性能优化
 
@@ -402,7 +409,7 @@ pnpm build && cd backend && npx wrangler deploy
 
 ### Atlas — 开源聚合搜索引擎
 
-**JAV / 动漫 / 影视，一站式搜索**
+**JAV / 动漫 / 影视 / 漫画，一站式搜索**
 
 Made with ❤️ by [Zoro](https://github.com/Zoroaaa)
 

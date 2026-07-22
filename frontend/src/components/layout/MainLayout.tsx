@@ -33,13 +33,13 @@ export const MainLayout: React.FC = () => {
                 <div className="relative w-10 h-10">
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] opacity-0 group-hover:opacity-20 blur-lg transition-all" />
                   <img
-                    src="/logo.png"
-                    alt="磁力快搜"
+                    src="/logo.svg"
+                    alt="Atlas"
                     className="relative w-full h-full rounded-xl shadow-md object-cover"
                   />
                 </div>
                 <span className="text-xl font-bold gradient-text display-font hidden sm:block">
-                  磁力快搜
+                  Atlas
                 </span>
               </a>
 
@@ -103,16 +103,16 @@ export const MainLayout: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <img
-                src="/logo.png"
-                alt="磁力快搜"
+                src="/logo.svg"
+                alt="Atlas"
                 className="w-8 h-8 rounded-xl shadow-md object-cover"
               />
               <span className="font-semibold text-stone-700 dark:text-stone-300 tracking-tight">
-                磁力快搜
+                Atlas
               </span>
             </div>
             <p className="text-sm text-stone-400 dark:text-stone-500">
-              © {new Date().getFullYear()} 磁力快搜. 保留所有权利.
+              © {new Date().getFullYear()} Atlas. 保留所有权利.
             </p>
           </div>
         </div>

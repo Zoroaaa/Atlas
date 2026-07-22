@@ -1,0 +1,19 @@
+# Robots.txt for Atlas
+# 允许所有搜索引擎爬取首页和公开页面
+
+User-agent: *
+Allow: /
+Allow: /terms
+Allow: /privacy
+
+# 禁止爬取需要登录的页面
+Disallow: /main
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /auth
+
+# Sitemap 位置
+Sitemap: https://atlas.wort.uk/sitemap.xml

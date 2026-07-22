@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Star, Calendar, Tv, ExternalLink,
   Magnet, Wifi, RefreshCw, ChevronLeft, ChevronRight,
-  Tag, Heart, Users, Trophy, Film,
+  Tag, Heart, Users, Trophy, Film, ShieldCheck,
 } from 'lucide-react';
 import type {
   AnimeEnrichedData,
@@ -12,19 +12,10 @@ import type {
   ShowRssItem,
 } from '@/types/search';
 import type { FavoriteItem } from '@/types';
-import { API_BASE_URL } from '@/constants';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
-
-// ─── 图片代理（与 JAV 统一走后端 /api/jav/proxy-image）─────────────
-const getProxyImageUrl = (url: string): string => {
-  const isLocal = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  );
-  // 复用 API_BASE_URL 常量，避免硬编码部署地址
-  const baseUrl = isLocal ? '' : API_BASE_URL.PRODUCTION.replace('/api', '');
-  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
-};
+import { getProxyImageUrl } from '@/utils/imageProxy';
+import { convertToProxyUrl } from '@/services/proxy';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -192,13 +183,14 @@ const BangumiCard: React.FC<{
   isAuthenticated: boolean;
   isFavorited: boolean;
   onToggleFavorite: (subject: BangumiSubject) => void;
-}> = ({ subject, isAuthenticated, isFavorited, onToggleFavorite }) => (
+  isProxyEnabled: boolean;
+}> = ({ subject, isAuthenticated, isFavorited, onToggleFavorite, isProxyEnabled }) => (
   <div
     className="group flex gap-4 p-4 rounded-xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-amber-500/50 hover:bg-stone-50 dark:hover:bg-stone-800/70 transition-all"
   >
     {/* 封面 */}
     {subject.cover && (
-      <a href={subject.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+      <a href={isProxyEnabled ? convertToProxyUrl(subject.url) : subject.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
         <img
           src={getProxyImageUrl(subject.cover)}
           alt={subject.nameCN || subject.name}
@@ -229,6 +221,11 @@ const BangumiCard: React.FC<{
                 <Trophy className="w-3 h-3" />#{subject.rank}
               </span>
             )}
+            {isProxyEnabled && (
+              <span className="shrink-0 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <ShieldCheck className="w-3 h-3" />代理
+              </span>
+            )}
           </div>
 
           <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100 leading-snug line-clamp-2 group-hover:text-amber-500 transition-colors">
@@ -253,10 +250,14 @@ const BangumiCard: React.FC<{
             </button>
           )}
           <a
-            href={subject.url}
+            href={isProxyEnabled ? convertToProxyUrl(subject.url) : subject.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 rounded-lg text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+            className={`p-1.5 rounded-lg transition-all ${
+              isProxyEnabled
+                ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                : 'text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+            }`}
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
@@ -341,6 +342,7 @@ interface AnimeSearchResultPanelProps {
   data: AnimeEnrichedData;
   isDark?: boolean;
   isAuthenticated?: boolean;
+  isProxyEnabled?: boolean;
   favorites?: FavoriteItem[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
@@ -352,6 +354,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   data,
   isDark: _isDark = true,
   isAuthenticated = false,
+  isProxyEnabled = false,
   favorites = [],
   onRefresh,
   onPageChange,
@@ -517,6 +520,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   isAuthenticated={isAuthenticated}
                   isFavorited={isBgmFavorited(s.url)}
                   onToggleFavorite={(subj) => onToggleFavorite?.(subj)}
+                  isProxyEnabled={isProxyEnabled}
                 />
               ))}
             </div>

@@ -6,5 +6,6 @@ export { SourcesPanel } from './SourcesPanel';
 export { SourcesSidebar, default } from './SourcesSidebar';
 export { AnimeSearchResultPanel } from './AnimeSearchResultPanel';
 export { MovieSearchResultPanel } from './MovieSearchResultPanel';
+export { MangaSearchResultPanel } from './MangaSearchResultPanel';
 export { AnnouncementPanel } from './AnnouncementBanner';
 export { SearchSuggestionsDropdown } from './SearchSuggestionsDropdown';

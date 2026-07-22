@@ -17,7 +17,7 @@ configRoutes.use('*', authMiddleware);
 // 不再使用本地权限检查函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
 
 const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string; configType: string; configGroup: string; isPublic: number; isSensitive: number; validationRules?: string }> = {
-  'site_name': { value: '磁力快搜', description: '网站名称', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
+  'site_name': { value: 'Atlas', description: '网站名称', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'site_description': { value: '搜索全网资源，一步直达', description: '网站描述', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'enable_registration': { value: '1', description: '是否开放注册', configType: 'boolean', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'community_enabled': { value: '1', description: '启用搜索源共享社区功能', configType: 'boolean', configGroup: 'features', isPublic: 1, isSensitive: 0 },

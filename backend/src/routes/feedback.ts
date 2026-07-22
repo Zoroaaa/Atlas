@@ -384,7 +384,7 @@ async function sendFeedbackReplyEmail(
   const recipientEmail = feedback.contact_email;
   if (!recipientEmail) return { sent: false, error: '无收件人邮箱' };
 
-  const siteName = env.DEFAULT_FROM_NAME || '磁力快搜';
+  const siteName = env.DEFAULT_FROM_NAME || 'Atlas';
   const fromEmail = env.DEFAULT_FROM_EMAIL || 'noreply@example.com';
   const siteUrl = env.SITE_URL || 'https://example.com';
   const typeLabel = TYPE_LABELS[feedback.type] || feedback.type;

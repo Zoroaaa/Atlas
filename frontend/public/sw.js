@@ -9,7 +9,8 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
-  '/logo.png'
+  '/logo.svg',
+  '/og-image.png'
 ];
 
 const API_CACHE_CONFIG = {

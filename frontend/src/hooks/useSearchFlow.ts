@@ -141,7 +141,7 @@ export function useSearchFlow({
         page,
       });
       if (response.success && response.data) {
-        if ('resultType' in response.data && ['anime', 'movie', 'jav'].includes(response.data.resultType)) {
+        if ('resultType' in response.data && ['anime', 'movie', 'jav', 'manga'].includes(response.data.resultType)) {
           setEnrichedData(response.data as EnrichedSearchData);
 
           if (response.data.resultType === 'jav') {

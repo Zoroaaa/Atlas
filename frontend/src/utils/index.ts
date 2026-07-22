@@ -11,4 +11,6 @@ export {
   getMagnetShortHash,
 } from './magnet';
 
+export { getProxyImageUrl } from './imageProxy';
+
 export { camelizeKeys, type CamelCaseKeys } from '@codeseek/shared/utils';

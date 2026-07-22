@@ -487,7 +487,7 @@ export class EmailVerificationService {
 
     const configService = new ConfigService(this.env);
     const verificationCodeExpiry = await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
-    const defaultFromName = this.env.DEFAULT_FROM_NAME || '磁力快搜';
+    const defaultFromName = this.env.DEFAULT_FROM_NAME || 'Atlas';
 
     const mappedTemplateType = this.getTemplateType(templateType);
     const template = await this.getEmailTemplate(mappedTemplateType);

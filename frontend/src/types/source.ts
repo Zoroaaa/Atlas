@@ -10,8 +10,9 @@ export type {
   SourceStats,
 } from '@codeseek/shared';
 
-// 搜索 Tab 类型
-export type SearchTabType = 'jav' | 'anime' | 'movie' | 'community' | 'sources';
+// 搜索 Tab 配置 - 单一数据源
+export const TAB_IDS = ['jav', 'anime', 'movie', 'manga', 'sources', 'community'] as const;
+export type SearchTabType = typeof TAB_IDS[number];
 
 // Tab 配置接口
 export interface TabConfig {
@@ -22,6 +23,7 @@ export interface TabConfig {
   majorCategoryId: string | null;
   placeholder: string;
   description: string;
+  pinned?: boolean; // 是否常驻主导航,不设为 true 的进"更多"
 }
 
 // 前端专属请求类型

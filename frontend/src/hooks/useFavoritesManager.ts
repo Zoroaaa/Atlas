@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores';
 import { useFavoritesQuery, useAddFavorite, useRemoveFavorite } from '@/hooks';
 import { useToast } from '@/components/ui/Toast';
 import type { JavDetail } from '@/types/jav';
-import type { BangumiSubject, TMDBResult } from '@/types/search';
+import type { BangumiSubject, TMDBResult, MangaEnrichedData } from '@/types/search';
 import type { SearchResultItem } from './useSearchFlow';
 
 interface UseFavoritesManagerOptions {
@@ -129,6 +129,30 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     }
   };
 
+  const handleToggleFavoriteManga = async (item: MangaEnrichedData['manga'][0]) => {
+    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    const url = `https://mangadex.org/title/${item.id}`;
+    const existingFavoriteId = favorites.find(f => f.url?.includes(item.id))?.id;
+    if (existingFavoriteId) {
+      try {
+        await removeFavoriteMutation.mutateAsync(existingFavoriteId);
+        toast.success('已取消收藏');
+      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+    } else {
+      try {
+        const response = await addFavoriteMutation.mutateAsync({
+          title: item.title,
+          url,
+          cover: item.cover,
+          tags: item.tags?.slice(0, 5).join(', '),
+          keyword: keyword.trim() || undefined,
+        });
+        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
+        toast.success('已添加到收藏');
+      } catch { toast.error('收藏失败', '请稍后重试'); }
+    }
+  };
+
   const handleRemoveFavorite = async (id: string) => {
     try {
       await removeFavoriteMutation.mutateAsync(id);
@@ -156,6 +180,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     handleFavoriteJavDetail,
     handleToggleFavoriteAnime,
     handleToggleFavoriteMovie,
+    handleToggleFavoriteManga,
     handleRemoveFavorite,
     handleExportFavorites,
     refetchFavorites,

@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
-import type { SearchTabType } from '@/stores/sourceStore';
+import type { SearchTabType } from '@/types/source';
 import { DropdownMenu, userMenuItems, Modal } from '@/components/ui';
-import { SEARCH_TABS } from '@/config/tabs';
+import { SEARCH_TABS, PINNED_TABS, OVERFLOW_TABS } from '@/config/tabs';
 
 /* ── 类型定义 ── */
 
@@ -47,7 +47,7 @@ const LogoSection: React.FC = memo(() => (
     <div className="relative w-9 h-9 sm:w-10 sm:h-10">
       <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] opacity-0 group-hover:opacity-20 blur-lg transition-all duration-300" />
       <img
-        src="/logo.png"
+        src="/logo.svg"
         alt="Atlas"
         className="relative w-full h-full rounded-xl shadow-lg object-cover"
       />
@@ -302,6 +302,8 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy } = useProxyStore();
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false);
+  const [isProxyConfirmOpen, setIsProxyConfirmOpen] = useState(false);
 
   const getProxyButtonClass = () => {
     if (isProxyEnabled) return 'proxy-toggle-btn enabled';
@@ -337,14 +339,36 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               {/* Tab 切换器 - 桌面端显示，登录后可见 */}
               {isAuthenticated && (
               <nav role="tablist" className="hidden md:flex items-center gap-1">
-                {Object.entries(SEARCH_TABS).map(([key, tab]) => (
+                {PINNED_TABS.map((tab) => (
                   <TabButton
-                    key={key}
-                    tab={tab}
-                    isActive={activeTab === key}
-                    onClick={() => handleTabChange(key)}
+                    key={tab.id}
+                    tab={tab as (typeof SEARCH_TABS)[SearchTabType]}
+                    isActive={activeTab === tab.id}
+                    onClick={() => handleTabChange(tab.id)}
                   />
                 ))}
+                {OVERFLOW_TABS.length > 0 && (
+                  <DropdownMenu
+                    trigger={
+                      <button className={clsx(
+                        'px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                        OVERFLOW_TABS.some(t => t.id === activeTab)
+                          ? 'text-white shadow-md bg-gradient-to-br from-stone-500 to-stone-600'
+                          : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800'
+                      )}>
+                        更多
+                      </button>
+                    }
+                    items={OVERFLOW_TABS.map(tab => ({
+                      id: tab.id,
+                      label: tab.label,
+                      icon: <span>{tab.icon}</span>,
+                      onClick: () => handleTabChange(tab.id),
+                    }))}
+                    triggerMode="click"
+                    align="left"
+                  />
+                )}
               </nav>
               )}
             </div>
@@ -356,10 +380,18 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               <div className="flex items-center gap-0.5">
                 {/* 代理切换 - 移动端仅显示图标 */}
                 <button
-                  onClick={toggleProxy}
+                  onClick={() => {
+                    if (isProxyEnabled) {
+                      // 已开启时直接关闭，无需确认
+                      toggleProxy();
+                    } else {
+                      // 未开启时显示确认弹窗
+                      setIsProxyConfirmOpen(true);
+                    }
+                  }}
                   disabled={isProxyLoading}
                   className={clsx(getProxyButtonClass(), 'sm:p-2 p-1.5')}
-                  title={isProxyEnabled ? '代理已启用' : '代理已关闭'}
+                  title={isProxyEnabled ? '代理已启用 - 点击关闭' : '代理已关闭 - 点击启用'}
                 >
                   {isProxyLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -436,14 +468,28 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         aria-label="主导航"
       >
         <div className="flex items-stretch justify-between h-14 max-w-lg mx-auto">
-          {Object.entries(SEARCH_TABS).map(([key, tab]) => (
+          {PINNED_TABS.map((tab) => (
             <MobileTab
-              key={key}
-              tab={tab}
-              isActive={activeTab === key}
-              onClick={() => handleTabChange(key)}
+              key={tab.id}
+              tab={tab as (typeof SEARCH_TABS)[SearchTabType]}
+              isActive={activeTab === tab.id}
+              onClick={() => handleTabChange(tab.id)}
             />
           ))}
+          {OVERFLOW_TABS.length > 0 && (
+            <button
+              onClick={() => setIsMoreSheetOpen(true)}
+              className={clsx(
+                'flex flex-col items-center justify-center py-1.5 px-2 flex-1 transition-all duration-200',
+                OVERFLOW_TABS.some(t => t.id === activeTab)
+                  ? 'text-amber-700 dark:text-amber-400 scale-105'
+                  : 'text-stone-500 dark:text-stone-400'
+              )}
+            >
+              <span className="text-lg sm:text-xl">⋯</span>
+              <span className="text-[10px] xs:text-xs mt-0.5 font-medium">更多</span>
+            </button>
+          )}
         </div>
       </nav>
       )}
@@ -480,6 +526,87 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
           <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs">
             提示：输入 JAV 畗号格式（如 SONE-520）会自动触发详情提取
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── 移动端"更多"Modal ── */}
+      <Modal
+        isOpen={isMoreSheetOpen}
+        onClose={() => setIsMoreSheetOpen(false)}
+        title="更多"
+        size="md"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          {OVERFLOW_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                handleTabChange(tab.id);
+                setIsMoreSheetOpen(false);
+              }}
+              className={clsx(
+                'flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200',
+                activeTab === tab.id
+                  ? 'border-amber-500/50 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                  : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-800/50 text-stone-600 dark:text-stone-400'
+              )}
+            >
+              <span className="text-2xl mb-2">{tab.icon}</span>
+              <span className="text-sm font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      {/* ── 代理确认弹窗 ── */}
+      <Modal
+        isOpen={isProxyConfirmOpen}
+        onClose={() => setIsProxyConfirmOpen(false)}
+        title="开启访问代理"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800/30">
+            <ShieldCheck className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm text-stone-700 dark:text-stone-300 font-medium">
+                开启后，以下访问将通过代理服务器转发：
+              </p>
+              <ul className="text-xs text-stone-600 dark:text-stone-400 space-y-1 ml-4 list-disc">
+                <li>JAV 搜索结果访问</li>
+                <li>动漫搜索结果访问</li>
+                <li>影视搜索结果访问</li>
+                <li>漫画搜索结果访问</li>
+                <li>我的收藏中的第三方链接</li>
+              </ul>
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/30">
+            <p className="text-xs text-violet-700 dark:text-violet-300">
+              <strong>代理访问密钥：</strong>
+              <code className="ml-2 px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-800/50 font-mono">pp520</code>
+            </p>
+          </div>
+          <p className="text-xs text-stone-500 dark:text-stone-400 text-center">
+            旨在解决网络限制导致的第三方网站访问失败问题
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsProxyConfirmOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => {
+                setIsProxyConfirmOpen(false);
+                toggleProxy();
+              }}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md shadow-amber-500/25 transition-all"
+            >
+              确认开启
+            </button>
           </div>
         </div>
       </Modal>

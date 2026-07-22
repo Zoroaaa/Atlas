@@ -27,6 +27,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'img.javbus.com',
   'lain.bgm.tv',
   'image.tmdb.org',
+  'uploads.mangadex.org',
 ];
 
 function isPrivateIP(hostname: string): boolean {

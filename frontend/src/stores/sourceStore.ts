@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { MajorCategory, Category, SearchSource, UserSourceConfig, SourceCheckResult } from '@/types';
+import type { MajorCategory, Category, SearchSource, UserSourceConfig, SourceCheckResult, SearchTabType } from '@/types';
 
 // Tab 类型与 MajorCategory 的映射关系
 const getMajorCategoryIdByTab = (tab: string): string | null => {
@@ -8,12 +8,12 @@ const getMajorCategoryIdByTab = (tab: string): string | null => {
     jav: 'jav_sources',
     anime: 'anime_sources',
     movie: 'movie_sources',
+    manga: 'manga_sources',
     sources: null,
+    community: null,
   };
   return mapping[tab] ?? null;
 };
-
-export type SearchTabType = 'jav' | 'anime' | 'movie' | 'community' | 'sources';
 
 interface SourceState {
   majorCategories: MajorCategory[];

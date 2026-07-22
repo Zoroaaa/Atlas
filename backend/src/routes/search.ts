@@ -123,6 +123,24 @@ async function saveEnrichedHistory(
       }
       break;
     }
+    case 'manga': {
+      // 漫画：提取首条 MangaDex 结果 → title + cover + code(manga:id) + tags
+      const manga = (result as { manga?: Array<{ id: string; title: string; cover: string; status?: string; tags?: string[] }> }).manga;
+      const firstManga = manga?.[0];
+      if (firstManga) {
+        updateFields.push('title=?, cover=?, code=?');
+        updateValues.push(
+          firstManga.title,
+          firstManga.cover,
+          `manga:${firstManga.id}`
+        );
+        if (firstManga.tags?.length) {
+          updateFields.push('tags=?');
+          updateValues.push(firstManga.tags.join(','));
+        }
+      }
+      break;
+    }
   }
 
   if (updateFields.length > 0) {
@@ -165,8 +183,8 @@ searchRoutes.post('/', async (c) => {
   const limitPageSize = Math.min(Math.max(1, pageSize), maxPageSize);
   const limitPage = Math.max(1, page);
 
+  let historyId: string | null = null;
   try {
-    let historyId: string | null = null;
     if (userPayload) {
       historyId = generateId();
       await c.env.DB.prepare(
@@ -237,12 +255,26 @@ searchRoutes.post('/', async (c) => {
 
           // 增强搜索历史记录（方案 B）
           if (historyId && userPayload) {
-            await saveEnrichedHistory(c.env.DB, historyId, userPayload, enrichedData);
+            try {
+              await saveEnrichedHistory(c.env.DB, historyId, userPayload, enrichedData);
+            } catch (histErr) {
+              // 历史记录失败不该影响搜索结果返回，只记日志
+              console.error(`[saveEnrichedHistory] ${provider.id} history save failed:`, histErr);
+            }
           }
 
           return c.json(success(enrichedData, '搜索完成'));
         } catch (err) {
           console.error(`[Provider:${provider.id}] search error:`, err);
+          // 搜索失败，删除已写入的历史记录
+          if (historyId && userPayload) {
+            try {
+              await c.env.DB.prepare('DELETE FROM user_search_history WHERE id = ? AND user_id = ?')
+                .bind(historyId, userPayload.userId).run();
+            } catch (delErr) {
+              console.error('[search] Failed to delete history on error:', delErr);
+            }
+          }
           return c.json(error('SERVER_ERROR', '搜索失败'), 500);
         }
       }
@@ -314,6 +346,15 @@ searchRoutes.post('/', async (c) => {
     }, '搜索完成'));
   } catch (err) {
     console.error('Search error:', err);
+    // 搜索失败，删除已写入的历史记录
+    if (historyId && userPayload) {
+      try {
+        await c.env.DB.prepare('DELETE FROM user_search_history WHERE id = ? AND user_id = ?')
+          .bind(historyId, userPayload.userId).run();
+      } catch (delErr) {
+        console.error('[search] Failed to delete history on error:', delErr);
+      }
+    }
     return c.json(error('SERVER_ERROR', '搜索失败'), 500);
   }
 });

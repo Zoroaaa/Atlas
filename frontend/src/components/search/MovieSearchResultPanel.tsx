@@ -3,7 +3,7 @@ import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
   AlertCircle, Wifi, RefreshCw,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Heart,
+  Heart, ShieldCheck,
 } from 'lucide-react';
 import type {
   MovieEnrichedData,
@@ -13,6 +13,7 @@ import type {
 import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
+import { convertToProxyUrl } from '@/services/proxy';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -208,6 +209,7 @@ interface MovieSearchResultPanelProps {
   data: MovieEnrichedData;
   isDark?: boolean;
   isAuthenticated?: boolean;
+  isProxyEnabled?: boolean;
   favorites?: FavoriteItem[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
@@ -219,6 +221,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   data,
   isDark: _isDark = true,
   isAuthenticated = false,
+  isProxyEnabled = false,
   favorites = [],
   onRefresh,
   onPageChange,
@@ -463,18 +466,32 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                           )}
                         </>
                       )}
-                      <a
-                        href={
-                          selectedItem.source === 'douban'
-                            ? `https://movie.douban.com/subject/${Math.abs(selectedItem.id)}/`
-                            : `https://www.themoviedb.org/${selectedItem.mediaType}/${selectedItem.id}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-lg transition-all flex-shrink-0"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                      {(() => {
+                        const externalUrl = selectedItem.source === 'douban'
+                          ? `https://movie.douban.com/subject/${Math.abs(selectedItem.id)}/`
+                          : `https://www.themoviedb.org/${selectedItem.mediaType}/${selectedItem.id}`;
+                        return (
+                          <>
+                            {isProxyEnabled && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                <ShieldCheck className="w-3 h-3" />代理
+                              </span>
+                            )}
+                            <a
+                              href={isProxyEnabled ? convertToProxyUrl(externalUrl) : externalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`flex items-center gap-1 text-xs p-1.5 rounded-lg transition-all flex-shrink-0 ${
+                                isProxyEnabled
+                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                  : 'text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                              }`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 

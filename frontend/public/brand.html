@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas — Brand Assets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ─ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --gold: #d4a853;
+      --gold-light: #f59e0b;
+      --gold-dark: #b8862d;
+      --rose: #f43f5e;
+      --rose-dark: #e11d48;
+      --bg: #0a0a0b;
+      --bg-card: rgba(28, 25, 23, 0.85);
+      --bg-card-hover: rgba(28, 25, 23, 0.95);
+      --surface: #1c1917;
+      --text: #f5f5f4;
+      --text-muted: #a8a29e;
+      --text-dim: #78716c;
+      --border: rgba(68, 64, 60, 0.5);
+      --border-gold: rgba(212, 168, 83, 0.3);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      letter-spacing: -0.01em;
+    }
+
+    ::selection { background: rgba(212,168,83,0.25); color: inherit; }
+
+    /* ── Background ── */
+    .page-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(212,168,83,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(225,29,72,0.04) 0%, transparent 60%);
+    }
+
+    .grid-dots {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: radial-gradient(rgba(168,162,158,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* ── Layout ─ */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    .header {
+      padding: 80px 0 60px;
+      text-align: center;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease) 0.2s forwards;
+    }
+
+    .header-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 100px;
+      background: rgba(212,168,83,0.08);
+      border: 1px solid rgba(212,168,83,0.15);
+      font-size: 12px; font-weight: 600; letter-spacing: 2px;
+      color: var(--gold); text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .header-badge::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .header h1 {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800; font-size: clamp(48px, 8vw, 80px);
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #d4a853 0%, #f59e0b 40%, #e11d48 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; background-size: 200% 200%;
+      animation: gradientFlow 4s ease infinite;
+      margin-bottom: 16px;
+    }
+
+    .header p {
+      font-size: 18px; color: var(--text-muted);
+      max-width: 500px; margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .header .url {
+      display: inline-block; margin-top: 20px;
+      font-family: 'Sora', sans-serif; font-size: 13px;
+      color: var(--gold); opacity: 0.5; letter-spacing: 2px;
+    }
+
+    /* ─ Section ── */
+    .section {
+      margin-bottom: 80px;
+      opacity: 0;
+      animation: fadeInUp 0.6s var(--ease) forwards;
+    }
+
+    .section:nth-child(2) { animation-delay: 0.4s; }
+    .section:nth-child(3) { animation-delay: 0.5s; }
+    .section:nth-child(4) { animation-delay: 0.6s; }
+    .section:nth-child(5) { animation-delay: 0.7s; }
+    .section:nth-child(6) { animation-delay: 0.8s; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 3px;
+      color: var(--gold); text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 28px; font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 32px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      transition: all 0.3s var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(212,168,83,0.4), transparent);
+      opacity: 0; transition: opacity 0.3s var(--ease);
+    }
+
+    .card:hover {
+      border-color: var(--border-gold);
+      box-shadow: 0 12px 48px -8px rgba(212,168,83,0.12), 0 4px 12px rgba(0,0,0,0.3);
+      transform: translateY(-3px);
+    }
+
+    .card:hover::before { opacity: 1; }
+
+    .card-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* ── Logo Grid ── */
+    .logo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .logo-card {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 32px;
+    }
+
+    .logo-card img, .logo-card svg {
+      max-width: 200px; max-height: 200px;
+      border-radius: 16px;
+      transition: transform 0.3s var(--spring);
+    }
+
+    .logo-card:hover img, .logo-card:hover svg {
+      transform: scale(1.05);
+    }
+
+    .logo-card .size {
+      margin-top: 16px;
+      font-size: 12px; color: var(--text-dim);
+      font-family: 'Sora', monospace;
+    }
+
+    /* ── Preview Frames ── */
+    .preview-frame {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .preview-frame img, .preview-frame svg {
+      width: 100%; display: block;
+      transition: transform 0.5s var(--ease);
+    }
+
+    .preview-frame:hover img, .preview-frame:hover svg {
+      transform: scale(1.02);
+    }
+
+    .og-preview { max-width: 600px; margin: 0 auto; }
+    .hero-preview { margin: 0 auto; }
+
+    /* ─ Color Palette ── */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .color-swatch {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: all 0.3s var(--ease);
+      cursor: pointer;
+    }
+
+    .color-swatch:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px -4px rgba(0,0,0,0.4);
+    }
+
+    .color-swatch .swatch {
+      height: 100px;
+      position: relative;
+    }
+
+    .color-swatch .swatch::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 20px;
+      background: linear-gradient(to top, var(--bg-card), transparent);
+    }
+
+    .color-swatch .info {
+      padding: 14px 16px;
+      background: var(--bg-card);
+    }
+
+    .color-swatch .name {
+      font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    }
+
+    .color-swatch .hex {
+      font-size: 11px; color: var(--text-dim);
+      font-family: 'Sora', monospace;
+    }
+
+    /* ── Typography ─ */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .type-grid { grid-template-columns: 1fr; }
+    }
+
+    .type-card { padding: 32px; }
+
+    .type-card .font-name {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      color: var(--gold); text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .type-card .sample {
+      font-size: 36px; font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .type-card .alphabet {
+      font-size: 14px; color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    .type-card .weights {
+      display: flex; gap: 16px; margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .type-card .weight {
+      display: flex; align-items: baseline; gap: 8px;
+    }
+
+    .type-card .weight-label {
+      font-size: 11px; color: var(--text-dim);
+      min-width: 60px;
+    }
+
+    /* ── Specs Table ── */
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .spec-item {
+      padding: 20px 24px;
+      border-radius: 14px;
+      background: rgba(28,25,23,0.5);
+      border: 1px solid var(--border);
+      transition: all 0.3s var(--ease);
+    }
+
+    .spec-item:hover {
+      border-color: var(--border-gold);
+    }
+
+    .spec-item .spec-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .spec-item .spec-value {
+      font-family: 'Sora', sans-serif;
+      font-size: 15px; font-weight: 600;
+      color: var(--text);
+    }
+
+    .spec-item .spec-value.mono {
+      font-family: 'Sora', monospace;
+      font-size: 13px;
+      color: var(--gold);
+    }
+
+    /* ─ Footer ── */
+    .footer {
+      text-align: center;
+      padding: 60px 0 80px;
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+
+    .footer p {
+      font-size: 13px; color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    .footer .footer-logo {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800; font-size: 20px;
+      background: linear-gradient(135deg, #d4a853, #f59e0b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes gradientFlow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .header { padding: 48px 0 40px; }
+      .section { margin-bottom: 48px; }
+      .card { padding: 24px; }
+      .logo-card { padding: 24px 20px; }
+      .color-grid { grid-template-columns: repeat(2, 1fr); }
+      .specs-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-bg"></div>
+  <div class="grid-dots"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-badge">Brand Assets</div>
+      <h1>Atlas</h1>
+      <p>开源聚合搜索引擎品牌视觉系统<br/>Obsidian Gold Design Language</p>
+      <span class="url">atlas.wort.uk</span>
+    </header>
+
+    <!-- Logo Section -->
+    <section class="section">
+      <div class="section-label">01 — Logo</div>
+      <h2 class="section-title">品牌标识</h2>
+      <div class="logo-grid">
+        <div class="card logo-card">
+          <img src="/logo.svg" alt="Atlas Logo SVG" />
+          <span class="size">logo.svg — Vector</span>
+        </div>
+        <div class="card logo-card">
+          <img src="/icons/icon-192x192.png" alt="Atlas Icon 192" />
+          <span class="size">icon-192x192.png — PWA</span>
+        </div>
+        <div class="card logo-card">
+          <img src="/icons/icon-512x512.png" alt="Atlas Icon 512" />
+          <span class="size">icon-512x512.png — PWA</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- OG Image -->
+    <section class="section">
+      <div class="section-label">02 — Social Share</div>
+      <h2 class="section-title">社交分享图</h2>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="og-preview">
+          <div class="preview-frame">
+            <img src="/og-image.svg" alt="OG Image" />
+          </div>
+        </div>
+        <div style="padding: 20px 24px;">
+          <div class="card-label">og-image.svg — 1200 × 630</div>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            用于微信、Facebook、Twitter 等社交媒体分享时的预览图。
+            包含品牌标识、核心标语和域名信息。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hero Banner -->
+    <section class="section">
+      <div class="section-label">03 — Hero Banner</div>
+      <h2 class="section-title">首页横幅</h2>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="hero-preview">
+          <div class="preview-frame">
+            <img src="/hero-banner.svg" alt="Hero Banner" />
+          </div>
+        </div>
+        <div style="padding: 20px 24px;">
+          <div class="card-label">hero-banner.svg — 1920 × 600</div>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            用于首页或营销页面的宽幅横幅。展示多源聚合搜索的网络拓扑概念，
+            以金色节点和连线象征数据聚合。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Color Palette -->
+    <section class="section">
+      <div class="section-label">04 — Color System</div>
+      <h2 class="section-title">色彩体系</h2>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="swatch" style="background: linear-gradient(135deg, #d4a853, #f59e0b);"></div>
+          <div class="info">
+            <div class="name">Amber Gold</div>
+            <div class="hex">#d4a853 → #f59e0b</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch" style="background: linear-gradient(135deg, #f43f5e, #e11d48);"></div>
+          <div class="info">
+            <div class="name">Rose</div>
+            <div class="hex">#f43f5e → #e11d48</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch" style="background: #0a0a0b;"></div>
+          <div class="info">
+            <div class="name">Obsidian Black</div>
+            <div class="hex">#0a0a0b</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch" style="background: #111113;"></div>
+          <div class="info">
+            <div class="name">Sidebar Dark</div>
+            <div class="hex">#111113</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch" style="background: #1c1917;"></div>
+          <div class="info">
+            <div class="name">Warm Stone 900</div>
+            <div class="hex">#1c1917</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="swatch" style="background: linear-gradient(135deg, #2dd4bf, #14b8a6);"></div>
+          <div class="info">
+            <div class="name">Teal (Success)</div>
+            <div class="hex">#2dd4bf → #14b8a6</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography -->
+    <section class="section">
+      <div class="section-label">05 — Typography</div>
+      <h2 class="section-title">字体系统</h2>
+      <div class="type-grid">
+        <div class="card type-card">
+          <div class="font-name">Display — Sora</div>
+          <div class="sample" style="font-family: 'Sora', sans-serif;">Atlas 搜索引擎</div>
+          <div class="alphabet" style="font-family: 'Sora', sans-serif;">
+            A B C D E F G H I J K L M N O P Q R S T U V W X Y Z<br/>
+            0 1 2 3 4 5 6 7 8 9
+          </div>
+          <div class="weights">
+            <div class="weight"><span class="weight-label">Light</span><span style="font-family:'Sora';font-weight:300;font-size:14px;">Sora</span></div>
+            <div class="weight"><span class="weight-label">Regular</span><span style="font-family:'Sora';font-weight:400;font-size:14px;">Sora</span></div>
+            <div class="weight"><span class="weight-label">Bold</span><span style="font-family:'Sora';font-weight:700;font-size:14px;">Sora</span></div>
+            <div class="weight"><span class="weight-label">Black</span><span style="font-family:'Sora';font-weight:800;font-size:14px;">Sora</span></div>
+          </div>
+        </div>
+        <div class="card type-card">
+          <div class="font-name">Body — Plus Jakarta Sans</div>
+          <div class="sample" style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 28px;">开源聚合搜索引擎</div>
+          <div class="alphabet" style="font-family: 'Plus Jakarta Sans', sans-serif;">
+            A B C D E F G H I J K L M N O P Q R S T U V W X Y Z<br/>
+            0 1 2 3 4 5 6 7 8 9
+          </div>
+          <div class="weights">
+            <div class="weight"><span class="weight-label">Light</span><span style="font-family:'Plus Jakarta Sans';font-weight:300;font-size:14px;">Jakarta</span></div>
+            <div class="weight"><span class="weight-label">Regular</span><span style="font-family:'Plus Jakarta Sans';font-weight:400;font-size:14px;">Jakarta</span></div>
+            <div class="weight"><span class="weight-label">Bold</span><span style="font-family:'Plus Jakarta Sans';font-weight:700;font-size:14px;">Jakarta</span></div>
+            <div class="weight"><span class="weight-label">ExtraBold</span><span style="font-family:'Plus Jakarta Sans';font-weight:800;font-size:14px;">Jakarta</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Brand Specs -->
+    <section class="section">
+      <div class="section-label">06 — Specifications</div>
+      <h2 class="section-title">品牌规范</h2>
+      <div class="specs-grid">
+        <div class="spec-item">
+          <div class="spec-label">Design System</div>
+          <div class="spec-value">Obsidian Gold v3</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Theme</div>
+          <div class="spec-value">Dark Luxury</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Primary Gradient</div>
+          <div class="spec-value mono">135deg, #d4a853 → #f59e0b</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Accent Gradient</div>
+          <div class="spec-value mono">135deg, #d4a853 → #f59e0b → #e11d48</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Background</div>
+          <div class="spec-value mono">#0a0a0b</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Sidebar</div>
+          <div class="spec-value mono">#111113</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Border Radius</div>
+          <div class="spec-value mono">16px / 20px / 2xl</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Glass Effect</div>
+          <div class="spec-value mono">blur(20px) saturate(180%)</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Domain</div>
+          <div class="spec-value mono">atlas.wort.uk</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Version</div>
+          <div class="spec-value">v4.1.0</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">Categories</div>
+          <div class="spec-value">JAV / Anime / Movie / Manga</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-label">License</div>
+          <div class="spec-value">MIT</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-logo">ATLAS</div>
+      <p>
+        开源聚合搜索引擎 · JAV / 动漫 / 影视 / 漫画<br/>
+        Made with precision by Zoro · <a href="https://atlas.wort.uk" style="color: var(--gold); text-decoration: none;">atlas.wort.uk</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

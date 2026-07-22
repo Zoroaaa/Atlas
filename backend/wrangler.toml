@@ -30,7 +30,7 @@ BACKEND_URL = "https://atlasapi.wort.uk"
 
 # 邮件发件人 — 与邮件服务商域名验证绑定，改了必须重新部署
 DEFAULT_FROM_EMAIL = "noreply@mail.wort.uk"
-DEFAULT_FROM_NAME = "磁力快搜"
+DEFAULT_FROM_NAME = "Atlas"
 
 # JWT 过期天数 — 安全策略，属于环境级决策
 JWT_EXPIRY_DAYS = "30"

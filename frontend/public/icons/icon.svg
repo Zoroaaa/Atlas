@@ -1,35 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3b82f6"/>
-      <stop offset="100%" style="stop-color:#1d4ed8"/>
+      <stop offset="0%" style="stop-color:#0a0a0b"/>
+      <stop offset="100%" style="stop-color:#1c1917"/>
     </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4a853"/>
+      <stop offset="50%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#e11d48"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="45%">
+      <stop offset="0%" style="stop-color:#d4a853;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#d4a853;stop-opacity:0"/>
+    </radialGradient>
   </defs>
-  
-  <!-- 背景 -->
+
+  <!-- Background -->
   <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  
-  <!-- 磁铁图标 -->
-  <g transform="translate(128, 96)">
-    <!-- U形磁铁 -->
-    <path d="M32 0 L32 160 C32 220 76 264 128 264 C180 264 224 220 224 160 L224 0" 
-          fill="none" 
-          stroke="#ffffff" 
-          stroke-width="48" 
-          stroke-linecap="round"/>
-    
-    <!-- 左极 (红色) -->
-    <rect x="8" y="0" width="48" height="64" rx="8" fill="#ef4444"/>
-    <text x="32" y="48" text-anchor="middle" fill="#ffffff" font-size="32" font-weight="bold">N</text>
-    
-    <!-- 右极 (蓝色) -->
-    <rect x="200" y="0" width="48" height="64" rx="8" fill="#3b82f6"/>
-    <text x="224" y="48" text-anchor="middle" fill="#ffffff" font-size="32" font-weight="bold">S</text>
+
+  <!-- Ambient glow -->
+  <circle cx="256" cy="220" r="160" fill="url(#glow)"/>
+
+  <!-- Compass symbol -->
+  <g transform="translate(256, 230)">
+    <circle cx="0" cy="0" r="110" fill="none" stroke="url(#gold)" stroke-width="2.5" opacity="0.6"/>
+    <circle cx="0" cy="0" r="98" fill="none" stroke="url(#gold)" stroke-width="1" opacity="0.25"/>
+
+    <!-- Cardinal marks -->
+    <line x1="0" y1="-110" x2="0" y2="-120" stroke="url(#gold)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="110" x2="0" y2="120" stroke="url(#gold)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-110" y1="0" x2="-120" y2="0" stroke="url(#gold)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="110" y1="0" x2="120" y2="0" stroke="url(#gold)" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Needle North -->
+    <polygon points="0,-85 16,-8 0,0 -16,-8" fill="url(#gold)" opacity="0.95"/>
+    <!-- Needle South -->
+    <polygon points="0,85 16,8 0,0 -16,8" fill="#e11d48" opacity="0.55"/>
+
+    <!-- Center -->
+    <circle cx="0" cy="0" r="7" fill="#d4a853"/>
+    <circle cx="0" cy="0" r="3.5" fill="#0a0a0b"/>
   </g>
-  
-  <!-- 搜索图标 -->
-  <g transform="translate(280, 280)">
-    <circle cx="64" cy="64" r="48" fill="none" stroke="#ffffff" stroke-width="16"/>
-    <line x1="100" y1="100" x2="140" y2="140" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
-  </g>
+
+  <!-- ATLAS text -->
+  <text x="256" y="410" text-anchor="middle" font-family="Sora, sans-serif" font-weight="800" font-size="48" letter-spacing="6" fill="url(#gold)">ATLAS</text>
 </svg>

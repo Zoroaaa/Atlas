@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { clsx } from 'clsx';
-import { Heart, Star, MessageSquare, Eye, Bookmark, Users, Film, Tv } from 'lucide-react';
+import { Heart, Star, MessageSquare, Eye, Bookmark, Users, Film, Tv, BookOpen } from 'lucide-react';
 import { Card, Badge, ProxyImage } from '@/components/ui';
 import type { CommunityPost } from '@/types/community';
 import { getBackendBaseUrl } from '@/constants';
@@ -16,6 +16,7 @@ const POST_TYPE_CONFIG = {
   jav: { label: '番号', icon: Film, color: 'bg-rose-500', badgeVariant: 'error' as const },
   anime: { label: '动漫', icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
   movie: { label: '影视', icon: Film, color: 'bg-amber-500', badgeVariant: 'primary' as const },
+  manga: { label: '漫画', icon: BookOpen, color: 'bg-violet-500', badgeVariant: 'primary' as const },
 };
 
 /**

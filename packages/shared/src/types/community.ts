@@ -9,7 +9,7 @@
 export type PostStatus = 'active' | 'pending' | 'rejected' | 'hidden';
 
 /** 帖子类型 */
-export type PostType = 'jav' | 'anime' | 'movie';
+export type PostType = 'jav' | 'anime' | 'movie' | 'manga';
 
 /** 互动类型 */
 export type LikeType = 'like' | 'favorite';

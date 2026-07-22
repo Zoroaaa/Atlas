@@ -33,9 +33,11 @@
 
 /*.svg
   Content-Type: image/svg+xml
+  Cache-Control: public, max-age=86400
 
 /*.png
   Content-Type: image/png
+  Cache-Control: public, max-age=86400
 
 /*.ico
   Content-Type: image/x-icon

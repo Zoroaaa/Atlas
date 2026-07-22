@@ -27,7 +27,7 @@ export const NotificationTemplates = {
     registerSuccess: (): NotificationTemplate => ({
       type: 'success',
       title: '注册成功',
-      message: '欢迎加入磁力快搜',
+      message: '欢迎加入 Atlas',
     }),
     registerFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',

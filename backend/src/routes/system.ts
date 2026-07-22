@@ -25,7 +25,7 @@ systemRoutes.get('/public-config', async (c) => {
     ] = await Promise.all([
       configService.getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true),
       configService.getBoolean(DB_CONFIG_KEYS.COMMUNITY_ENABLED, true),
-      configService.get(DB_CONFIG_KEYS.SITE_NAME, '磁力快搜'),
+      configService.get(DB_CONFIG_KEYS.SITE_NAME, 'Atlas'),
       configService.get(DB_CONFIG_KEYS.SITE_DESCRIPTION, '搜索全网资源，一步直达'),
     ]);
 

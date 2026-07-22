@@ -17,11 +17,13 @@ import { providerRegistry } from '@/services/search-provider';
 import { animeProvider } from '@/providers/anime-provider';
 import { movieProvider } from '@/providers/movie-provider';
 import { javProvider } from '@/providers/jav-provider';
+import { mangaProvider } from '@/providers/manga-provider';
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
 providerRegistry.register(movieProvider);
 providerRegistry.register(javProvider);
+providerRegistry.register(mangaProvider);
 
 const app = new Hono<{ Bindings: Env }>();
 

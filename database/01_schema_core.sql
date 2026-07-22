@@ -1,7 +1,8 @@
 -- ===============================================
--- 核心表结构
--- 版本: 2.0
+-- 核心表结构（整合版）
+-- 版本: 4.0
 -- 说明: 包含用户、角色、系统配置、分析事件等核心表结构
+--       已整合 GitHub OAuth、收藏扩展、搜索历史扩展、历史封面等字段
 -- 执行顺序: 01
 -- ===============================================
 
@@ -40,6 +41,9 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0,              -- 登录次数统计
     email_verified INTEGER DEFAULT 0,           -- 0:未验证 1:已验证
     last_password_change INTEGER,               -- 最后密码修改时间
+    -- GitHub OAuth 扩展字段（原08_github_oauth.sql）
+    github_id TEXT,                             -- GitHub用户ID
+    github_username TEXT,                       -- GitHub用户名（用于展示）
     FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE SET DEFAULT
 );
 
@@ -63,6 +67,9 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     url TEXT NOT NULL,                          -- 收藏项URL
     icon TEXT,                                  -- 收藏项图标
     keyword TEXT,                               -- 关联关键词
+    created_at INTEGER NOT NULL,                -- 创建时间戳
+    updated_at INTEGER NOT NULL,                -- 更新时间戳
+    -- JAV 元数据扩展字段（原10_schema_favorites_extend.sql）
     code TEXT,                                  -- 番号
     cover TEXT,                                 -- 封面图URL
     actors TEXT,                                -- 演员（JSON数组或逗号分隔）
@@ -71,8 +78,8 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     release_date TEXT,                          -- 发行时间
     publisher TEXT,                             -- 发行商
     magnet_link TEXT,                           -- 磁力链接
-    created_at INTEGER NOT NULL,                -- 创建时间戳
-    updated_at INTEGER NOT NULL,                -- 更新时间戳
+    -- 状态字段（原10_schema_favorites_extend.sql）
+    status TEXT NOT NULL DEFAULT 'want',        -- 状态: want | have | watching
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -83,6 +90,19 @@ CREATE TABLE IF NOT EXISTS user_search_history (
     source TEXT DEFAULT 'unknown',              -- 搜索来源
     results_count INTEGER DEFAULT 0,            -- 搜索结果数量
     created_at INTEGER NOT NULL,                -- 创建时间戳
+    -- 详细信息扩展字段（原11_schema_search_history_extend.sql）
+    title TEXT,                                 -- 标题
+    subtitle TEXT,                              -- 副标题
+    code TEXT,                                  -- 番号
+    actors TEXT,                                -- 演员
+    duration TEXT,                              -- 时长
+    tags TEXT,                                  -- 标签
+    release_date TEXT,                          -- 发行时间
+    publisher TEXT,                             -- 发行商
+    keyword TEXT,                               -- 搜索关键词（@deprecated 使用 query 字段）
+    updated_at INTEGER,                         -- 更新时间戳
+    -- 封面字段（原13_schema_history_cover.sql）
+    cover TEXT,                                 -- 封面图URL
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -159,75 +179,3 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     created_at INTEGER NOT NULL,                -- 事件发生时间戳
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );
-
--- ===============================================
--- 5. 索引定义
--- ===============================================
-
-CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
-CREATE INDEX IF NOT EXISTS idx_roles_priority ON roles(priority);
-
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(token_hash);
-CREATE INDEX IF NOT EXISTS idx_sessions_user_active ON user_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires ON user_sessions(expires_at);
-
-CREATE INDEX IF NOT EXISTS idx_favorites_user_created ON user_favorites(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_favorites_keyword ON user_favorites(keyword);
-CREATE INDEX IF NOT EXISTS idx_favorites_user_url ON user_favorites(user_id, url);
-
-CREATE INDEX IF NOT EXISTS idx_history_user_created ON user_search_history(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_history_query ON user_search_history(query);
-CREATE INDEX IF NOT EXISTS idx_history_source ON user_search_history(source);
-CREATE INDEX IF NOT EXISTS idx_history_user_keyword ON user_search_history(user_id, query);
-
-CREATE INDEX IF NOT EXISTS idx_actions_user_created ON user_actions(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_actions_action ON user_actions(action);
-CREATE INDEX IF NOT EXISTS idx_actions_login ON user_actions(action, created_at);
-
-CREATE INDEX IF NOT EXISTS idx_config_public ON system_config(is_public);
-CREATE INDEX IF NOT EXISTS idx_config_group ON system_config(config_group);
-
-CREATE INDEX IF NOT EXISTS idx_config_logs_key ON config_change_logs(config_key);
-CREATE INDEX IF NOT EXISTS idx_config_logs_by ON config_change_logs(changed_by);
-CREATE INDEX IF NOT EXISTS idx_config_logs_created ON config_change_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_config_logs_type ON config_change_logs(change_type);
-
-CREATE INDEX IF NOT EXISTS idx_analytics_user_created ON analytics_events(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics_events(event_type);
-CREATE INDEX IF NOT EXISTS idx_analytics_session ON analytics_events(session_id);
-
--- ===============================================
--- 6. 触发器定义
--- ===============================================
-
-CREATE TRIGGER IF NOT EXISTS update_roles_timestamp 
-    AFTER UPDATE ON roles
-    FOR EACH ROW
-    BEGIN
-        UPDATE roles SET updated_at = strftime('%s', 'now') * 1000 WHERE id = NEW.id;
-    END;
-
-CREATE TRIGGER IF NOT EXISTS update_users_timestamp 
-    AFTER UPDATE ON users
-    FOR EACH ROW
-    BEGIN
-        UPDATE users SET updated_at = strftime('%s', 'now') * 1000 WHERE id = NEW.id;
-    END;
-
-CREATE TRIGGER IF NOT EXISTS update_favorites_timestamp 
-    AFTER UPDATE ON user_favorites
-    FOR EACH ROW
-    BEGIN
-        UPDATE user_favorites SET updated_at = strftime('%s', 'now') * 1000 WHERE id = NEW.id;
-    END;
-
-CREATE TRIGGER IF NOT EXISTS cleanup_expired_sessions
-    AFTER INSERT ON user_sessions
-    FOR EACH ROW
-    BEGIN
-        DELETE FROM user_sessions WHERE expires_at < strftime('%s', 'now') * 1000;
-    END;

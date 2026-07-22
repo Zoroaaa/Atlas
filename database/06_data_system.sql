@@ -36,7 +36,7 @@ INSERT OR IGNORE INTO system_config (key, value, description, config_type, confi
     -- ====================
     -- 基础配置 - 网站信息
     -- ====================
-    ('site_name', '磁力快搜', '网站名称', 'string', 'basic', 1, 1, NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('site_name', 'Atlas', '网站名称', 'string', 'basic', 1, 1, NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('site_description', '搜索全网资源，一步直达', '网站描述', 'string', 'basic', 1, 2, NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('enable_registration', '1', '是否开放注册', 'boolean', 'basic', 1, 3, NULL, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     
