@@ -3,17 +3,15 @@ import {
   Magnet, Film, Calendar, Clock, User, Building2,
   Tag, Star, ExternalLink, Copy, Check, Loader2,
   AlertCircle, Search, ChevronDown, ChevronUp, X,
-  Shield, Play, FileDown, Link2, Tv, Heart,
+  Shield, Play, FileDown, Heart, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
 import type { JavDetail, MagnetItem } from '@/types';
 import {
   downloadTorrentFile,
   getWebtorUrl,
-  getBtorrentUrl,
   copyToClipboard,
 } from '@/utils/magnet';
-import { WebTorrentPlayer } from './WebTorrentPlayer';
-import { ProxyImage } from '@/components/ui';
+import { ProxyImage, Modal } from '@/components/ui';
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 
@@ -111,24 +109,22 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 
 const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
   const [showAll, setShowAll] = useState(false);
-  const [playingMagnet, setPlayingMagnet] = useState<string | null>(null);
-  // 在线播放菜单展开状态
-  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  const [playModal, setPlayModal] = useState<{ magnet: string; name: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const displayed = showAll ? magnets : magnets.slice(0, 5);
 
-  const toggleMenu = useCallback((magnet: string) => {
-    setOpenMenuFor(prev => prev === magnet ? null : magnet);
+  const handleCopyMagnet = useCallback(async (magnet: string) => {
+    const ok = await copyToClipboard(magnet);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   }, []);
 
-  const startInlinePlay = useCallback((magnet: string) => {
-    setPlayingMagnet(prev => prev === magnet ? null : magnet);
-    setOpenMenuFor(null);
-  }, []);
-
-  const openExternal = useCallback((url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setOpenMenuFor(null);
+  const handleOpenWebtor = useCallback((magnet: string) => {
+    window.open(getWebtorUrl(magnet), '_blank', 'noopener,noreferrer');
+    setPlayModal(null);
   }, []);
 
   if (magnets.length === 0) {
@@ -172,65 +168,14 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
             {/* 操作区 */}
             <div className="flex justify-end items-center gap-0.5">
-              {/* 在线播放（下拉菜单） */}
-              <div className="relative">
-                <button
-                  onClick={() => toggleMenu(m.magnet)}
-                  title="在线播放"
-                  className={`p-1 rounded transition-all ${
-                    openMenuFor === m.magnet || playingMagnet === m.magnet
-                      ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                      : 'text-surface-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                  }`}
-                >
-                  <Play className="w-3.5 h-3.5" />
-                </button>
-
-                {/* 播放方式菜单 */}
-                {openMenuFor === m.magnet && (
-                  <div className="absolute right-0 top-7 z-20 w-44 bg-white dark:bg-surface-800 rounded-xl shadow-xl border border-surface-200 dark:border-surface-700 overflow-hidden">
-                    <div className="px-3 py-2 text-[10px] font-semibold text-surface-400 uppercase border-b border-surface-100 dark:border-surface-700">
-                      选择播放方式
-                    </div>
-                    <button
-                      onClick={() => startInlinePlay(m.magnet)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                        <Play className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-medium">内嵌播放</div>
-                        <div className="text-[10px] text-surface-400">P2P · 无需跳转</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => openExternal(getWebtorUrl(m.magnet))}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                        <Tv className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-medium">WebTor</div>
-                        <div className="text-[10px] text-surface-400">外链 · 稳定流畅</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => openExternal(getBtorrentUrl(m.magnet))}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors border-t border-surface-100 dark:border-surface-700"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                        <Link2 className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-medium">BTorrent</div>
-                        <div className="text-[10px] text-surface-400">外链 · 备用</div>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* 在线播放（WebTor） */}
+              <button
+                onClick={() => setPlayModal({ magnet: m.magnet, name: m.name })}
+                title="WebTor 在线播放"
+                className="p-1 rounded transition-all text-surface-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+              >
+                <Play className="w-3.5 h-3.5" />
+              </button>
 
               {/* 下载种子（真实 .torrent） */}
               <DownloadBtn magnet={m.magnet} name={m.name} />
@@ -239,16 +184,6 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
               <CopyBtn text={m.magnet} />
             </div>
           </div>
-
-          {/* 内嵌播放器 */}
-          {playingMagnet === m.magnet && (
-            <div className="mt-2 px-2 pb-2">
-              <WebTorrentPlayer
-                magnetUri={m.magnet}
-                onClose={() => setPlayingMagnet(null)}
-              />
-            </div>
-          )}
         </div>
       ))}
 
@@ -262,6 +197,74 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
             : <><ChevronDown className="w-3.5 h-3.5" />展开全部（共 {magnets.length} 条）</>}
         </button>
       )}
+
+      {/* WebTor 播放提示弹窗 */}
+      <Modal
+        isOpen={!!playModal}
+        onClose={() => setPlayModal(null)}
+        title="在线播放提示"
+        size="sm"
+      >
+        {playModal && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900 dark:text-amber-100">
+                <p className="font-medium mb-1">即将跳转至第三方网站 WebTor</p>
+                <p className="text-xs text-amber-700 dark:text-amber-200">
+                  请先复制磁力链接，在 WebTor 中粘贴后搜索播放
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+              <Shield className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-emerald-900 dark:text-emerald-100">
+                <p className="font-medium mb-1">推荐使用 PikPak 播放</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-200 leading-relaxed">
+                  通过 Google Play 商店下载 PikPak，复制磁力链接后可直接解析播放，体验更流畅。
+                  <span className="text-emerald-600 dark:text-emerald-300">（免费用户存储空间 6GB）</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                磁力链接
+              </label>
+              <div className="p-2 bg-surface-100 dark:bg-surface-900 rounded text-xs text-surface-600 dark:text-surface-300 break-all font-mono max-h-20 overflow-y-auto">
+                {playModal.magnet}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleCopyMagnet(playModal.magnet)}
+                className="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    已复制
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    复制磁力链接
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleOpenWebtor(playModal.magnet)}
+                className="flex-1 px-4 py-2.5 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <ExternalLinkIcon className="w-4 h-4" />
+                前往 WebTor
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

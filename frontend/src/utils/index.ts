@@ -7,7 +7,6 @@ export {
   openMagnetClient,
   copyToClipboard,
   getWebtorUrl,
-  getBtorrentUrl,
   getMagnetShortHash,
 } from './magnet';
 

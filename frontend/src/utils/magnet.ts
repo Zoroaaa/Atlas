@@ -149,12 +149,6 @@ export function getWebtorUrl(magnetUri: string): string {
   return `https://webtor.io/#/show?magnet=${encodeURIComponent(magnetUri)}`;
 }
 
-/** btorrent.xyz — WebTorrent 在线播放备用 */
-export function getBtorrentUrl(magnetUri: string): string {
-  if (!magnetUri?.startsWith('magnet:')) return '';
-  return `https://btorrent.xyz/#${encodeURIComponent(magnetUri)}`;
-}
-
 /** 磁力短哈希（用于显示，不用于下载） */
 export function getMagnetShortHash(magnetUri: string): string {
   const parsed = parseMagnet(magnetUri);
