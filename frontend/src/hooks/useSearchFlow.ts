@@ -241,6 +241,8 @@ export function useSearchFlow({
   const handleCodeClick = (code: string) => {
     setKeyword(code);
     handleSearch(code);
+    // 点击番号后自动滚动到顶部搜索区域，让用户感知到切换
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSuggestionSelect = (item: SearchSuggestionItem) => {

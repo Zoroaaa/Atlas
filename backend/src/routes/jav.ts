@@ -708,3 +708,127 @@ function base32ToHexPublic(base32: string): string {
   }
   return hex;
 }
+
+// =====================================================================
+// 推荐女优列表 & 女优详情
+// =====================================================================
+
+interface ActressEntry {
+  key: string;   // star slug，如 qs6
+  name: string;  // 女优姓名
+}
+
+interface StarResponse {
+  name: string;
+  key: string;
+  items: JavItem[];
+}
+
+/** 从 /actresses 页解析女优列表 */
+function parseActressList(html: string): ActressEntry[] {
+  if (!html) return [];
+  const entries: ActressEntry[] = [];
+  // <a class="avatar-box text-center" href="https://www.javbus.com/star/qs6">
+  //   ...<img src="/pics/actress/qs6_a.jpg" title="明里つむぎ">...<span>明里つむぎ</span>...
+  const re = /href="https?:\/\/www\.javbus\.com\/star\/([a-z0-9]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null && entries.length < 50) {
+    const key = m[1].trim();
+    const block = m[2];
+    // 优先从 img title 提取
+    const titleM = block.match(/title="([^"]+)"/i);
+    // 其次从 span 提取
+    const spanM = block.match(/<span[^>]*>([^<]+)<\/span>/i);
+    const name = (titleM ? titleM[1] : spanM ? spanM[1] : '').trim();
+    if (!key || !name || name.length > 30) continue;
+    // 去重
+    if (entries.find(e => e.key === key)) continue;
+    entries.push({ key, name });
+  }
+  return entries;
+}
+
+// GET /api/jav/actresses — 返回前50个女优
+javRoutes.get('/actresses', async (c) => {
+  const ACTRESSES_CACHE_TTL = 30 * 60;
+  const cacheKey = new Request('https://internal/jav-actresses-v1');
+  const cache = caches.default;
+
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
+    });
+  }
+
+  try {
+    const html = await get('https://www.javbus.com/actresses', 15000);
+    if (!html || html.length < 500) {
+      return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
+    }
+
+    const actresses = parseActressList(html);
+    const response = JSON.stringify({ success: true, data: actresses.slice(0, 50) });
+    const newResponse = new Response(response, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${ACTRESSES_CACHE_TTL}`,
+        'X-Cache': 'MISS',
+      },
+    });
+
+    c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+    return newResponse;
+  } catch (err) {
+    console.error('JAV actresses error:', err);
+    return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
+  }
+});
+
+// GET /api/jav/star/:key — 返回女优的番号列表
+javRoutes.get('/star/:key', async (c) => {
+  const STAR_CACHE_TTL = 10 * 60;
+  const key = c.req.param('key').trim().toLowerCase();
+  if (!key || !/^[a-z0-9]+$/.test(key)) {
+    return c.json({ success: false, error: { code: 'INVALID_KEY', message: '无效的女优标识' } }, 400);
+  }
+
+  const cacheKey = new Request(`https://internal/jav-star/${key}`);
+  const cache = caches.default;
+
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
+    });
+  }
+
+  try {
+    const html = await get(`https://www.javbus.com/star/${key}`, 15000);
+    if (!html || html.length < 500) {
+      return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该女优' } }, 404);
+    }
+
+    const items = parseGrid(html, `javbus-star-${key}`);
+    // 从页面提取女优名称
+    const nameM = html.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i) ||
+                  html.match(/<title>([^<]+)<\/title>/i);
+    const name = nameM ? nameM[1].replace(/<[^>]+>/g, '').replace(/\s*-\s*JavBus\s*$/i, '').trim() : key;
+
+    const response: StarResponse = { name, key, items };
+    const responseBody = JSON.stringify({ success: true, data: response });
+    const newResponse = new Response(responseBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${STAR_CACHE_TTL}`,
+        'X-Cache': 'MISS',
+      },
+    });
+
+    c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+    return newResponse;
+  } catch (err) {
+    console.error('JAV star error:', err);
+    return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优详情失败' } }, 500);
+  }
+});

@@ -18,3 +18,5 @@ export { useSearchHistoryManager } from './useSearchHistoryManager';
 export { useJavSearchFlow } from './useJavSearchFlow';
 export { useSourceManager } from './useSourceManager';
 export { useDarkMode } from './useDarkMode';
+export { useActresses } from './useActresses';
+export { useStarDetail } from './useStarDetail';

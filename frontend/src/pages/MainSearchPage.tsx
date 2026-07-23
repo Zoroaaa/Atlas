@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
 import { TAB_IDS } from '@/types/source';
 import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
-import { JavDetailPanel, JavRankingsPanel } from '@/components/jav';
+import { JavDetailPanel, JavRankingsPanel, ActressesPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
@@ -270,6 +270,7 @@ export const MainSearchPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
               {activeTab === 'jav' && <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />}
+              {activeTab === 'jav' && <ActressesPanel onCodeClick={searchFlow.handleCodeClick} />}
               {isAuthenticated && (
                 <SearchHistoryPanel history={historyManager.searchHistory} isLoading={historyManager.isLoadingHistory} show={showHistory} onToggle={() => setShowHistory(!showHistory)} onItemClick={(query) => searchFlow.setKeyword(query)} onClear={historyManager.handleClearHistory} onDeleteSelected={historyManager.handleDeleteSelected} />
               )}

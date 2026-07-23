@@ -28,8 +28,24 @@ export interface JavRankings {
   sources: string[];
 }
 
+// ── 女优列表 & 女优详情 ──────────────────────────────────────────────
+
+export interface ActressEntry {
+  key: string;   // star slug，如 qs6
+  name: string;  // 女优姓名
+}
+
+export interface StarDetail {
+  name: string;  // 女优名
+  key: string;   // star slug
+  items: JavItem[];
+}
+
 export const JAV_CACHE_KEY = 'jav_rankings_cache';
 export const JAV_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache';
+export const ACTRESSES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // ── 详情 & 磁力 ──────────────────────────────────────────────────────
 
