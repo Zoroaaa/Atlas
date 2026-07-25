@@ -9,7 +9,7 @@ import { Env } from '@/types';
 import { authMiddleware } from '@/middleware';
 import {
   normalizeCode,
-  get,
+  getHtml,
   extractGidUc,
   parseMagnets,
   parseJavDetail,
@@ -274,7 +274,7 @@ function parseGrid(html: string, source: string): JavItem[] {
 
 async function fetchCensored(): Promise<JavItem[]> {
   const pages = ['https://www.javbus.com/', 'https://www.javbus.com/page/2', 'https://www.javbus.com/page/3'];
-  const results = await Promise.allSettled(pages.map(u => get(u)));
+  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
   const all = results.flatMap((r, i) =>
     r.status === 'fulfilled' ? parseGrid(r.value, `javbus-p${i + 1}`) : []
   );
@@ -291,7 +291,7 @@ async function fetchUncensored(): Promise<JavItem[]> {
     'https://www.javbus.com/uncensored/page/2',
     'https://www.javbus.com/uncensored/page/3',
   ];
-  const results = await Promise.allSettled(pages.map(u => get(u)));
+  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
   const all = results.flatMap((r, i) =>
     r.status === 'fulfilled' ? parseGrid(r.value, `javbus-u${i + 1}`) : []
   );
@@ -308,7 +308,7 @@ async function fetchHD(): Promise<JavItem[]> {
     'https://www.javbus.com/genre/hd/2',
     'https://www.javbus.com/genre/hd/3',
   ];
-  const results = await Promise.allSettled(pages.map(u => get(u)));
+  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
   const all = results.flatMap((r, i) =>
     r.status === 'fulfilled' ? parseGrid(r.value, `javbus-hd${i + 1}`) : []
   );
@@ -325,7 +325,7 @@ async function fetchSubtitle(): Promise<JavItem[]> {
     'https://www.javbus.com/genre/sub/2',
     'https://www.javbus.com/genre/sub/3',
   ];
-  const results = await Promise.allSettled(pages.map(u => get(u)));
+  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
   const all = results.flatMap((r, i) =>
     r.status === 'fulfilled' ? parseGrid(r.value, `javbus-sub${i + 1}`) : []
   );
@@ -339,7 +339,7 @@ async function fetchSubtitle(): Promise<JavItem[]> {
 interface Entry { key: string; name: string; }
 
 async function fetchGenreList(): Promise<Entry[]> {
-  const html = await get('https://www.javbus.com/genre');
+  const html = await getHtml('https://www.javbus.com/genre');
   if (!html) return [];
   const entries: Entry[] = [];
   const re = /href="https?:\/\/www\.javbus\.com\/genre\/([a-z0-9]+)"[^>]*>([^<]+)</gi;
@@ -367,7 +367,7 @@ async function fetchRandomGenres(): Promise<GroupRanking[]> {
   const picked = sample(pool, 10);
 
   const results = await Promise.allSettled(
-    picked.map(g => get(`https://www.javbus.com/genre/${g.key}`))
+    picked.map(g => getHtml(`https://www.javbus.com/genre/${g.key}`))
   );
 
   return picked
@@ -386,7 +386,7 @@ async function fetchRandomGenres(): Promise<GroupRanking[]> {
 // ─────────────────────────────────────────────
 
 async function fetchActressList(): Promise<Entry[]> {
-  const html = await get('https://www.javbus.com/actresses');
+  const html = await getHtml('https://www.javbus.com/actresses');
   if (!html) return [];
   const entries: Entry[] = [];
   // <a href="https://www.javbus.com/star/okq">苍井空</a> 或带 avatar 的结构
@@ -429,7 +429,7 @@ async function fetchRandomActresses(): Promise<GroupRanking[]> {
   const picked = sample(pool, 10);
 
   const results = await Promise.allSettled(
-    picked.map(a => get(`https://www.javbus.com/star/${a.key}`))
+    picked.map(a => getHtml(`https://www.javbus.com/star/${a.key}`))
   );
 
   return picked
@@ -519,54 +519,7 @@ javRoutes.get('/rankings', async (c) => {
   }
 });
 
-// suggestions 接口（轻量）— 使用用户收藏数据，5分钟缓存
 
-javRoutes.get('/suggestions', async (c) => {
-  const keyword = (c.req.query('keyword') || '').toUpperCase().trim();
-  if (!keyword) return c.json({ success: true, data: [] });
-  
-  const user = c.get('user');
-  
-  try {
-    const codes = await c.env.DB.prepare(
-      'SELECT DISTINCT code FROM user_favorites WHERE user_id = ? AND code LIKE ? LIMIT 10'
-    ).bind(user.userId, `${keyword}%`).all<{ code: string }>();
-    
-    const matchedCodes = (codes.results || []).map(r => r.code);
-    
-    if (matchedCodes.length >= 5) {
-      return c.json({ success: true, data: matchedCodes.slice(0, 10) });
-    }
-    
-    const cacheKey = new Request(`https://internal/jav-suggestions/${keyword}`);
-    const cache = caches.default;
-    
-    const cached = await cache.match(cacheKey);
-    if (cached) {
-      const cachedData = await cached.json() as { success: boolean; data: string[] };
-      const combined = [...new Set([...matchedCodes, ...cachedData.data])].slice(0, 10);
-      return c.json({ success: true, data: combined });
-    }
-
-    const html = await get('https://www.javbus.com/');
-    const externalMatched = parseGrid(html, 'javbus')
-      .map(i => i.code)
-      .filter(code => code.startsWith(keyword) || code.includes(keyword))
-      .slice(0, 10);
-    
-    const combined = [...new Set([...matchedCodes, ...externalMatched])].slice(0, 10);
-    
-    const response = c.json({ success: true, data: combined });
-    
-    c.executionCtx.waitUntil(
-      cache.put(cacheKey, new Response(JSON.stringify({ success: true, data: externalMatched })))
-    );
-    
-    return response;
-  } catch {
-    return c.json({ success: true, data: [] });
-  }
-});
 
 // =====================================================================
 // 详情页 + 磁力链接提取
@@ -608,7 +561,7 @@ javRoutes.get('/detail', async (c) => {
 
   try {
     // Step 1：抓详情页
-    const html = await get(detailUrl, 15000);
+    const html = await getHtml(detailUrl, 15000);
     if (!html || html.length < 500) {
       return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该番号' } }, 404);
     }
@@ -621,7 +574,7 @@ javRoutes.get('/detail', async (c) => {
     const gidUc = extractGidUc(html);
     if (gidUc) {
       const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
-      const magnetHtml = await get(magnetUrl, 12000);
+      const magnetHtml = await getHtml(magnetUrl, 12000);
       magnets = parseMagnets(magnetHtml);
     }
 
@@ -762,7 +715,7 @@ javRoutes.get('/actresses', async (c) => {
   }
 
   try {
-    const html = await get('https://www.javbus.com/actresses', 15000);
+    const html = await getHtml('https://www.javbus.com/actresses', 15000);
     if (!html || html.length < 500) {
       return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
     }
@@ -804,7 +757,7 @@ javRoutes.get('/star/:key', async (c) => {
   }
 
   try {
-    const html = await get(`https://www.javbus.com/star/${key}`, 15000);
+    const html = await getHtml(`https://www.javbus.com/star/${key}`, 15000);
     if (!html || html.length < 500) {
       return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该女优' } }, 404);
     }

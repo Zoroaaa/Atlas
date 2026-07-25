@@ -8,7 +8,7 @@
  * 共享工具（normalizeCode/parseMagnets/parseJavDetail 等）提取至 jav-utils.ts
  */
 import { SearchProvider, SearchResultBase, SearchOptions } from '@/services/search-provider';
-import { normalizeCode, get, extractGidUc, parseMagnets, parseJavDetail, type MagnetItem } from '@/services/jav-utils';
+import { normalizeCode, getHtml, extractGidUc, parseMagnets, parseJavDetail, type MagnetItem } from '@/services/jav-utils';
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export class JavProvider implements SearchProvider {
 
     try {
       const detailUrl = `https://www.javbus.com/${code}`;
-      const html = await get(detailUrl, 15000);
+      const html = await getHtml(detailUrl, 15000);
 
       if (!html || html.length < 500) {
         return {
@@ -79,7 +79,7 @@ export class JavProvider implements SearchProvider {
       const gidUc = extractGidUc(html);
       if (gidUc) {
         const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
-        const magnetHtml = await get(magnetUrl, 12000);
+        const magnetHtml = await getHtml(magnetUrl, 12000);
         magnets = parseMagnets(magnetHtml);
       }
 
@@ -108,7 +108,7 @@ export class JavProvider implements SearchProvider {
       if (!upperKeyword) return [];
 
       // 从 JavBus 首页提取匹配的番号
-      const html = await get('https://www.javbus.com/', 10000);
+      const html = await getHtml('https://www.javbus.com/', 10000);
       if (!html) return [];
 
       const codes: string[] = [];
@@ -128,7 +128,7 @@ export class JavProvider implements SearchProvider {
 
   async trending(): Promise<{ keyword: string; count: number; cover?: string; subtitle?: string }[]> {
     try {
-      const html = await get('https://www.javbus.com/', 10000);
+      const html = await getHtml('https://www.javbus.com/', 10000);
       if (!html) return [];
 
       const items: { keyword: string; count: number; cover?: string; subtitle?: string }[] = [];

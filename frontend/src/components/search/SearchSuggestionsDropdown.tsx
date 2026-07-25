@@ -83,7 +83,7 @@ export const SearchSuggestionsDropdown: React.FC<SearchSuggestionsDropdownProps>
   return (
     <div
       ref={listRef}
-      className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-surface-200/60 dark:border-surface-700/60 bg-white/95 dark:bg-surface-900/95 backdrop-blur-xl shadow-xl shadow-surface-900/10 overflow-hidden"
+      className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-surface-200/60 dark:border-surface-700/60 bg-white dark:bg-surface-900 shadow-xl shadow-surface-900/10 overflow-hidden"
     >
       {isLoading && displaySuggestions.length === 0 ? (
         <div className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-surface-400">

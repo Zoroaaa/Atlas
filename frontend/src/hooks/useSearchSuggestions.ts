@@ -9,12 +9,13 @@ interface UseSearchSuggestionsOptions {
   debounceMs?: number;
   maxSuggestions?: number;
   minChars?: number;
+  source?: string;
 }
 
 export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) {
   const searchConfig = useSearchConfig();
   // 默认 500ms 防抖，快速输入时减少请求次数
-  const { debounceMs = searchConfig.searchDebounceMs ?? 500, maxSuggestions = searchConfig.suggestionsMaxLimit, minChars = 2 } = options; // API建议最小2字符，避免单字符无效请求
+  const { debounceMs = searchConfig.searchDebounceMs ?? 500, maxSuggestions = searchConfig.suggestionsMaxLimit, minChars = 2, source } = options; // API建议最小2字符，避免单字符无效请求
   const { keyword } = useSearchStore();
   const { data: searchHistory = [] } = useSearchHistory(5);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -39,7 +40,7 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
 
     setIsLoading(true);
     try {
-      const response = await searchApi.getSuggestions(query, maxSuggestions, controller.signal);
+      const response = await searchApi.getSuggestions(query, maxSuggestions, controller.signal, source);
       if (response.success && response.data) {
         setSuggestions(response.data.slice(0, maxSuggestions));
       } else {
@@ -57,7 +58,7 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
     } finally {
       setIsLoading(false);
     }
-  }, [minChars, maxSuggestions]);
+  }, [minChars, maxSuggestions, source]);
 
   const debouncedFetch = useCallback((query: string) => {
     if (debounceRef.current) {

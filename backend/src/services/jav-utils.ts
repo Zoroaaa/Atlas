@@ -38,18 +38,35 @@ export function normalizeCode(raw: string): string {
 
 // ─── HTTP 辅助 ──────────────────────────────────────────────────────────
 
-export async function get(url: string, timeoutMs = 10000): Promise<string> {
+/** get() 返回类型 */
+export type GetResult =
+  | { ok: true; html: string }
+  | { ok: false; error: 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR' };
+
+export async function get(url: string, timeoutMs = 10000): Promise<GetResult> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(url, { headers: JAV_HEADERS, signal: ctrl.signal });
-    if (!r.ok) return '';
-    return await r.text();
-  } catch {
-    return '';
+    if (!r.ok) {
+      return { ok: false, error: 'HTTP_ERROR' };
+    }
+    const html = await r.text();
+    return { ok: true, html };
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { ok: false, error: 'TIMEOUT' };
+    }
+    return { ok: false, error: 'NETWORK_ERROR' };
   } finally {
     clearTimeout(t);
   }
+}
+
+/** 兼容函数：返回空字符串而不是结构化错误（用于现有代码） */
+export async function getHtml(url: string, timeoutMs = 10000): Promise<string> {
+  const result = await get(url, timeoutMs);
+  return result.ok ? result.html : '';
 }
 
 // ─── 页面解析 ────────────────────────────────────────────────────────────

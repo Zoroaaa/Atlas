@@ -9,7 +9,7 @@ import type { SearchTabType, JavSubMode } from '@/types/source';
 import type { EnrichedSearchData, JavEnrichedData } from '@/types/search';
 import type { JavDetail } from '@/types/jav';
 import type { SearchEndpointResponse, SearchResponseItem } from '@/services/api/types';
-import type { SearchResult, MajorCategory, Category } from '@/types';
+import type { SearchResult } from '@/types';
 import type { SearchSuggestionItem } from './useSearchSuggestions';
 
 /** JAV 番号格式：字母(2-8位) + 可选横杠 + 数字(2-6位)，如 URVRSP-589、BUFE-133 */
@@ -26,10 +26,6 @@ export interface SearchResultItem extends SearchResult {
 
 interface UseSearchFlowOptions {
   activeTab: SearchTabType;
-  selectedCategory: string | null;
-  setSelectedCategory: (cat: string | null) => void;
-  majorCategories: MajorCategory[];
-  categories: Category[];
   fetchJavDetail: (code: string) => void;
   resetJavDetail: () => void;
   javEnrichedDetail: JavDetail | null;
@@ -40,10 +36,6 @@ interface UseSearchFlowOptions {
 
 export function useSearchFlow({
   activeTab,
-  selectedCategory,
-  setSelectedCategory,
-  majorCategories,
-  categories,
   fetchJavDetail,
   resetJavDetail,
   javEnrichedDetail,
@@ -59,7 +51,9 @@ export function useSearchFlow({
   const { data: searchHistory = [] } = useSearchHistory(20);
 
   // ── Search Suggestions ──
-  const { suggestions, isLoading: isLoadingSuggestions, showSuggestions, setShowSuggestions } = useSearchSuggestions();
+  // 传大类 ID，后端会查该大类 + 该大类下所有子类 + 'all'
+  const currentSource = SEARCH_TABS[activeTab].majorCategoryId ?? undefined;
+  const { suggestions, isLoading: isLoadingSuggestions, showSuggestions, setShowSuggestions } = useSearchSuggestions({ source: currentSource });
 
   // ── Local state (previously in searchStore) ──
   const [isSearching, setSearching] = useState(false);
@@ -110,12 +104,6 @@ export function useSearchFlow({
     return () => { cancelled = true; };
   }, [javEnrichedDetail, isAuthenticated, searchHistory, queryClient]);
 
-  const searchableCategories = categories.filter(cat => {
-    const mc = majorCategories.find(mc => mc.id === cat.majorCategoryId);
-    const isInCurrentMajorCategory = mc?.id === SEARCH_TABS[activeTab].majorCategoryId;
-    return isInCurrentMajorCategory && cat.defaultSearchable === true;
-  });
-
   const handleSearch = useCallback(async (overrideKeyword?: string, page = 1) => {
     const query = overrideKeyword || keyword;
     if (!query.trim()) {
@@ -148,7 +136,6 @@ export function useSearchFlow({
     try {
       const response: SearchEndpointResponse = await searchMutation.mutateAsync({
         keyword: query.trim(),
-        categoryId: selectedCategory || undefined,
         majorCategoryId: SEARCH_TABS[activeTab].majorCategoryId || undefined,
         page,
       });
@@ -232,7 +219,7 @@ export function useSearchFlow({
     } finally {
       setSearching(false);
     }
-  }, [keyword, selectedCategory, toast, activeTab, javSubMode, fetchJavDetail, javEnrichedDetail, resetJavDetail, user?.id, searchMutation, setJavEnrichedDetail, setShowSuggestions, onSearch]);
+  }, [keyword, toast, activeTab, javSubMode, fetchJavDetail, javEnrichedDetail, resetJavDetail, user?.id, searchMutation, setJavEnrichedDetail, setShowSuggestions, onSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -263,13 +250,10 @@ export function useSearchFlow({
   return {
     keyword,
     setKeyword,
-    selectedCategory,
-    setSelectedCategory,
     isSearching,
     searchResults,
     enrichedData,
     enrichedPage,
-    searchableCategories,
     handleSearch,
     handleKeyDown,
     handleCodeClick,

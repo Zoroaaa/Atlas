@@ -27,8 +27,10 @@ export const searchApi = {
     return apiClient.post<SearchEndpointResponse>('/search', data);
   },
 
-  getSuggestions: async (keyword: string, limit = 10, signal?: AbortSignal): Promise<SearchSuggestionsResponse> => {
-    return apiClient.get(`/search/suggestions?keyword=${encodeURIComponent(keyword)}&limit=${limit}`, signal);
+  getSuggestions: async (keyword: string, limit = 10, signal?: AbortSignal, source?: string): Promise<SearchSuggestionsResponse> => {
+    const params = new URLSearchParams({ keyword, limit: String(limit) });
+    if (source) params.set('source', source);
+    return apiClient.get(`/search/suggestions?${params.toString()}`, signal);
   },
 
   getTrending: async (limit = 20, hours = 24): Promise<SearchTrendingResponse> => {

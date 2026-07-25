@@ -72,10 +72,6 @@ function createWrapper() {
 
 const defaultOptions = {
   activeTab: 'jav' as const,
-  selectedCategory: null,
-  setSelectedCategory: vi.fn(),
-  majorCategories: [],
-  categories: [],
   fetchJavDetail: vi.fn(),
   resetJavDetail: vi.fn(),
   javEnrichedDetail: null,

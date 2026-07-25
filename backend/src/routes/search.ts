@@ -171,7 +171,7 @@ searchRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { keyword, page = 1, pageSize = 20, majorCategoryId, categoryId } = body;
+  const { keyword, page = 1, pageSize = 20, majorCategoryId } = body;
 
   if (!keyword || !keyword.trim()) {
     return c.json(error('VALIDATION_ERROR', '搜索关键词不能为空'), 400);
@@ -190,7 +190,7 @@ searchRoutes.post('/', async (c) => {
       await c.env.DB.prepare(
         `INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at, keyword)
          VALUES (?, ?, ?, ?, 0, ?, ?)`
-      ).bind(historyId, userPayload.userId, trimmedKeyword, categoryId || majorCategoryId || 'all', Date.now(), trimmedKeyword).run();
+      ).bind(historyId, userPayload.userId, trimmedKeyword, majorCategoryId || 'all', Date.now(), trimmedKeyword).run();
     }
 
     let userEnabledSources: Set<string> | null = null;
@@ -206,18 +206,24 @@ searchRoutes.post('/', async (c) => {
     }
 
     // ── Provider 分发模式：通过 Registry 查找匹配的搜索引擎 ──
-    let actualMajorCategoryId: string | undefined = majorCategoryId;
-
-    if (!actualMajorCategoryId && categoryId) {
-      const catRow = await c.env.DB.prepare(
-        'SELECT major_category_id FROM search_source_categories WHERE id = ?'
-      ).bind(categoryId).first<{ major_category_id: string }>();
-      actualMajorCategoryId = catRow?.major_category_id;
-    }
-
-    if (actualMajorCategoryId) {
-      const provider = providerRegistry.getByCategory(actualMajorCategoryId);
+    if (majorCategoryId) {
+      const provider = providerRegistry.getByCategory(majorCategoryId);
       if (provider) {
+        // ── Cache Layer: 缓存热门搜索结果 ──
+        const SEARCH_CACHE_TTL = 10 * 60; // 10 分钟
+        const cacheKey = new Request(`https://internal/search/${majorCategoryId}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}`);
+        const cache = caches.default;
+
+        const cached = await cache.match(cacheKey);
+        if (cached) {
+          return new Response(cached.body, {
+            headers: {
+              ...Object.fromEntries(cached.headers),
+              'X-Cache': 'HIT',
+            },
+          });
+        }
+
         try {
           // 注入 TMDB API Key（供 MovieProvider 的 suggestions/trending 使用）
           setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
@@ -234,7 +240,7 @@ searchRoutes.post('/', async (c) => {
               WHERE s.is_active = 1 AND s.searchable = 1 AND c.major_category_id = ?
               AND (s.is_system = 1 OR s.created_by = ?)
               ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-            `).bind(actualMajorCategoryId, userPayload?.userId || '').all<SearchSource>();
+            `).bind(majorCategoryId, userPayload?.userId || '').all<SearchSource>();
 
             const filteredSources = userEnabledSources
               ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
@@ -263,7 +269,18 @@ searchRoutes.post('/', async (c) => {
             }
           }
 
-          return c.json(success(enrichedData, '搜索完成'));
+          // ── Cache Layer: 缓存搜索结果 ──
+          const responseBody = JSON.stringify(success(enrichedData, '搜索完成'));
+          const newResponse = new Response(responseBody, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': `public, max-age=${SEARCH_CACHE_TTL}`,
+              'X-Cache': 'MISS',
+            },
+          });
+
+          c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+          return newResponse;
         } catch (err) {
           console.error(`[Provider:${provider.id}] search error:`, err);
           // 搜索失败，删除已写入的历史记录
@@ -284,16 +301,7 @@ searchRoutes.post('/', async (c) => {
     let query: string;
     let params: (string | number)[];
 
-    if (categoryId) {
-      query = `
-        SELECT s.* FROM search_sources s
-        INNER JOIN search_source_categories c ON s.category_id = c.id
-        WHERE s.is_active = 1 AND s.searchable = 1 AND c.default_searchable = 1 AND s.category_id = ?
-        AND (s.is_system = 1 OR s.created_by = ?)
-        ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-      `;
-      params = [categoryId, userPayload?.userId || ''];
-    } else if (majorCategoryId) {
+    if (majorCategoryId) {
       query = `
         SELECT s.* FROM search_sources s
         INNER JOIN search_source_categories c ON s.category_id = c.id
@@ -361,14 +369,22 @@ searchRoutes.post('/', async (c) => {
 
 /**
  * 获取搜索建议
- * GET /api/search/suggestions?keyword=xxx&categoryId=xxx
- * 支持两种模式：
- *   - 带 categoryId 且对应 Provider 支持 suggestions → 走 Provider
- *   - 否则 fallback 到全局搜索历史统计
+ * GET /api/search/suggestions?keyword=xxx&source=xxx
+ * source 参数：按搜索源过滤历史（优先具体 source，同时兼容 'all'）
+ * Provider 模式：带 source 且对应 Provider 支持 suggestions → 走 Provider
  */
 searchRoutes.get('/suggestions', async (c) => {
+  const userPayload = c.get('user');
+
+  // 速率限制：每用户每分钟最多 30 次（自动补全高频场景）
+  const rateLimitKey = userPayload ? `suggestions:${userPayload.userId}` : `suggestions:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
+  const rl = checkRateLimit(rateLimitKey, 60_000, 30);
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+  }
+
   const keyword = c.req.query('keyword');
-  const categoryId = c.req.query('categoryId');
+  const source = c.req.query('source');
   const limit = Math.min(
     Math.max(1, parseInt(c.req.query('limit') || '10')),
     R.SUGGESTIONS.MAX_LIMIT
@@ -379,9 +395,24 @@ searchRoutes.get('/suggestions', async (c) => {
   }
 
   // ── Provider suggestions 模式 ──
-  if (categoryId) {
-    const provider = providerRegistry.getByCategory(categoryId);
+  if (source && source !== 'all') {
+    const provider = providerRegistry.getByCategory(source);
     if (provider?.suggestions) {
+      // ── Cache Layer: 缓存 Provider suggestions ──
+      const SUGGESTIONS_CACHE_TTL = 5 * 60; // 5 分钟
+      const cacheKey = new Request(`https://internal/suggestions/${source}/${encodeURIComponent(keyword)}`);
+      const cache = caches.default;
+
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return new Response(cached.body, {
+          headers: {
+            ...Object.fromEntries(cached.headers),
+            'X-Cache': 'HIT',
+          },
+        });
+      }
+
       try {
         setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
         const items = await provider.suggestions(keyword);
@@ -391,7 +422,20 @@ searchRoutes.get('/suggestions', async (c) => {
           count: 0, // Provider suggestions 不提供计数
           ...(item.meta || {}),
         }));
-        return c.json(success(mapped));
+        // 只有非空结果才直接返回，空结果继续 fallback 到数据库历史
+        if (mapped.length > 0) {
+          const responseBody = JSON.stringify(success(mapped));
+          const newResponse = new Response(responseBody, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': `public, max-age=${SUGGESTIONS_CACHE_TTL}`,
+              'X-Cache': 'MISS',
+            },
+          });
+
+          c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+          return newResponse;
+        }
       } catch (err) {
         console.error(`[Provider:${provider.id}] suggestions error:`, err);
         // fallback 到通用模式
@@ -408,14 +452,16 @@ searchRoutes.get('/suggestions', async (c) => {
     }
 
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    // source 过滤：优先查具体 source，同时兼容 'all'
     const suggestions = await c.env.DB.prepare(
       `SELECT query as keyword, COUNT(*) as count
        FROM user_search_history
-       WHERE created_at > ? AND query LIKE ?
+       WHERE created_at > ? AND query LIKE ? AND (source = ? OR source = 'all')
        GROUP BY query
        ORDER BY count DESC
        LIMIT ?`
-    ).bind(thirtyDaysAgo, `${trimmedKeyword}%`, limit).all<{ keyword: string; count: number }>();
+    ).bind(thirtyDaysAgo, `${trimmedKeyword}%`, source || 'all', limit).all<{ keyword: string; count: number }>();
 
     // CDN 缓存 60 秒，减少重复前缀的请求压力
     c.header('Cache-Control', 'public, max-age=60');
@@ -428,13 +474,21 @@ searchRoutes.get('/suggestions', async (c) => {
 
 /**
  * 获取热门搜索关键词
- * GET /api/search/trending?categoryId=xxx
- * 支持两种模式：
- *   - 带 categoryId 且对应 Provider supports trending → 走 Provider
- *   - 否则 fallback 到全局搜索历史统计
+ * GET /api/search/trending?source=xxx
+ * Provider 模式：带 source 且对应 Provider 支持 trending → 走 Provider
+ * 否则 fallback 到全局搜索历史统计
  */
 searchRoutes.get('/trending', async (c) => {
-  const categoryId = c.req.query('categoryId');
+  const userPayload = c.get('user');
+
+  // 速率限制：每用户每分钟最多 20 次
+  const rateLimitKey = userPayload ? `trending:${userPayload.userId}` : `trending:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
+  const rl = checkRateLimit(rateLimitKey, 60_000, 20);
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+  }
+
+  const source = c.req.query('source');
   const hourInMs = 60 * 60 * 1000;
 
   const limit = Math.min(
@@ -447,9 +501,24 @@ searchRoutes.get('/trending', async (c) => {
   );
 
   // ── Provider trending 模式 ──
-  if (categoryId) {
-    const provider = providerRegistry.getByCategory(categoryId);
+  if (source && source !== 'all') {
+    const provider = providerRegistry.getByCategory(source);
     if (provider?.trending) {
+      // ── Cache Layer: 缓存 Provider trending ──
+      const TRENDING_CACHE_TTL = 30 * 60; // 30 分钟
+      const cacheKey = new Request(`https://internal/trending/${source}`);
+      const cache = caches.default;
+
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return new Response(cached.body, {
+          headers: {
+            ...Object.fromEntries(cached.headers),
+            'X-Cache': 'HIT',
+          },
+        });
+      }
+
       try {
         setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
         const items = await provider.trending();
@@ -460,7 +529,20 @@ searchRoutes.get('/trending', async (c) => {
           ...(item.cover ? { cover: item.cover } : {}),
           ...(item.subtitle ? { subtitle: item.subtitle } : {}),
         }));
-        return c.json(success(mapped));
+        // 只有非空结果才直接返回，空结果继续 fallback 到数据库历史
+        if (mapped.length > 0) {
+          const responseBody = JSON.stringify(success(mapped));
+          const newResponse = new Response(responseBody, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': `public, max-age=${TRENDING_CACHE_TTL}`,
+              'X-Cache': 'MISS',
+            },
+          });
+
+          c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+          return newResponse;
+        }
       } catch (err) {
         console.error(`[Provider:${provider.id}] trending error:`, err);
         // fallback 到通用模式
