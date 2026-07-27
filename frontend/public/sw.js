@@ -1,8 +1,8 @@
 const CACHE_VERSION = '__SW_CACHE_VERSION__';
-const STATIC_CACHE_NAME = `codeseek-static-${CACHE_VERSION}`;
-const ASSETS_CACHE_NAME = `codeseek-assets-${CACHE_VERSION}`;
-const DYNAMIC_CACHE_NAME = `codeseek-dynamic-${CACHE_VERSION}`;
-const API_CACHE_NAME = `codeseek-api-${CACHE_VERSION}`;
+const STATIC_CACHE_NAME = `atlas-static-${CACHE_VERSION}`;
+const ASSETS_CACHE_NAME = `atlas-assets-${CACHE_VERSION}`;
+const DYNAMIC_CACHE_NAME = `atlas-dynamic-${CACHE_VERSION}`;
+const API_CACHE_NAME = `atlas-api-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
   '/',

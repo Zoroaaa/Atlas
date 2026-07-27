@@ -37,9 +37,8 @@ app.use('*', cors({
     }
 
     const allowedPatterns = [
-      /^https:\/\/codeseek\.pp\.ua$/,
-      /^https:\/\/www\.codeseek\.pp\.ua$/,
-      /^https:\/\/.*\.codeseek\.pages\.dev$/,
+      /^https:\/\/atlas\.wort\.uk$/,
+      /^https:\/\/www\.atlas\.wort\.uk$/,
       /^http:\/\/localhost:\d+$/,
       /^http:\/\/127\.0\.0\.1:\d+$/,
     ];

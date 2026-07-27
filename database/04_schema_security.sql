@@ -146,3 +146,16 @@ CREATE TABLE IF NOT EXISTS email_templates (
     updated_at INTEGER NOT NULL,                -- 更新时间
     usage_count INTEGER DEFAULT 0               -- 使用次数
 );
+
+-- ===============================================
+-- 4. 速率限制功能
+-- ===============================================
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+    id TEXT PRIMARY KEY,                        -- 限流键，格式如 "search:user123" 或 "suggestions:ip:1.2.3.4"
+    count INTEGER NOT NULL DEFAULT 1,           -- 当前窗口内请求计数
+    reset_at INTEGER NOT NULL,                  -- 窗口重置时间戳（毫秒）
+    created_at INTEGER NOT NULL                 -- 创建时间戳
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_reset ON rate_limits(reset_at);

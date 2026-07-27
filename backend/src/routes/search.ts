@@ -16,7 +16,7 @@ import { Env, SearchSource, JwtPayload } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { VALIDATION_RULES } from '@/constants';
-import { checkRateLimit } from '@/utils/rate-limit';
+import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
 import { providerRegistry } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
 
@@ -163,11 +163,15 @@ async function saveEnrichedHistory(
 searchRoutes.post('/', async (c) => {
   const userPayload = c.get('user');
 
-  // 搜索接口速率限制：每用户每分钟最多 5 次
+  // 搜索接口多级速率限制：每分钟5次/每小时20次/每天100次
   const rateLimitKey = userPayload ? `search:${userPayload.userId}` : `search:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
-  const rl = checkRateLimit(rateLimitKey, 60_000, 5);
+  const rl = await checkMultiLevelRateLimit(c.env.DB, rateLimitKey, [
+    { windowMs: 60_000, maxRequests: 5, label: '每分钟' },
+    { windowMs: 3_600_000, maxRequests: 20, label: '每小时' },
+    { windowMs: 86_400_000, maxRequests: 100, label: '每天' },
+  ]);
   if (!rl.allowed) {
-    return c.json(error('RATE_LIMITED', '搜索请求过于频繁，请稍后再试'), 429);
+    return c.json(error('RATE_LIMITED', rl.message || '搜索请求过于频繁，请稍后再试'), 429);
   }
 
   const body = await c.req.json();
@@ -378,7 +382,7 @@ searchRoutes.get('/suggestions', async (c) => {
 
   // 速率限制：每用户每分钟最多 30 次（自动补全高频场景）
   const rateLimitKey = userPayload ? `suggestions:${userPayload.userId}` : `suggestions:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
-  const rl = checkRateLimit(rateLimitKey, 60_000, 30);
+  const rl = await checkRateLimitD1(c.env.DB, rateLimitKey, 60_000, 30);
   if (!rl.allowed) {
     return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
   }
@@ -483,7 +487,7 @@ searchRoutes.get('/trending', async (c) => {
 
   // 速率限制：每用户每分钟最多 20 次
   const rateLimitKey = userPayload ? `trending:${userPayload.userId}` : `trending:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
-  const rl = checkRateLimit(rateLimitKey, 60_000, 20);
+  const rl = await checkRateLimitD1(c.env.DB, rateLimitKey, 60_000, 20);
   if (!rl.allowed) {
     return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
   }

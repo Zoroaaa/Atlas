@@ -214,8 +214,9 @@ export function useSearchFlow({
           setJavEnrichedDetail(null);
         }
       }
-    } catch {
-      toast.error('搜索失败', '请稍后重试');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '搜索失败，请稍后重试';
+      toast.error('搜索失败', errorMessage);
     } finally {
       setSearching(false);
     }

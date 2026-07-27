@@ -7,9 +7,6 @@ const getApiBaseUrl = (): string => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return API_BASE_URL.LOCAL;
     }
-    if (hostname.includes('pages.dev') || hostname.includes('cloudflare')) {
-      return API_BASE_URL.PRODUCTION;
-    }
     return API_BASE_URL.PRODUCTION;
   }
   return API_BASE_URL.LOCAL;
