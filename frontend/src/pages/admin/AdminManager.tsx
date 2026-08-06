@@ -11,8 +11,9 @@ import { CleanupTab } from './CleanupTab';
 import { ConfigTab } from './ConfigTab';
 import { FeedbackTab } from './FeedbackTab';
 import { AnnouncementTab } from './AnnouncementTab';
+import { ObservabilityTab } from './ObservabilityTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'trends' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements';
+type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
@@ -22,6 +23,7 @@ export const AdminManager: React.FC = () => {
     if (p.includes('/sessions')) return 'sessions';
     if (p.includes('/actions')) return 'actions';
     if (p.includes('/analytics')) return 'analytics';
+    if (p.includes('/observability')) return 'observability';
     if (p.includes('/trends')) return 'trends';
     if (p.includes('/reports')) return 'reports';
     if (p.includes('/roles')) return 'roles';
@@ -41,6 +43,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'sessions' && <SessionsTab />}
       {activeTab === 'actions' && <ActionsTab />}
       {activeTab === 'analytics' && <AnalyticsTab />}
+      {activeTab === 'observability' && <ObservabilityTab />}
       {activeTab === 'trends' && <TrendsTab />}
       {activeTab === 'reports' && <ReportsTab />}
       {activeTab === 'roles' && <RolesTab />}

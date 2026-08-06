@@ -70,6 +70,35 @@ export const SessionsTab: React.FC = () => {
     }
   };
 
+  /** 从 User-Agent 提取浏览器名+版本 与 操作系统,合并展示 */
+  const parseUserAgent = (ua: string | undefined): { label: string; isMobile: boolean } => {
+    if (!ua) return { label: '-', isMobile: false };
+
+    // 操作系统
+    let os = 'Unknown';
+    let isMobile = false;
+    if (/Windows NT 10/.test(ua)) os = 'Windows 10/11';
+    else if (/Windows NT 6\.3/.test(ua)) os = 'Windows 8.1';
+    else if (/Windows NT 6\.1/.test(ua)) os = 'Windows 7';
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Android ([\d.]+)/.test(ua)) { os = `Android ${ua.match(/Android ([\d.]+)/)?.[1] ?? ''}`.trim(); isMobile = true; }
+    else if (/iPhone OS ([\d_]+)/.test(ua)) { os = `iOS ${ua.match(/iPhone OS ([\d_]+)/)?.[1].replace(/_/g, '.') ?? ''}`.trim(); isMobile = true; }
+    else if (/iPad;.*OS ([\d_]+)/.test(ua)) { os = `iPadOS ${ua.match(/OS ([\d_]+)/)?.[1].replace(/_/g, '.') ?? ''}`.trim(); isMobile = true; }
+    else if (/Mac OS X ([\d_]+)/.test(ua)) os = `macOS ${ua.match(/Mac OS X ([\d_]+)/)?.[1].replace(/_/g, '.') ?? ''}`.trim();
+    else if (/CrOS/.test(ua)) os = 'ChromeOS';
+    else if (/Linux/.test(ua)) os = 'Linux';
+
+    // 浏览器(顺序很重要,先匹配特殊标识)
+    let browser = 'Unknown';
+    if (/Edg\/([\d.]+)/.test(ua)) browser = `Edge ${ua.match(/Edg\/([\d.]+)/)?.[1]?.split('.')[0]}`;
+    else if (/OPR\/([\d.]+)/.test(ua)) browser = `Opera ${ua.match(/OPR\/([\d.]+)/)?.[1]?.split('.')[0]}`;
+    else if (/Firefox\/([\d.]+)/.test(ua)) browser = `Firefox ${ua.match(/Firefox\/([\d.]+)/)?.[1]?.split('.')[0]}`;
+    else if (/Chrome\/([\d.]+)/.test(ua) && !/Edg\//.test(ua)) browser = `Chrome ${ua.match(/Chrome\/([\d.]+)/)?.[1]?.split('.')[0]}`;
+    else if (/Version\/([\d.]+).*Safari/.test(ua)) browser = `Safari ${ua.match(/Version\/([\d.]+)/)?.[1]?.split('.')[0]}`;
+
+    return { label: `${browser} · ${os}`, isMobile };
+  };
+
   return (
     <div className="space-y-4">
       {stats && (
@@ -106,7 +135,7 @@ export const SessionsTab: React.FC = () => {
                 <tr key={s.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
                   <td className="px-4 py-3"><div className="font-medium text-surface-900 dark:text-surface-100">{s.username || '-'}</div><div className="text-xs text-surface-500 truncate max-w-[120px]">{s.email || '-'}</div></td>
                   <td className="px-4 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-surface-400" /><span>{s.ipAddress || '-'}</span></div></td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1 max-w-[160px]"><Monitor className="w-3 h-3 text-surface-400 shrink-0" /><span className="truncate text-surface-500 text-xs">{s.userAgent?.split(' ')[0] || '-'}</span></div></td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-1 max-w-[200px]">{(() => { const { label, isMobile } = parseUserAgent(s.userAgent); const Icon = isMobile ? Smartphone : Monitor; return <><Icon className="w-3 h-3 text-surface-400 shrink-0" /><span className="truncate text-surface-500 text-xs" title={s.userAgent}>{label}</span></>; })()}</div></td>
                   <td className="px-4 py-3 text-surface-500">{formatRelativeTime(s.lastActivity)}</td>
                   <td className="px-4 py-3 text-surface-500">{formatExpiry(s.expiresInSeconds)}</td>
                   <td className="px-4 py-3">

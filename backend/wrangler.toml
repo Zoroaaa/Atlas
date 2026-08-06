@@ -39,11 +39,13 @@ JWT_EXPIRY_DAYS = "30"
 ENABLE_ACTION_LOGGING = "true"
 
 # =====================================================================
-# 以下配置通过 `wrangler secret put` 注入（不得写入此文件）：
+# 以下配置通过 `wrangler secret put` 注入（不得写入此文件中）：
 # 🔐 JWT_SECRET
 # 🔐 RESEND_API_KEY
 # 🔐 GITHUB_CLIENT_ID        (GitHub OAuth App Client ID)
 # 🔐 GITHUB_CLIENT_SECRET    (GitHub OAuth App Client Secret)
+# 🔐 GOOGLE_CLIENT_ID        (Google OAuth 2.0 Client ID, Google Cloud Console 创建)
+# 🔐 GOOGLE_CLIENT_SECRET    (Google OAuth 2.0 Client Secret)
 # =====================================================================
 
 # 数据库绑定

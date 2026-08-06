@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, User, ArrowLeft, Search, Github } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ArrowLeft, Search, Github, Chrome } from 'lucide-react';
 import { useAuthStore } from '@/stores';
 import { authApi, analyticsApi } from '@/services/api';
 import { Input } from '@/components/ui';
@@ -22,6 +22,7 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGithubLoading, setIsGithubLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
@@ -74,6 +75,11 @@ export const LoginPage: React.FC = () => {
     setIsGithubLoading(true);
     // loginWithGitHub 是同步跳转，setIsGithubLoading 只为在跳转前显示 loading 状态
     authApi.loginWithGitHub();
+  };
+
+  const handleGoogleLogin = () => {
+    setIsGoogleLoading(true);
+    authApi.loginWithGoogle();
   };
 
   return (
@@ -180,7 +186,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="button"
             onClick={handleGitHubLogin}
-            disabled={isGithubLoading || isLoading}
+            disabled={isGithubLoading || isLoading || isGoogleLoading}
             className="mt-4 w-full flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl font-semibold text-sm
               bg-stone-900 hover:bg-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700
               text-white border border-stone-700 dark:border-stone-600
@@ -192,6 +198,24 @@ export const LoginPage: React.FC = () => {
               : <Github className="w-4 h-4" />
             }
             {isGithubLoading ? '跳转中...' : '使用 GitHub 一键登录'}
+          </button>
+
+          {/* Google 登录按钮 */}
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={isGoogleLoading || isLoading || isGithubLoading}
+            className="mt-3 w-full flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl font-semibold text-sm
+              bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700
+              text-stone-700 dark:text-stone-200 border border-stone-300 dark:border-stone-600
+              transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            {isGoogleLoading
+              ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-700 dark:border-stone-600 dark:border-t-stone-200 rounded-full animate-spin" />
+              : <Chrome className="w-4 h-4 text-blue-500" />
+            }
+            {isGoogleLoading ? '跳转中...' : '使用 Google 一键登录'}
           </button>
 
           {/* Footer */}

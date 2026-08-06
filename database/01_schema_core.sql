@@ -44,8 +44,14 @@ CREATE TABLE IF NOT EXISTS users (
     -- GitHub OAuth 扩展字段（原08_github_oauth.sql）
     github_id TEXT,                             -- GitHub用户ID
     github_username TEXT,                       -- GitHub用户名（用于展示）
+    -- Google OAuth 扩展字段
+    google_id TEXT,                             -- Google用户唯一ID（sub）
+    google_username TEXT,                       -- Google用户展示名
     FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE SET DEFAULT
 );
+
+-- google_id 唯一索引（允许 NULL，避免重复绑定）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS user_sessions (
     id TEXT PRIMARY KEY,                        -- 会话唯一标识

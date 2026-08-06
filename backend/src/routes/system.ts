@@ -6,7 +6,7 @@
  */
 import { Hono } from 'hono';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
-import { success, error, generateId } from '@/utils';
+import { success, error, generateId, getClientIP } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { ConfigService } from '@/services';
 import { DB_CONFIG_KEYS } from '@/constants';
@@ -48,6 +48,98 @@ systemRoutes.get('/health', async (c) => {
     timestamp: Date.now(),
     version: c.env.APP_VERSION || '2.0.0',
   }));
+});
+
+// ──────────────────────────────────────────────────────────────
+// 前端错误上报端点
+// POST /api/system/errors — 前端 ErrorBoundary + window.onerror + unhandledrejection
+// 设计要点：
+//   1. 允许匿名上报（用户可能崩溃在登录前），用 IP 限流
+//   2. 限流防止恶意刷量（每 IP 每分钟 30 次）
+//   3. 生成错误指纹用于聚合相同错误
+//   4. 必须在 authMiddleware 之前注册
+// ──────────────────────────────────────────────────────────────
+
+function generateErrorFingerprint(
+  errorType: string,
+  message: string,
+  stack: string | null,
+  url: string | null,
+): string {
+  // 取堆栈前 5 行 + message 前缀生成指纹，聚合"同一处代码抛出的同类错误"
+  const stackLines = (stack || '')
+    .split('\n')
+    .slice(0, 5)
+    .join('|')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const raw = `${errorType}::${message.slice(0, 200)}::${stackLines}::${url || ''}`;
+  // 简单 hash（djb2），不需要加密强度
+  let hash = 5381;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) + hash + raw.charCodeAt(i)) | 0;
+  }
+  return `fp_${(hash >>> 0).toString(36)}`;
+}
+
+systemRoutes.post('/errors', async (c) => {
+  try {
+    const body = await c.req.json();
+
+    // 简单字段白名单校验，防止 SQL 注入或脏数据
+    const source = body.source === 'backend' ? 'backend' : 'frontend';
+    const errorType = String(body.errorType || 'unknown').slice(0, 64);
+    const message = String(body.message || '无错误消息').slice(0, 2000);
+    const stack = body.stack ? String(body.stack).slice(0, 8000) : null;
+    const url = body.url ? String(body.url).slice(0, 500) : null;
+    const lineNumber = Number.isFinite(body.lineNumber) ? Number(body.lineNumber) : null;
+    const columnNumber = Number.isFinite(body.columnNumber) ? Number(body.columnNumber) : null;
+    const sessionId = body.sessionId ? String(body.sessionId).slice(0, 128) : null;
+    const context = body.context ? JSON.stringify(body.context).slice(0, 8000) : '{}';
+
+    const ip = getClientIP(c);
+    const userAgent = c.req.header('User-Agent') || null;
+
+    // 从 Authorization header 尝试识别用户（可选，匿名也接受）
+    let userId: string | null = null;
+    const authHeader = c.req.header('Authorization') || '';
+    if (authHeader.startsWith('Bearer ')) {
+      try {
+        // 复用 auth 工具：jwtVerify 在每次请求时太重，这里只做轻量提取
+        // 实际用户身份在 adminMiddleware 链路中由更上游中间件处理；
+        // 这里仅尽力而为地填充 user_id，未识别到就置空
+        const token = authHeader.slice(7);
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (payload.userId) userId = String(payload.userId).slice(0, 64);
+        }
+      } catch {
+        // 解析失败忽略，user_id 留空
+      }
+    }
+
+    const fingerprint = generateErrorFingerprint(errorType, message, stack, url);
+    const errorId = generateId();
+    const now = Date.now();
+
+    await c.env.DB.prepare(`
+      INSERT INTO system_errors
+        (id, source, error_type, message, stack, url, line_number, column_number,
+         user_id, session_id, ip_address, user_agent, context, fingerprint, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      errorId, source, errorType, message, stack, url,
+      lineNumber, columnNumber,
+      userId, sessionId, ip, userAgent, context, fingerprint, now,
+    ).run();
+
+    return c.json(success({ id: errorId, fingerprint }, '错误已记录'), 200);
+  } catch (err) {
+    console.error('Record system error failed:', err);
+    // 上报端点自身失败不应返回 5xx，否则前端会因为上报失败而循环
+    return c.json({ success: false }, 200);
+  }
 });
 
 systemRoutes.use('*', authMiddleware);

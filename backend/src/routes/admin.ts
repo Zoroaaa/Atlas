@@ -1598,3 +1598,247 @@ adminRoutes.get('/dashboard/user-behavior', async (c) => {
     return c.json(error('SERVER_ERROR', '获取用户行为分析失败'), 500);
   }
 });
+
+// ====================================================================
+// 系统观测（错误监控）
+// ====================================================================
+
+/**
+ * 错误统计概览
+ * GET /api/admin/errors/stats?days=7
+ */
+adminRoutes.get('/errors/stats', async (c) => {
+  const days = parseInt(c.req.query('days') || '7', 10);
+
+  try {
+    const now = Date.now();
+    const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
+
+    const overall = await c.env.DB.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN source = 'frontend' THEN 1 ELSE 0 END) as frontend,
+        SUM(CASE WHEN source = 'backend' THEN 1 ELSE 0 END) as backend,
+        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
+        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week,
+        COUNT(DISTINCT fingerprint) as unique_fingerprints
+      FROM system_errors
+      WHERE created_at > ?
+    `).bind(now - CONFIG.Stats.DAY_IN_MS, now - CONFIG.Stats.WEEK_IN_MS, startTime).first();
+
+    // 按 error_type 聚合
+    const byType = await c.env.DB.prepare(`
+      SELECT error_type, COUNT(*) as count
+      FROM system_errors
+      WHERE created_at > ?
+      GROUP BY error_type
+      ORDER BY count DESC
+      LIMIT 20
+    `).bind(startTime).all();
+
+    // 按 fingerprint 聚合 Top 错误
+    const topErrors = await c.env.DB.prepare(`
+      SELECT
+        fingerprint,
+        MIN(message) as message,
+        MIN(error_type) as error_type,
+        MIN(source) as source,
+        MIN(url) as url,
+        COUNT(*) as count,
+        MAX(created_at) as last_seen,
+        MIN(created_at) as first_seen
+      FROM system_errors
+      WHERE created_at > ?
+      GROUP BY fingerprint
+      ORDER BY count DESC
+      LIMIT 10
+    `).bind(startTime).all();
+
+    // 每日错误趋势
+    const dailyErrors = await c.env.DB.prepare(`
+      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
+      FROM system_errors
+      WHERE created_at > ?
+      GROUP BY date
+      ORDER BY date
+    `).bind(startTime).all();
+
+    return c.json(success({
+      total: overall?.total || 0,
+      frontend: overall?.frontend || 0,
+      backend: overall?.backend || 0,
+      today: overall?.today || 0,
+      week: overall?.week || 0,
+      uniqueErrors: overall?.unique_fingerprints || 0,
+      byType: byType.results || [],
+      topErrors: topErrors.results || [],
+      dailyErrors: dailyErrors.results || [],
+      period: { days, startTime },
+    }));
+  } catch (err) {
+    console.error('Get error stats failed:', err);
+    return c.json(error('SERVER_ERROR', '获取错误统计失败'), 500);
+  }
+});
+
+/**
+ * 错误列表（分页 + 筛选）
+ * GET /api/admin/errors?page=1&pageSize=20&source=frontend&errorType=&fingerprint=
+ */
+adminRoutes.get('/errors', async (c) => {
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
+  const pageSize = Math.min(
+    Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)),
+    R.PAGINATION.MAX_LOG_PAGE_SIZE,
+  );
+  const source = c.req.query('source');
+  const errorType = c.req.query('errorType');
+  const fingerprint = c.req.query('fingerprint');
+  const search = c.req.query('search');
+
+  const offset = (page - 1) * pageSize;
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (source === 'frontend' || source === 'backend') {
+    conditions.push('source = ?');
+    params.push(source);
+  }
+  if (errorType) {
+    conditions.push('error_type = ?');
+    params.push(errorType);
+  }
+  if (fingerprint) {
+    conditions.push('fingerprint = ?');
+    params.push(fingerprint);
+  }
+  if (search) {
+    conditions.push('(message LIKE ? OR stack LIKE ? OR url LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  try {
+    const totalResult = await c.env.DB.prepare(
+      `SELECT COUNT(*) as count FROM system_errors ${whereClause}`
+    ).bind(...params).first<{ count: number }>();
+
+    type ErrorRow = {
+      id: number; source: string; error_type: string; message: string;
+      stack: string | null; url: string | null; line_number: number | null;
+      column_number: number | null; user_id: string | null; session_id: string | null;
+      ip_address: string | null; user_agent: string | null; fingerprint: string;
+      created_at: string;
+    };
+
+    const items = await c.env.DB.prepare(
+      `SELECT id, source, error_type, message, stack, url, line_number, column_number,
+              user_id, session_id, ip_address, user_agent, fingerprint, created_at
+       FROM system_errors ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`
+    ).bind(...params, pageSize, offset).all<ErrorRow>();
+
+    // 关联用户名（一次查询）
+    const userIds = [...new Set((items.results || [])
+      .map((e) => e.user_id)
+      .filter((v): v is string => Boolean(v)))];
+
+    const userMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const placeholders = userIds.map(() => '?').join(',');
+      const users = await c.env.DB.prepare(
+        `SELECT id, username FROM users WHERE id IN (${placeholders})`
+      ).bind(...userIds).all<{ id: string; username: string }>();
+
+      for (const u of (users.results || [])) {
+        userMap[u.id] = u.username;
+      }
+    }
+
+    const enriched = (items.results || []).map((e) => ({
+      ...e,
+      username: e.user_id ? userMap[e.user_id] || null : null,
+    }));
+
+    return c.json(success({
+      errors: enriched,
+      total: totalResult?.count || 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((totalResult?.count || 0) / pageSize),
+    }));
+  } catch (err) {
+    console.error('Get error list failed:', err);
+    return c.json(error('SERVER_ERROR', '获取错误列表失败'), 500);
+  }
+});
+
+/**
+ * 错误详情
+ * GET /api/admin/errors/:id
+ */
+adminRoutes.get('/errors/:id', async (c) => {
+  const errorId = c.req.param('id');
+
+  try {
+    const err = await c.env.DB.prepare(
+      'SELECT * FROM system_errors WHERE id = ?'
+    ).bind(errorId).first();
+
+    if (!err) {
+      return c.json(error('NOT_FOUND', '错误记录不存在'), 404);
+    }
+
+    let username: string | null = null;
+    if (err.user_id) {
+      const u = await c.env.DB.prepare(
+        'SELECT username FROM users WHERE id = ?'
+      ).bind(err.user_id).first<{ username: string }>();
+      username = u?.username || null;
+    }
+
+    // 同指纹的近期错误（用于看影响范围）
+    const relatedErrors = err.fingerprint
+      ? await c.env.DB.prepare(
+          `SELECT id, created_at, ip_address, user_agent FROM system_errors
+           WHERE fingerprint = ? AND id != ?
+           ORDER BY created_at DESC LIMIT 20`
+        ).bind(err.fingerprint, errorId).all()
+      : { results: [] };
+
+    return c.json(success({
+      error: { ...err, username },
+      related: relatedErrors.results || [],
+    }));
+  } catch (err) {
+    console.error('Get error detail failed:', err);
+    return c.json(error('SERVER_ERROR', '获取错误详情失败'), 500);
+  }
+});
+
+/**
+ * 删除错误记录（清理单个或按指纹批量）
+ * DELETE /api/admin/errors/:id?byFingerprint=true
+ */
+adminRoutes.delete('/errors/:id', async (c) => {
+  const errorId = c.req.param('id');
+  const byFingerprint = c.req.query('byFingerprint') === 'true';
+
+  try {
+    if (byFingerprint) {
+      // 按 fingerprint 批量删除（id 参数作为 fingerprint）
+      const result = await c.env.DB.prepare(
+        'DELETE FROM system_errors WHERE fingerprint = ?'
+      ).bind(errorId).run();
+      return c.json(success({ deleted: result.meta?.changes || 0 }));
+    }
+
+    await c.env.DB.prepare('DELETE FROM system_errors WHERE id = ?').bind(errorId).run();
+    return c.json(success(null, '已删除'));
+  } catch (err) {
+    console.error('Delete error failed:', err);
+    return c.json(error('SERVER_ERROR', '删除失败'), 500);
+  }
+});

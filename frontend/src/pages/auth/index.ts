@@ -2,3 +2,4 @@ export { LoginPage } from './LoginPage';
 export { RegisterPage } from './RegisterPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { GitHubCallbackPage } from './GitHubCallbackPage';
+export { GoogleCallbackPage } from './GoogleCallbackPage';

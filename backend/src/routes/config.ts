@@ -12,6 +12,33 @@ import { ConfigService } from '@/services';
 
 export const configRoutes = new Hono<{ Bindings: Env }>();
 
+// /public 端点无需认证（首页未登录用户也要能拿到站点名/描述/功能开关）
+configRoutes.get('/public', async (c) => {
+  try {
+    const configs = await c.env.DB.prepare(
+      `SELECT key, value, config_type FROM system_config WHERE is_public = 1`
+    ).all<SystemConfig>();
+
+    const result: Record<string, unknown> = {};
+    for (const config of configs.results || []) {
+      let parsedValue: unknown = config.value;
+      if (config.config_type === 'boolean') {
+        parsedValue = config.value === '1' || config.value === 'true';
+      } else if (config.config_type === 'integer') {
+        parsedValue = parseInt(config.value, 10);
+      } else if (config.config_type === 'float') {
+        parsedValue = parseFloat(config.value);
+      }
+      result[config.key] = parsedValue;
+    }
+
+    return c.json(success(result));
+  } catch (err) {
+    console.error('Get public config error:', err);
+    return c.json(success({}));
+  }
+});
+
 configRoutes.use('*', authMiddleware);
 
 // 不再使用本地权限检查函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
@@ -127,32 +154,6 @@ function validateConfigValue(value: string, configType: string, validationRules?
     return { valid: true };
   }
 }
-
-configRoutes.get('/public', async (c) => {
-  try {
-    const configs = await c.env.DB.prepare(
-      `SELECT key, value, config_type FROM system_config WHERE is_public = 1`
-    ).all<SystemConfig>();
-
-    const result: Record<string, unknown> = {};
-    for (const config of configs.results || []) {
-      let parsedValue: unknown = config.value;
-      if (config.config_type === 'boolean') {
-        parsedValue = config.value === '1' || config.value === 'true';
-      } else if (config.config_type === 'integer') {
-        parsedValue = parseInt(config.value, 10);
-      } else if (config.config_type === 'float') {
-        parsedValue = parseFloat(config.value);
-      }
-      result[config.key] = parsedValue;
-    }
-
-    return c.json(success(result));
-  } catch (err) {
-    console.error('Get public config error:', err);
-    return c.json(success({}));
-  }
-});
 
 configRoutes.get('/all', async (c) => {
   const user = c.get('user');

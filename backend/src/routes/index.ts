@@ -1,5 +1,6 @@
 export { authRoutes } from './auth';
 export { githubOAuthRoutes } from './github-oauth';
+export { googleOAuthRoutes } from './google-oauth';
 export { userRoutes } from './user';
 export { sourceRoutes } from './sources';
 export { communityRoutes } from './community';

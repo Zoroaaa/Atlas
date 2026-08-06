@@ -511,4 +511,85 @@ export const adminApi = {
   }): Promise<void> => {
     await apiClient.put(`/admin/reports/${reportId}`, data);
   },
+
+  // 系统观测（错误监控）
+  getErrorStats: async (days: number = 7): Promise<{
+    total: number;
+    frontend: number;
+    backend: number;
+    today: number;
+    week: number;
+    uniqueErrors: number;
+    byType: Array<{ error_type: string; count: number }>;
+    topErrors: Array<{
+      fingerprint: string;
+      message: string;
+      error_type: string;
+      source: string;
+      url: string | null;
+      count: number;
+      last_seen: number;
+      first_seen: number;
+    }>;
+    dailyErrors: Array<{ date: string; count: number }>;
+    period: { days: number; startTime: number };
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(`/admin/errors/stats?days=${days}`);
+    return response.data;
+  },
+
+  getErrors: async (params: {
+    page?: number;
+    pageSize?: number;
+    source?: 'frontend' | 'backend';
+    errorType?: string;
+    fingerprint?: string;
+    search?: string;
+  } = {}): Promise<PaginatedResponse<{
+    id: string;
+    source: string;
+    error_type: string;
+    message: string;
+    stack: string | null;
+    url: string | null;
+    line_number: number | null;
+    column_number: number | null;
+    user_id: string | null;
+    session_id: string | null;
+    ip_address: string | null;
+    user_agent: string | null;
+    fingerprint: string | null;
+    created_at: number;
+    username: string | null;
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.source) queryParams.set('source', params.source);
+    if (params.errorType) queryParams.set('errorType', params.errorType);
+    if (params.fingerprint) queryParams.set('fingerprint', params.fingerprint);
+    if (params.search) queryParams.set('search', params.search);
+
+    const response = await apiClient.get<{ success: boolean; data: any }>(`/admin/errors?${queryParams.toString()}`);
+    return {
+      items: response.data.errors,
+      total: response.data.total,
+      page: response.data.page,
+      pageSize: response.data.pageSize,
+      totalPages: response.data.totalPages,
+    };
+  },
+
+  getErrorDetail: async (errorId: string): Promise<{
+    error: any;
+    related: Array<{ id: string; created_at: number; ip_address: string | null; user_agent: string | null }>;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(`/admin/errors/${errorId}`);
+    return response.data;
+  },
+
+  deleteError: async (errorId: string, byFingerprint: boolean = false): Promise<void> => {
+    const query = byFingerprint ? '?byFingerprint=true' : '';
+    await apiClient.delete(`/admin/errors/${errorId}${query}`);
+  },
 };

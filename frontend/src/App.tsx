@@ -18,7 +18,8 @@ import { PrivacyPage } from '@/pages/PrivacyPage';
 import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
 import { AdminManager, AdminPanelOverview } from '@/pages/admin';
 import { CommunityManager } from '@/pages/community';
-import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage } from '@/pages/auth';
+import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage, GoogleCallbackPage } from '@/pages/auth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface GuardRouteProps {
   children: React.ReactNode;
@@ -153,6 +154,7 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <PageTracker />
+        <ErrorBoundary>
         <Routes>
         {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar） */}
         <Route path="/" element={<AuthRedirect><HomePage /></AuthRedirect>} />
@@ -165,6 +167,7 @@ const App: React.FC = () => {
         <Route path="/forgot-password" element={<AuthRedirect><ForgotPasswordPage /></AuthRedirect>} />
         {/* GitHub OAuth 回调 — 不加 AuthRedirect，否则已登录状态无法完成回调 */}
         <Route path="/auth/callback" element={<GitHubCallbackPage />} />
+        <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
         <Route path="/main" element={
           <GuardRoute>
             <MainSearchPage />
@@ -213,6 +216,7 @@ const App: React.FC = () => {
           <Route path="sessions" element={<AdminManager />} />
           <Route path="actions" element={<AdminManager />} />
           <Route path="analytics" element={<AdminManager />} />
+          <Route path="observability" element={<AdminManager />} />
           <Route path="trends" element={<AdminManager />} />
           <Route path="reports" element={<AdminManager />} />
           <Route path="roles" element={<AdminManager />} />
@@ -226,6 +230,7 @@ const App: React.FC = () => {
           <Route index element={<AdminManager />} />
         </Route>
       </Routes>
+        </ErrorBoundary>
       <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>

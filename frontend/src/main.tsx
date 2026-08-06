@@ -2,8 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ConfigProvider } from '@/contexts';
+import { installGlobalErrorListeners } from '@/components/ErrorBoundary';
 import './index.css';
 
+// 安装全局错误监听（window.onerror + unhandledrejection）
+// ErrorBoundary 组件内部已捕获渲染阶段错误，这里捕获运行时未捕获错误
+installGlobalErrorListeners();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

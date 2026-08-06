@@ -24,6 +24,11 @@ export const authApi = {
     window.location.href = `${base}/auth/github`;
   },
 
+  loginWithGoogle: (): void => {
+    const base = getApiBaseUrl();
+    window.location.href = `${base}/auth/google`;
+  },
+
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', data);
     if (response.success && response.data?.token) {

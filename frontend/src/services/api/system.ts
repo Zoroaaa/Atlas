@@ -48,6 +48,25 @@ export interface GroupedConfigs {
 }
 
 export const systemApi = {
+  reportError: async (data: {
+    source: 'frontend';
+    errorType: string;
+    message: string;
+    stack?: string | null;
+    url?: string | null;
+    lineNumber?: number | null;
+    columnNumber?: number | null;
+    sessionId?: string | null;
+    context?: Record<string, unknown>;
+  }): Promise<void> => {
+    // 静默上报：失败不影响用户，所有异常都吞掉
+    try {
+      await apiClient.post('/errors', data);
+    } catch {
+      // 上报端点自身失败，吞掉
+    }
+  },
+
   getApiInfo: async (): Promise<{ 
     success: boolean; 
     data: {

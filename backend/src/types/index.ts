@@ -30,6 +30,10 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
 
+  // Google OAuth（通过 `wrangler secret put` 注入）
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+
   // TMDB API（影视搜索元数据）
   TMDB_API_KEY?: string;
 
@@ -52,6 +56,8 @@ export interface User {
   role_id?: string;
   github_id?: string | null;
   github_username?: string | null;
+  google_id?: string | null;
+  google_username?: string | null;
 }
 
 export interface Role {
@@ -423,4 +429,26 @@ export interface JwtPayload {
   role?: string;
   iat: number;
   exp: number;
+}
+
+// 系统错误记录（前端 ErrorBoundary + 后端 onError 上报）
+export interface SystemError {
+  id: string;
+  source: 'frontend' | 'backend';
+  error_type: string;
+  message: string;
+  stack: string | null;
+  url: string | null;
+  line_number: number | null;
+  column_number: number | null;
+  user_id: string | null;
+  session_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  request_method: string | null;
+  request_path: string | null;
+  status_code: number | null;
+  context: string;
+  fingerprint: string | null;
+  created_at: number;
 }
