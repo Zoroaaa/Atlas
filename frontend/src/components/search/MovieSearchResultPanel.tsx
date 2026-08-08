@@ -3,7 +3,7 @@ import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
   AlertCircle, Wifi, RefreshCw,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Heart, ShieldCheck,
+  Heart, ShieldCheck, LayoutGrid, List,
 } from 'lucide-react';
 import type {
   MovieEnrichedData,
@@ -14,6 +14,7 @@ import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
+import { MovieGroupedView } from './MovieGroupedView';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -235,6 +236,10 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const [showAllResources, setShowAllResources] = useState(false);
   const RES_PAGE_SIZE = 10;
 
+  // 视图模式：有 grouped 数据时默认聚合视图，否则分源视图
+  const hasGrouped = !!(data.grouped && (data.grouped.groups.some(g => g.resources.length > 0) || data.grouped.ungrouped.length > 0));
+  const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
+
   const results = data.results ?? [];
   const resources = data.resources ?? [];
 
@@ -319,6 +324,33 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             </button>
           </div>
         )}
+        {/* 视图切换：有 grouped 数据时显示 */}
+        {hasGrouped && (
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-stone-100 dark:bg-stone-800/60">
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-all ${
+                viewMode === 'grouped'
+                  ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
+                  : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+              }`}
+              title="按影视聚合展示"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />聚合
+            </button>
+            <button
+              onClick={() => setViewMode('sources')}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-all ${
+                viewMode === 'sources'
+                  ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
+                  : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
+              }`}
+              title="按数据源分区展示"
+            >
+              <List className="w-3.5 h-3.5" />分源
+            </button>
+          </div>
+        )}
       </div>
 
       {/* error warnings */}
@@ -356,6 +388,18 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
         </div>
       )}
 
+      {/* 聚合视图：按影视归组展示 */}
+      {viewMode === 'grouped' && hasGrouped && (
+        <MovieGroupedView
+          data={data}
+          isAuthenticated={isAuthenticated}
+          favorites={favorites}
+          onToggleFavorite={onToggleFavorite}
+        />
+      )}
+
+      {/* 分源视图：原有的双栏布局 */}
+      {viewMode === 'sources' && (
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
         {/* left: results list */}
         {results.length > 0 ? (
@@ -636,6 +680,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

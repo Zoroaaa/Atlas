@@ -86,6 +86,26 @@ export interface ShowRssItem {
   magnet: string;
 }
 
+/** 统一资源类型（归组用，合并各源资源） */
+export interface AnimeUnifiedResource {
+  source: 'nyaa' | 'mikan' | 'animetosho' | 'showrss';
+  sourceLabel: string;
+  title: string;
+  magnet: string;
+  size: string;
+  date: string;
+  seeders: number;
+  leechers: number;
+  group?: string;
+  trusted?: boolean;
+}
+
+/** 归组结果项 */
+export interface AnimeGroupedItem {
+  subject: BangumiSubject;
+  resources: AnimeUnifiedResource[];
+}
+
 export interface AnimeEnrichedData {
   resultType: 'anime';
   keyword: string;
@@ -97,6 +117,11 @@ export interface AnimeEnrichedData {
   showrss: ShowRssItem[];
   total: number;
   errors: { bangumi: string | null; nyaa: string | null; mikan: string | null; animetosho: string | null; showrss: string | null };
+  /** 作品级归组结果 */
+  grouped?: {
+    groups: AnimeGroupedItem[];
+    ungrouped: AnimeUnifiedResource[];
+  };
 }
 
 export interface TMDBResult {
@@ -141,6 +166,11 @@ export interface MovieEnrichedData {
   tpbError: string | null;
   eztvError: string | null;     // NEW
   resourceSources?: string[];
+  /** 作品级归组结果 */
+  grouped?: {
+    groups: Array<{ subject: TMDBResult; resources: ResourceItem[] }>;
+    ungrouped: ResourceItem[];
+  };
 }
 
 export interface JavEnrichedData {

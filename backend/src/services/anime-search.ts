@@ -68,6 +68,38 @@ export interface ShowRssItem {
   magnet: string;
 }
 
+/** 统一资源类型（归组用，合并各源资源） */
+export interface AnimeUnifiedResource {
+  /** 来源标识：nyaa | mikan | animetosho | showrss */
+  source: 'nyaa' | 'mikan' | 'animetosho' | 'showrss';
+  /** 来源显示名 */
+  sourceLabel: string;
+  /** 资源标题 */
+  title: string;
+  /** 磁力链接 */
+  magnet: string;
+  /** 文件大小 */
+  size: string;
+  /** 发布日期 */
+  date: string;
+  /** 做种数（showRSS 无此数据） */
+  seeders: number;
+  /** 下载者数（showRSS 无此数据） */
+  leechers: number;
+  /** 字幕组（仅 mikan） */
+  group?: string;
+  /** 可信标记（仅 nyaa） */
+  trusted?: boolean;
+}
+
+/** 归组结果项 */
+export interface AnimeGroupedItem {
+  /** 关联的 Bangumi 作品 */
+  subject: BangumiSubject;
+  /** 该作品下所有匹配的资源 */
+  resources: AnimeUnifiedResource[];
+}
+
 export interface AnimeSearchResult {
   keyword: string;
   page: number;
@@ -84,11 +116,17 @@ export interface AnimeSearchResult {
     animetosho: string | null;
     showrss: string | null;
   };
+  /** 作品级归组结果（v4.2 新增） */
+  grouped?: {
+    groups: AnimeGroupedItem[];
+    ungrouped: AnimeUnifiedResource[];
+  };
 }
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { formatBytes } from '@/utils/format';
 import { sanitizeError } from '@/utils/error';
+import { groupResourcesBySubject } from '@/utils/title-grouping';
 
 // ─── Nyaa.si RSS 搜索 ─────────────────────────────────────────────────
 
@@ -719,10 +757,38 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
   const sortedNyaa = [...nyaa].sort((a, b) => (b.seeders ?? 0) - (a.seeders ?? 0));
   const sortedAtos = [...atos].sort((a, b) => (b.seeders ?? 0) - (a.seeders ?? 0));
 
+  // ── 构建作品级归组数据 ──
+  // 将四源资源统一为 AnimeUnifiedResource，按 Bangumi 作品归组
+  const unifiedResources: AnimeUnifiedResource[] = [
+    ...sortedNyaa.map(r => ({
+      source: 'nyaa' as const, sourceLabel: 'Nyaa', title: r.title, magnet: r.magnet,
+      size: r.size, date: r.date, seeders: r.seeders, leechers: r.leechers, trusted: r.trusted,
+    })),
+    ...mikan.map(r => ({
+      source: 'mikan' as const, sourceLabel: 'Mikan', title: r.title, magnet: r.magnet,
+      size: r.size, date: r.pubDate, seeders: 0, leechers: 0, group: r.group,
+    })),
+    ...sortedAtos.map(r => ({
+      source: 'animetosho' as const, sourceLabel: 'AnimeTosho', title: r.title, magnet: r.magnet,
+      size: r.size, date: r.date, seeders: r.seeders, leechers: r.leechers,
+    })),
+    ...showrss.map(r => ({
+      source: 'showrss' as const, sourceLabel: 'showRSS', title: r.title, magnet: r.magnet,
+      size: '', date: '', seeders: 0, leechers: 0,
+    })),
+  ];
+
+  const bgmForGrouping = bgm.slice(0, 6);
+  const groupedResult = groupResourcesBySubject(bgmForGrouping, unifiedResources, {
+    subjectTitles: (s) => [s.nameCN, s.name],
+    resourceTitle: (r) => r.title,
+    resourceId: (r) => r.magnet,
+  });
+
   return {
     keyword,
     page,
-    bgm:   bgm.slice(0, 6),
+    bgm:   bgmForGrouping,
     nyaa:  sortedNyaa,
     mikan: mikan,
     animetosho: sortedAtos,
@@ -734,6 +800,13 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
       mikan:     sanitizeError(mikanErrorRaw),
       animetosho: sanitizeError(atosResult.status === 'rejected' ? String(atosResult.reason) : null),
       showrss:   sanitizeError(srResult.status === 'rejected' ? String(srResult.reason) : null),
+    },
+    grouped: {
+      groups: groupedResult.groups.map(g => ({
+        subject: g.subject,
+        resources: g.resources,
+      })),
+      ungrouped: groupedResult.ungrouped,
     },
   };
 }

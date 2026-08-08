@@ -42,6 +42,14 @@ export interface ResourceItem {
   detailUrl?: string;
 }
 
+/** 归组结果项 */
+export interface MovieGroupedItem {
+  /** 关联的 TMDB/豆瓣 作品 */
+  subject: TMDBResult;
+  /** 该作品下所有匹配的资源 */
+  resources: ResourceItem[];
+}
+
 export interface MovieSearchResult {
   keyword: string;
   page: number;
@@ -54,11 +62,17 @@ export interface MovieSearchResult {
   tpbError: string | null;
   eztvError: string | null;
   resourceSources: string[];
+  /** 作品级归组结果（v4.2 新增） */
+  grouped?: {
+    groups: MovieGroupedItem[];
+    ungrouped: ResourceItem[];
+  };
 }
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { formatBytes } from '@/utils/format';
 import { sanitizeError } from '@/utils/error';
+import { groupResourcesBySubject } from '@/utils/title-grouping';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -353,6 +367,14 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   if (allTpbResults.length > 0) sourceNames.add('TPB');
   if (eztvResults.length > 0) sourceNames.add('EZTV');
 
+  // ── 构建作品级归组数据 ──
+  // 用 TMDB/豆瓣 作品标题匹配资源，替换前端粗糙的模糊匹配
+  const groupedResult = groupResourcesBySubject(results, dedupedResources, {
+    subjectTitles: (s) => [s.title, s.originalTitle],
+    resourceTitle: (r) => r.title,
+    resourceId: (r) => r.magnet,
+  });
+
   return {
     keyword,
     page,
@@ -365,5 +387,12 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     tpbError:    sanitizeError(tpbError),
     eztvError:   sanitizeError(eztvError),
     resourceSources: Array.from(sourceNames),
+    grouped: {
+      groups: groupedResult.groups.map(g => ({
+        subject: g.subject,
+        resources: g.resources,
+      })),
+      ungrouped: groupedResult.ungrouped,
+    },
   };
 }
