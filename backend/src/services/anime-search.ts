@@ -225,8 +225,10 @@ function parseNyaaRss(xml: string): NyaaTorrent[] {
   return results;
 }
 
-/** Nyaa RSS 主搜索，带 429 重试（指数退避，最多 2 次） */
-async function fetchNyaa(keyword: string): Promise<NyaaTorrent[]> {
+/** Nyaa RSS 主搜索，带 429 重试（指数退避，最多 2 次）
+ *  注意：当前因部署环境无法解决 nyaa.si 验证，未在 searchAnime 中调用，保留导出便于后续恢复或单独测试。
+ */
+export async function fetchNyaa(keyword: string): Promise<NyaaTorrent[]> {
   const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(keyword)}&c=1_0&f=0`;
   const r = await fetchWithRetry(url, {
     headers: {
@@ -708,7 +710,10 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
   // 外层超时控制：避免 5 路并发最坏情况耗时过长
   const searchPromise = Promise.allSettled([
     fetchBangumi(keyword),
-    fetchNyaa(keyword),
+    // 【已禁用】因部署环境(Cloudflare Workers 出站 IP)无法解决 nyaa.si 的 bot 验证，
+    // RSS/HTML 均被拦截返回 403 或 JS challenge。先取消爬这个源，后续如有代理方案再恢复。
+    // fetchNyaa(keyword),
+    Promise.resolve([] as NyaaTorrent[]),
     fetchMikan(keyword),
     fetchAnimeTosho(keyword),
     fetchShowRss(keyword),
@@ -732,7 +737,7 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
       total: 0,
       errors: {
         bangumi:   '搜索超时，请稍后重试',
-        nyaa:      '搜索超时，请稍后重试',
+        nyaa:      null,
         mikan:     '搜索超时，请稍后重试',
         animetosho: '搜索超时，请稍后重试',
         showrss:   '搜索超时，请稍后重试',
@@ -747,10 +752,11 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
   const showrss   = srResult.status === 'fulfilled' ? srResult.value : [];
 
   // 错误信息：原始信息用于日志，脱敏后传给前端
-  const nyaaErrorRaw  = nyaaResult.status === 'rejected'  ? String(nyaaResult.reason)  : null;
+  // nyaa 已禁用（部署环境无法解决验证），不再采集错误
+  // const nyaaErrorRaw  = nyaaResult.status === 'rejected'  ? String(nyaaResult.reason)  : null;
   const mikanErrorRaw = mikanResult.status === 'rejected' ? String(mikanResult.reason) : null;
 
-  if (nyaaErrorRaw)  console.error('[anime-search] nyaa failed:', nyaaErrorRaw);
+  // if (nyaaErrorRaw)  console.error('[anime-search] nyaa failed:', nyaaErrorRaw);
   if (mikanErrorRaw) console.error('[anime-search] mikan failed:', mikanErrorRaw);
 
   // 各源独立，不再合并
@@ -796,7 +802,8 @@ export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearc
     total: sortedNyaa.length + mikan.length + sortedAtos.length + showrss.length,
     errors: {
       bangumi:   sanitizeError(bgmResult.status === 'rejected' ? String(bgmResult.reason) : null),
-      nyaa:      sanitizeError(nyaaErrorRaw),
+      // nyaa 已禁用（部署环境无法解决 nyaa.si 验证）：返回 null，前端不显示任何提示
+      nyaa:      null,
       mikan:     sanitizeError(mikanErrorRaw),
       animetosho: sanitizeError(atosResult.status === 'rejected' ? String(atosResult.reason) : null),
       showrss:   sanitizeError(srResult.status === 'rejected' ? String(srResult.reason) : null),

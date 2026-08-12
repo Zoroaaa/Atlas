@@ -4,10 +4,10 @@
 
 # Atlas
 
-**An open-source search engine that aggregates content across categories — JAV, anime, movies, and comics, all in one place.**
+**An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -52,7 +52,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v2.0 (architecture reconstruction), v3.0 (security enhancement + feature expansion), v3.1 (monorepo sharing + security hardening + performance optimization), v4.0 (anime & movie search + architecture upgrade), **v4.1 (comic search + architecture optimization)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v2.0 (architecture reconstruction), v3.0 (security enhancement + feature expansion), v3.1 (monorepo sharing + security hardening + performance optimization), v4.0 (anime & movie search + architecture upgrade), v4.1 (comic search + architecture optimization), **v4.2 (novel search + aggregation view + observability)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 
 ### Frontend Specialized Documentation
@@ -70,7 +70,8 @@ The project uses a modular documentation system, where each specialized document
 - **Anime Search**: Aggregates data from Bangumi, Mikan, Nyaa, and ShowRSS, including subtitles and magnet links
 - **Movie Search**: Aggregates metadata from TMDB, YTS, EZTV, and TPB, including seeds and magnets
 - **Comic Search**: Aggregates metadata from MangaDex and 13 other search sources
-- **Unified Experience**: All four categories are accessible from a single entry, with search results aggregated from multiple sources
+- **Novel Search**: Aggregates book metadata from Anna's Archive and TXT direct links from Qishu (v4.2 new)
+- **Unified Experience**: All five categories are accessible from a single entry, with search results aggregated from multiple sources
 
 #### 2. Modern Technology Architecture
 - **React 19 + TypeScript**: Utilizes the latest React features with complete type safety provided by TypeScript
@@ -130,9 +131,9 @@ Resend → Modern email service with high deliverability and real-time tracking
 
 ## Core Features
 
-### 1. Intelligent Search System (v4.1: Four-Layer Architecture Reconstruction)
+### 1. Intelligent Search System (v4.2: Five Categories + Aggregation View)
 
-#### Four Search Categories
+#### Five Search Categories
 
 | Category | Data Source | Description |
 |----------|--------|------|
@@ -140,6 +141,7 @@ Resend → Modern email service with high deliverability and real-time tracking
 | **Anime** | Bangumi / Mikan / Nyaa / ShowRSS | Anime metadata, subtitle groups, and magnet links |
 | **Movie** | TMDB / YTS / EZTV / TPB | Movie/TV series metadata and seed resources |
 | **Comic** | MangaDex / 13 search sources | Comic metadata and resource aggregation |
+| **Novel** | Anna's Archive / Qishu | Book metadata and TXT direct link resources (v4.2 new) |
 
 #### Three-Layer Search Architecture
 
@@ -162,6 +164,9 @@ Category (large category)        Classification (subcategory)         Source (so
 ├─────────────┤                   ├──────────────────┐               ├──────────────┤
 │   manga     │ ────>             │ mangadex         │ ────>           │ MangaDex API │
 │             │                   │ sources          │               │ 13 search sources   │
+├─────────────┤                   ├──────────────────┐               ├──────────────┤
+│   novel     │ ────>             │ anna-archive     │ ────>           │ Anna's Archive│
+│             │                   │ qishu            │               │ Qishu        │
 └─────────────┘                   └──────────────────┘               └──────────────┘
 ```
 
@@ -173,8 +178,9 @@ Category (large category)        Classification (subcategory)         Source (so
 #### Multi-Source Aggregation Search
 - **One-Click Aggregation**: Select category and classification, input keyword, and display results from all sources
 - **Intelligent Sorting**: Sort results based on search source priority, usage frequency, and availability status
-- **Classification Filtering**: Support filtering by large category (JAV/Anime/Movie/Comic) and sub-classification
+- **Classification Filtering**: Support filtering by large category (JAV/Anime/Movie/Comic/Novel) and sub-classification
 - **Fixed Source Management**: One-click fix common search sources for personalized customization (v4.1 new feature)
+- **Aggregation View**: Work-level resource grouping, multi-source resources merged per work (v4.2 new)
 - **History Record**: Automatically save search history (with cover image), support quick re-search and history statistics
 
 #### Search Suggestions and Hot Searches
@@ -192,12 +198,13 @@ Category (large category)        Classification (subcategory)         Source (so
 
 #### Authentication and Security
 - **GitHub OAuth Login**: One-click login with GitHub account, automatically creating/associating an account
+- **Google OAuth Login**: One-click login with Google account (v4.2 new)
 - **JWT Token Authentication**: Stateless authentication with automatic token refresh support
 - **Login Protection**: Automatically lock after 5 consecutive failed attempts for 15 minutes
 - **Session Management**: View active sessions and support forced logout
 
 #### Personal Data Management
-- **Favorites**: Favorite commonly used search results (support all categories: JAV/Anime/Movie), with classification management
+- **Favorites**: Favorite commonly used search results (support all categories: JAV/Anime/Movie/Comic/Novel), with classification management
 - **Search History**: Automatically record search history (with cover thumbnail), support clear and delete
 - **Data Sync**: Cross-device synchronization of favorites, history, and settings
 - **Data Export**: Support export personal data (JSON format)
@@ -239,7 +246,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Login Logs**: View user login records and IP information
 
 #### Content Management
-- **Search Source Management**: CRUD system for search sources and classifications (support three major categories)
+- **Search Source Management**: CRUD system for search sources and classifications (support five major categories)
 - **Community Review**: Review user-shared search sources
 - **Report Processing**: Process user-reported content
 
@@ -268,7 +275,7 @@ Category (large category)        Classification (subcategory)         Source (so
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Frontend Layer (v4.1.0)              │
+│                    Frontend Layer (v4.2.0)              │
 │  • React 19 + TypeScript                                │
 │  • Vite Build Tool                                       │
 │  • Tailwind CSS Styling Framework                        │
@@ -276,22 +283,26 @@ Category (large category)        Classification (subcategory)         Source (so
 │  • React Router Routing Management                        │
 │  • AnimeSearchResultPanel / MovieSearchResultPanel      │
 │  • MangaSearchResultPanel (v4.1 new)                    │
+│  • NovelSearchResultPanel (v4.2 new)                    │
 │  • Deployment: Cloudflare Pages                         │
 ├─────────────────────────────────────────────────────────┤
-│                  Provider Layer (v4.1 Extended)          │
+│                  Provider Layer (v4.2 Extended)          │
 │  • SearchProvider Interface + ProviderRegistry Registry   │
 │  • anime-provider (Bangumi/Mikan/Nyaa/ShowRSS)          │
 │  • movie-provider (TMDB/YTS/EZTV/TPB)                   │
 │  • manga-provider (MangaDex/13 search sources)                 │
+│  • novel-provider (Anna's Archive/Qishu) (v4.2 new)     │
 │  • jav-provider (Metadata/Magnet)                       │
 ├─────────────────────────────────────────────────────────┤
-│                  Backend Service Layer (v4.1.0)          │
+│                  Backend Service Layer (v4.2.0)          │
 │  • Hono Framework (Ultra-lightweight Web Framework)      │
 │  • TypeScript Type Safety                                │
 │  • Cloudflare Workers (Edge Computing)                  │
 │  • Cloudflare D1 (SQLite Database)                      │
 │  • JWT Token Authentication (jose)                       │
 │  • Resend Email Service                                  │
+│  • D1 Persisted Rate Limiting (v4.2 new)                │
+│  • Google OAuth Login (v4.2 new)                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -316,12 +327,11 @@ cd Atlas
 # Install dependencies
 pnpm install
 
-# Initialize database (including v4.1 new anime/movie/comic search sources)
+# Initialize database (including v4.2 new novel search sources)
 npx wrangler d1 create atlas-db
-npx wrangler d1 execute atlas-db --file=database/schema.sql
-npx wrangler d1 execute atlas-db --file=database/06_data_search_sources.sql
-npx wrangler d1 execute atlas-db --file=database/13_schema_history_cover.sql
-npx wrangler d1 execute atlas-db --file=database/14_index_manga_optimization.sql
+npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
+npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
+npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
 
 # Local development
 pnpm dev
@@ -333,7 +343,7 @@ pnpm build && cd backend && npx wrangler deploy
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
 [See Complete API Documentation](docs/api/index.md)
-[See v4.1 Changelog](docs/CHANGELOG.md)
+[See v4.2 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 
@@ -342,12 +352,14 @@ pnpm build && cd backend && npx wrangler deploy
 - Code splitting, route-level lazy loading, tree-shaking
 - Zustand persistent state + API response cache
 - React.memo and useMemo optimization to reduce re-rendering
+- Search cache layer to reduce repeated requests (v4.2 new)
 
 ### Backend Performance Optimization
 - Cloudflare global edge nodes for near-source processing
 - Database index optimization + parameterized queries
 - Response compression (gzip/brotli) + batch operation support
 - Request throttling + concurrency control + degradation strategies
+- D1 persisted multi-level rate limiting (v4.2 new)
 
 ## Security Features
 
@@ -355,12 +367,14 @@ pnpm build && cd backend && npx wrangler deploy
 - XSS protection + CSRF protection
 - Content Security Policy (CSP) + Subresource Integrity (SRI)
 - JWT Token authentication + request signature verification
+- Self-built frontend error monitoring observability system (v4.2 new)
 
 ### Backend Security
 - JWT Token authentication (jose library) + RBAC permission control
 - SQL injection protection + password encryption storage (bcrypt)
 - Login failure locking mechanism + security event logs
 - CORS configuration + rate limiting + IP recording
+- Email registration whitelist validation (v4.2 new)
 
 ## License
 
@@ -414,7 +428,7 @@ We welcome all forms of contributions:
 
 ### Atlas — Open Source Aggregation Search Engine
 
-**JAV / Anime / Movies / Comics, one-stop search**
+**JAV / Anime / Movies / Comics / Novels, one-stop search**
 
 Made with ❤️ by [Zoro](https://github.com/Zoroaaa)
 

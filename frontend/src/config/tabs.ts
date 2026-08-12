@@ -42,6 +42,16 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
     description: '搜索漫画资源',
     pinned: true,
   },
+  novel: {
+    id: 'novel',
+    label: '小说搜索',
+    icon: '📚',
+    gradient: 'from-emerald-500 to-teal-600',
+    majorCategoryId: 'novel_sources',
+    placeholder: '输入书名、作者、关键词...',
+    description: '搜索 Anna\'s Archive 电子书资源',
+    pinned: true,
+  },
   sources: {
     id: 'sources',
     label: '搜索源访问',

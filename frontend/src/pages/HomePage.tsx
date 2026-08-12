@@ -322,7 +322,7 @@ export const HomePage: React.FC = () => {
       >
         <div className="text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed">
           <p className="mb-4">
-            Atlas 是一款聚合搜索引擎，覆盖 JAV / 动漫 / 影视 / 漫画等多个资源类型，帮助您一站式找到所需资源。
+            Atlas 是一款聚合搜索引擎，覆盖 JAV / 动漫 / 影视 / 漫画/小说等多个资源类型，帮助您一站式找到所需资源。
           </p>
           <p className="mb-4">
             使用步骤：

@@ -28,6 +28,21 @@ const ALLOWED_IMAGE_HOSTS = [
   'lain.bgm.tv',
   'image.tmdb.org',
   'uploads.mangadex.org',
+  // 小说封面：Anna's Archive 多域名故障转移
+  'zh.annas-archive.gl',
+  'zh.annas-archive.pk',
+  'zh.annas-archive.gd',
+  'annas-archive.gl',
+  'annas-archive.pk',
+  'annas-archive.gd',
+  // 小说封面：Anna's Archive 封面 CDN（z-lib 域名变体）
+  'covers.z-lib.sk',
+  'covers.z-lib.to',
+  'covers.z-lib.se',
+  'covers.z-lib.org',
+  'covers1.z-lib.sk',
+  // 小说封面：奇书网（详情页封面，需 Referer 防盗链）
+  'www.xqishuta.org',
 ];
 
 function isPrivateIP(hostname: string): boolean {
@@ -85,6 +100,7 @@ javRoutes.get('/proxy-image', async (c) => {
     'javbus.com': 'https://www.javbus.com/',
     'pics.javbus.com': 'https://www.javbus.com/',
     'img.javbus.com': 'https://www.javbus.com/',
+    'www.xqishuta.org': 'http://www.xqishuta.org/',
   };
   const imageFetchHeaders: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

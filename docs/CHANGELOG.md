@@ -2,6 +2,117 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v4.2.0] - 2026-08-12
+
+### Added - 小说搜索 + 聚合视图 + 观测体系 + 多项增强 📚
+
+本次版本核心亮点：新增小说搜索类别（第五大类），作品级资源归组聚合视图，Google OAuth 登录，前端错误监控自建观测系统，JAV 子搜索模式与女优推荐，播放器重构，安全限流升级。
+
+---
+
+#### 核心新功能（一）：小说搜索系统
+
+- **Anna's Archive 集成**：接入 Anna's Archive 作为小说主数据源，支持图书元数据搜索
+- **奇书网数据源**：新增奇书网搜索源，TXT 直链资源置顶展示
+- **多域名故障转移**：搜索源支持多域名自动切换，提升可用性
+- **图书描述**：搜索结果展示图书简介/描述信息
+- **前端 NovelSearchResultPanel 组件**：独立的小说搜索结果面板
+
+#### 核心新功能（二）：作品级资源归组聚合视图
+
+- **作品维度归组**：搜索结果按作品（标题）维度归组聚合，同一作品的多源资源合并展示
+- **聚合视图卡片**：简介整合到聚合视图卡片中，统一展示
+- **Title Grouping 优化**：标题归组正则优化，移除不必要的转义字符
+
+#### 核心新功能（三）：Google OAuth 登录
+
+- **Google OAuth 登录**：支持 Google 账号一键登录，自动创建/关联账号
+- **State Cookie 修复**：修复 Set-Cookie 合并导致 state cookie 未设置的问题
+
+#### 核心新功能（四）：前端错误监控观测系统
+
+- **自建观测系统**：前端错误监控自建观测体系，无需第三方依赖
+- **系统错误列表**：管理后台新增系统错误列表（修复 prefer-const 与 any 类型）
+
+#### 核心新功能（五）：JAV 搜索增强
+
+- **子搜索模式**：JAV 搜索增加子搜索模式，支持更精准的搜索
+- **番号格式校验**：输入番号格式校验，错误提示仅在输入框未聚焦时显示避免与搜索建议冲突
+- **推荐女优栏目**：新增推荐女优栏目，支持爬取女优列表及详情番号
+- **女优详情弹窗**：优化女优详情弹窗和搜索体验
+
+#### 核心新功能（六）：播放器重构
+
+- **WebTor 在线播放**：移除内嵌播放和 BTorrent，仅保留 WebTor 在线播放
+- **PikPak 推荐提示**：弹窗增加 PikPak 推荐提示
+- **复制磁力链接**：点击播放时弹窗提示并支持复制磁力链接
+
+#### 核心新功能（七）：安全与限流升级
+
+- **D1 持久化限流**：改用 D1 持久化限流，支持多级限制
+- **邮箱注册白名单**：增强邮箱注册白名单校验
+- **搜索限流提示**：修复搜索限流错误提示，直接显示后端异常信息
+
+#### 核心新功能（八）：品牌与 SEO 统一
+
+- **品牌统一**：统一品牌名称为 Atlas 并优化 SEO 配置
+- **PNG Favicon**：添加 PNG 格式 favicon 提升搜索引擎兼容性
+- **Bing 站长工具**：添加 Bing 站长工具验证标签
+- **域名统一**：清除 pages.dev 域名和旧域名 codeseek.pp.ua，统一替换为 atlas.wort.uk
+
+#### 核心新功能（九）：搜索体验优化
+
+- **搜索缓存层**：添加缓存层，修复 manga 建议接口超时
+- **搜索建议简化**：简化搜索建议逻辑，删除子类选择功能
+- **历史 Fallback**：Provider 返回空数组时 fallback 到数据库历史
+- **建议下拉框修复**：提升搜索建议下拉框层级并恢复不透明背景，修复下层内容穿透
+- **JavProvider 建议**：恢复 JavProvider suggestions/trending，为 MangaProvider 补充 suggestions
+
+#### 核心新功能（十）：UI 布局优化
+
+- **公告横幅独立置顶**：公告通知独立为全局顶栏，跨所有标签页可见
+- **快捷入口面板**：右栏接入快捷入口（搜索源管理、系统设置、社区、管理后台）
+- **导航栏精简**：去掉"更多"菜单，sources 入口移至快捷入口
+
+### Improved - 性能与稳定性 ⚡
+
+- **搜索缓存**：减少重复请求，提升响应速度
+- **多域名故障转移**：搜索源可用性提升
+- **限流持久化**：D1 持久化限流，多级精细控制
+
+### Fixed - 问题修复 🔧
+
+- 修复 JAV 搜索崩溃问题 - 移除错误的面板兜底逻辑
+- 修复漫画搜索崩溃 - 移除错误的历史记录字段写入并隔离错误影响
+- 修复会话设备始终显示 Mozilla/5.0 的问题
+- 修复 Google OAuth Set-Cookie 合并导致 state cookie 未设置
+- 修复 /public 端点未登录访问首页 401 的问题
+- 修复管理后台系统错误列表的 prefer-const 与 any 类型
+- 修复搜索建议下拉框背景穿透问题
+
+### Technical Details
+
+- **新增文件**：
+  - `frontend/src/components/search/NovelSearchResultPanel.tsx` — 小说搜索结果面板
+  - `frontend/src/components/search/AnnouncementBar.tsx` — 公告横幅组件
+  - `frontend/src/components/search/QuickActionsPanel.tsx` — 快捷入口面板
+  - `backend/src/providers/novel-provider.ts` — 小说 Provider
+  - `backend/src/services/novel-search.ts` — 小说搜索业务逻辑
+  - `backend/src/routes/github-oauth.ts` — GitHub OAuth 路由
+  - `backend/src/routes/google-oauth.ts` — Google OAuth 路由
+- **修改文件**：
+  - `frontend/src/pages/MainSearchPage.tsx` — 公告横幅置顶、快捷入口面板
+  - `frontend/src/components/layout/UnifiedNavBar.tsx` — 导航栏精简
+  - `frontend/src/config/tabs.ts` — 新增小说类别
+  - `frontend/src/config/resultPanels.tsx` — 小说结果面板配置
+  - `backend/src/index.ts` — 注册 novel Provider
+  - `backend/src/routes/search.ts` — 支持 novel category
+  - `backend/src/utils/rate-limit.ts` — D1 持久化限流
+  - `backend/src/utils/security.ts` — 邮箱白名单校验
+  - `backend/src/middleware/auth.ts` — /public 端点修复
+
+---
+
 ## [v4.1.0] - 2026-07-17
 
 ### Added - 漫画搜索 + 架构优化 🎨
@@ -272,4 +383,4 @@ CodeSeek 初始版本发布，基于原生 ES6 架构的 JAV 搜索引擎。
 
 **让搜索更简单，让体验更美好！**
 
-Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 4.1.0 | 2026-07-17
+Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 4.2.0 | 2026-08-12

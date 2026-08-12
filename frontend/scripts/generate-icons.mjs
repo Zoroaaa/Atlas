@@ -136,7 +136,7 @@ async function generateIcons() {
 
       <!-- 搜索框 -->
       <rect x="560" y="180" width="800" height="64" rx="32" fill="#1c1917" stroke="#44403c" stroke-width="1"/>
-      <text x="600" y="220" font-family="Plus Jakarta Sans, sans-serif" font-size="18" fill="#78716c">搜索 JAV / 动漫 / 影视 / 漫画...</text>
+      <text x="600" y="220" font-family="Plus Jakarta Sans, sans-serif" font-size="18" fill="#78716c">搜索 JAV / 动漫 / 影视 / 漫画/小说...</text>
       <rect x="1280" y="192" width="40" height="40" rx="20" fill="url(#goldGrad)"/>
       <circle cx="1296" cy="208" r="8" fill="none" stroke="#0a0a0b" stroke-width="2"/>
       <line x1="1302" y1="214" x2="1310" y2="222" stroke="#0a0a0b" stroke-width="2" stroke-linecap="round"/>
@@ -196,7 +196,7 @@ async function generateIcons() {
 
       <!-- 底部信息 -->
       <line x1="0" y1="1020" x2="1920" y2="1020" stroke="#44403c" stroke-width="0.5"/>
-      <text x="960" y="1055" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="14" fill="#78716c">Atlas 开源聚合搜索引擎 · JAV / 动漫 / 影视 / 漫画</text>
+      <text x="960" y="1055" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-size="14" fill="#78716c">Atlas 开源聚合搜索引擎 · JAV / 动漫 / 影视 / 漫画/小说</text>
     </svg>
   `;
   await sharp(Buffer.from(desktopScreenshotSvg))
@@ -237,7 +237,7 @@ async function generateIcons() {
 
       <!-- 搜索框 -->
       <rect x="20" y="120" width="350" height="48" rx="24" fill="#1c1917" stroke="#44403c" stroke-width="1"/>
-      <text x="44" y="150" font-family="Plus Jakarta Sans, sans-serif" font-size="14" fill="#78716c">搜索 JAV / 动漫 / 影视 / 漫画...</text>
+      <text x="44" y="150" font-family="Plus Jakarta Sans, sans-serif" font-size="14" fill="#78716c">搜索 JAV / 动漫 / 影视 / 漫画/小说...</text>
       <circle cx="340" cy="144" r="14" fill="url(#goldGradM)"/>
       <circle cx="337" cy="142" r="5" fill="none" stroke="#0a0a0b" stroke-width="1.5"/>
       <line x1="341" y1="146" x2="346" y2="151" stroke="#0a0a0b" stroke-width="1.5" stroke-linecap="round"/>

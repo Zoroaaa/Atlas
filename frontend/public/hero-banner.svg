@@ -95,7 +95,7 @@
 
   <text x="960" y="310" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="500" font-size="20" fill="#d6d3d1" letter-spacing="3">开源聚合搜索引擎</text>
 
-  <text x="960" y="350" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="400" font-size="15" fill="#78716c" letter-spacing="1">JAV / 动漫 / 影视 / 漫画 · 多源聚合 · 云端同步</text>
+  <text x="960" y="350" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="400" font-size="15" fill="#78716c" letter-spacing="1">JAV / 动漫 / 影视 / 漫画/小说 · 多源聚合 · 云端同步</text>
 
   <!-- Bottom accent line -->
   <line x1="760" y1="420" x2="1160" y2="420" stroke="url(#goldGrad)" stroke-width="1" opacity="0.3"/>

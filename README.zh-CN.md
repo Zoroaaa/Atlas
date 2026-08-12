@@ -4,10 +4,10 @@
 
 # Atlas
 
-**开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画，一站式搜索**
+**开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -47,7 +47,7 @@
 |------|------|------|
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、v4.0（动漫&影视搜[...]
+| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、v4.0（动漫&影视搜索+架构升级）、v4.1（漫画搜索+架构优化）、**v4.2（小说搜索+聚合视图+观测体系）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -65,7 +65,8 @@
 - **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + Nyaa 磁力 + ShowRSS 订阅
 - **影视搜索**: TMDB 电影剧集 + YTS 电影种子 + EZTV 剧集种子 + TPB 兜底磁力
 - **漫画搜索**: MangaDex 漫画元数据 + 13个搜索源聚合
-- **一站式体验**: 四大类别统一入口，一次搜索聚合多源结果
+- **小说搜索**: Anna's Archive 图书元数据 + 奇书网 TXT 直链资源（v4.2 新增）
+- **一站式体验**: 五大类别统一入口，一次搜索聚合多源结果
 
 #### 2. 现代化技术架构
 - **React 19 + TypeScript**: 采用最新的 React 特性，配合 TypeScript 实现完整的类型安全
@@ -125,9 +126,9 @@ Resend                → 现代邮件服务、高送达率、实时追踪
 
 ## 核心功能
 
-### 1. 智能搜索系统 (v4.1 四层架构重构)
+### 1. 智能搜索系统 (v4.2 五大类别 + 聚合视图)
 
-#### 四大搜索类别
+#### 五大搜索类别
 
 | 类别 | 数据源 | 说明 |
 |------|--------|------|
@@ -135,6 +136,7 @@ Resend                → 现代邮件服务、高送达率、实时追踪
 | **动漫** | Bangumi / Mikan / Nyaa / ShowRSS | 番剧元数据 + 字幕组 + 磁力链接 |
 | **影视** | TMDB / YTS / EZTV / TPB | 电影剧集元数据 + 种子资源 |
 | **漫画** | MangaDex / 13个搜索源 | 漫画元数据 + 资源聚合 |
+| **小说** | Anna's Archive / 奇书网 | 图书元数据 + TXT 直链资源（v4.2 新增） |
 
 #### 三层搜索架构
 
@@ -157,6 +159,9 @@ Category (大类)        Classification (分类)         Source (源实例)
 ├─────────────┤       ├──────────────────┐       ├──────────────┤
 │   manga     │ ────> │ mangadex         │ ────> │ MangaDex API │
 │             │       │ sources          │       │ 13个搜索源   │
+├─────────────┤       ├──────────────────┐       ├──────────────┤
+│   novel     │ ────> │ anna-archive     │ ────> │ Anna's Archive│
+│             │       │ qishu            │       │ 奇书网       │
 └─────────────┘       └──────────────────┘       └──────────────┘
 ```
 
@@ -168,8 +173,9 @@ Category (大类)        Classification (分类)         Source (源实例)
 #### 多源聚合搜索
 - **一键聚合**: 选择类别和分类，输入关键词，结果统一展示
 - **智能排序**: 根据搜索源优先级、使用频率、可用状态智能排序结果
-- **分类筛选**: 支持按大类（JAV/动漫/影视/漫画）和子分类筛选搜索源
+- **分类筛选**: 支持按大类（JAV/动漫/影视/漫画/小说）和子分类筛选搜索源
 - **固定源管理**: 一键固定常用搜索源，个性化定制（v4.1新增）
+- **聚合视图**: 作品级资源归组聚合，同一作品多源资源合并展示（v4.2新增）
 - **历史记录**: 自动保存搜索历史（含封面图），支持快速重搜和历史统计
 
 #### 搜索建议与热门
@@ -187,12 +193,13 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 #### 认证与安全
 - **GitHub OAuth 登录**: 一键使用 GitHub 账号登录，自动创建/关联账号
+- **Google OAuth 登录**: 支持 Google 账号一键登录（v4.2 新增）
 - **JWT Token 认证**: 无状态认证，支持 Token 自动刷新
 - **登录保护**: 连续失败 5 次自动锁定 15 分钟
 - **会话管理**: 查看活跃会话，支持强制登出
 
 #### 个人数据管理
-- **收藏夹**: 收藏常用搜索结果（支持 JAV/动漫/影视 全类别），支持分类管理
+- **收藏夹**: 收藏常用搜索结果（支持 JAV/动漫/影视/漫画/小说 全类别），支持分类管理
 - **搜索历史**: 自动记录搜索历史（含封面缩略图），支持清空和删除
 - **数据同步**: 跨设备同步收藏、历史、设置
 - **数据导出**: 支持导出个人数据（JSON 格式）
@@ -234,7 +241,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **登录日志**: 查看用户登录记录和 IP 信息
 
 #### 内容管理
-- **搜索源管理**: 增删改查系统搜索源和分类（支持三大类别）
+- **搜索源管理**: 增删改查系统搜索源和分类（支持五大类别）
 - **社区审核**: 审核用户分享的搜索源
 - **举报处理**: 处理用户举报内容
 
@@ -263,7 +270,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    前端层 (v4.1.0)                      │
+│                    前端层 (v4.2.0)                      │
 │  • React 19 + TypeScript                                │
 │  • Vite 构建工具                                         │
 │  • Tailwind CSS 样式框架                                 │
@@ -271,14 +278,150 @@ Category (大类)        Classification (分类)         Source (源实例)
 │  • React Router 路由管理                                 │
 │  • AnimeSearchResultPanel / MovieSearchResultPanel      │
 │  • MangaSearchResultPanel (v4.1新增)                    │
+│  • NovelSearchResultPanel (v4.2新增)                    │
 │  • 部署：Cloudflare Pages                                │
 ├─────────────────────────────────────────────────────────┤
-│                  Provider 层 (v4.1 扩展)                 │
+│                  Provider 层 (v4.2 扩展)                 │
 │  • SearchProvider 接口 + ProviderRegistry 注册中心       │
 │  • anime-provider (Bangumi/Mikan/Nyaa/ShowRSS)          │
 │  • movie-provider (TMDB/YTS/EZTV/TPB)                   │
 │  • manga-provider (MangaDex/13个搜索源)                 │
+│  • novel-provider (Anna's Archive/奇书网) (v4.2新增)     │
 │  • jav-provider (Metadata/Magnet)                       │
 ├─────────────────────────────────────────────────────────┤
-│                  后端服务层 (v4.1.0)                     │
+│                  后端服务层 (v4.2.0)                     │
 │  • Hono 框架 (轻量级 Web 框架)                           │
+│  • TypeScript 类型安全                                   │
+│  • Cloudflare Workers (边缘计算)                         │
+│  • Cloudflare D1 (SQLite 数据库)                         │
+│  • JWT Token 认证 (jose)                                 │
+│  • Resend 邮件服务                                       │
+│  • D1 持久化限流 (v4.2新增)                              │
+│  • Google OAuth 登录 (v4.2新增)                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 快速开始
+
+### 环境要求
+
+- **Node.js**: >= 18.0.0
+- **pnpm**: >= 8.0.0
+- **Cloudflare 账号**: 用于部署 Workers 和 D1 数据库
+- **Wrangler CLI**: Cloudflare 开发工具 (>= 3.x)
+
+### 快速部署
+
+```bash
+# 克隆项目
+git clone https://github.com/Zoroaaa/Atlas.git
+cd Atlas
+
+# 安装依赖
+pnpm install
+
+# 初始化数据库（含 v4.2 新增小说搜索源）
+npx wrangler d1 create atlas-db
+npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
+npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
+npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
+
+# 本地开发
+pnpm dev
+
+# 生产部署
+pnpm build && cd backend && npx wrangler deploy
+```
+
+[查看详细部署指南](docs/deploy.md)
+[查看配置说明](docs/config.md)
+[查看 v4.2 变更日志](docs/CHANGELOG.md)
+
+## 性能优化
+
+### 前端性能优化
+- React 19 并发特性 + Vite 快速构建
+- 代码分割、路由级懒加载、Tree-shaking
+- Zustand 持久化状态 + API 响应缓存
+- React.memo 和 useMemo 优化减少重渲染
+- 搜索缓存层，减少重复请求（v4.2新增）
+
+### 后端性能优化
+- Cloudflare 全球边缘节点就近处理
+- 数据库索引优化 + 参数化查询
+- 响应压缩 (gzip/brotli) + 批量操作支持
+- 请求限流 + 并发控制 + 降级策略
+- D1 持久化多级限流（v4.2新增）
+
+## 安全特性
+
+### 前端安全
+- XSS 防护 + CSRF 防护
+- 内容安全策略 (CSP) + 子资源完整性 (SRI)
+- JWT Token 认证 + 请求签名验证
+- 前端错误监控自建观测系统（v4.2新增）
+
+### 后端安全
+- JWT Token 认证 (jose 库) + RBAC 权限控制
+- SQL 注入防护 + 密码加密存储 (bcrypt)
+- 登录失败锁定机制 + 安全事件日志
+- CORS 配置 + 限流 + IP 记录
+- 邮箱注册白名单校验（v4.2新增）
+
+## 许可证
+
+本项目基于 [MIT 许可证](LICENSE) 开源。
+
+您可以自由地：
+- **使用** — 任何目的，包括商业用途
+- **修改** — 修改源代码以适应您的需求
+- **分发** — 分享项目或其修改版本
+- **私人使用** — 在私人项目中使用
+
+但您必须：
+- **保留版权声明** — 保留原始版权声明和许可证文本
+- **说明修改** — 注明对源代码所做的更改
+
+## 致谢
+
+### 技术平台
+- **[Cloudflare](https://www.cloudflare.com/)** — 提供优秀的边缘计算平台
+- **[GitHub](https://github.com/)** — 代码托管与协作平台
+- **[Resend](https://resend.com/)** — 邮件发送服务
+
+### 开源社区
+感谢所有为开源社区贡献的开发者！
+
+## 联系与支持
+
+### 官方渠道
+- **项目主页**: [GitHub - Atlas](https://github.com/Zoroaaa/Atlas)
+- **问题反馈**: [GitHub Issues](https://github.com/Zoroaaa/Atlas/issues)
+- **功能建议**: [GitHub Discussions](https://github.com/Zoroaaa/Atlas/discussions)
+
+### 如何贡献
+我们欢迎所有形式的贡献：
+- 报告 Bug
+- 提出新功能
+- 改进文档
+- 提交代码
+- 翻译文档
+
+#### 贡献步骤
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
+
+---
+
+<div align="center">
+
+### Atlas — 开源聚合搜索引擎
+
+**JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
+
+Made with ❤️ by [Zoro](https://github.com/Zoroaaa)
+
+</div>

@@ -1,7 +1,7 @@
 {
-  "name": "Atlas - 开源聚合搜索引擎 | JAV/动漫/影视/漫画",
+  "name": "Atlas - 开源聚合搜索引擎 | JAV/动漫/影视/漫画/小说",
   "short_name": "Atlas",
-  "description": "极速、安全的开源聚合搜索引擎，支持JAV/动漫/影视/漫画多源聚合搜索",
+  "description": "极速、安全的开源聚合搜索引擎，支持JAV/动漫/影视/漫画/小说多源聚合搜索",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0b",

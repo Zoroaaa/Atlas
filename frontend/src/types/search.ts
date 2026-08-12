@@ -222,4 +222,42 @@ export interface MangaEnrichedData {
   }>;
 }
 
-export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData | MangaEnrichedData;
+export interface NovelItem {
+  /** MD5 */
+  id: string;
+  /** 书名 */
+  title: string;
+  /** 作者 */
+  author: string;
+  /** 图书描述 / 简介（从详情页抓取） */
+  description: string;
+  /** 出版社 / 来源机构（含年份，如 "shu.im, 2011"） */
+  publisher: string;
+  /** 封面图 URL */
+  cover: string;
+  /** 语言（如 "中文 [zh]"） */
+  language: string;
+  /** 文件格式（如 "PDF" / "EPUB" / "MOBI"） */
+  format: string;
+  /** 文件大小（如 "1.4MB"） */
+  size: string;
+  /** 出版年份 */
+  year: string;
+  /** 分类标签（如 "小说类图书"） */
+  category: string;
+  /** 来源标识（如 "lgli/upload/zlib"） */
+  source: string;
+  /** 详情页/下载页 URL */
+  detailUrl: string;
+}
+
+export interface NovelEnrichedData {
+  resultType: 'novel';
+  keyword: string;
+  page: number;
+  total: number;
+  errors: Record<string, string | null>;
+  novels: NovelItem[];
+}
+
+export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData | MangaEnrichedData | NovelEnrichedData;

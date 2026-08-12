@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimeSearchResultPanel, MovieSearchResultPanel, MangaSearchResultPanel } from '@/components/search';
+import { AnimeSearchResultPanel, MovieSearchResultPanel, MangaSearchResultPanel, NovelSearchResultPanel } from '@/components/search';
 
 /**
  * 查表式结果渲染配置
@@ -10,6 +10,7 @@ export const RESULT_PANELS: Record<string, React.ComponentType<any>> = {
   anime: AnimeSearchResultPanel,
   movie: MovieSearchResultPanel,
   manga: MangaSearchResultPanel,
+  novel: NovelSearchResultPanel,
 };
 
 /**

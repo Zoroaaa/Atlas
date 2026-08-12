@@ -11,7 +11,7 @@ export type {
 } from '@codeseek/shared';
 
 // 搜索 Tab 配置 - 单一数据源
-export const TAB_IDS = ['jav', 'anime', 'movie', 'manga', 'sources', 'community'] as const;
+export const TAB_IDS = ['jav', 'anime', 'movie', 'manga', 'novel', 'sources', 'community'] as const;
 export type SearchTabType = typeof TAB_IDS[number];
 
 // JAV 子搜索模式

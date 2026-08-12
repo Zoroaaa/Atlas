@@ -4,7 +4,8 @@ import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
 import { TAB_IDS } from '@/types/source';
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementPanel, SearchSuggestionsDropdown } from '@/components/search';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementBar, SearchSuggestionsDropdown, QuickActionsPanel } from '@/components/search';
+import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavDetailPanel, JavRankingsPanel, ActressesPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
@@ -25,6 +26,7 @@ export const MainSearchPage: React.FC = () => {
   const { activeTab, setActiveTab } = useSourceStore();
   const { isEnabled: isProxyEnabled, initializeProxy } = useProxyStore();
   const { isDark: darkMode } = useDarkMode();
+  const { communityEnabled } = useFeatureFlags();
 
   const javFlow = useJavSearchFlow();
   const sourceManager = useSourceManager();
@@ -107,6 +109,7 @@ export const MainSearchPage: React.FC = () => {
     <div className="min-h-screen page-bg pb-16 md:pb-0">
       <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <AnnouncementBar />
         <div className="mb-4 sm:mb-6 animate-fade-in">
           <h1 className="text-lg sm:text-xl lg:text-2xl text-heading">
             嗨，<span className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
@@ -217,6 +220,7 @@ export const MainSearchPage: React.FC = () => {
               const getToggleFavorite = () => {
                 if (resultType === 'anime') return favoritesManager.handleToggleFavoriteAnime;
                 if (resultType === 'manga') return favoritesManager.handleToggleFavoriteManga;
+                if (resultType === 'novel') return favoritesManager.handleToggleFavoriteNovel;
                 return favoritesManager.handleToggleFavoriteMovie;
               };
               return (
@@ -255,13 +259,32 @@ export const MainSearchPage: React.FC = () => {
               )}
             </div>
             <div className="hidden lg:flex flex-col gap-3 sm:gap-4 self-start">
-              {activeTab === 'jav' && <AnnouncementPanel />}
               {renderFavoritesPanel()}
+              <QuickActionsPanel
+                isAdmin={isAdmin}
+                communityEnabled={communityEnabled}
+                layout="vertical"
+              />
             </div>
           </div>
-          {activeTab === 'jav' && <div className="lg:hidden mt-3 sm:mt-4"><AnnouncementPanel /></div>}
           {isAuthenticated && (
-            <div className="lg:hidden mt-3 sm:mt-4">{renderFavoritesPanel()}</div>
+            <div className="lg:hidden mt-3 sm:mt-4 flex flex-col gap-3 sm:gap-4">
+              {renderFavoritesPanel()}
+              <QuickActionsPanel
+                isAdmin={isAdmin}
+                communityEnabled={communityEnabled}
+                layout="vertical"
+              />
+            </div>
+          )}
+          {!isAuthenticated && (
+            <div className="lg:hidden mt-3 sm:mt-4">
+              <QuickActionsPanel
+                isAdmin={isAdmin}
+                communityEnabled={communityEnabled}
+                layout="vertical"
+              />
+            </div>
           )}
         </>
         )}

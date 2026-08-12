@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Database, Settings, Globe, ShieldAlert } from 'lucide-react';
+import { Zap, Database, Settings, Globe, ShieldAlert, Link } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface QuickActionsPanelProps {
@@ -25,6 +25,12 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
           <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">快捷入口</span>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
+          <button
+            onClick={() => navigate('/main?tab=sources')}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all active:scale-[0.99]"
+          >
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />资源站点
+          </button>
           <button
             onClick={() => navigate('/dashboard/sources')}
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all active:scale-[0.99]"
@@ -67,6 +73,12 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
         <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">快捷操作</span>
       </div>
       <div className="space-y-1.5 sm:space-y-2">
+        <button
+          onClick={() => navigate('/main?tab=sources')}
+          className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all text-left active:scale-[0.99]"
+        >
+          <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />资源站点
+        </button>
         <button
           onClick={() => navigate('/dashboard/sources')}
           className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all text-left active:scale-[0.99]"
