@@ -29,7 +29,7 @@ communityRoutes.get('/tags', async (c) => {
   try {
     const tags = await c.env.DB.prepare(
       `SELECT t.*,
-         (SELECT COUNT(*) FROM community_posts p WHERE p.status = 'active' AND p.tags LIKE '%' || t.id || '%') as posts_count
+         (SELECT COUNT(*) FROM community_posts p WHERE p.status = 'active' AND p.tags LIKE '%' || t.tag_name || '%') as posts_count
        FROM community_tags t
        WHERE t.tag_active = 1
        ORDER BY tag_name ASC`
@@ -219,7 +219,7 @@ communityRoutes.delete('/tags/:id', async (c) => {
     // 检查是否有帖子使用该标签
     const usageCheck = await c.env.DB.prepare(
       "SELECT COUNT(*) as cnt FROM community_posts WHERE tags LIKE ?"
-    ).bind(`%"${tagId}"%`).first<{ cnt: number }>();
+    ).bind(`%"${existingTag.tag_name}"%`).first<{ cnt: number }>();
 
     if (usageCheck && usageCheck.cnt > 0) {
       return c.json(error('VALIDATION_ERROR', '不能删除正在使用的标签'), 400);
@@ -373,7 +373,7 @@ communityRoutes.get('/posts', async (c) => {
     const whereClauses: string[] = ['p.status = ?'];
     const params: (string | number)[] = [status];
 
-    if (postType && ['jav', 'anime', 'movie', 'actress'].includes(postType)) {
+    if (postType && ['jav', 'anime', 'movie', 'manga', 'novel', 'actress'].includes(postType)) {
       whereClauses.push('p.post_type = ?');
       params.push(postType);
     }
@@ -535,7 +535,7 @@ communityRoutes.post('/posts', async (c) => {
   const body = await c.req.json() as CreatePostRequest;
   const { postType, title, coverImage, contentData, caption, tags } = body;
 
-  if (!postType || !['jav', 'anime', 'movie', 'actress'].includes(postType)) {
+  if (!postType || !['jav', 'anime', 'movie', 'manga', 'novel', 'actress'].includes(postType)) {
     return c.json(error('VALIDATION_ERROR', '无效的帖子类型'), 400);
   }
   if (!title || title.trim().length === 0) {

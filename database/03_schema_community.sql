@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS community_tags (
 CREATE TABLE IF NOT EXISTS community_posts (
     id TEXT PRIMARY KEY,                        -- 帖子唯一标识
     user_id TEXT NOT NULL,                      -- 发布者用户ID
-    post_type TEXT NOT NULL CHECK (post_type IN ('jav', 'anime', 'movie')), -- 资源类型
+    post_type TEXT NOT NULL CHECK (post_type IN ('jav', 'anime', 'movie', 'manga', 'novel', 'actress')), -- 资源类型
     title TEXT NOT NULL,                        -- 帖子标题
     cover_image TEXT NOT NULL,                  -- 封面图片URL
     content_data TEXT NOT NULL,                 -- JSON存储原始搜索结果详情

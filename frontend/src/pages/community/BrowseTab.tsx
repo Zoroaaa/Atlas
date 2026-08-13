@@ -6,6 +6,9 @@ import {
   LayoutList,
   Film,
   Tv,
+  BookOpen,
+  Library,
+  Users,
   Clock,
   Flame,
   RefreshCw,
@@ -21,6 +24,9 @@ const TYPE_FILTERS = [
   { key: 'jav' as const, label: '番号', icon: Film },
   { key: 'anime' as const, label: '动漫', icon: Tv },
   { key: 'movie' as const, label: '影视', icon: Film },
+  { key: 'manga' as const, label: '漫画', icon: BookOpen },
+  { key: 'novel' as const, label: '小说', icon: Library },
+  { key: 'actress' as const, label: '女优', icon: Users },
 ];
 
 const SORT_OPTIONS = [

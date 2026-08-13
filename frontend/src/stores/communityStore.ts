@@ -22,7 +22,7 @@ interface CommunityState {
   postsPage: number;
 
   // 筛选状态
-  postTypeFilter: 'all' | 'jav' | 'anime' | 'movie';
+  postTypeFilter: 'all' | 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress';
   sortBy: 'latest' | 'hot';
   searchQuery: string;
 
@@ -77,7 +77,7 @@ interface CommunityState {
   fetchNotifications: (params?: { page?: number; pageSize?: number }) => Promise<void>;
 
   // Actions - 筛选器
-  setPostTypeFilter: (filter: 'all' | 'jav' | 'anime' | 'movie') => void;
+  setPostTypeFilter: (filter: 'all' | 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress') => void;
   setSortBy: (sort: 'latest' | 'hot') => void;
   setSearchQuery: (query: string) => void;
 

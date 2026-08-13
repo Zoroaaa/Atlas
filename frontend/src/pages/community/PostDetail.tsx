@@ -15,9 +15,9 @@ import {
   Copy,
   Download,
   Calendar,
-  Clock,
   Flag,
   BookOpen,
+  Library,
 } from 'lucide-react';
 import { Card, Button, Badge, Modal, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
@@ -36,6 +36,7 @@ const POST_TYPE_CONFIG = {
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
   manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
+  novel: { label: '小说', icon: Library, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
   actress: { label: '女优', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-900/20' },
 };
 
@@ -81,13 +82,6 @@ const formatDate = (timestamp: number) => {
 // JAV 内容渲染
 const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
   <div className="space-y-4">
-    {/* 封面大图 */}
-    {(data.coverImage || data.cover) && (
-      <div className="rounded-xl overflow-hidden">
-        <img src={normalizeImageUrl(data.coverImage || data.cover)} alt={data.title || ''} className="w-full max-h-[400px] object-cover" />
-      </div>
-    )}
-
     {/* 基本信息 */}
     <div className="grid grid-cols-2 gap-3 text-sm">
       {data.code && (
@@ -108,10 +102,22 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
           <p className="text-stone-700 dark:text-stone-300">{data.duration}</p>
         </div>
       )}
-      {(data.studio || data.publisher || data.maker) && (
+      {(data.maker || data.publisher) && (
         <div>
           <span className="text-stone-400">制作商</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.studio || data.publisher || data.maker}</p>
+          <p className="text-stone-700 dark:text-stone-300">{data.maker || data.publisher}</p>
+        </div>
+      )}
+      {data.series && (
+        <div>
+          <span className="text-stone-400">系列</span>
+          <p className="text-stone-700 dark:text-stone-300">{data.series}</p>
+        </div>
+      )}
+      {data.director && (
+        <div>
+          <span className="text-stone-400">导演</span>
+          <p className="text-stone-700 dark:text-stone-300">{data.director}</p>
         </div>
       )}
     </div>
@@ -156,7 +162,7 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
         </h4>
         <div className="space-y-2">
           {(data.magnetLinks || data.magnets).map((link: any, idx: number) => (
-            <MagnetLinkItem key={idx} link={link} index={idx + 1} />
+            <ResourceItem key={idx} resource={link} index={idx + 1} />
           ))}
         </div>
       </div>
@@ -165,179 +171,315 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
 );
 
 // Anime 内容渲染
-const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
-  <div className="space-y-4">
-    {/* 封面 */}
-    {(data.coverImage || data.cover) && (
-      <div className="rounded-xl overflow-hidden">
-        <img src={normalizeImageUrl(data.coverImage || data.cover)} alt={data.title || ''} className="w-full max-h-[350px] object-cover" />
-      </div>
-    )}
-
-    {/* BGM 信息和评分 */}
-    <div className="flex flex-wrap items-center gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
-      {data.rating && (
-        <div className="flex items-center gap-1.5">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-              key={star}
-              className={clsx(
-                'w-5 h-5',
-                star <= Math.round(data.rating / 2)
-                  ? 'fill-warning-500 text-warning-500'
-                  : 'text-stone-300 dark:text-stone-600'
-              )}
-            />
-          ))}
-          <span className="font-bold text-stone-900 dark:text-stone-100 ml-1">{data.rating}</span>
-        </div>
-      )}
-      {data.bgmId && (
-        <Badge variant="primary" size="sm">
-          BGM: {data.bgmId}
-        </Badge>
-      )}
-      {data.episodeCount && (
-        <span className="text-sm text-stone-600 dark:text-stone-400">共 {data.episodeCount} 集</span>
-      )}
-      {data.airDate && (
-        <span className="text-sm text-stone-500 flex items-center gap-1">
-          <Calendar className="w-3.5 h-3.5" />{data.airDate}
-        </span>
-      )}
-    </div>
-
-    {/* 简介 */}
-    {data.synopsis && (
-      <div>
-        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">简介</h4>
-        <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed whitespace-pre-line">
-          {data.synopsis}
-        </p>
-      </div>
-    )}
-
-    {/* 资源列表 */}
-    {data.resources && Array.isArray(data.resources) && data.resources.length > 0 && (
-      <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
-          <Download className="w-4 h-4" />
-          资源 ({data.resources.length})
-        </h4>
-        <div className="space-y-2">
-          {data.resources.map((resource: any, idx: number) => (
-            <ResourceItem key={idx} resource={resource} index={idx + 1} />
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-);
-
-// Movie 内容渲染
-const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
-  <div className="space-y-4">
-    {/* 海报 */}
-    {(data.posterPath || data.coverImage || data.cover) && (
-      <div className="rounded-xl overflow-hidden max-w-xs mx-auto">
-        <img src={normalizeImageUrl(data.posterPath || data.coverImage || data.cover)} alt={data.title || ''} className="w-full object-cover" />
-      </div>
-    )}
-
-    {/* TMDB 信息 */}
-    {(data.tmdbRating || data.releaseDate || data.runtime) && (
-      <div className="grid grid-cols-3 gap-3 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl text-center">
-        {data.tmdbRating && (
-          <div>
-            <div className="flex justify-center items-center gap-1 mb-1">
-              <Star className="w-4 h-4 fill-warning-500 text-warning-500" />
-              <span className="font-bold text-lg text-stone-900 dark:text-stone-100">{data.tmdbRating}</span>
-            </div>
-            <span className="text-xs text-stone-400">TMDB评分</span>
-          </div>
-        )}
-        {data.releaseDate && (
-          <div>
-            <Calendar className="w-5 h-5 mx-auto mb-1 text-stone-400" />
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{data.releaseDate}</p>
-            <span className="text-xs text-stone-400">上映日期</span>
-          </div>
-        )}
-        {data.runtime && (
-          <div>
-            <Clock className="w-5 h-5 mx-auto mb-1 text-stone-400" />
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{data.runtime}分钟</p>
-            <span className="text-xs text-stone-400">片长</span>
-          </div>
-        )}
-      </div>
-    )}
-
-    {/* 简介 */}
-    {data.overview && (
-      <div>
-        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">简介</h4>
-        <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed whitespace-pre-line">
-          {data.overview}
-        </p>
-      </div>
-    )}
-
-    {/* 下载资源 */}
-    {data.downloadResources && Array.isArray(data.downloadResources) && data.downloadResources.length > 0 && (
-      <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
-          <Download className="w-4 h-4" />
-          下载资源 ({data.downloadResources.length})
-        </h4>
-        <div className="space-y-2">
-          {data.downloadResources.map((resource: any, idx: number) => (
-            <ResourceItem key={idx} resource={resource} index={idx + 1} />
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-);
-
-// 磁力链接项
-const MagnetLinkItem: React.FC<{ link: any; index: number }> = ({ link, index }) => {
-  const [copied, setCopied] = useState(false);
-  const magnetUrl = typeof link === 'string' ? link : link.url || link.magnet || '';
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(magnetUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('复制失败:', err);
-    }
-  };
+const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const bgm = data.bgm?.[0];
+  const allResources = [
+    ...(data.nyaa || []),
+    ...(data.mikan || []),
+    ...(data.animetosho || []),
+    ...(data.showrss || []),
+  ];
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg group hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-      <span className="text-xs font-mono text-stone-400 w-6 shrink-0">#{index}</span>
-      <code className="flex-1 text-xs text-stone-600 dark:text-stone-400 truncate font-mono">
-        {magnetUrl.slice(0, 60)}...
-      </code>
-      <button
-        onClick={handleCopy}
-        className="shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-0 group-hover:opacity-100"
-        title="复制磁力链接"
-      >
-        <Copy className="w-3.5 h-3.5" />
-      </button>
-      {copied && <span className="text-xs text-success-500 shrink-0">已复制!</span>}
+    <div className="space-y-4">
+      {/* BGM 作品信息 */}
+      {bgm && (
+        <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
+          <div className="flex items-start gap-3">
+            {bgm.cover && (
+              <img src={normalizeImageUrl(bgm.cover)} alt={bgm.nameCN || bgm.name} className="w-16 h-22 rounded-lg object-cover shrink-0" />
+            )}
+            <div className="flex-1 min-w-0 space-y-1">
+              <h4 className="font-semibold text-stone-900 dark:text-stone-100">{bgm.nameCN || bgm.name}</h4>
+              {bgm.name && bgm.nameCN && bgm.name !== bgm.nameCN && (
+                <p className="text-sm text-stone-500">{bgm.name}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
+                {bgm.rating > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-warning-500 text-warning-500" />
+                    {bgm.rating}
+                  </span>
+                )}
+                {bgm.eps > 0 && <span>共 {bgm.eps} 集</span>}
+                {bgm.airDate && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />{bgm.airDate}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          {bgm.summary && (
+            <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-4">
+              {bgm.summary}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 资源统计 */}
+      {allResources.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {data.nyaa?.length > 0 && <Badge variant="default" size="sm">Nyaa {data.nyaa.length}</Badge>}
+          {data.mikan?.length > 0 && <Badge variant="default" size="sm">Mikan {data.mikan.length}</Badge>}
+          {data.animetosho?.length > 0 && <Badge variant="default" size="sm">AnimeTosho {data.animetosho.length}</Badge>}
+          {data.showrss?.length > 0 && <Badge variant="default" size="sm">ShowRSS {data.showrss.length}</Badge>}
+        </div>
+      )}
+
+      {/* 资源列表 */}
+      {allResources.length > 0 && (
+        <div>
+          <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
+            <Download className="w-4 h-4" />
+            资源 ({allResources.length})
+          </h4>
+          <div className="space-y-2">
+            {allResources.slice(0, 10).map((resource: any, idx: number) => (
+              <ResourceItem key={idx} resource={resource} index={idx + 1} />
+            ))}
+            {allResources.length > 10 && (
+              <p className="text-xs text-center text-stone-400 py-2">还有 {allResources.length - 10} 条资源...</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// 资源项
+// Movie 内容渲染
+const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const movie = data.results?.[0];
+  const resources = data.resources || [];
+
+  return (
+    <div className="space-y-4">
+      {/* 影片信息 */}
+      {movie && (
+        <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
+          <div className="flex items-start gap-3">
+            {movie.poster && (
+              <img src={normalizeImageUrl(movie.poster)} alt={movie.title} className="w-20 h-28 rounded-lg object-cover shrink-0" />
+            )}
+            <div className="flex-1 min-w-0 space-y-1">
+              <h4 className="font-semibold text-stone-900 dark:text-stone-100">{movie.title}</h4>
+              {movie.originalTitle && movie.originalTitle !== movie.title && (
+                <p className="text-sm text-stone-500">{movie.originalTitle}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
+                {movie.rating > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-warning-500 text-warning-500" />
+                    {movie.rating}
+                  </span>
+                )}
+                {movie.releaseDate && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />{movie.releaseDate}
+                  </span>
+                )}
+                {movie.mediaType && <Badge variant="default" size="sm">{movie.mediaType === 'tv' ? '剧集' : '电影'}</Badge>}
+              </div>
+            </div>
+          </div>
+          {movie.overview && (
+            <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-4">
+              {movie.overview}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 其他搜索结果 */}
+      {data.results?.length > 1 && (
+        <div>
+          <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">其他相关结果 ({data.results.length - 1})</h4>
+          <div className="space-y-1.5">
+            {data.results.slice(1, 6).map((r: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
+                <span className="text-xs text-stone-400 w-12 shrink-0">{r.year || ''}</span>
+                <span className="truncate">{r.title}</span>
+                {r.originalTitle && r.originalTitle !== r.title && <span className="text-xs text-stone-400 truncate">/ {r.originalTitle}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 下载资源 */}
+      {resources.length > 0 && (
+        <div>
+          <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
+            <Download className="w-4 h-4" />
+            下载资源 ({resources.length})
+          </h4>
+          <div className="space-y-2">
+            {resources.slice(0, 10).map((resource: any, idx: number) => (
+              <ResourceItem key={idx} resource={resource} index={idx + 1} />
+            ))}
+            {resources.length > 10 && (
+              <p className="text-xs text-center text-stone-400 py-2">还有 {resources.length - 10} 条资源...</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Manga 内容渲染
+const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const mangaList = data.manga || [];
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {mangaList.slice(0, 12).map((manga: any, idx: number) => (
+          <div key={manga.id || idx} className="flex gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+            {manga.cover && (
+              <img src={normalizeImageUrl(manga.cover)} alt={manga.title} className="w-12 h-16 rounded-md object-cover shrink-0" />
+            )}
+            <div className="flex-1 min-w-0 space-y-1">
+              <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 line-clamp-2">{manga.title}</h4>
+              {manga.status && (
+                <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                  {manga.status}
+                </span>
+              )}
+              {manga.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {manga.tags.slice(0, 3).map((tag: string, i: number) => (
+                    <span key={i} className="text-xs text-stone-400">#{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {mangaList.length > 12 && (
+        <p className="text-xs text-center text-stone-400 py-2">还有 {mangaList.length - 12} 部漫画...</p>
+      )}
+    </div>
+  );
+};
+
+// Novel 内容渲染
+const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const novels = data.novels || [];
+  return (
+    <div className="space-y-3">
+      {novels.slice(0, 10).map((novel: any, idx: number) => (
+        <div key={novel.id || idx} className="flex gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+          {novel.cover && (
+            <img src={normalizeImageUrl(novel.cover)} alt={novel.title} className="w-12 h-16 rounded-md object-cover shrink-0" />
+          )}
+          <div className="flex-1 min-w-0 space-y-1">
+            <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 line-clamp-1">{novel.title}</h4>
+            {novel.author && <p className="text-xs text-stone-500">{novel.author}</p>}
+            {novel.description && (
+              <p className="text-xs text-stone-400 line-clamp-2 leading-relaxed">{novel.description}</p>
+            )}
+            <div className="flex flex-wrap gap-2 text-xs text-stone-400">
+              {novel.format && <span>{novel.format}</span>}
+              {novel.size && <span>· {novel.size}</span>}
+              {novel.language && <span>· {novel.language}</span>}
+              {novel.year && <span>· {novel.year}</span>}
+            </div>
+          </div>
+        </div>
+      ))}
+      {novels.length > 10 && (
+        <p className="text-xs text-center text-stone-400 py-2">还有 {novels.length - 10} 本小说...</p>
+      )}
+    </div>
+  );
+};
+
+// Actress 内容渲染
+const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
+  <div className="space-y-4">
+    {/* 姓名信息 */}
+    <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-2">
+      <div className="flex items-baseline gap-3">
+        <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100">{data.name}</h4>
+        {data.ruby && <span className="text-sm text-stone-500">{data.ruby}</span>}
+      </div>
+      {data.romaji && <p className="text-sm text-stone-500">{data.romaji}</p>}
+      {data.alias && <p className="text-xs text-stone-400">别名：{data.alias}</p>}
+    </div>
+
+    {/* 基本资料 */}
+    <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+      {data.birthday && (
+        <div>
+          <span className="text-xs text-stone-400">生日</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.birthday}</p>
+        </div>
+      )}
+      {data.zodiac && (
+        <div>
+          <span className="text-xs text-stone-400">星座</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.zodiac}</p>
+        </div>
+      )}
+      {data.height && (
+        <div>
+          <span className="text-xs text-stone-400">身高</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.height}</p>
+        </div>
+      )}
+      {data.prefecture && (
+        <div>
+          <span className="text-xs text-stone-400">出身地</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.prefecture}</p>
+        </div>
+      )}
+      {data.agency && (
+        <div>
+          <span className="text-xs text-stone-400">事务所</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.agency}</p>
+        </div>
+      )}
+      {data.activePeriod && (
+        <div>
+          <span className="text-xs text-stone-400">活跃期</span>
+          <p className="text-sm text-stone-700 dark:text-stone-300">{data.activePeriod}</p>
+        </div>
+      )}
+    </div>
+
+    {/* 身体数据 */}
+    {(data.bust || data.cup || data.waist || data.hip) && (
+      <div className="flex flex-wrap gap-2">
+        {data.bust && (
+          <span className="px-3 py-1 text-sm rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400">B {data.bust}</span>
+        )}
+        {data.cup && (
+          <span className="px-3 py-1 text-sm rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400">{data.cup} Cup</span>
+        )}
+        {data.waist && (
+          <span className="px-3 py-1 text-sm rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400">W {data.waist}</span>
+        )}
+        {data.hip && (
+          <span className="px-3 py-1 text-sm rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400">H {data.hip}</span>
+        )}
+      </div>
+    )}
+  </div>
+);
+
+// 资源项（统一处理磁力链接和种子资源）
 const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, index }) => {
   const [copied, setCopied] = useState(false);
-  const url = resource.url || resource.link || resource.magnet || '';
-  const name = resource.name || resource.title || `资源 ${index}`;
+  const isString = typeof resource === 'string';
+  const url = isString ? resource : resource.magnet || resource.url || resource.link || '';
+  const title = isString ? '' : resource.title || resource.name || '';
+  const size = isString ? '' : resource.size || '';
+  const seeders = isString ? undefined : resource.seeders;
+  const sourceLabel = isString ? '' : resource.sourceLabel || resource.source || '';
+  const date = isString ? '' : resource.date || '';
 
   const handleCopy = async () => {
     try {
@@ -351,14 +493,18 @@ const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, in
 
   return (
     <div className="flex items-center gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg group hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-      <span className="text-xs font-semibold text-white w-6 h-6 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shrink-0">
+      <span className="text-xs font-semibold text-white w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-rose-500 flex items-center justify-center shrink-0">
         {index}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-stone-700 dark:text-stone-300 truncate">{name}</p>
-        {resource.size && (
-          <span className="text-xs text-stone-400">{resource.size}</span>
-        )}
+        {title && <p className="text-sm font-medium text-stone-700 dark:text-stone-300 truncate">{title}</p>}
+        <div className="flex items-center gap-2 text-xs text-stone-400">
+          {size && <span>{size}</span>}
+          {seeders !== undefined && <span>· 种子 {seeders}</span>}
+          {sourceLabel && <span>· {sourceLabel}</span>}
+          {date && <span>· {date}</span>}
+        </div>
+        {!title && <code className="text-xs text-stone-400 truncate block font-mono">{url.slice(0, 60)}...</code>}
       </div>
       <button
         onClick={handleCopy}
@@ -485,6 +631,12 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         return <AnimeContentRenderer data={contentData} />;
       case 'movie':
         return <MovieContentRenderer data={contentData} />;
+      case 'manga':
+        return <MangaContentRenderer data={contentData} />;
+      case 'novel':
+        return <NovelContentRenderer data={contentData} />;
+      case 'actress':
+        return <ActressContentRenderer data={contentData} />;
       default:
         return null;
     }

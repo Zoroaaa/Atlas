@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Tv, BookOpen, Eye, Heart, MessageSquare, Bookmark, Calendar, User, Award, Users } from 'lucide-react';
+import { Film, Tv, BookOpen, Eye, Heart, MessageSquare, Bookmark, Calendar, User, Award, Users, Library } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Card, Loading, Badge } from '@/components/ui';
 import { communityApi } from '@/services/api';
@@ -11,6 +11,7 @@ const POST_TYPE_CONFIG = {
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500' },
   manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500' },
+  novel: { label: '小说', icon: Library, color: 'text-emerald-500' },
   actress: { label: '女优', icon: Users, color: 'text-pink-500' },
 };
 

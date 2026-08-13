@@ -4,6 +4,7 @@ import type { FavoriteItem } from '@/types';
 import type { NovelItem } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
+import { ShareToCommunityButton } from '@/components/community';
 
 interface NovelEnrichedData {
   resultType: 'novel';
@@ -142,10 +143,11 @@ interface NovelSearchResultPanelProps {
   favorites?: FavoriteItem[];
   onRefresh?: () => void;
   onToggleFavorite?: (item: NovelItem) => void;
+  onLoginRequired?: () => void;
 }
 
 export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
-  data, isAuthenticated = false, isProxyEnabled = false, favorites = [], onRefresh, onToggleFavorite,
+  data, isAuthenticated = false, isProxyEnabled = false, favorites = [], onRefresh, onToggleFavorite, onLoginRequired,
 }) => {
   const [localPage, setLocalPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -161,6 +163,20 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-stone-500">共 {data.total} 条结果 · 来源 Anna's Archive + 奇书网</span>
         <div className="flex items-center gap-2">
+          <ShareToCommunityButton
+            postData={{
+              postType: 'novel',
+              title: data.novels[0]?.title || data.keyword,
+              coverImage: data.novels[0]?.cover ? getProxyImageUrl(data.novels[0].cover) : '',
+              contentData: JSON.stringify({
+                keyword: data.keyword,
+                novels: data.novels,
+              }),
+            }}
+            isAuthenticated={isAuthenticated}
+            onLoginRequired={onLoginRequired}
+            size="small"
+          />
           {onRefresh && (
             <button onClick={onRefresh} className="p-1.5 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="刷新">
               <RefreshCw className="w-3.5 h-3.5" />

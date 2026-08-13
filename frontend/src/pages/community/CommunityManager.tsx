@@ -38,7 +38,7 @@ export const CommunityManager: React.FC = () => {
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareInitialData, setShareInitialData] = useState<{
-    postType: 'jav' | 'anime' | 'movie';
+    postType: 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress';
     title: string;
     coverImage: string;
     contentData: any;
@@ -46,7 +46,7 @@ export const CommunityManager: React.FC = () => {
 
   // 暴露给外部调用（搜索结果页的分享按钮）
   (globalThis as Record<string, unknown>).__openCommunityShareModal = (data: {
-    postType: 'jav' | 'anime' | 'movie';
+    postType: 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress';
     title: string;
     coverImage: string;
     contentData: any;
