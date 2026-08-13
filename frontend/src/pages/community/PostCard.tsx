@@ -17,6 +17,7 @@ const POST_TYPE_CONFIG = {
   anime: { label: '动漫', icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
   movie: { label: '影视', icon: Film, color: 'bg-amber-500', badgeVariant: 'primary' as const },
   manga: { label: '漫画', icon: BookOpen, color: 'bg-violet-500', badgeVariant: 'primary' as const },
+  actress: { label: '女优', icon: Users, color: 'bg-pink-500', badgeVariant: 'accent' as const },
 };
 
 /**

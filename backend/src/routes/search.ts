@@ -19,6 +19,7 @@ import { VALIDATION_RULES } from '@/constants';
 import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
 import { providerRegistry } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
+import { fetchActresses, type ActressProfile } from '@/services/actress-search';
 
 const R = VALIDATION_RULES;
 
@@ -95,11 +96,15 @@ async function saveEnrichedHistory(
       break;
     }
     case 'jav': {
-      // JAV：提取详情数据 → title + cover + code(番号) + actors + duration + release_date + publisher + tags
+      // JAV 番号搜索：提取详情数据 → title + cover + code(番号) + actors + duration + release_date + publisher + tags
       const detail = (result as { detail?: { code: string; title: string; cover?: string; actresses?: string[]; duration?: string; releaseDate?: string; publisher?: string; tags?: string[] } }).detail;
       if (detail) {
         updateFields.push('title=?, cover=?');
         updateValues.push(detail.title, detail.cover || '');
+        if (detail.code) {
+          updateFields.push('code=?');
+          updateValues.push(detail.code);
+        }
         if (detail.actresses?.length) {
           updateFields.push('actors=?');
           updateValues.push(detail.actresses.join(','));
@@ -119,6 +124,29 @@ async function saveEnrichedHistory(
         if (detail.tags?.length) {
           updateFields.push('tags=?');
           updateValues.push(detail.tags.join(','));
+        }
+      } else {
+        // JAV 女优搜索（无 detail，有 actresses）：提取首位女优 → title + cover + code(actress:id) + actors + tags
+        const actresses = (result as { actresses?: Array<{ id: string; name: string; cover?: string; ruby?: string; romaji?: string; tags?: string[] }> }).actresses;
+        const firstActress = actresses?.[0];
+        if (firstActress) {
+          updateFields.push('title=?, cover=?, code=?');
+          updateValues.push(
+            firstActress.name,
+            firstActress.cover || '',
+            `actress:${firstActress.id}`
+          );
+          updateFields.push('actors=?');
+          updateValues.push(firstActress.name);
+          const subtitle = [firstActress.ruby, firstActress.romaji].filter(Boolean).join(' / ');
+          if (subtitle) {
+            updateFields.push('subtitle=?');
+            updateValues.push(subtitle);
+          }
+          if (firstActress.tags?.length) {
+            updateFields.push('tags=?');
+            updateValues.push(firstActress.tags.join(','));
+          }
         }
       }
       break;
@@ -203,7 +231,7 @@ searchRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { keyword, page = 1, pageSize = 20, majorCategoryId } = body;
+  const { keyword, page = 1, pageSize = 20, majorCategoryId, javSubMode } = body;
 
   if (!keyword || !keyword.trim()) {
     return c.json(error('VALIDATION_ERROR', '搜索关键词不能为空'), 400);
@@ -259,6 +287,73 @@ searchRoutes.post('/', async (c) => {
         try {
           // 注入 TMDB API Key（供 MovieProvider 的 suggestions/trending 使用）
           setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
+
+          // ── JAV 女优搜索子模式：调 minnano-av 抓取，但仍走 JAV Hybrid 多源逻辑 ──
+          // 不短路返回：女优卡片与多源跳转卡片并行展示
+          if (provider.id === 'jav' && javSubMode === 'actress') {
+            let actresses: ActressProfile[] = [];
+            let actressError: string | null = null;
+            try {
+              actresses = await fetchActresses(trimmedKeyword);
+            } catch (e) {
+              actressError = String(e);
+              console.error('[search] minnano actress search failed:', e);
+            }
+
+            // 仍执行 JAV Hybrid：查用户启用的 jav 源，生成多源跳转 URL
+            const sources = await c.env.DB.prepare(`
+              SELECT s.* FROM search_sources s
+              INNER JOIN search_source_categories c ON s.category_id = c.id
+              WHERE s.is_active = 1 AND s.searchable = 1 AND c.major_category_id = ?
+              AND (s.is_system = 1 OR s.created_by = ?)
+              ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
+            `).bind(majorCategoryId, userPayload?.userId || '').all<SearchSource>();
+
+            const filteredSources = userEnabledSources
+              ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
+              : (sources.results || []);
+
+            const multiSourceResults = filteredSources.map(source => ({
+              id: source.id,
+              name: source.name,
+              subtitle: source.subtitle,
+              icon: source.icon,
+              url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
+              siteType: source.site_type,
+              category: source.category_id,
+              description: source.description,
+            }));
+
+            const actressData: Record<string, unknown> = {
+              resultType: 'jav',
+              keyword: trimmedKeyword,
+              page: limitPage,
+              total: multiSourceResults.length,
+              errors: { search: actressError },
+              actresses,
+              results: multiSourceResults,
+            };
+
+            // 更新搜索历史：复用 saveEnrichedHistory，女优子模式走 case 'jav' 的 actresses fallback
+            if (historyId && userPayload) {
+              try {
+                await saveEnrichedHistory(c.env.DB, historyId, userPayload, actressData);
+              } catch (e) { console.warn('Failed to update search history:', e); }
+            }
+
+            const responsePayload = { success: true, data: actressData };
+            const responseBody = JSON.stringify(responsePayload);
+            const newResponse = new Response(responseBody, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': `public, max-age=${SEARCH_CACHE_TTL}`,
+                'X-Cache': 'MISS',
+              },
+            });
+            c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+            return newResponse;
+          }
+
           const enrichedData = await provider.search(trimmedKeyword, limitPage, {
             apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
           }) as unknown as Record<string, unknown>;

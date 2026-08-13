@@ -86,6 +86,31 @@ export interface ShowRssItem {
   magnet: string;
 }
 
+/** 女优资料（minnano-av.com 抓取） */
+export interface ActressProfile {
+  id: string;
+  name: string;
+  ruby?: string;
+  romaji?: string;
+  alias?: string;
+  birthday?: string;
+  zodiac?: string;
+  height?: number;
+  bust?: number;
+  cup?: string;
+  waist?: number;
+  hip?: number;
+  prefecture?: string;
+  agency?: string;
+  activePeriod?: string;
+  debutWork?: string;
+  blogUrl?: string;
+  officialUrl?: string;
+  tags?: string[];
+  cover?: string;
+  detailUrl: string;
+}
+
 /** 统一资源类型（归组用，合并各源资源） */
 export interface AnimeUnifiedResource {
   source: 'nyaa' | 'mikan' | 'animetosho' | 'showrss';
@@ -205,6 +230,8 @@ export interface JavEnrichedData {
     category: string;
     description?: string;
   }>;
+  /** 女优资料（actress 子模式，minnano-av 抓取） */
+  actresses?: ActressProfile[];
 }
 
 export interface MangaEnrichedData {

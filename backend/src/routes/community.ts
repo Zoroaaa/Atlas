@@ -373,7 +373,7 @@ communityRoutes.get('/posts', async (c) => {
     const whereClauses: string[] = ['p.status = ?'];
     const params: (string | number)[] = [status];
 
-    if (postType && ['jav', 'anime', 'movie'].includes(postType)) {
+    if (postType && ['jav', 'anime', 'movie', 'actress'].includes(postType)) {
       whereClauses.push('p.post_type = ?');
       params.push(postType);
     }
@@ -535,7 +535,7 @@ communityRoutes.post('/posts', async (c) => {
   const body = await c.req.json() as CreatePostRequest;
   const { postType, title, coverImage, contentData, caption, tags } = body;
 
-  if (!postType || !['jav', 'anime', 'movie'].includes(postType)) {
+  if (!postType || !['jav', 'anime', 'movie', 'actress'].includes(postType)) {
     return c.json(error('VALIDATION_ERROR', '无效的帖子类型'), 400);
   }
   if (!title || title.trim().length === 0) {

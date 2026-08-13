@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
-import { Film, Tv, Send, BookOpen } from 'lucide-react';
+import { Film, Tv, Send, BookOpen, Users } from 'lucide-react';
 import { Modal, Button, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
@@ -11,7 +11,7 @@ interface ShareToCommunityModalProps {
   open: boolean;
   onClose: () => void;
   initialData: {
-    postType: 'jav' | 'anime' | 'movie' | 'manga';
+    postType: 'jav' | 'anime' | 'movie' | 'manga' | 'actress';
     title: string;
     coverImage: string;
     contentData: any;
@@ -24,6 +24,7 @@ const POST_TYPE_CONFIG = {
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500' },
   manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500' },
+  actress: { label: '女优', icon: Users, color: 'text-pink-500' },
 };
 
 /**

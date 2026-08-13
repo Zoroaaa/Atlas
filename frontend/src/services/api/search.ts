@@ -23,6 +23,7 @@ export const searchApi = {
     majorCategoryId?: string;
     page?: number;
     pageSize?: number;
+    javSubMode?: 'code' | 'actress' | 'title';
   }): Promise<SearchEndpointResponse> => {
     return apiClient.post<SearchEndpointResponse>('/search', data);
   },

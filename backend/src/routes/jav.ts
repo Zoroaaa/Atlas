@@ -43,6 +43,8 @@ const ALLOWED_IMAGE_HOSTS = [
   'covers1.z-lib.sk',
   // 小说封面：奇书网（详情页封面，需 Referer 防盗链）
   'www.xqishuta.org',
+  // JAV 女优资料：minnano-av.com 封面图（需 Referer 防盗链）
+  'www.minnano-av.com',
 ];
 
 function isPrivateIP(hostname: string): boolean {
@@ -101,6 +103,7 @@ javRoutes.get('/proxy-image', async (c) => {
     'pics.javbus.com': 'https://www.javbus.com/',
     'img.javbus.com': 'https://www.javbus.com/',
     'www.xqishuta.org': 'http://www.xqishuta.org/',
+    'www.minnano-av.com': 'https://www.minnano-av.com/',
   };
   const imageFetchHeaders: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

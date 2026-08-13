@@ -3,10 +3,10 @@ import { Search, Loader2 } from 'lucide-react';
 import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
-import { TAB_IDS } from '@/types/source';
+import { TAB_IDS, JAV_SUB_MODES } from '@/types/source';
 import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementBar, SearchSuggestionsDropdown, QuickActionsPanel } from '@/components/search';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
-import { JavDetailPanel, JavRankingsPanel, ActressesPanel } from '@/components/jav';
+import { JavDetailPanel, JavRankingsPanel, ActressesPanel, JavActressResultsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
@@ -34,10 +34,13 @@ export const MainSearchPage: React.FC = () => {
 
   // ── URL 同步：搜索时更新 URL ──
   const programmaticUrlRef = useRef(false);
-  const handleSearchUrlSync = useCallback((keyword: string) => {
+  // subMode 由调用方传入（handleSearch 的 effectiveSubMode），避免闭包捕获异步未更新的 javSubMode
+  const handleSearchUrlSync = useCallback((keyword: string, subMode?: JavSubMode) => {
     programmaticUrlRef.current = true;
-    setSearchParams({ tab: activeTab, q: keyword }, { replace: true });
-  }, [setSearchParams, activeTab]);
+    const params: Record<string, string> = { tab: activeTab, q: keyword };
+    if (activeTab === 'jav') params.sub = subMode ?? javSubMode;
+    setSearchParams(params, { replace: true });
+  }, [setSearchParams, activeTab, javSubMode]);
 
   const searchFlow = useSearchFlow({
     activeTab,
@@ -68,8 +71,16 @@ export const MainSearchPage: React.FC = () => {
       programmaticUrlRef.current = false;
       return;
     }
+    // 用 URL 的 tab 判断（而非 activeTab state）：首次渲染时 store 的 activeTab 可能尚未同步为 URL 的 tab
+    const tabParam = searchParams.get('tab');
+    const subParam = searchParams.get('sub');
+    let overrideSubMode: JavSubMode | undefined;
+    if (tabParam === 'jav' && subParam && JAV_SUB_MODES.includes(subParam as JavSubMode)) {
+      overrideSubMode = subParam as JavSubMode;
+      setJavSubMode(overrideSubMode);
+    }
     searchFlow.setKeyword(qParam);
-    searchFlow.handleSearch(qParam);
+    searchFlow.handleSearch(qParam, 1, overrideSubMode);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -77,6 +88,11 @@ export const MainSearchPage: React.FC = () => {
     const tabParam = searchParams.get('tab');
     if (tabParam && TAB_IDS.includes(tabParam as SearchTabType)) {
       setActiveTab(tabParam as SearchTabType);
+    }
+    // 兜底同步子模式 UI：URL 无 q 时 q effect 会 early return，这里确保切到 jav 且带 sub 时按钮高亮正确
+    const subParam = searchParams.get('sub');
+    if (subParam && JAV_SUB_MODES.includes(subParam as JavSubMode)) {
+      setJavSubMode(subParam as JavSubMode);
     }
   }, [searchParams, setActiveTab]);
 
@@ -94,10 +110,11 @@ export const MainSearchPage: React.FC = () => {
     setActiveTab(tab);
     const params: Record<string, string> = { tab };
     if (searchFlow.keyword.trim()) params.q = searchFlow.keyword.trim();
+    if (tab === 'jav') params.sub = javSubMode;
     programmaticUrlRef.current = true;
     setSearchParams(params, { replace: true });
     searchFlow.resetResults();
-  }, [setActiveTab, setSearchParams, navigate, searchFlow.keyword, searchFlow.resetResults]);
+  }, [setActiveTab, setSearchParams, navigate, searchFlow.keyword, searchFlow.resetResults, javSubMode]);
 
   const isAdmin = isAuthenticated && user != null && (user.role === 'admin' || user.role === 'super_admin');
 
@@ -132,7 +149,14 @@ export const MainSearchPage: React.FC = () => {
               ].map((sub) => (
                 <button
                   key={sub.id}
-                  onClick={() => setJavSubMode(sub.id)}
+                  onClick={() => {
+                    setJavSubMode(sub.id);
+                    // 同步 URL：切换子模式即更新 sub 参数（保留当前 q），刷新/分享链接可还原正确子模式
+                    programmaticUrlRef.current = true;
+                    const params: Record<string, string> = { tab: 'jav', sub: sub.id };
+                    if (searchFlow.keyword.trim()) params.q = searchFlow.keyword.trim();
+                    setSearchParams(params, { replace: true });
+                  }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
                     javSubMode === sub.id
                       ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-sm'
@@ -208,6 +232,36 @@ export const MainSearchPage: React.FC = () => {
           {(() => {
             const resultType = searchFlow.enrichedData?.resultType;
             const Panel = getResultPanel(resultType);
+            const javData = searchFlow.enrichedData as import('@/types/search').JavEnrichedData | undefined;
+
+            // JAV 女优搜索子模式：女优卡片 + 多源跳转卡片并行展示
+            if (activeTab === 'jav' && javSubMode === 'actress' && javData && resultType === 'jav') {
+              return (
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  {/* 女优资料卡片（minnano-av 抓取） */}
+                  <JavActressResultsPanel
+                    data={javData}
+                    favoritedCodes={favoritesManager.favoritedCodes}
+                    isAuthenticated={isAuthenticated}
+                    onToggleFavorite={favoritesManager.handleToggleFavoriteActress}
+                    onLoginRequired={() => { navigate('/login'); }}
+                  />
+                  {/* 多源跳转卡片（用户启用的 jav 源） */}
+                  <SearchResultsPanel
+                    results={searchFlow.searchResults}
+                    viewMode={viewMode}
+                    isAuthenticated={isAuthenticated}
+                    isProxyEnabled={isProxyEnabled}
+                    favorites={favoritesManager.favorites}
+                    categories={sourceManager.categories}
+                    majorCategories={sourceManager.majorCategories}
+                    onViewModeChange={setViewMode}
+                    onClose={() => searchFlow.resetResults()}
+                    onToggleFavorite={favoritesManager.handleToggleFavorite}
+                  />
+                </div>
+              );
+            }
 
             if (searchFlow.enrichedData && Panel) {
               const commonProps = {

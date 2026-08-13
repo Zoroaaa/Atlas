@@ -36,6 +36,7 @@ const POST_TYPE_CONFIG = {
   anime: { label: '动漫', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
   movie: { label: '影视', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
   manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
+  actress: { label: '女优', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-900/20' },
 };
 
 /**

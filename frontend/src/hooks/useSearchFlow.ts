@@ -31,7 +31,7 @@ interface UseSearchFlowOptions {
   javEnrichedDetail: JavDetail | null;
   setJavEnrichedDetail: (detail: JavDetail | null) => void;
   javSubMode: JavSubMode;
-  onSearch?: (keyword: string) => void;
+  onSearch?: (keyword: string, subMode?: JavSubMode) => void;
 }
 
 export function useSearchFlow({
@@ -104,21 +104,23 @@ export function useSearchFlow({
     return () => { cancelled = true; };
   }, [javEnrichedDetail, isAuthenticated, searchHistory, queryClient]);
 
-  const handleSearch = useCallback(async (overrideKeyword?: string, page = 1) => {
+  const handleSearch = useCallback(async (overrideKeyword?: string, page = 1, overrideSubMode?: JavSubMode) => {
+    // overrideSubMode 用于 URL 回读场景：避免 setJavSubMode 异步导致闭包仍是旧值
+    const effectiveSubMode = overrideSubMode ?? javSubMode;
     const query = overrideKeyword || keyword;
     if (!query.trim()) {
       toast.warning('请输入搜索关键词');
       return;
     }
     // JAV 番号搜索格式校验：仅 code 模式生效
-    if (activeTab === 'jav' && javSubMode === 'code' && !isValidJavCode(query)) {
+    if (activeTab === 'jav' && effectiveSubMode === 'code' && !isValidJavCode(query)) {
       toast.warning('格式有误', '格式請按照【SONE-520】或【SONE520】搜尋');
       return;
     }
     // 关闭搜索建议
     setShowSuggestions(false);
-    // 通知外部（用于 URL 同步等）
-    onSearch?.(query.trim());
+    // 通知外部（用于 URL 同步等）：携带 effectiveSubMode，避免外部闭包捕获旧 javSubMode
+    onSearch?.(query.trim(), activeTab === 'jav' ? effectiveSubMode : undefined);
     const sessionId = sessionStorage.getItem('analytics_session_id') || (() => {
       const id = Math.random().toString(36).slice(2);
       sessionStorage.setItem('analytics_session_id', id);
@@ -138,6 +140,7 @@ export function useSearchFlow({
         keyword: query.trim(),
         majorCategoryId: SEARCH_TABS[activeTab].majorCategoryId || undefined,
         page,
+        javSubMode: activeTab === 'jav' ? effectiveSubMode : undefined,
       });
       if (response.success && response.data) {
         if ('resultType' in response.data && ['anime', 'movie', 'jav', 'manga', 'novel'].includes(response.data.resultType)) {

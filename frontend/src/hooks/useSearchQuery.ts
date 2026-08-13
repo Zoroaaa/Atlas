@@ -8,6 +8,7 @@ export interface SearchMutationVars {
   majorCategoryId?: string;
   page?: number;
   pageSize?: number;
+  javSubMode?: 'code' | 'actress' | 'title';
 }
 
 export function useSearchMutation() {

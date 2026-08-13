@@ -707,7 +707,7 @@ async function fetchBangumi(keyword: string): Promise<BangumiSubject[]> {
 const ANIME_SEARCH_TIMEOUT_MS = 20_000;
 
 export async function searchAnime(keyword: string, page = 1): Promise<AnimeSearchResult> {
-  // 外层超时控制：避免 5 路并发最坏情况耗时过长
+  // 外层超时控制：避免多路并发最坏情况耗时过长
   const searchPromise = Promise.allSettled([
     fetchBangumi(keyword),
     // 【已禁用】因部署环境(Cloudflare Workers 出站 IP)无法解决 nyaa.si 的 bot 验证，

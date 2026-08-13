@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores';
 import { useFavoritesQuery, useAddFavorite, useRemoveFavorite } from '@/hooks';
 import { useToast } from '@/components/ui/Toast';
 import type { JavDetail } from '@/types/jav';
-import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem } from '@/types/search';
+import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem, ActressProfile } from '@/types/search';
 import type { SearchResultItem } from './useSearchFlow';
 
 interface UseFavoritesManagerOptions {
@@ -180,6 +180,33 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     }
   };
 
+  const handleToggleFavoriteActress = async (actress: ActressProfile) => {
+    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    const actressCode = `actress:${actress.id}`;
+    const existingFavoriteId = favorites.find(f => f.code === actressCode)?.id;
+    if (existingFavoriteId) {
+      try {
+        await removeFavoriteMutation.mutateAsync(existingFavoriteId);
+        toast.success('已取消收藏');
+      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+    } else {
+      try {
+        const response = await addFavoriteMutation.mutateAsync({
+          title: actress.name,
+          url: actress.detailUrl,
+          code: actressCode,
+          cover: actress.cover,
+          subtitle: [actress.ruby, actress.romaji].filter(Boolean).join(' / ') || undefined,
+          actors: actress.name,
+          tags: actress.tags?.join(', '),
+          keyword: keyword.trim() || undefined,
+        });
+        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
+        toast.success('已添加到收藏');
+      } catch { toast.error('收藏失败', '请稍后重试'); }
+    }
+  };
+
   const handleRemoveFavorite = async (id: string) => {
     try {
       await removeFavoriteMutation.mutateAsync(id);
@@ -209,6 +236,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     handleToggleFavoriteMovie,
     handleToggleFavoriteManga,
     handleToggleFavoriteNovel,
+    handleToggleFavoriteActress,
     handleRemoveFavorite,
     handleExportFavorites,
     refetchFavorites,
