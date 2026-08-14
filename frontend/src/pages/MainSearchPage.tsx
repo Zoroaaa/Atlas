@@ -118,6 +118,14 @@ export const MainSearchPage: React.FC = () => {
 
   const isAdmin = isAuthenticated && user != null && (user.role === 'admin' || user.role === 'super_admin');
 
+  // 女优作品点击：切换到番号子模式并搜索，让用户从女优作品直接跳转到番号详情
+  const handleActressWorkClick = (code: string) => {
+    setJavSubMode('code');
+    searchFlow.setKeyword(code);
+    searchFlow.handleSearch(code, 1, 'code');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const renderFavoritesPanel = () => isAuthenticated && (
     <FavoritesPanel favorites={favoritesManager.favorites} isLoading={favoritesManager.isLoadingFavorites} show={showFavorites} isProxyEnabled={isProxyEnabled} onToggle={() => setShowFavorites(!showFavorites)} onRemove={favoritesManager.handleRemoveFavorite} onExport={favoritesManager.handleExportFavorites} onUpdate={() => favoritesManager.refetchFavorites()} />
   );
@@ -211,7 +219,7 @@ export const MainSearchPage: React.FC = () => {
                 <p className="text-xs text-red-400 mt-2 ml-1">格式請按照【SONE-520】或【SONE520】搜尋</p>
               )}
               {javSubMode === 'actress' && (
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：請嘗試按照維基百科使用繁體中文名或是日文名，如【水菜麗】請改成【みづなれい】搜尋</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：可直接輸入中文名（簡繁均可）或日文名，系統自動轉換為日文搜尋</p>
               )}
               {javSubMode === 'title' && (
                 <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：請嘗試縮短字數，並優先使用【日文】搜尋</p>
@@ -245,6 +253,7 @@ export const MainSearchPage: React.FC = () => {
                     isAuthenticated={isAuthenticated}
                     onToggleFavorite={favoritesManager.handleToggleFavoriteActress}
                     onLoginRequired={() => { navigate('/login'); }}
+                    onWorkClick={handleActressWorkClick}
                   />
                   {/* 多源跳转卡片（用户启用的 jav 源） */}
                   <SearchResultsPanel

@@ -8,8 +8,9 @@
  * 而非前缀式 convertToProxyUrl —— 后者对图片会触发浏览器的 ORB。
  */
 import { useState } from 'react';
-import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Building2, Star, Link2, Ruler } from 'lucide-react';
+import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Building2, Star, Link2, Ruler, Film, ExternalLink } from 'lucide-react';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
+import type { JavItem } from '@/types/jav';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { ShareToCommunityButton } from '@/components/community/ShareToCommunityButton';
 
@@ -224,11 +225,14 @@ export interface JavActressResultsPanelProps {
   isAuthenticated: boolean;
   onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
+  /** 点击作品卡片时触发，携带番号 — 调用方应切换到 code 子模式并搜索 */
+  onWorkClick?: (code: string) => void;
 }
 
-export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, onToggleFavorite, onLoginRequired }: JavActressResultsPanelProps) {
+export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, onToggleFavorite, onLoginRequired, onWorkClick }: JavActressResultsPanelProps) {
   const [page, setPage] = useState(1);
   const actresses = data.actresses ?? [];
+  const works = data.actressWorks ?? [];
   const errorMsg = data.errors?.search;
 
   // 错误且无结果
@@ -252,6 +256,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
   const paged = actresses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
+    <>
     <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
       {/* 头部 */}
       <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
@@ -263,7 +268,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
           <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{actresses.length} 位</span>
         </div>
         <a
-          href={`https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=${encodeURIComponent(data.keyword)}`}
+          href={`https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
@@ -316,5 +321,126 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
         </div>
       </div>
     </div>
+
+    {/* JavBus 作品列表 — 仅当有作品数据时渲染 */}
+    {works.length > 0 && (
+      <ActressWorksSection
+        works={works}
+        normalizedKeyword={data.normalizedKeyword ?? data.keyword}
+        onWorkClick={onWorkClick}
+      />
+    )}
+    </>
+  );
+}
+
+// ─── 女优作品区（JavBus 搜索结果） ───────────────────────────────────────
+
+function ActressWorksSection({
+  works,
+  normalizedKeyword,
+  onWorkClick,
+}: {
+  works: JavItem[];
+  normalizedKeyword: string;
+  onWorkClick?: (code: string) => void;
+}) {
+  return (
+    <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
+      {/* 头部 */}
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+            <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
+          </div>
+          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">JavBus 作品</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{works.length} 部</span>
+        </div>
+        <a
+          href={`https://www.javbus.com/search/${encodeURIComponent(normalizedKeyword)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-400 transition-colors"
+        >
+          JavBus 站内搜索
+          <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+
+      {/* 作品网格 */}
+      <div className="p-4 sm:p-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {works.map((work, i) => (
+            <WorkCard key={`${work.code}-${i}`} work={work} onClick={onWorkClick} />
+          ))}
+        </div>
+        {onWorkClick && (
+          <p className="mt-3 text-[10px] text-stone-400 dark:text-stone-500 text-center">
+            💡 点击作品卡片自动搜索番号
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WorkCard({ work, onClick }: { work: JavItem; onClick?: (code: string) => void }) {
+  const imgSrc = work.cover ? getProxyImageUrl(work.cover) : undefined;
+  const clickable = !!onClick;
+
+  const inner = (
+    <>
+      {/* 封面 */}
+      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 ring-1 ring-stone-200/60 dark:ring-stone-700/60">
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={work.code}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Film className="w-8 h-8 text-stone-300 dark:text-stone-600" />
+          </div>
+        )}
+        {/* 日期角标 */}
+        {work.date && (
+          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 text-[10px] font-medium bg-black/60 text-white rounded backdrop-blur-sm">
+            {work.date}
+          </span>
+        )}
+      </div>
+      {/* 番号 + 标题 */}
+      <div className="mt-1.5 space-y-0.5 min-w-0">
+        <p className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate">{work.code}</p>
+        <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2 leading-tight">{work.title}</p>
+      </div>
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <button
+        onClick={() => onClick?.(work.code)}
+        className="text-left group active:scale-[0.97] transition-transform"
+        title={`${work.code} — ${work.title}`}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={`https://www.javbus.com/${work.code}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block group"
+      title={`${work.code} — ${work.title}`}
+    >
+      {inner}
+    </a>
   );
 }

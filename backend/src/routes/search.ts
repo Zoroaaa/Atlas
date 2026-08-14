@@ -19,7 +19,9 @@ import { VALIDATION_RULES } from '@/constants';
 import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
 import { providerRegistry } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
-import { fetchActresses, type ActressProfile } from '@/services/actress-search';
+import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
+import { normalizeActressKeyword } from '@/services/actress-name-map';
+import type { JavItem } from '@/services/jav-utils';
 
 const R = VALIDATION_RULES;
 
@@ -300,6 +302,17 @@ searchRoutes.post('/', async (c) => {
               console.error('[search] minnano actress search failed:', e);
             }
 
+            // minnano 女优搜索成功返回数据后，补充抓取 JavBus 女优作品列表
+            // 关键词复用 normalizeActressKeyword 归一化结果（日文名），确保 JavBus 可命中
+            let actressWorks: JavItem[] = [];
+            if (actresses.length > 0) {
+              try {
+                actressWorks = await fetchActressWorks(trimmedKeyword);
+              } catch (e) {
+                console.error('[search] javbus actress works fetch failed:', e);
+              }
+            }
+
             // 仍执行 JAV Hybrid：查用户启用的 jav 源，生成多源跳转 URL
             const sources = await c.env.DB.prepare(`
               SELECT s.* FROM search_sources s
@@ -327,10 +340,14 @@ searchRoutes.post('/', async (c) => {
             const actressData: Record<string, unknown> = {
               resultType: 'jav',
               keyword: trimmedKeyword,
+              // 归一化后的日文名：供前端「minnano 站内搜索」链接使用（原文搜不到含假名女优）
+              normalizedKeyword: normalizeActressKeyword(trimmedKeyword),
               page: limitPage,
               total: multiSourceResults.length,
               errors: { search: actressError },
               actresses,
+              // JavBus 女优作品列表（仅当 minnano 女优搜索成功时才抓取）
+              actressWorks,
               results: multiSourceResults,
             };
 

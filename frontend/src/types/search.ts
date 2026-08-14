@@ -201,6 +201,8 @@ export interface MovieEnrichedData {
 export interface JavEnrichedData {
   resultType: 'jav';
   keyword: string;
+  /** 归一化后的日文名（actress 子模式）：供「minnano 站内搜索」链接使用 */
+  normalizedKeyword?: string;
   page: number;
   total: number;
   errors: Record<string, string | null>;
@@ -232,6 +234,8 @@ export interface JavEnrichedData {
   }>;
   /** 女优资料（actress 子模式，minnano-av 抓取） */
   actresses?: ActressProfile[];
+  /** 女优作品列表（actress 子模式，JavBus 搜索抓取，仅当 minnano 女优搜索成功时才返回） */
+  actressWorks?: import('./jav').JavItem[];
 }
 
 export interface MangaEnrichedData {

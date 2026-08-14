@@ -8,7 +8,8 @@
  * 字段来源：详情页 tbllist 表格 + h2 标题 + 封面图
  */
 
-import { getHtml } from '@/services/jav-utils';
+import { getHtml, parseGrid, type JavItem } from '@/services/jav-utils';
+import { normalizeActressKeyword } from '@/services/actress-name-map';
 
 // ─── 类型 ──────────────────────────────────────────────────────────────
 
@@ -246,7 +247,9 @@ const MAX_DETAIL_FETCH = 10; // 最多并发抓取详情页数量
 export async function fetchActresses(keyword: string): Promise<ActressProfile[]> {
   if (!keyword.trim()) return [];
 
-  const searchUrl = `${BASE}/search_result.php?search_scope=actress&search_word=${encodeURIComponent(keyword.trim())}`;
+  // 归一化：简体中文俗称/繁体 → minnano 可搜的日文名（映射表 + opencc 简→日新字体转换）
+  const normalized = normalizeActressKeyword(keyword);
+  const searchUrl = `${BASE}/search_result.php?search_scope=actress&search_word=${encodeURIComponent(normalized)}`;
   const html = await getHtml(searchUrl, 15000);
   if (!html || html.length < 500) return [];
 
@@ -294,3 +297,31 @@ export async function fetchActresses(keyword: string): Promise<ActressProfile[]>
 
   return profiles;
 }
+
+// ─── JavBus 女优作品搜索 ────────────────────────────────────────────────
+
+/**
+ * 抓取 JavBus 女优搜索页（/search/{keyword}）前 20 条作品。
+ *
+ * 仅当 minnano-av 女优搜索成功返回数据后调用 —— 作为女优资料的补充，
+ * 让用户可以直接看到该女优在 JavBus 上的作品列表并点击跳转番号搜索。
+ *
+ * 关键词归一化：调用方应传入 normalizeActressKeyword 后的日文名，
+ * 因为 JavBus 同样是日文站，中文俗称/简繁体无法直接命中。
+ *
+ * JavBus 搜索页与首页/genre/star 页共享同一 movie-box 网格结构，
+ * 复用 jav-utils.ts 的 parseGrid 解析器。
+ */
+const JAVBUS_ACTRESS_WORKS_LIMIT = 20;
+
+export async function fetchActressWorks(keyword: string): Promise<JavItem[]> {
+  const normalized = normalizeActressKeyword(keyword);
+  if (!normalized.trim()) return [];
+
+  const searchUrl = `https://www.javbus.com/search/${encodeURIComponent(normalized)}`;
+  const html = await getHtml(searchUrl, 15000);
+  if (!html || html.length < 500) return [];
+
+  return parseGrid(html, 'javbus-actress-works').slice(0, JAVBUS_ACTRESS_WORKS_LIMIT);
+}
+

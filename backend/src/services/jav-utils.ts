@@ -15,6 +15,68 @@ export interface MagnetItem {
   isHD: boolean;
 }
 
+// ─── JavBus 网格项类型 ─────────────────────────────────────────────────
+
+export interface JavItem {
+  code: string;
+  title: string;
+  cover?: string;
+  date?: string;
+  actress?: string;
+  source: string;
+}
+
+/** 番号格式校验：字母(2-8位) + 横杠 + 数字(2-6位) */
+export function isValidCode(code: string): boolean {
+  return /^[A-Z]{2,8}-\d{2,6}$/.test(code);
+}
+
+/**
+ * 解析 JavBus 网格页（waterfall 区域内的 movie-box 列表）
+ * 通用解析器：首页 / 无码 / genre / star / 搜索结果页均使用同一网格结构
+ */
+export function parseGrid(html: string, source: string): JavItem[] {
+  if (!html) return [];
+  const items: JavItem[] = [];
+  // 截取 waterfall 区域
+  const wi = html.indexOf('id="waterfall"');
+  const section = wi !== -1 ? html.slice(wi, wi + 60000) : html;
+
+  const re = /<a[^>]+class="movie-box"[^>]*href="[^"]+"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(section)) !== null && items.length < 30) {
+    const block = m[1];
+    const imgM = block.match(/<img[^>]+src="([^"]+)"/i);
+    // JavBus 封面图可能是相对路径（/pics/...），统一转为绝对 URL 供前端图片代理使用
+    const cover = imgM ? normalizeJavbusUrl(imgM[1]) : undefined;
+
+    const codeM =
+      block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([^<]+)<\/span>/i) ||
+      block.match(/<date[^>]*>([A-Za-z0-9]+-\d+)<\/date>/i) ||
+      block.match(/>([A-Z]{2,8}-\d{2,6})</);
+    if (!codeM) continue;
+    const code = normalizeCode(codeM[1].trim());
+    if (!isValidCode(code)) continue;
+
+    const titleM = block.match(/title="([^"]+)"/i);
+    const title = titleM ? titleM[1].trim() : code;
+
+    const dateM = block.match(/<date[^>]*>(\d{4}-\d{2}-\d{2})<\/date>/i);
+    const date = dateM ? dateM[1] : undefined;
+
+    items.push({ code, title, cover, date, source });
+  }
+  return items;
+}
+
+/** 将 JavBus 相对 URL 转为绝对 URL（封面图等资源） */
+function normalizeJavbusUrl(url: string): string {
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('//')) return `https:${url}`;
+  if (url.startsWith('/')) return `https://www.javbus.com${url}`;
+  return url;
+}
+
 // ─── HTTP 请求常量 ──────────────────────────────────────────────────────
 
 export const JAV_HEADERS = {

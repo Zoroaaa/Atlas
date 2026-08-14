@@ -8,12 +8,14 @@ import { Hono } from 'hono';
 import { Env } from '@/types';
 import { authMiddleware } from '@/middleware';
 import {
-  normalizeCode,
   getHtml,
   extractGidUc,
   parseMagnets,
   parseJavDetail,
   JAV_HEADERS,
+  parseGrid,
+  isValidCode,
+  type JavItem,
 } from '@/services/jav-utils';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
@@ -189,14 +191,7 @@ javRoutes.use('*', authMiddleware);
 // 类型
 // ─────────────────────────────────────────────
 
-interface JavItem {
-  code: string;
-  title: string;
-  cover?: string;
-  date?: string;
-  actress?: string;
-  source: string;
-}
+// JavItem 已提取至 services/jav-utils.ts，此处从该模块导入
 
 interface GroupRanking {
   name: string;   // 类别名 或 女优名
@@ -224,11 +219,7 @@ interface RankingsResponse {
 // 工具函数
 // ─────────────────────────────────────────────
 
-// normalizeCode 已提取至 services/jav-utils.ts，此处从该模块导入
-
-function isValidCode(code: string): boolean {
-  return /^[A-Z]{2,8}-\d{2,6}$/.test(code);
-}
+// normalizeCode / isValidCode / parseGrid 已提取至 services/jav-utils.ts，此处从该模块导入
 
 function dedup(items: JavItem[]): JavItem[] {
   const seen = new Set<string>();
@@ -251,41 +242,8 @@ function sample<T>(arr: T[], n: number): T[] {
 }
 
 // ─────────────────────────────────────────────
-// JavBus 网格解析（通用）
+// JavBus 网格解析（通用）— parseGrid 已提取至 services/jav-utils.ts
 // ─────────────────────────────────────────────
-
-function parseGrid(html: string, source: string): JavItem[] {
-  if (!html) return [];
-  const items: JavItem[] = [];
-  // 截取 waterfall 区域
-  const wi = html.indexOf('id="waterfall"');
-  const section = wi !== -1 ? html.slice(wi, wi + 60000) : html;
-
-  const re = /<a[^>]+class="movie-box"[^>]*href="[^"]+"[^>]*>([\s\S]*?)<\/a>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(section)) !== null && items.length < 30) {
-    const block = m[1];
-    const imgM = block.match(/<img[^>]+src="([^"]+)"/i);
-    const cover = imgM ? imgM[1] : undefined;
-
-    const codeM =
-      block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([^<]+)<\/span>/i) ||
-      block.match(/<date[^>]*>([A-Za-z0-9]+-\d+)<\/date>/i) ||
-      block.match(/>([A-Z]{2,8}-\d{2,6})</);
-    if (!codeM) continue;
-    const code = normalizeCode(codeM[1].trim());
-    if (!isValidCode(code)) continue;
-
-    const titleM = block.match(/title="([^"]+)"/i);
-    const title = titleM ? titleM[1].trim() : code;
-
-    const dateM = block.match(/<date[^>]*>(\d{4}-\d{2}-\d{2})<\/date>/i);
-    const date = dateM ? dateM[1] : undefined;
-
-    items.push({ code, title, cover, date, source });
-  }
-  return items;
-}
 
 // ─────────────────────────────────────────────
 // 有码精选：前3页合并 → dedup → shuffle → 取20
