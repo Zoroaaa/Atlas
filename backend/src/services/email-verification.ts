@@ -1,5 +1,5 @@
 import { Env } from '@/types';
-import { generateId, hashPassword } from '@/utils';
+import { generateId, hashToken } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS, VALIDATION_RULES } from '@/constants';
 import { ConfigService } from './config';
 
@@ -121,7 +121,7 @@ export class EmailVerificationService {
     verificationType: VerificationType,
     userId: string | null = null
   ): Promise<PendingVerification | null> {
-    const emailHash = await hashPassword(email);
+    const emailHash = await hashToken(email);
     const now = Date.now();
 
     const query = `
@@ -360,7 +360,7 @@ export class EmailVerificationService {
     userId: string | null = null,
     metadata: Record<string, unknown> = {}
   ): Promise<{ id: string; code: string; expiresAt: number }> {
-    const emailHash = await hashPassword(email);
+    const emailHash = await hashToken(email);
 
     const clearQuery = `
       UPDATE email_verifications 
@@ -372,7 +372,7 @@ export class EmailVerificationService {
     await this.env.DB.prepare(clearQuery).bind(...clearParams).run();
 
     const verificationCode = this.generateVerificationCode();
-    const codeHash = await hashPassword(verificationCode);
+    const codeHash = await hashToken(verificationCode);
     const configService = new ConfigService(this.env);
     const expiryTime = Date.now() + await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
 
@@ -412,8 +412,8 @@ export class EmailVerificationService {
     verificationType: VerificationType,
     userId: string | null = null
   ): Promise<VerificationResult> {
-    const emailHash = await hashPassword(email);
-    const codeHash = await hashPassword(inputCode);
+    const emailHash = await hashToken(email);
+    const codeHash = await hashToken(inputCode);
     const now = Date.now();
 
     const query = `
@@ -658,7 +658,7 @@ export class EmailVerificationService {
     newEmail: string
   ): Promise<{ id: string; expiresAt: number }> {
     const requestId = generateId();
-    const newEmailHash = await hashPassword(newEmail);
+    const newEmailHash = await hashToken(newEmail);
     const expiryTime = Date.now() + R.EMAIL_CHANGE.REQUEST_EXPIRY_MS;
 
     await this.env.DB.prepare(
