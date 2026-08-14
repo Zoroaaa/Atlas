@@ -30,7 +30,7 @@ systemRoutes.get('/public-config', async (c) => {
     ]);
 
     return c.json(success({
-      appVersion: c.env.APP_VERSION || '2.0.0',
+      appVersion: c.env.APP_VERSION || '4.3.0',
       siteName,
       siteDescription,
       allowRegistration: enableRegistration,
@@ -46,7 +46,7 @@ systemRoutes.get('/health', async (c) => {
   return c.json(success({
     status: 'ok',
     timestamp: Date.now(),
-    version: c.env.APP_VERSION || '2.0.0',
+    version: c.env.APP_VERSION || '4.3.0',
   }));
 });
 

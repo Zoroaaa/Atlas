@@ -1,6 +1,6 @@
 # 部署指南
 
-> **适用版本**: v4.0.0+
+> **适用版本**: v4.3.0+
 >
 > 目标平台：Cloudflare Workers + D1 + R2
 
@@ -82,14 +82,26 @@ npx wrangler d1 create atlas-db
 # 替换 <DATABASE_ID> 为上一步获取的 ID
 D1_ID="<DATABASE_ID>"
 
-# ① 基础 schema（用户、收藏、历史等基础表）
-npx wrangler d1 execute $D1_ID --file=database/schema.sql
+# ① 核心 schema（用户、收藏、历史等基础表）
+npx wrangler d1 execute $D1_ID --file=database/01_schema_core.sql
 
-# ② 搜索源种子数据（含 v4.0 新增的 anime/movie 源）
-npx wrangler d1 execute $D1_ID --file=database/06_data_search_sources.sql
+# ② 搜索 schema（搜索源、社区、安全、反馈公告、系统错误等）
+npx wrangler d1 execute $D1_ID --file=database/02_schema_search.sql
+npx wrangler d1 execute $D1_ID --file=database/03_schema_community.sql
+npx wrangler d1 execute $D1_ID --file=database/04_schema_security.sql
+npx wrangler d1 execute $D1_ID --file=database/05_schema_feedback_announcements.sql
+npx wrangler d1 execute $D1_ID --file=database/10_schema_system_errors.sql
 
-# ③ 历史记录封面字段（v4.0 新增）
-npx wrangler d1 execute $D1_ID --file=database/13_schema_history_cover.sql
+# ③ 数据存储 schema（v4.3 新增，搜索结果异步落库去重）
+npx wrangler d1 execute $D1_ID --file=database/11_schema_data_storage.sql
+
+# ④ 索引与触发器
+npx wrangler d1 execute $D1_ID --file=database/09_indexes_triggers.sql
+
+# ⑤ 种子数据（系统配置、搜索源、标签）
+npx wrangler d1 execute $D1_ID --file=database/06_data_system.sql
+npx wrangler d1 execute $D1_ID --file=database/07_data_search_sources.sql
+npx wrangler d1 execute $D1_ID --file=database/08_data_tags.sql
 ```
 
 ### 2.3 验证数据库
@@ -100,11 +112,13 @@ npx wrangler d1 execute $D1_ID --command="SELECT name FROM sqlite_master WHERE t
 
 # 预期输出应包含:
 # users, favorites, history, comments, ratings, reports,
-# feedback, search_sources, admin_logs (等)
+# feedback, search_sources, admin_logs, data_records, data_record_sources (等)
 
-# 验证搜索源数据（v4.0 应有 10+ 条，覆盖 3 个 category）
+# 验证搜索源数据（应有 50+ 条，覆盖 jav/anime/movie/manga/novel 5 个 category）
 npx wrangler d1 execute $D1_ID --command="SELECT category, COUNT(*) as cnt FROM search_sources GROUP BY category;"
-# 预期: anime=4, movie=4, jav=2+
+
+# 验证数据存储表（v4.3 新增）
+npx wrangler d1 execute $D1_ID --command="SELECT COUNT(*) as cnt FROM data_records;"
 ```
 
 ---
@@ -139,7 +153,7 @@ TMDB_API_KEY=your_tmdb_api_key
 BANGUMI_API_KEY=your_bangumi_api_key
 
 # ── 系统 ──
-APP_VERSION=4.0.0
+APP_VERSION=4.3.0
 NODE_ENV=development
 ADMIN_GITHUB_IDS=your_github_numeric_id
 ```

@@ -12,8 +12,9 @@ import { ConfigTab } from './ConfigTab';
 import { FeedbackTab } from './FeedbackTab';
 import { AnnouncementTab } from './AnnouncementTab';
 import { ObservabilityTab } from './ObservabilityTab';
+import { DataStorageTab } from './DataStorageTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements';
+type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
@@ -31,6 +32,7 @@ export const AdminManager: React.FC = () => {
     if (p.includes('/cleanup')) return 'cleanup';
     if (p.includes('/feedback')) return 'feedback';
     if (p.includes('/announcements')) return 'announcements';
+    if (p.includes('/data-storage')) return 'data-storage';
     return 'users';
   }, [location.pathname]);
 
@@ -51,6 +53,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'cleanup' && <CleanupTab />}
       {activeTab === 'feedback' && <FeedbackTab />}
       {activeTab === 'announcements' && <AnnouncementTab />}
+      {activeTab === 'data-storage' && <DataStorageTab />}
     </div>
   );
 };

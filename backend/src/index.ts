@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, dataStorageRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
@@ -70,7 +70,7 @@ app.use('*', secureHeaders({
 app.get('/', (c) => {
   return c.json({
     name: 'CodeSeek API',
-    version: c.env.APP_VERSION || '2.0.0',
+    version: c.env.APP_VERSION || '4.3.0',
     status: 'running',
   });
 });
@@ -85,6 +85,7 @@ app.route('/api/community', communityRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/config', configRoutes);
 app.route('/api/jav', javRoutes);
+app.route('/api/admin/data-storage', dataStorageRoutes);
 app.route('/api/feedback', feedbackRoutes);
 app.route('/api/announcements', announcementRoutes);
 app.route('/api', systemRoutes);

@@ -9,3 +9,4 @@ export { searchRoutes } from './search';
 export { adminRoutes } from './admin';
 export { configRoutes } from './config';
 export { javRoutes } from './jav';
+export { dataStorageRoutes } from './data-storage';

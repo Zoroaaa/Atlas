@@ -20,3 +20,7 @@ export type { PostStatus, PostType, LikeType,
 
 export type { ApiError, ApiSuccess, ApiResponse,
   PaginatedResponse, PaginationParams } from './common';
+
+export type { DataRecordType, DataRecordStatus, DataSourceType,
+  DataRecordSource, DataRecord, DataRecordDetail,
+  DataStorageStats, DataStorageTrends, DataRecordsQuery } from './data-storage';

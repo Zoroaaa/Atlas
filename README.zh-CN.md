@@ -7,7 +7,7 @@
 **开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-4.3.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -47,7 +47,7 @@
 |------|------|------|
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、v4.0（动漫&影视搜索+架构升级）、v4.1（漫画搜索+架构优化）、**v4.2（小说搜索+聚合视图+观测体系）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **版本变更日志** | 完整的版本变更记录：v2.0（架构重构）、v3.0（安全增强+功能扩展）、v3.1（Monorepo共享+安全加固+性能优化）、v4.0（动漫&影视搜索+架构升级）、v4.1（漫画搜索+架构优化）、v4.2（小说搜索+聚合视图+观测体系）、**v4.3（JAV 女优搜索+数据存储管理+社区完善）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -61,8 +61,8 @@
 ### 核心优势
 
 #### 1. 开源聚合搜索引擎
-- **JAV 搜索**: DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力多源搜索
-- **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + Nyaa 磁力 + ShowRSS 订阅
+- **JAV 搜索**: DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力多源搜索，新增女优搜索子模式（v4.3 新增，数据源 minnano-av.com）
+- **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + ShowRSS 订阅（nyaa 源因部署环境限制已禁用，v4.3 调整）
 - **影视搜索**: TMDB 电影剧集 + YTS 电影种子 + EZTV 剧集种子 + TPB 兜底磁力
 - **漫画搜索**: MangaDex 漫画元数据 + 13个搜索源聚合
 - **小说搜索**: Anna's Archive 图书元数据 + 奇书网 TXT 直链资源（v4.2 新增）
@@ -126,17 +126,29 @@ Resend                → 现代邮件服务、高送达率、实时追踪
 
 ## 核心功能
 
-### 1. 智能搜索系统 (v4.2 五大类别 + 聚合视图)
+### 1. 智能搜索系统 (v4.3 五大类别 + JAV 女优子模式 + 聚合视图)
 
 #### 五大搜索类别
 
 | 类别 | 数据源 | 说明 |
 |------|--------|------|
-| **JAV** | DMM/FANZA / JavBus / JavDB | 成人影片元数据 + 磁力聚合 |
-| **动漫** | Bangumi / Mikan / Nyaa / ShowRSS | 番剧元数据 + 字幕组 + 磁力链接 |
+| **JAV** | DMM/FANZA / JavBus / JavDB / **minnano-av（女优资料，v4.3 新增）** | 成人影片元数据 + 磁力聚合 + 女优资料搜索 |
+| **动漫** | Bangumi / Mikan / ShowRSS | 番剧元数据 + 字幕组（nyaa 源因部署环境限制已禁用，v4.3 调整） |
 | **影视** | TMDB / YTS / EZTV / TPB | 电影剧集元数据 + 种子资源 |
 | **漫画** | MangaDex / 13个搜索源 | 漫画元数据 + 资源聚合 |
 | **小说** | Anna's Archive / 奇书网 | 图书元数据 + TXT 直链资源（v4.2 新增） |
+
+#### JAV 子模式（v4.3 新增）
+
+JAV 搜索细化为三个子模式，URL `sub` 参数持久化，刷新 / 前进后退 / 分享链接均可还原：
+
+| 子模式 | 说明 |
+|--------|------|
+| **code**（番号搜索） | 默认模式，按番号精准匹配元数据 + 磁力资源 |
+| **actress**（女优搜索） | 数据源 minnano-av.com，解析女优资料（名字 / 假名 / 罗马音 / 别名 / 生日 / 星座 / 三围 / 出身地 / 事务所 / 出道期间 / 标签 / 封面），并自动补充 JavBus 作品列表，点击作品卡跳转番号搜索 |
+| **title**（标题搜索） | 按标题关键词模糊匹配 |
+
+女优搜索关键词自动转日文（映射表 + opencc 简日转换兜底），支持中文俗称直接搜索；女优卡片支持收藏与分享到社区。
 
 #### 三层搜索架构
 
@@ -176,6 +188,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **分类筛选**: 支持按大类（JAV/动漫/影视/漫画/小说）和子分类筛选搜索源
 - **固定源管理**: 一键固定常用搜索源，个性化定制（v4.1新增）
 - **聚合视图**: 作品级资源归组聚合，同一作品多源资源合并展示（v4.2新增）
+- **异步数据采集**: 搜索结果异步落库去重、多源合并，匿名设计不保存用户信息（v4.3 新增）
 - **历史记录**: 自动保存搜索历史（含封面图），支持快速重搜和历史统计
 
 #### 搜索建议与热门
@@ -208,6 +221,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 #### 搜索源分享
 - **分享搜索源**: 将自己发现的好用搜索源分享给社区
+- **分享类别扩展至 6 类**：支持 JAV / 动漫 / 影视 / 漫画 / 小说 / 女优 全类别内容分享（v4.3 完善，原 manga / actress / novel 链路断裂已修复）
 - **标签管理**: 为搜索源添加标签，方便分类查找
 - **审核机制**: 管理员审核后才能上架，保证质量
 
@@ -242,6 +256,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 #### 内容管理
 - **搜索源管理**: 增删改查系统搜索源和分类（支持五大类别）
+- **数据存储管理**: 搜索结果异步落库去重、多源合并，按类型查阅 / 隐藏 / 清理过期数据，含统计概览（v4.3 新增）
 - **社区审核**: 审核用户分享的搜索源
 - **举报处理**: 处理用户举报内容
 
@@ -270,7 +285,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    前端层 (v4.2.0)                      │
+│                    前端层 (v4.3.0)                      │
 │  • React 19 + TypeScript                                │
 │  • Vite 构建工具                                         │
 │  • Tailwind CSS 样式框架                                 │
@@ -279,17 +294,19 @@ Category (大类)        Classification (分类)         Source (源实例)
 │  • AnimeSearchResultPanel / MovieSearchResultPanel      │
 │  • MangaSearchResultPanel (v4.1新增)                    │
 │  • NovelSearchResultPanel (v4.2新增)                    │
+│  • JavActressResultsPanel + ActressesPanel (v4.3新增)   │
+│  • DataStorageTab (v4.3新增)                            │
 │  • 部署：Cloudflare Pages                                │
 ├─────────────────────────────────────────────────────────┤
-│                  Provider 层 (v4.2 扩展)                 │
+│                  Provider 层 (v4.3 扩展)                 │
 │  • SearchProvider 接口 + ProviderRegistry 注册中心       │
-│  • anime-provider (Bangumi/Mikan/Nyaa/ShowRSS)          │
+│  • anime-provider (Bangumi/Mikan/ShowRSS)               │
 │  • movie-provider (TMDB/YTS/EZTV/TPB)                   │
 │  • manga-provider (MangaDex/13个搜索源)                 │
 │  • novel-provider (Anna's Archive/奇书网) (v4.2新增)     │
-│  • jav-provider (Metadata/Magnet)                       │
+│  • jav-provider (Metadata/Magnet + Actress子模式 v4.3)  │
 ├─────────────────────────────────────────────────────────┤
-│                  后端服务层 (v4.2.0)                     │
+│                  后端服务层 (v4.3.0)                     │
 │  • Hono 框架 (轻量级 Web 框架)                           │
 │  • TypeScript 类型安全                                   │
 │  • Cloudflare Workers (边缘计算)                         │
@@ -298,6 +315,8 @@ Category (大类)        Classification (分类)         Source (源实例)
 │  • Resend 邮件服务                                       │
 │  • D1 持久化限流 (v4.2新增)                              │
 │  • Google OAuth 登录 (v4.2新增)                          │
+│  • 数据存储管理 (异步落库去重, v4.3新增)                 │
+│  • opencc 简日转换 (女优关键词, v4.3新增)                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -320,11 +339,12 @@ cd Atlas
 # 安装依赖
 pnpm install
 
-# 初始化数据库（含 v4.2 新增小说搜索源）
+# 初始化数据库（含 v4.2 新增小说搜索源，v4.3 新增数据存储表）
 npx wrangler d1 create atlas-db
 npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
 npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
 npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
+npx wrangler d1 execute atlas-db --file=database/11_schema_data_storage.sql
 
 # 本地开发
 pnpm dev
@@ -335,7 +355,7 @@ pnpm build && cd backend && npx wrangler deploy
 
 [查看详细部署指南](docs/deploy.md)
 [查看配置说明](docs/config.md)
-[查看 v4.2 变更日志](docs/CHANGELOG.md)
+[查看 v4.3 变更日志](docs/CHANGELOG.md)
 
 ## 性能优化
 

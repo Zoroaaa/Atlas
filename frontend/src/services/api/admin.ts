@@ -1,5 +1,13 @@
 import { apiClient } from './client';
 import type { Role, AdminUser, AdminUserDetail, UserLoginLog } from '@/types';
+import type {
+  DataRecord,
+  DataRecordDetail,
+  DataStorageStats,
+  DataStorageTrends,
+  DataRecordsQuery,
+  DataRecordStatus,
+} from '@/types';
 
 interface PaginatedResponse<T> {
   items: T[];
@@ -591,5 +599,62 @@ export const adminApi = {
   deleteError: async (errorId: string, byFingerprint: boolean = false): Promise<void> => {
     const query = byFingerprint ? '?byFingerprint=true' : '';
     await apiClient.delete(`/admin/errors/${errorId}${query}`);
+  },
+};
+
+// ============================================================
+// 数据存储管理
+// ============================================================
+
+export const dataStorageApi = {
+  getStats: async (): Promise<DataStorageStats> => {
+    const response = await apiClient.get<{ success: boolean; data: DataStorageStats }>(
+      '/admin/data-storage/stats'
+    );
+    return response.data;
+  },
+
+  getTrends: async (days: number = 30): Promise<DataStorageTrends> => {
+    const response = await apiClient.get<{ success: boolean; data: DataStorageTrends }>(
+      `/admin/data-storage/trends?days=${days}`
+    );
+    return response.data;
+  },
+
+  getRecords: async (params: DataRecordsQuery = {}): Promise<PaginatedResponse<DataRecord>> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.type) queryParams.set('type', params.type);
+    if (params.status) queryParams.set('status', params.status);
+    if (params.search) queryParams.set('search', params.search);
+
+    const response = await apiClient.get<{ success: boolean; data: PaginatedResponse<DataRecord> }>(
+      `/admin/data-storage/records?${queryParams.toString()}`
+    );
+    return response.data;
+  },
+
+  getRecord: async (id: string): Promise<DataRecordDetail> => {
+    const response = await apiClient.get<{ success: boolean; data: DataRecordDetail }>(
+      `/admin/data-storage/records/${id}`
+    );
+    return response.data;
+  },
+
+  updateRecordStatus: async (id: string, status: DataRecordStatus): Promise<void> => {
+    await apiClient.put(`/admin/data-storage/records/${id}/status`, { status });
+  },
+
+  deleteRecord: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/data-storage/records/${id}`);
+  },
+
+  cleanup: async (): Promise<{ deleted: number }> => {
+    const response = await apiClient.post<{ success: boolean; data: { deleted: number } }>(
+      '/admin/data-storage/cleanup',
+      {}
+    );
+    return response.data;
   },
 };

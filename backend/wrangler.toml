@@ -14,7 +14,7 @@ preview_urls = false
 [vars]
 
 # 应用版本（CI/CD 流程中可通过 --var 覆盖）
-APP_VERSION = "2.0.0"
+APP_VERSION = "4.3.0"
 
 # 运行环境标识（区分 development / production 行为）
 APP_ENV = "production"

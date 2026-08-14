@@ -7,7 +7,7 @@
 **An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-4.3.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -52,7 +52,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v2.0 (architecture reconstruction), v3.0 (security enhancement + feature expansion), v3.1 (monorepo sharing + security hardening + performance optimization), v4.0 (anime & movie search + architecture upgrade), v4.1 (comic search + architecture optimization), **v4.2 (novel search + aggregation view + observability)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v2.0 (architecture reconstruction), v3.0 (security enhancement + feature expansion), v3.1 (monorepo sharing + security hardening + performance optimization), v4.0 (anime & movie search + architecture upgrade), v4.1 (comic search + architecture optimization), v4.2 (novel search + aggregation view + observability), **v4.3 (JAV actress search + data storage management + community improvements)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 
 ### Frontend Specialized Documentation
@@ -66,8 +66,8 @@ The project uses a modular documentation system, where each specialized document
 ### Core Advantages
 
 #### 1. Open-Source Search Engine with Aggregated Content
-- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB
-- **Anime Search**: Aggregates data from Bangumi, Mikan, Nyaa, and ShowRSS, including subtitles and magnet links
+- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v4.3 new, data source minnano-av.com)
+- **Anime Search**: Aggregates data from Bangumi, Mikan, and ShowRSS, including subtitles (nyaa source disabled due to deployment environment restrictions, v4.3 adjusted)
 - **Movie Search**: Aggregates metadata from TMDB, YTS, EZTV, and TPB, including seeds and magnets
 - **Comic Search**: Aggregates metadata from MangaDex and 13 other search sources
 - **Novel Search**: Aggregates book metadata from Anna's Archive and TXT direct links from Qishu (v4.2 new)
@@ -131,17 +131,29 @@ Resend → Modern email service with high deliverability and real-time tracking
 
 ## Core Features
 
-### 1. Intelligent Search System (v4.2: Five Categories + Aggregation View)
+### 1. Intelligent Search System (v4.3: Five Categories + JAV Actress Submode + Aggregation View)
 
 #### Five Search Categories
 
 | Category | Data Source | Description |
 |----------|--------|------|
-| **JAV** | DMM/FANZA / JavBus / JavDB | Adult film metadata and magnet aggregation |
-| **Anime** | Bangumi / Mikan / Nyaa / ShowRSS | Anime metadata, subtitle groups, and magnet links |
+| **JAV** | DMM/FANZA / JavBus / JavDB / **minnano-av (actress profiles, v4.3 new)** | Adult film metadata + magnet aggregation + actress profile search |
+| **Anime** | Bangumi / Mikan / ShowRSS | Anime metadata + subtitle groups (nyaa source disabled due to deployment environment restrictions, v4.3 adjusted) |
 | **Movie** | TMDB / YTS / EZTV / TPB | Movie/TV series metadata and seed resources |
 | **Comic** | MangaDex / 13 search sources | Comic metadata and resource aggregation |
 | **Novel** | Anna's Archive / Qishu | Book metadata and TXT direct link resources (v4.2 new) |
+
+#### JAV Submodes (v4.3 new)
+
+JAV search is refined into three submodes, with URL `sub` parameter persistence — refresh / forward-back / share links all restore correctly:
+
+| Submode | Description |
+|---------|------|
+| **code** (code search) | Default mode, precise metadata + magnet matching by code |
+| **actress** (actress search) | Data source minnano-av.com, parses actress profiles (name / kana / romaji / alias / birthday / zodiac / measurements / birthplace / agency / career period / tags / cover), and auto-supplements JavBus works list. Click a work card to jump to code search |
+| **title** (title search) | Fuzzy match by title keyword |
+
+Actress search keywords auto-convert to Japanese (mapping table + opencc simplified-to-Japanese conversion fallback), supporting direct search with Chinese nicknames; actress cards support favorites and sharing to community.
 
 #### Three-Layer Search Architecture
 
@@ -181,6 +193,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Classification Filtering**: Support filtering by large category (JAV/Anime/Movie/Comic/Novel) and sub-classification
 - **Fixed Source Management**: One-click fix common search sources for personalized customization (v4.1 new feature)
 - **Aggregation View**: Work-level resource grouping, multi-source resources merged per work (v4.2 new)
+- **Asynchronous Data Collection**: Search results asynchronously persisted to DB with deduplication and multi-source merging, anonymous design storing no user info (v4.3 new)
 - **History Record**: Automatically save search history (with cover image), support quick re-search and history statistics
 
 #### Search Suggestions and Hot Searches
@@ -213,6 +226,7 @@ Category (large category)        Classification (subcategory)         Source (so
 
 #### Search Source Sharing
 - **Share Search Sources**: Share discovered useful search sources with the community
+- **6 Share Categories Expanded**: Supports full-category content sharing across JAV / Anime / Movie / Comic / Novel / Actress (v4.3 improved — original manga / actress / novel links were broken, now fixed)
 - **Tag Management**: Add tags to search sources for easy classification search
 - **Review Mechanism**: Admin review required before listing to ensure quality
 
@@ -247,6 +261,7 @@ Category (large category)        Classification (subcategory)         Source (so
 
 #### Content Management
 - **Search Source Management**: CRUD system for search sources and classifications (support five major categories)
+- **Data Storage Management**: Search results asynchronously persisted to DB with deduplication, multi-source merging; browse / hide / cleanup stale data by type, with statistics overview (v4.3 new)
 - **Community Review**: Review user-shared search sources
 - **Report Processing**: Process user-reported content
 
@@ -275,7 +290,7 @@ Category (large category)        Classification (subcategory)         Source (so
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Frontend Layer (v4.2.0)              │
+│                    Frontend Layer (v4.3.0)              │
 │  • React 19 + TypeScript                                │
 │  • Vite Build Tool                                       │
 │  • Tailwind CSS Styling Framework                        │
@@ -284,17 +299,19 @@ Category (large category)        Classification (subcategory)         Source (so
 │  • AnimeSearchResultPanel / MovieSearchResultPanel      │
 │  • MangaSearchResultPanel (v4.1 new)                    │
 │  • NovelSearchResultPanel (v4.2 new)                    │
+│  • JavActressResultsPanel + ActressesPanel (v4.3 new)   │
+│  • DataStorageTab (v4.3 new)                            │
 │  • Deployment: Cloudflare Pages                         │
 ├─────────────────────────────────────────────────────────┤
-│                  Provider Layer (v4.2 Extended)          │
+│                  Provider Layer (v4.3 Extended)          │
 │  • SearchProvider Interface + ProviderRegistry Registry   │
-│  • anime-provider (Bangumi/Mikan/Nyaa/ShowRSS)          │
+│  • anime-provider (Bangumi/Mikan/ShowRSS)               │
 │  • movie-provider (TMDB/YTS/EZTV/TPB)                   │
 │  • manga-provider (MangaDex/13 search sources)                 │
 │  • novel-provider (Anna's Archive/Qishu) (v4.2 new)     │
-│  • jav-provider (Metadata/Magnet)                       │
+│  • jav-provider (Metadata/Magnet + Actress submode v4.3) │
 ├─────────────────────────────────────────────────────────┤
-│                  Backend Service Layer (v4.2.0)          │
+│                  Backend Service Layer (v4.3.0)          │
 │  • Hono Framework (Ultra-lightweight Web Framework)      │
 │  • TypeScript Type Safety                                │
 │  • Cloudflare Workers (Edge Computing)                  │
@@ -303,6 +320,8 @@ Category (large category)        Classification (subcategory)         Source (so
 │  • Resend Email Service                                  │
 │  • D1 Persisted Rate Limiting (v4.2 new)                │
 │  • Google OAuth Login (v4.2 new)                        │
+│  • Data Storage Management (async dedup, v4.3 new)       │
+│  • opencc Simplified-to-Japanese conversion (actress keyword, v4.3 new) │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -327,11 +346,12 @@ cd Atlas
 # Install dependencies
 pnpm install
 
-# Initialize database (including v4.2 new novel search sources)
+# Initialize database (including v4.2 new novel search sources, v4.3 new data storage tables)
 npx wrangler d1 create atlas-db
 npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
 npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
 npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
+npx wrangler d1 execute atlas-db --file=database/11_schema_data_storage.sql
 
 # Local development
 pnpm dev
@@ -343,7 +363,7 @@ pnpm build && cd backend && npx wrangler deploy
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
 [See Complete API Documentation](docs/api/index.md)
-[See v4.2 Changelog](docs/CHANGELOG.md)
+[See v4.3 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 

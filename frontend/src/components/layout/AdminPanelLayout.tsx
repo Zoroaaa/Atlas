@@ -23,6 +23,7 @@ import {
   MessageSquarePlus,
   Megaphone,
   Bug,
+  Database,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { id: 'analytics', label: '数据分析', icon: <BarChart2 className="w-[18px] h-[18px]" />, path: '/admin-panel/analytics' },
   { id: 'observability', label: '系统观测', icon: <Bug className="w-[18px] h-[18px]" />, path: '/admin-panel/observability' },
   { id: 'trends', label: '趋势报表', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
+  { id: 'data-storage', label: '数据存储', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
   { id: 'reports', label: '举报处理', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
   { id: 'roles', label: '角色管理', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },
   { id: 'config', label: '系统配置', icon: <Settings className="w-[18px] h-[18px]" />, path: '/admin-panel/config' },

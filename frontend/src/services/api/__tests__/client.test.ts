@@ -24,7 +24,7 @@ vi.mock('@/constants', () => ({
   VALIDATION_RULES: {},
   VERIFICATION_CODE_LENGTH: 6,
   MAX_LOCAL_SEARCH_HISTORY: 100,
-  APP_VERSION: '2.0.0',
+  APP_VERSION: '4.3.0',
 }));
 
 describe('ApiClient', () => {

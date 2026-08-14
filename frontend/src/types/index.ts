@@ -5,3 +5,4 @@ export * from './community';
 export * from './common';
 export * from './notification';
 export * from './jav';
+export * from './data-storage';

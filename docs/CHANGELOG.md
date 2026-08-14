@@ -2,6 +2,92 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v4.3.0] - 2026-08-14
+
+### Added - JAV 女优搜索系统 + 数据存储管理 + 社区完善 🌟
+
+本次版本核心亮点：JAV 搜索新增独立的女优子模式（数据源 minnano-av.com），并打通女优卡片与社区分享链路；管理后台新增数据存储管理功能，搜索结果异步落库去重、多源合并；社区分享扩展至 6 大类别并完善帖子内容展示；多项稳定性与图片代理修复。
+
+---
+
+#### 核心新功能（一）：JAV 女优搜索子模式
+
+- **minnano-av 数据源接入**：JAV tab 新增女优子模式（`sub=actress`），后端抓取 minnano-av.com 搜索页（唯一匹配 302 到详情页，多匹配并发抓前 10 个详情页），解析女优资料（名字 / 假名 / 罗马音 / 别名 / 生日 / 星座 / 三围 / 出身地 / 事务所 / 出道期间 / 标签 / 封面 / 详情链接）。无需任何账号配置，minnano 无反爬
+- **关键词智能转换日文**：minnano 索引为日文新字体 + 假名，中文俗称无法直接搜到。映射表覆盖含假名 / 々 符号 / opencc 转错的女优，opencc 简→日新字体转换兜底纯汉字名，原文透传已输日文 / 罗马音的情况。后端返回 `normalizedKeyword` 供前端站内搜索链接使用
+- **女优名映射表扩充**：新增约 30 条含假名女优（天海翼 / 星奈爱 / 河合亚衣奈 / 神宫寺奈绪 / 松本一花 / 麻美由真 / 辰巳唯等），修复筱田优（筱→篠异体字 opencc 不转）。总数约 70 条，覆盖 2000s-2020s 热门女优
+- **排行榜女优映射补充**：抓取 minnano 三个排行榜验证，修正 5 个纯汉字名被 opencc 误转（藤森里穂 / 小早川怜子 / 音田絵凛 / 桐條紗綾 / 本澤朋美），补充 10 个含假名女优
+- **JavBus 作品列表补充**：女优子模式搜索成功返回数据后，自动用归一化日文名到 JavBus `/search/{keyword}` 抓取前 20 条作品，在女优资料卡下方网格展示（封面 / 番号 / 标题 / 日期），点击作品卡自动切换到番号子模式搜索
+- **女优卡片收藏与社区分享**：女优卡片新增收藏（Heart）与分享到社区按钮，社区分享类型扩展 `actress` 类型
+- **搜索历史信息补全**：JAV 搜索历史的 `saveEnrichedHistory` 加 actress fallback，补全 `title` / `cover` / `code` / `actors` / `tags` 字段
+
+#### 核心新功能（二）：JAV 子模式 URL 参数持久化
+
+- **sub 参数写入 URL**：搜索 / 切 tab / 切子模式均同步 URL（`sub=code/actress/title`），刷新 / 前进后退 / 分享链接可还原正确子模式
+- **闭包陷阱修复**：`handleSearch` 新增 `overrideSubMode` 参数，规避 URL 回读时 `setJavSubMode` 异步导致 code 模式番号校验误报；修复刷新后 URL `sub` 参数被错误改写为 `code` 的问题
+
+#### 核心新功能（三）：数据存储管理系统
+
+- **数据库**：新增 `data_records` + `data_record_sources` 两张表，`UNIQUE(record_type, dedup_key)` 去重，触发器自动维护 `source_count`，支持 JAV / 动漫 / 影视 / 漫画 / 小说 / 女优 全类型
+- **后端**：`persistDataRecord` 异步落库（`waitUntil` 不阻塞搜索响应延迟），多源合并；`/admin/data-storage` 路由提供 stats / records CRUD / status / cleanup，管理员鉴权
+- **集成**：`search.ts` 异步采集首条 + 有详情结果，`jav.ts` 详情页补充 `detail_completed` 标记
+- **前端**：`DataStorageTab` 提供统计概览 + 数据浏览 + 详情 Modal，已注册到 AdminPanelLayout 与 App.tsx
+- **共享类型**：`packages/shared` 与 frontend types 统一类型定义
+- **匿名设计**：仅保留数据本身，不保存用户个人信息
+
+#### 核心新功能（四）：社区分享完善
+
+- **分享类别扩展至 6 类**：统一 `PostType` 在 6 处定义（jav / anime / movie / manga / novel / actress），打通共享类型、后端校验、DB schema、前端 UI 全链路，为小说搜索面板补全分享按钮
+- **帖子内容展示完善**：重写 `PostDetail` 的 6 个 `contentData` renderer 按真实数据结构渲染（anime / movie / manga / novel / actress 原缺失或不匹配）；`PostCard` 按类型展示关键信息徽章；统一 `ResourceItem` 组件合并 `MagnetLinkItem`
+- **标签显示改进**：标签显示 id 改为显示名称，`ShareToCommunityModal` 存 `tagName`，后端 tag 统计和删除检查改用 `tag_name`
+
+### Improved - 性能与稳定性 ⚡
+
+- **安娜搜索上限提升**：搜索上限 10 → 50，取第一页全部结果；描述抓取并发 5 → 10 适配
+- **客户端分页**：前端按 10 条 / 页客户端分页，移除加载更多避免触发第二页抓取
+- **图片代理白名单补齐**：Anna Archive 6 域名 + 奇书网 + z-lib 封面 CDN（`covers.z-lib.sk`）+ `www.minnano-av.com`，修复 `ERR_BLOCKED_BY_ORB`
+
+### Fixed - 问题修复 🔧
+
+- **认证**：修复忘记密码验证码校验必失败（`verifyCode` 用带随机 salt 的 `hashPassword` 重新计算 hash 去匹配数据库，PBKDF2 每次结果不同导致 WHERE 永远查不到；改用确定性 SHA-256 的 `hashToken`，与 `user_sessions.token_hash` 一致）。顺带修复 `getPendingVerification` 重发冷却失效、`recordFailedAttempt` `max_attempts` 锁定失效两个隐性 bug
+- **JAV 女优资料解析**：原解析用全文 `getText` 后正则匹配，页面噪音导致大量字段丢失；改用 `<span>label</span><p>value</p>` 相邻标签结构精确定位字段，`タグ` 字段匹配 `tagarea` div 内的 a 标签列表
+- **图片代理 ORB**：女优封面改走后端 `/api/jav/proxy-image`（`getProxyImageUrl`），避免浏览器对前缀式 `convertToProxyUrl` 的图片资源触发 `net::ERR_BLOCKED_BY_ORB`
+- **女优搜索并行展示**：actress 子模式不再短路返回，改为同时抓取女优数据 + 查用户启用的 jav 源生成多源跳转 URL，前端女优面板与多源卡片上下并行渲染，保留原有搜索体验
+- **数据存储容错**：磁力链接改为复制按钮（`magnet:` 协议浏览器无法直接打开）；JAV 封面落库时补全 javbus 域名（原存相对路径 `/pics/cover/xxx.jpg` 导致 404）；影视 / 动漫明细 `contentData` 存完整首条对象（含 overview / backdrop 等），磁力资源写入 sources 表（原完全丢弃）；Anna 403 时 fallback 到奇书网结果
+- **小说源 typecheck**：移除未使用的 `onPageChange` prop 修复 typecheck
+
+### Changed - 行为变更 ⚠️
+
+- **禁用 nyaa 源**：因部署环境（Cloudflare Workers 出站 IP）无法解决 nyaa.si 的 bot 验证，RSS / HTML 均被拦截，先取消爬这个源。`fetchNyaa` 保留导出便于后续恢复；nyaa 禁用后前端不显示任何提示（`errors.nyaa` 改为 `null`，`nyaaList` 为空时所有 nyaa UI 自动隐藏）
+
+### Technical Details
+
+- **新增文件**：
+  - `backend/src/services/actress-search.ts` — 女优搜索业务逻辑（minnano-av 抓取与解析）
+  - `backend/src/services/actress-name-map.ts` — 女优名映射表（约 70 条 + opencc 转换兜底）
+  - `backend/src/services/data-storage.ts` — 数据存储异步落库服务
+  - `backend/src/routes/data-storage.ts` — 数据存储管理路由（管理员专属）
+  - `backend/src/utils/title-grouping.ts` — 作品归组工具（从 jav-utils 提取复用）
+  - `frontend/src/components/jav/ActressesPanel.tsx` — 女优面板组件
+  - `frontend/src/components/jav/JavActressResultsPanel.tsx` — 女优搜索结果面板
+  - `frontend/src/pages/admin/DataStorageTab.tsx` — 数据存储管理后台 Tab
+  - `frontend/src/hooks/useActresses.ts` — 女优搜索 Hook
+  - `database/11_schema_data_storage.sql` — 数据存储表结构 + 索引 + 触发器
+  - `packages/shared/src/types/data-storage.ts` — 共享类型定义
+  - `frontend/src/types/data-storage.ts` — 前端类型定义
+- **修改文件**：
+  - `backend/src/routes/search.ts` — 集成异步数据采集、JAV 女优子模式分支
+  - `backend/src/routes/jav.ts` — 详情页 `detail_completed` 标记、女优 fallback
+  - `backend/src/services/jav-utils.ts` — 提取 `parseGrid` / `JavItem` / `isValidCode` 供复用
+  - `frontend/src/pages/MainSearchPage.tsx` — JAV 子模式 URL 同步、女优面板渲染
+  - `frontend/src/hooks/useJavSearchFlow.ts` — `handleSearchUrlSync` 闭包修复
+  - `frontend/src/components/community/ShareToCommunityButton.tsx` — 标签名存储、actress 类型
+  - `frontend/src/components/community/PostDetail.tsx` — 6 类 contentData renderer 重写
+  - `frontend/src/components/jav/JavDetailPanel.tsx` — 详情页数据采集集成
+  - `backend/src/utils/email-verification.ts` — 验证码哈希改用 `hashToken`，修复重发冷却与锁定
+  - `backend/wrangler.toml` — `APP_VERSION` 升级至 `4.3.0`
+
+---
+
 ## [v4.2.0] - 2026-08-12
 
 ### Added - 小说搜索 + 聚合视图 + 观测体系 + 多项增强 📚
@@ -383,4 +469,4 @@ CodeSeek 初始版本发布，基于原生 ES6 架构的 JAV 搜索引擎。
 
 **让搜索更简单，让体验更美好！**
 
-Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 4.2.0 | 2026-08-12
+Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 4.3.0 | 2026-08-14

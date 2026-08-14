@@ -17,6 +17,7 @@ import {
   isValidCode,
   type JavItem,
 } from '@/services/jav-utils';
+import { enrichDataRecordFromDetail } from '@/services/data-storage';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
@@ -563,6 +564,13 @@ javRoutes.get('/detail', async (c) => {
         'X-Cache': 'MISS',
       },
     });
+
+    // 数据存储：补充/更新 JAV 记录的磁力来源（异步，不阻塞响应）
+    c.executionCtx.waitUntil(
+      enrichDataRecordFromDetail(c.env.DB, { detail, magnets }).catch((e) =>
+        console.error('[data-storage] enrich error:', e)
+      )
+    );
 
     c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
     return newResponse;

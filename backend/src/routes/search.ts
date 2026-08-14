@@ -22,6 +22,7 @@ import { setTmdbApiKey } from '@/providers/movie-provider';
 import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
 import type { JavItem } from '@/services/jav-utils';
+import { persistDataRecord } from '@/services/data-storage';
 
 const R = VALIDATION_RULES;
 
@@ -172,10 +173,10 @@ async function saveEnrichedHistory(
       break;
     }
     case 'novel': {
-      // 小说：提取首条 Anna's Archive 结果 → title + cover + code(md5:id) + actors(作者) + publisher + tags
-      // 注意：novels[0] 是奇书网置顶项，需跳过，取第一条 Anna's Archive 结果
+      // 小说：优先取 Anna's Archive 结果，fallback 到奇书网置顶结果
+      // （Anna 403 等故障时奇书网是唯一有效数据，不应跳过）
       const novels = (result as { novels?: Array<{ id: string; title: string; cover: string; author?: string; publisher?: string; format?: string; year?: string; category?: string; source?: string }> }).novels;
-      const firstNovel = novels?.find(n => n.source !== '奇书网');
+      const firstNovel = novels?.find(n => n.source !== '奇书网') || novels?.[0];
       if (firstNovel) {
         updateFields.push('title=?, cover=?, code=?');
         updateValues.push(
@@ -358,6 +359,11 @@ searchRoutes.post('/', async (c) => {
               } catch (e) { console.warn('Failed to update search history:', e); }
             }
 
+            // 数据存储：异步落库有效结果（去重，不阻塞响应）
+            c.executionCtx.waitUntil(
+              persistDataRecord(c.env.DB, actressData).catch((e) => console.error('[data-storage] persist error:', e))
+            );
+
             const responsePayload = { success: true, data: actressData };
             const responseBody = JSON.stringify(responsePayload);
             const newResponse = new Response(responseBody, {
@@ -412,6 +418,11 @@ searchRoutes.post('/', async (c) => {
               console.error(`[saveEnrichedHistory] ${provider.id} history save failed:`, histErr);
             }
           }
+
+          // 数据存储：异步落库有效结果（去重，不阻塞响应）
+          c.executionCtx.waitUntil(
+            persistDataRecord(c.env.DB, enrichedData).catch((e) => console.error('[data-storage] persist error:', e))
+          );
 
           // ── Cache Layer: 缓存搜索结果 ──
           const responseBody = JSON.stringify(success(enrichedData, '搜索完成'));
