@@ -286,6 +286,33 @@ export const MainSearchPage: React.FC = () => {
                 if (resultType === 'novel') return favoritesManager.handleToggleFavoriteNovel;
                 return favoritesManager.handleToggleFavoriteMovie;
               };
+              // Novel: 小说卡片 + 多源跳转卡片并行展示（类似 JAV actress 子模式）
+              if (resultType === 'novel' && searchFlow.searchResults.length > 0) {
+                return (
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    <Panel
+                      data={searchFlow.enrichedData}
+                      {...commonProps}
+                      onRefresh={() => searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage)}
+                      onPageChange={(p: number) => searchFlow.handleSearch(searchFlow.keyword, p)}
+                      onToggleFavorite={getToggleFavorite()}
+                    />
+                    <SearchResultsPanel
+                      results={searchFlow.searchResults}
+                      viewMode={viewMode}
+                      isAuthenticated={isAuthenticated}
+                      isProxyEnabled={isProxyEnabled}
+                      favorites={favoritesManager.favorites}
+                      categories={sourceManager.categories}
+                      majorCategories={sourceManager.majorCategories}
+                      onViewModeChange={setViewMode}
+                      onClose={() => searchFlow.resetResults()}
+                      onToggleFavorite={favoritesManager.handleToggleFavorite}
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <Panel
                   data={searchFlow.enrichedData}

@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { SEARCH_TABS } from '@/config/tabs';
 import type { SearchTabType, JavSubMode } from '@/types/source';
-import type { EnrichedSearchData, JavEnrichedData } from '@/types/search';
+import type { EnrichedSearchData, JavEnrichedData, NovelEnrichedData } from '@/types/search';
 import type { JavDetail } from '@/types/jav';
 import type { SearchEndpointResponse, SearchResponseItem } from '@/services/api/types';
 import type { SearchResult } from '@/types';
@@ -179,7 +179,26 @@ export function useSearchFlow({
               setSearchResults(mapped);
             }
           } else {
-            setSearchResults([]);
+            // Novel: 注入多源跳转卡片（与 JAV 机制一致）
+            if (response.data.resultType === 'novel') {
+              const novelData = response.data as NovelEnrichedData;
+              if (novelData.results && novelData.results.length > 0) {
+                setSearchResults(novelData.results.map(r => ({
+                  sourceId: r.id,
+                  sourceName: r.name,
+                  sourceIcon: r.icon,
+                  url: r.url,
+                  subtitle: r.subtitle,
+                  siteType: r.siteType,
+                  category: r.category,
+                  description: r.description,
+                })));
+              } else {
+                setSearchResults([]);
+              }
+            } else {
+              setSearchResults([]);
+            }
             // Anime/Movie: 检查聚合搜索的各数据源错误
             const enriched = response.data as EnrichedSearchData;
             if ('errors' in enriched && enriched.total === 0) {

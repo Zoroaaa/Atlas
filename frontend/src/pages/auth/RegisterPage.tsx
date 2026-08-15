@@ -131,7 +131,7 @@ export const RegisterPage: React.FC = () => {
         setToken(response.data.token);
         setCurrentStep('success');
         notification.auth.registerSuccess();
-        setTimeout(() => navigate('/dashboard'), 2000);
+        setTimeout(() => navigate('/main'), 2000);
       } else {
         notification.auth.registerFailed(response.message || '验证码错误或已过期');
       }
@@ -303,7 +303,7 @@ export const RegisterPage: React.FC = () => {
         <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
       </div>
       <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">注册成功！</h3>
-      <p className="text-stone-600 dark:text-stone-400 mb-6">欢迎加入{appInfo.NAME}，即将跳转到控制台...</p>
+      <p className="text-stone-600 dark:text-stone-400 mb-6">欢迎加入{appInfo.NAME}，即将跳转到主页...</p>
       <div className="flex items-center justify-center gap-2">
         {[0, 150, 300].map((delay, i) => (
           <div key={i} className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: `${delay}ms` }} />

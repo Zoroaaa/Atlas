@@ -155,13 +155,13 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const paged = list.slice((localPage - 1) * PAGE_SIZE, localPage * PAGE_SIZE);
   const isFavorited = (id: string) => favorites.some(f => f.url?.includes(id));
-  const aaError = data.errors?.annas_archive;
+  const zxcsError = data.errors?.zxcs;
   const xqsError = data.errors?.xqishuta;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs text-stone-500">共 {data.total} 条结果 · 来源 Anna's Archive + 奇书网</span>
+        <span className="text-xs text-stone-500">共 {data.total} 条结果 · 来源 知轩藏书 + 奇书网</span>
         <div className="flex items-center gap-2">
           <ShareToCommunityButton
             postData={{
@@ -185,18 +185,18 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
         </div>
       </div>
 
-      {xqsError && (
+      {zxcsError && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs">
-          奇书网抓取失败：{xqsError}（不影响下方 Anna's Archive 结果）
+          知轩藏书抓取失败：{zxcsError}
         </div>
       )}
-      {aaError && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs">
-          Anna's Archive 请求失败：{aaError}
+      {xqsError && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs">
+          奇书网抓取失败：{xqsError}
         </div>
       )}
 
-      {list.length === 0 && !aaError && !xqsError ? (
+      {list.length === 0 && !zxcsError && !xqsError ? (
         <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <BookOpen className="w-10 h-10 mb-2" />
           <span className="text-sm">没有找到相关电子书</span>

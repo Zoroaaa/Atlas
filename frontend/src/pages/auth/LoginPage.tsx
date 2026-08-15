@@ -59,7 +59,7 @@ export const LoginPage: React.FC = () => {
           eventType: 'login',
           eventData: { username: response.data.user.username },
         }).catch(() => {});
-        navigate('/dashboard');
+        navigate('/main');
       } else {
         notification.auth.loginFailed(response.message);
       }

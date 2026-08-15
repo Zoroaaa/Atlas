@@ -289,6 +289,17 @@ export interface NovelEnrichedData {
   total: number;
   errors: Record<string, string | null>;
   novels: NovelItem[];
+  /** 多源跳转卡片（与 JAV 的 results 结构一致，由后端从数据库注入） */
+  results?: Array<{
+    id: string;
+    name: string;
+    subtitle?: string;
+    icon?: string;
+    url: string;
+    siteType: string;
+    category: string;
+    description?: string;
+  }>;
 }
 
 export type EnrichedSearchData = AnimeEnrichedData | MovieEnrichedData | JavEnrichedData | MangaEnrichedData | NovelEnrichedData;

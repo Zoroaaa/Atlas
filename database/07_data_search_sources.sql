@@ -285,8 +285,9 @@ INSERT OR REPLACE INTO search_sources (
     ('comicwalker', 'manga_resources', 'ComicWalker', '', '角川漫画平台', '📖', 'https://comic-walker.com/search/?q={keyword}', 'https://comic-walker.com', 'browse', 1, 8, 1, 1, 999, 0, NULL, NULL, 1784253159000, 1784253159000);
 
 -- ===============================================
--- 10. 搜索源初始化数据 - 电子书库（Anna's Archive + 奇书网）
---    实际搜索由 NovelProvider 直接抓取解析，此条目用于搜索源管理展示
+-- 10. 搜索源初始化数据 - 电子书库
+--    NovelProvider 直接抓取 zxcs/奇书网/Anna 结果（NovelItem 卡片）
+--    以下源用于多源跳转卡片（SearchResultsPanel），与 JAV 的多源机制一致
 -- ===============================================
 
 INSERT OR REPLACE INTO search_sources (
@@ -294,5 +295,11 @@ INSERT OR REPLACE INTO search_sources (
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
 ) VALUES
-    ('annas_archive', 'novel_database', 'Anna''s Archive', '安娜图书馆，全球最大电子书搜索引擎', '聚合 LibGen/Z-Library/互联网档案的电子书搜索引擎，含小说、学术、非小说等', '📚', 'https://zh.annas-archive.gl/search?q={keyword}', 'https://zh.annas-archive.gl', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1786419802000, 1786419802000),
-    ('xqishuta', 'novel_database', '奇书网', 'TXT小说电子书全本免费下载', '提供全本完结TXT小说免费下载，搜索结果置顶展示并直接提供txt下载链接', '📖', 'http://www.xqishuta.org/search.html?searchkey={keyword}', 'http://www.xqishuta.org', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1786419803000, 1786419803000);
+    ('zlibrary', 'novel_database', 'Z-Library', '全球最大电子图书馆', '全球最大的影子图书馆，含小说、学术、非小说等海量电子书', '📚', 'https://zh.z-library.sk/s/{keyword}', 'https://zh.z-library.sk', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1786419801500, 1786419801500),
+    ('annas_archive', 'novel_database', 'Anna''s Archive', '安娜图书馆，全球最大电子书搜索引擎', '聚合 LibGen/Z-Library/互联网档案的电子书搜索引擎，含小说、学术、非小说等', '📚', 'https://zh.annas-archive.gl/search?q={keyword}', 'https://zh.annas-archive.gl', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1786419802000, 1786419802000),
+    ('zxcs', 'novel_database', '知轩藏书', '精校版全本TXT下载', '知轩藏书dzs，提供精校版全本TXT小说免费下载，质量高无错字', '📖', 'https://zxcs.zip/search?q={keyword}', 'https://zxcs.zip', 'search', 1, 3, 1, 1, 3, 0, NULL, NULL, 1786419802500, 1786419802500),
+    ('xqishuta', 'novel_database', '奇书网', 'TXT小说电子书全本免费下载', '提供全本完结TXT小说免费下载', '📖', 'http://www.xqishuta.org/search.html?searchkey={keyword}', 'http://www.xqishuta.org', 'search', 1, 4, 1, 1, 4, 0, NULL, NULL, 1786419803000, 1786419803000),
+    ('sobooks', 'novel_database', 'SoBooks', '电子书免费下载', '免费电子书下载站，含小说、人文、社科等分类', '📚', 'https://sobooks.cc/?s={keyword}', 'https://sobooks.cc', 'search', 1, 5, 1, 1, 5, 0, NULL, NULL, 1786419804000, 1786419804000),
+    ('lunarora', 'novel_database', 'Lunarora', '电子书搜索引擎', '电子书搜索与下载站', '📚', 'https://lunarora.com/search?q={keyword}', 'https://lunarora.com', 'search', 1, 6, 1, 1, 6, 0, NULL, NULL, 1786419805000, 1786419805000),
+    ('pdfs', 'novel_database', 'PDFs.top', 'PDF电子书下载', 'PDF电子书搜索与下载站', '📄', 'https://pdfs.top/search?query={keyword}', 'https://pdfs.top', 'search', 1, 7, 1, 1, 7, 0, NULL, NULL, 1786419806000, 1786419806000),
+    ('dushupai', 'novel_database', '读书派', '电子书搜索下载', '电子书搜索与下载站', '📖', 'https://www.dushupai.com/search.html?k={keyword}', 'https://www.dushupai.com', 'search', 1, 8, 1, 1, 8, 0, NULL, NULL, 1786419807000, 1786419807000);
