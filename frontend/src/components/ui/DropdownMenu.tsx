@@ -412,18 +412,20 @@ import {
   Tags,
 } from 'lucide-react';
 import type { NavigateFunction } from 'react-router-dom';
+import { type TFunction } from 'i18next';
 
 /**
  * 用户操作菜单
  */
 export const userMenuItems = (
+  t: TFunction,
   navigate: NavigateFunction,
   logout: () => void,
   _username?: string
 ): MenuItem[] => [
   {
     id: 'dashboard',
-    label: '控制台',
+    label: t('ui:menu.dashboard'),
     icon: <LayoutDashboard className="w-4 h-4" />,
     onClick: () => navigate('/dashboard'),
   },
@@ -434,19 +436,19 @@ export const userMenuItems = (
   },
   {
     id: 'favorites',
-    label: '我的收藏',
+    label: t('ui:menu.favorites'),
     icon: <Heart className="w-4 h-4" />,
     onClick: () => navigate('/dashboard/favorites'),
   },
   {
     id: 'history',
-    label: '搜索历史',
+    label: t('ui:menu.history'),
     icon: <Clock className="w-4 h-4" />,
     onClick: () => navigate('/dashboard/history'),
   },
   {
     id: 'settings',
-    label: '设置',
+    label: t('ui:menu.settings'),
     icon: <Settings className="w-4 h-4" />,
     onClick: () => navigate('/dashboard/settings'),
   },
@@ -457,7 +459,7 @@ export const userMenuItems = (
   },
   {
     id: 'logout',
-    label: '退出登录',
+    label: t('ui:menu.logout'),
     icon: <LogOut className="w-4 h-4" />,
     danger: true,
     onClick: logout,
@@ -468,23 +470,24 @@ export const userMenuItems = (
  * 管理员菜单
  */
 export const adminMenuItems = (
+  t: TFunction,
   navigate: NavigateFunction
 ): MenuItem[] => [
   {
     id: 'admin-panel',
-    label: '管理后台',
+    label: t('ui:menu.adminPanel'),
     icon: <ShieldAlert className="w-4 h-4" />,
     onClick: () => navigate('/admin-panel'),
   },
   {
     id: 'users',
-    label: '用户管理',
+    label: t('ui:menu.users'),
     icon: <Users className="w-4 h-4" />,
     onClick: () => navigate('/admin-panel/users'),
   },
   {
     id: 'system-config',
-    label: '系统配置',
+    label: t('ui:menu.systemConfig'),
     icon: <Settings className="w-4 h-4" />,
     onClick: () => navigate('/admin-panel/config'),
   },
@@ -494,29 +497,30 @@ export const adminMenuItems = (
  * 社区入口菜单
  */
 export const communityMenuItems = (
+  t: TFunction,
   navigate: NavigateFunction
 ): MenuItem[] => [
   {
     id: 'community-home',
-    label: '社区首页',
+    label: t('ui:menu.communityHome'),
     icon: <Globe className="w-4 h-4" />,
     onClick: () => navigate('/community'),
   },
   {
     id: 'my-shares',
-    label: '我的分享',
+    label: t('ui:menu.myShares'),
     icon: <Share2 className="w-4 h-4" />,
     onClick: () => navigate('/community/my-shares'),
   },
   {
     id: 'favorites',
-    label: '我的收藏',
+    label: t('ui:menu.favorites'),
     icon: <Heart className="w-4 h-4" />,
     onClick: () => navigate('/community/favorites'),
   },
   {
     id: 'tags',
-    label: '标签浏览',
+    label: t('ui:menu.tags'),
     icon: <Tags className="w-4 h-4" />,
     onClick: () => navigate('/community/tags'),
   },

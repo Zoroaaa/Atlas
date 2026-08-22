@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Share2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ShareToCommunityModal } from '@/pages/community/ShareToCommunityModal';
 
 export interface SharePostData {
@@ -37,6 +38,7 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
   onLoginRequired,
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
+  const { t } = useTranslation(['community']);
 
   const handleClick = () => {
     if (!isAuthenticated) {
@@ -57,10 +59,10 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
           ${sizeStyles[size]}
           ${className}
         `}
-        title="分享到社区"
+        title={t('community:share.toCommunity')}
       >
         <Share2 className={iconSizes[size]} />
-        <span>分享到社区</span>
+        <span>{t('community:share.toCommunity')}</span>
       </button>
 
       <ShareToCommunityModal

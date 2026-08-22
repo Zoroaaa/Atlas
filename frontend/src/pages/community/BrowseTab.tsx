@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import {
   Search,
@@ -20,21 +21,22 @@ import { PostDetail } from './PostDetail';
 
 
 const TYPE_FILTERS = [
-  { key: 'all' as const, label: '全部', icon: null },
-  { key: 'jav' as const, label: '番号', icon: Film },
-  { key: 'anime' as const, label: '动漫', icon: Tv },
-  { key: 'movie' as const, label: '影视', icon: Film },
-  { key: 'manga' as const, label: '漫画', icon: BookOpen },
-  { key: 'novel' as const, label: '小说', icon: Library },
-  { key: 'actress' as const, label: '女优', icon: Users },
+  { key: 'all' as const, labelKey: 'communityPages:browse.filterAll', icon: null },
+  { key: 'jav' as const, labelKey: 'communityPages:browse.filterJav', icon: Film },
+  { key: 'anime' as const, labelKey: 'communityPages:browse.filterAnime', icon: Tv },
+  { key: 'movie' as const, labelKey: 'communityPages:browse.filterMovie', icon: Film },
+  { key: 'manga' as const, labelKey: 'communityPages:browse.filterManga', icon: BookOpen },
+  { key: 'novel' as const, labelKey: 'communityPages:browse.filterNovel', icon: Library },
+  { key: 'actress' as const, labelKey: 'communityPages:browse.filterActress', icon: Users },
 ];
 
 const SORT_OPTIONS = [
-  { key: 'latest' as const, label: '最新', icon: Clock },
-  { key: 'hot' as const, label: '最热', icon: Flame },
+  { key: 'latest' as const, labelKey: 'communityPages:browse.sortLatest', icon: Clock },
+  { key: 'hot' as const, labelKey: 'communityPages:browse.sortHot', icon: Flame },
 ];
 
 export const BrowseTab: React.FC = () => {
+  const { t } = useTranslation(['communityPages']);
   const {
     posts,
     postsLoading,
@@ -107,7 +109,7 @@ export const BrowseTab: React.FC = () => {
         <div className="flex flex-col gap-4">
           {/* 搜索框 */}
           <Input
-            placeholder="搜索帖子标题、推荐语..."
+            placeholder={t('communityPages:browse.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             leftIcon={<Search className="w-4 h-4" />}
@@ -133,7 +135,7 @@ export const BrowseTab: React.FC = () => {
                   )}
                 >
                   {filter.icon && <filter.icon className="w-3.5 h-3.5" />}
-                  {filter.label}
+                  {t(filter.labelKey)}
                 </button>
               ))}
             </div>
@@ -156,7 +158,7 @@ export const BrowseTab: React.FC = () => {
                     )}
                   >
                     <sort.icon className="w-3 h-3" />
-                    {sort.label}
+                    {t(sort.labelKey)}
                   </button>
                 ))}
               </div>
@@ -171,7 +173,7 @@ export const BrowseTab: React.FC = () => {
                       ? 'bg-white dark:bg-stone-700 text-stone-900 shadow-sm'
                       : 'text-stone-400 hover:text-stone-600'
                   )}
-                  title="网格视图"
+                  title={t('communityPages:browse.gridView')}
                 >
                   <Grid3X3 className="w-4 h-4" />
                 </button>
@@ -183,7 +185,7 @@ export const BrowseTab: React.FC = () => {
                       ? 'bg-white dark:bg-stone-700 text-stone-900 shadow-sm'
                       : 'text-stone-400 hover:text-stone-600'
                   )}
-                  title="列表视图"
+                  title={t('communityPages:browse.listView')}
                 >
                   <LayoutList className="w-4 h-4" />
                 </button>
@@ -201,26 +203,27 @@ export const BrowseTab: React.FC = () => {
       {/* 帖子数量提示 */}
       {!postsLoading && postsTotal > 0 && (
         <p className="text-sm text-stone-400">
-          共找到 <span className="font-semibold text-stone-600 dark:text-stone-300">{postsTotal}</span> 个帖子
+          {t('communityPages:browse.totalFound', { total: postsTotal })}
         </p>
       )}
+
 
       {/* 加载状态 */}
       {postsLoading && posts.length === 0 ? (
         <div className="flex justify-center py-16">
-          <Loading size="lg" text="加载中..." />
+          <Loading size="lg" text={t('communityPages:browse.loading')} />
         </div>
       ) : posts.length === 0 ? (
         /* 空状态 */
         <EmptyState
           icon={<Search className="w-12 h-12" />}
-          title="暂无帖子"
+          title={t('communityPages:browse.emptyTitle')}
           description={
             searchQuery
-              ? `没有找到与 "${searchQuery}" 相关的帖子`
+              ? t('communityPages:browse.emptyWithSearch', { query: searchQuery })
               : postTypeFilter !== 'all'
-              ? `${TYPE_FILTERS.find(f => f.key === postTypeFilter)?.label}分类下还没有帖子`
-              : '社区还没有任何分享，快来发布第一个吧'
+              ? t('communityPages:browse.emptyWithType', { label: t(TYPE_FILTERS.find(f => f.key === postTypeFilter)?.labelKey || '') })
+              : t('communityPages:browse.emptyDefault')
           }
         />
       ) : (
@@ -247,7 +250,7 @@ export const BrowseTab: React.FC = () => {
           {/* 分页 */}
           {postsTotal > 20 && (
             <div className="flex items-center justify-between pt-4">
-              <span className="text-sm text-stone-400">共 {postsTotal} 条</span>
+              <span className="text-sm text-stone-400">{t('communityPages:browse.totalCount', { total: postsTotal })}</span>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -255,7 +258,7 @@ export const BrowseTab: React.FC = () => {
                   disabled={page <= 1}
                   onClick={() => handlePageChange(page - 1)}
                 >
-                  上一页
+                  {t('communityPages:browse.prevPage')}
                 </Button>
                 <span className="flex items-center px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600 dark:text-stone-400">
                   {page}
@@ -266,7 +269,7 @@ export const BrowseTab: React.FC = () => {
                   disabled={posts.length < 20}
                   onClick={() => handlePageChange(page + 1)}
                 >
-                  下一页
+                  {t('communityPages:browse.nextPage')}
                 </Button>
               </div>
             </div>

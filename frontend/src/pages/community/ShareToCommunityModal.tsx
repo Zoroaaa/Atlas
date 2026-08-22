@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { Film, Tv, Send, BookOpen, Users, Library } from 'lucide-react';
 import { Modal, Button, TextArea } from '@/components/ui';
@@ -20,12 +21,12 @@ interface ShareToCommunityModalProps {
 }
 
 const POST_TYPE_CONFIG = {
-  jav: { label: '番号', icon: Film, color: 'text-rose-500' },
-  anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
-  movie: { label: '影视', icon: Film, color: 'text-amber-500' },
-  manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500' },
-  novel: { label: '小说', icon: Library, color: 'text-emerald-500' },
-  actress: { label: '女优', icon: Users, color: 'text-pink-500' },
+  jav: { icon: Film, color: 'text-rose-500' },
+  anime: { icon: Tv, color: 'text-rose-500' },
+  movie: { icon: Film, color: 'text-amber-500' },
+  manga: { icon: BookOpen, color: 'text-violet-500' },
+  novel: { icon: Library, color: 'text-emerald-500' },
+  actress: { icon: Users, color: 'text-pink-500' },
 };
 
 /**
@@ -57,6 +58,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
   initialData,
   onSuccess,
 }) => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const { isAuthenticated } = useAuthStore();
   const { tags, fetchTags, createPost } = useCommunityStore();
@@ -93,17 +95,17 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
 
   const handleSubmit = async () => {
     if (!isAuthenticated) {
-      toast.warning('请先登录');
+      toast.warning(t('communityPages:shareModal.loginRequired'));
       return;
     }
 
     if (caption.trim().length === 0) {
-      toast.error('请填写推荐语');
+      toast.error(t('communityPages:shareModal.captionRequired'));
       return;
     }
 
     if (caption.length > 200) {
-      toast.error('推荐语不能超过200字');
+      toast.error(t('communityPages:shareModal.captionTooLong'));
       return;
     }
 
@@ -120,12 +122,12 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
         tags: selectedTags,
       });
 
-      toast.success('分享成功！帖子已发布到社区');
+      toast.success(t('communityPages:shareModal.published'));
       onClose();
       onSuccess?.({} as any); // 实际数据由store处理
     } catch (error) {
       console.error('发布失败:', error);
-      toast.error('发布失败，请重试');
+      toast.error(t('communityPages:shareModal.publishFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -135,14 +137,14 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
     <Modal
       isOpen={open}
       onClose={onClose}
-      title="分享到社区"
+      title={t('communityPages:shareModal.title')}
       size="lg"
     >
       <div className="space-y-5">
         {/* 预览卡片区 */}
         <div>
           <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-            预览内容
+            {t('communityPages:shareModal.preview')}
           </label>
           <div className="flex gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
             {/* 封面预览 */}
@@ -165,7 +167,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
               <div className="flex items-center gap-2">
                 <TypeIcon className={clsx('w-4 h-4', typeConfig.color)} />
                 <span className={clsx('text-xs font-medium', typeConfig.color)}>
-                  {typeConfig.label}
+                  {t(`communityPages:shareModal.types.${initialData.postType}`)}
                 </span>
               </div>
               <h4 className="font-semibold text-sm text-stone-900 dark:text-stone-100 line-clamp-2 leading-snug">
@@ -182,19 +184,19 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
 
         {/* 推荐语输入 */}
         <TextArea
-          label="推荐语 *"
+          label={t('communityPages:shareModal.captionLabel')}
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          placeholder="分享你的发现...（最多200字）"
+          placeholder={t('communityPages:shareModal.captionPlaceholder')}
           rows={3}
           fullWidth
-          hint={`${caption.length}/200`}
+          hint={t('communityPages:shareModal.captionHint', { count: caption.length })}
         />
 
         {/* 标签选择器 */}
         <div>
           <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-            选择标签（可选）
+            {t('communityPages:shareModal.tagsLabel')}
           </label>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
@@ -218,7 +220,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
               </button>
             ))}
             {tags.length === 0 && (
-              <span className="text-sm text-stone-400">暂无可用标签</span>
+              <span className="text-sm text-stone-400">{t('communityPages:shareModal.noTags')}</span>
             )}
           </div>
         </div>
@@ -226,7 +228,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
         {/* 操作按钮 */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <Button variant="outline" onClick={onClose} disabled={submitting}>
-            取消
+            {t('communityPages:shareModal.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -235,13 +237,13 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
             disabled={!isAuthenticated || !caption.trim()}
             leftIcon={<Send className="w-4 h-4" />}
           >
-            发布分享
+            {t('communityPages:shareModal.publish')}
           </Button>
         </div>
 
         {!isAuthenticated && (
           <p className="text-xs text-center text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
-            请先登录后再发布分享
+            {t('communityPages:shareModal.loginHint')}
           </p>
         )}
       </div>

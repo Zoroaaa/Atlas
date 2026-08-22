@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { Heart, Star, MessageSquare, Eye, Bookmark, Users, Film, Tv, BookOpen, Library, Download } from 'lucide-react';
 import { Card, Badge, ProxyImage } from '@/components/ui';
@@ -13,12 +14,12 @@ interface PostCardProps {
 }
 
 const POST_TYPE_CONFIG = {
-  jav: { label: '番号', icon: Film, color: 'bg-rose-500', badgeVariant: 'error' as const },
-  anime: { label: '动漫', icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
-  movie: { label: '影视', icon: Film, color: 'bg-amber-500', badgeVariant: 'primary' as const },
-  manga: { label: '漫画', icon: BookOpen, color: 'bg-violet-500', badgeVariant: 'primary' as const },
-  novel: { label: '小说', icon: Library, color: 'bg-emerald-500', badgeVariant: 'primary' as const },
-  actress: { label: '女优', icon: Users, color: 'bg-pink-500', badgeVariant: 'accent' as const },
+  jav: { icon: Film, color: 'bg-rose-500', badgeVariant: 'error' as const },
+  anime: { icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
+  movie: { icon: Film, color: 'bg-amber-500', badgeVariant: 'primary' as const },
+  manga: { icon: BookOpen, color: 'bg-violet-500', badgeVariant: 'primary' as const },
+  novel: { icon: Library, color: 'bg-emerald-500', badgeVariant: 'primary' as const },
+  actress: { icon: Users, color: 'bg-pink-500', badgeVariant: 'accent' as const },
 };
 
 /**
@@ -48,23 +49,24 @@ const normalizeImageUrl = (url: string): string => {
   return url;
 };
 
-const formatDate = (timestamp: number) => {
-  if (!timestamp) return '';
-  const d = new Date(timestamp);
-  const now = Date.now();
-  const diff = now - timestamp;
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
-  return d.toLocaleDateString('zh-CN');
-};
-
 export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, onClick }) => {
+  const { t } = useTranslation(['communityPages']);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [favAnimating, setFavAnimating] = useState(false);
   const typeConfig = POST_TYPE_CONFIG[post.postType];
   const TypeIcon = typeConfig.icon;
+
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    const now = Date.now();
+    const diff = now - timestamp;
+    if (diff < 60000) return t('communityPages:postCard.justNow');
+    if (diff < 3600000) return t('communityPages:postCard.minutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('communityPages:postCard.hoursAgo', { count: Math.floor(diff / 3600000) });
+    if (diff < 604800000) return t('communityPages:postCard.daysAgo', { count: Math.floor(diff / 86400000) });
+    return d.toLocaleDateString('zh-CN');
+  };
 
   let contentData: Record<string, any> = {};
   try {
@@ -120,7 +122,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
         <div className="absolute top-3 left-3">
           <Badge variant={typeConfig.badgeVariant} size="sm">
             <TypeIcon className="w-3 h-3 mr-1" />
-            {typeConfig.label}
+            {t(`communityPages:postCard.types.${post.postType}`)}
           </Badge>
         </div>
 
@@ -204,7 +206,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
             </div>
           )}
           <span className="text-xs text-stone-600 dark:text-stone-400 truncate flex-1">
-            {post.userName || '匿名用户'}
+            {post.userName || t('communityPages:postCard.anonymous')}
           </span>
           <span className="text-xs text-stone-400 whitespace-nowrap">{formatDate(post.createdAt)}</span>
         </div>
@@ -246,7 +248,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
                   : 'text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20',
                 likeAnimating && 'animate-bounce'
               )}
-              title={post.isLiked ? '取消点赞' : '点赞'}
+              title={post.isLiked ? t('communityPages:postCard.unlike') : t('communityPages:postCard.like')}
             >
               <Heart
                 className={clsx(
@@ -268,7 +270,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
                   : 'text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20',
                 favAnimating && 'animate-bounce'
               )}
-              title={post.isFavorited ? '取消收藏' : '收藏'}
+              title={post.isFavorited ? t('communityPages:postCard.unfavorite') : t('communityPages:postCard.favorite')}
             >
               <Bookmark
                 className={clsx(

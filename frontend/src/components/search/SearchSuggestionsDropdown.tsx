@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { Search, Clock, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { SearchSuggestionItem } from '@/hooks/useSearchSuggestions';
 
 interface SearchSuggestionsDropdownProps {
@@ -17,6 +18,7 @@ export const SearchSuggestionsDropdown: React.FC<SearchSuggestionsDropdownProps>
   onSelect,
   onClose,
 }) => {
+  const { t } = useTranslation(['search']);
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -88,10 +90,10 @@ export const SearchSuggestionsDropdown: React.FC<SearchSuggestionsDropdownProps>
       {isLoading && displaySuggestions.length === 0 ? (
         <div className="flex items-center justify-center gap-2 px-4 py-3 text-sm text-surface-400">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>搜索建议中...</span>
+          <span>{t('search:suggestions.loading')}</span>
         </div>
       ) : displaySuggestions.length === 0 ? (
-        <div className="px-4 py-3 text-sm text-surface-400">暂无建议</div>
+        <div className="px-4 py-3 text-sm text-surface-400">{t('search:suggestions.empty')}</div>
       ) : (
         <ul className="py-1">
           {displaySuggestions.map((item, index) => (
@@ -114,7 +116,7 @@ export const SearchSuggestionsDropdown: React.FC<SearchSuggestionsDropdownProps>
               )}
               <span className="truncate flex-1">{item.keyword}</span>
               {item.count !== undefined && item.count > 0 && (
-                <span className="text-xs text-surface-400 shrink-0">{item.count}次</span>
+                <span className="text-xs text-surface-400 shrink-0">{t('search:suggestions.count', { count: item.count })}</span>
               )}
             </li>
           ))}

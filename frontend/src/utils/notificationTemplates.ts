@@ -1,3 +1,4 @@
+import i18next from '@/i18n';
 import type { ToastType } from '@/types';
 
 export interface NotificationTemplate {
@@ -7,411 +8,422 @@ export interface NotificationTemplate {
   duration?: number;
 }
 
+/**
+ * 集中式 Toast 通知模板
+ *
+ * 设计：所有字符串走 i18next.t()，响应语言切换；
+ *   - 后端返回的 reason 字符串原样透传（不翻译，遵循"仅前端报错"约定）；
+ *   - 函数签名保持不变，调用方零改动。
+ */
 export const NotificationTemplates = {
   auth: {
     loginSuccess: (username: string): NotificationTemplate => ({
       type: 'success',
-      title: '登录成功',
-      message: `欢迎回来，${username}`,
+      title: i18next.t('notifications:auth.loginSuccessTitle'),
+      message: i18next.t('notifications:auth.loginSuccessMessage', { username }),
     }),
     loginFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '登录失败',
-      message: reason || '用户名或密码错误',
+      title: i18next.t('notifications:auth.loginFailedTitle'),
+      message: reason || i18next.t('notifications:auth.loginFailedDefault'),
     }),
     logoutSuccess: (): NotificationTemplate => ({
       type: 'info',
-      title: '已退出登录',
-      message: '期待您的再次使用',
+      title: i18next.t('notifications:auth.logoutSuccessTitle'),
+      message: i18next.t('notifications:auth.logoutSuccessMessage'),
     }),
     registerSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '注册成功',
-      message: '欢迎加入 Atlas',
+      title: i18next.t('notifications:auth.registerSuccessTitle'),
+      message: i18next.t('notifications:auth.registerSuccessMessage'),
     }),
     registerFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '注册失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:auth.registerFailedTitle'),
+      message: reason || i18next.t('notifications:auth.registerFailedDefault'),
     }),
     emailCodeSent: (): NotificationTemplate => ({
       type: 'success',
-      title: '验证码已发送',
-      message: '请检查您的邮箱',
+      title: i18next.t('notifications:auth.emailCodeSentTitle'),
+      message: i18next.t('notifications:auth.emailCodeSentMessage'),
     }),
     emailCodeResent: (): NotificationTemplate => ({
       type: 'success',
-      title: '验证码已重新发送',
+      title: i18next.t('notifications:auth.emailCodeResentTitle'),
     }),
     emailCodeFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '发送失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:auth.emailCodeFailedTitle'),
+      message: reason || i18next.t('notifications:auth.emailCodeFailedDefault'),
     }),
     passwordResetSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '密码重置成功',
-      message: '请使用新密码登录',
+      title: i18next.t('notifications:auth.passwordResetSuccessTitle'),
+      message: i18next.t('notifications:auth.passwordResetSuccessMessage'),
     }),
     passwordResetFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '重置失败',
-      message: reason || '验证码错误或已过期',
+      title: i18next.t('notifications:auth.passwordResetFailedTitle'),
+      message: reason || i18next.t('notifications:auth.passwordResetFailedDefault'),
     }),
     passwordChangeSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '密码已更新',
-      message: '请重新登录',
+      title: i18next.t('notifications:auth.passwordChangeSuccessTitle'),
+      message: i18next.t('notifications:auth.passwordChangeSuccessMessage'),
     }),
     passwordChangeFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '修改失败',
-      message: reason || '当前密码可能不正确',
+      title: i18next.t('notifications:auth.passwordChangeFailedTitle'),
+      message: reason || i18next.t('notifications:auth.passwordChangeFailedDefault'),
     }),
     profileUpdateSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '更新成功',
-      message: '个人资料已更新',
+      title: i18next.t('notifications:auth.profileUpdateSuccessTitle'),
+      message: i18next.t('notifications:auth.profileUpdateSuccessMessage'),
     }),
     profileUpdateFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '更新失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:auth.profileUpdateFailedTitle'),
+      message: reason || i18next.t('notifications:auth.profileUpdateFailedDefault'),
     }),
     accountDeleted: (): NotificationTemplate => ({
       type: 'success',
-      title: '账户已删除',
-      message: '感谢您的使用',
+      title: i18next.t('notifications:auth.accountDeletedTitle'),
+      message: i18next.t('notifications:auth.accountDeletedMessage'),
     }),
   },
 
   proxy: {
     enabled: (): NotificationTemplate => ({
       type: 'success',
-      title: '代理已启用',
-      message: '搜索将通过代理服务器进行',
+      title: i18next.t('notifications:proxy.enabledTitle'),
+      message: i18next.t('notifications:proxy.enabledMessage'),
     }),
     disabled: (): NotificationTemplate => ({
       type: 'info',
-      title: '代理已关闭',
-      message: '搜索将直接访问目标站点',
+      title: i18next.t('notifications:proxy.disabledTitle'),
+      message: i18next.t('notifications:proxy.disabledMessage'),
     }),
     toggleFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '代理切换失败',
-      message: reason || '请检查代理服务状态',
+      title: i18next.t('notifications:proxy.toggleFailedTitle'),
+      message: reason || i18next.t('notifications:proxy.toggleFailedDefault'),
     }),
     healthCheckFailed: (): NotificationTemplate => ({
       type: 'warning',
-      title: '代理健康检查失败',
-      message: '代理服务可能不可用',
+      title: i18next.t('notifications:proxy.healthCheckFailedTitle'),
+      message: i18next.t('notifications:proxy.healthCheckFailedMessage'),
     }),
   },
 
   favorite: {
     added: (): NotificationTemplate => ({
       type: 'success',
-      title: '已添加到收藏',
+      title: i18next.t('notifications:favorite.addedTitle'),
     }),
     removed: (): NotificationTemplate => ({
       type: 'success',
-      title: '已取消收藏',
+      title: i18next.t('notifications:favorite.removedTitle'),
     }),
     addFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '收藏失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:favorite.addFailedTitle'),
+      message: reason || i18next.t('notifications:favorite.addFailedDefault'),
     }),
     removeFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '取消收藏失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:favorite.removeFailedTitle'),
+      message: reason || i18next.t('notifications:favorite.removeFailedDefault'),
     }),
     syncSuccess: (count: number): NotificationTemplate => ({
       type: 'success',
-      title: '同步成功',
-      message: `已同步 ${count} 个收藏`,
+      title: i18next.t('notifications:favorite.syncSuccessTitle'),
+      message: i18next.t('notifications:favorite.syncSuccessMessage', { count }),
     }),
     syncFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '同步失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:favorite.syncFailedTitle'),
+      message: reason || i18next.t('notifications:favorite.syncFailedDefault'),
     }),
     loadFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '加载失败',
-      message: '无法加载收藏列表',
+      title: i18next.t('notifications:favorite.loadFailedTitle'),
+      message: i18next.t('notifications:favorite.loadFailedMessage'),
     }),
   },
 
   source: {
     created: (name?: string): NotificationTemplate => ({
       type: 'success',
-      title: '创建成功',
-      message: name ? `搜索源「${name}」已添加` : undefined,
+      title: i18next.t('notifications:source.createdTitle'),
+      message: name ? i18next.t('notifications:source.createdMessage', { name }) : undefined,
     }),
     updated: (): NotificationTemplate => ({
       type: 'success',
-      title: '更新成功',
+      title: i18next.t('notifications:source.updatedTitle'),
     }),
     deleted: (): NotificationTemplate => ({
       type: 'success',
-      title: '删除成功',
+      title: i18next.t('notifications:source.deletedTitle'),
     }),
     createFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '创建失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:source.createFailedTitle'),
+      message: reason || i18next.t('notifications:source.createFailedDefault'),
     }),
     updateFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '更新失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:source.updateFailedTitle'),
+      message: reason || i18next.t('notifications:source.updateFailedDefault'),
     }),
     deleteFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '删除失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:source.deleteFailedTitle'),
+      message: reason || i18next.t('notifications:source.deleteFailedDefault'),
     }),
     loadFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '加载失败',
-      message: '无法加载搜索源数据',
+      title: i18next.t('notifications:source.loadFailedTitle'),
+      message: i18next.t('notifications:source.loadFailedMessage'),
     }),
     enabled: (name?: string): NotificationTemplate => ({
       type: 'success',
-      title: '已启用',
-      message: name ? `搜索源「${name}」已启用` : undefined,
+      title: i18next.t('notifications:source.enabledTitle'),
+      message: name ? i18next.t('notifications:source.enabledMessage', { name }) : undefined,
     }),
     disabled: (name?: string): NotificationTemplate => ({
       type: 'info',
-      title: '已禁用',
-      message: name ? `搜索源「${name}」已禁用` : undefined,
+      title: i18next.t('notifications:source.disabledTitle'),
+      message: name ? i18next.t('notifications:source.disabledMessage', { name }) : undefined,
     }),
     batchEnabled: (count: number): NotificationTemplate => ({
       type: 'success',
-      title: '批量启用成功',
-      message: `已启用 ${count} 个搜索源`,
+      title: i18next.t('notifications:source.batchEnabledTitle'),
+      message: i18next.t('notifications:source.batchEnabledMessage', { count }),
     }),
     batchDisabled: (count: number): NotificationTemplate => ({
       type: 'info',
-      title: '批量禁用成功',
-      message: `已禁用 ${count} 个搜索源`,
+      title: i18next.t('notifications:source.batchDisabledTitle'),
+      message: i18next.t('notifications:source.batchDisabledMessage', { count }),
     }),
     exported: (): NotificationTemplate => ({
       type: 'success',
-      title: '导出成功',
+      title: i18next.t('notifications:source.exportedTitle'),
     }),
     exportFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '导出失败',
-      message: '请稍后重试',
+      title: i18next.t('notifications:source.exportFailedTitle'),
+      message: i18next.t('notifications:source.exportFailedMessage'),
     }),
     imported: (count: number): NotificationTemplate => ({
       type: 'success',
-      title: '导入成功',
-      message: `已导入 ${count} 个搜索源`,
+      title: i18next.t('notifications:source.importedTitle'),
+      message: i18next.t('notifications:source.importedMessage', { count }),
     }),
     importFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '导入失败',
-      message: reason || '请检查文件格式',
+      title: i18next.t('notifications:source.importFailedTitle'),
+      message: reason || i18next.t('notifications:source.importFailedDefault'),
     }),
     testSuccess: (name: string, reason?: string): NotificationTemplate => ({
       type: 'success',
-      title: '测试通过',
-      message: reason || `搜索源「${name}」连接正常`,
+      title: i18next.t('notifications:source.testSuccessTitle'),
+      message: reason || i18next.t('notifications:source.testSuccessDefault', { name }),
     }),
     testFailed: (name: string, reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '测试失败',
-      message: reason || `搜索源「${name}」无法连接`,
+      title: i18next.t('notifications:source.testFailedTitle'),
+      message: reason || i18next.t('notifications:source.testFailedDefault', { name }),
     }),
   },
 
   category: {
     created: (): NotificationTemplate => ({
       type: 'success',
-      title: '创建成功',
+      title: i18next.t('notifications:category.createdTitle'),
     }),
     updated: (): NotificationTemplate => ({
       type: 'success',
-      title: '更新成功',
+      title: i18next.t('notifications:category.updatedTitle'),
     }),
     deleted: (): NotificationTemplate => ({
       type: 'success',
-      title: '删除成功',
+      title: i18next.t('notifications:category.deletedTitle'),
     }),
     createFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '创建失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:category.createFailedTitle'),
+      message: reason || i18next.t('notifications:category.createFailedDefault'),
     }),
     updateFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '更新失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:category.updateFailedTitle'),
+      message: reason || i18next.t('notifications:category.updateFailedDefault'),
     }),
     deleteFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '删除失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:category.deleteFailedTitle'),
+      message: reason || i18next.t('notifications:category.deleteFailedDefault'),
     }),
     loadFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '加载失败',
-      message: '无法加载分类数据',
+      title: i18next.t('notifications:category.loadFailedTitle'),
+      message: i18next.t('notifications:category.loadFailedMessage'),
     }),
   },
 
   search: {
     noKeyword: (): NotificationTemplate => ({
       type: 'warning',
-      title: '请输入搜索关键词',
+      title: i18next.t('notifications:search.noKeywordTitle'),
     }),
     noResults: (): NotificationTemplate => ({
       type: 'info',
-      title: '未找到结果',
-      message: '尝试更换关键词搜索',
+      title: i18next.t('notifications:search.noResultsTitle'),
+      message: i18next.t('notifications:search.noResultsMessage'),
     }),
     searchFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '搜索失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:search.searchFailedTitle'),
+      message: reason || i18next.t('notifications:search.searchFailedDefault'),
     }),
     historyCleared: (): NotificationTemplate => ({
       type: 'success',
-      title: '历史已清空',
+      title: i18next.t('notifications:search.historyClearedTitle'),
     }),
     exportSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '导出成功',
+      title: i18next.t('notifications:search.exportSuccessTitle'),
     }),
   },
 
   community: {
     shared: (): NotificationTemplate => ({
       type: 'success',
-      title: '分享成功',
-      message: '等待审核通过后将会公开显示',
+      title: i18next.t('notifications:community.sharedTitle'),
+      message: i18next.t('notifications:community.sharedMessage'),
     }),
     shareFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '分享失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:community.shareFailedTitle'),
+      message: reason || i18next.t('notifications:community.shareFailedDefault'),
     }),
     liked: (isLiked: boolean): NotificationTemplate => ({
       type: 'success',
-      title: isLiked ? '已点赞' : '已取消点赞',
+      title: isLiked
+        ? i18next.t('notifications:community.likedAddedTitle')
+        : i18next.t('notifications:community.likedRemovedTitle'),
     }),
     likeFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '操作失败',
-      message: '请稍后重试',
+      title: i18next.t('notifications:community.likeFailedTitle'),
+      message: i18next.t('notifications:community.likeFailedMessage'),
     }),
     imported: (): NotificationTemplate => ({
       type: 'success',
-      title: '导入成功',
-      message: '搜索源已添加到您的列表',
+      title: i18next.t('notifications:community.importedTitle'),
+      message: i18next.t('notifications:community.importedMessage'),
     }),
     importFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '导入失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:community.importFailedTitle'),
+      message: reason || i18next.t('notifications:community.importFailedDefault'),
     }),
     tagCreated: (): NotificationTemplate => ({
       type: 'success',
-      title: '标签创建成功',
+      title: i18next.t('notifications:community.tagCreatedTitle'),
     }),
     tagCreateFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '创建失败',
-      message: '请稍后重试',
+      title: i18next.t('notifications:community.tagCreateFailedTitle'),
+      message: i18next.t('notifications:community.tagCreateFailedMessage'),
     }),
     loadFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '加载失败',
-      message: '无法加载社区数据',
+      title: i18next.t('notifications:community.loadFailedTitle'),
+      message: i18next.t('notifications:community.loadFailedMessage'),
     }),
   },
 
   settings: {
     saved: (): NotificationTemplate => ({
       type: 'success',
-      title: '设置已保存',
+      title: i18next.t('notifications:settings.savedTitle'),
     }),
     saveFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '保存失败',
-      message: reason || '请稍后重试',
+      title: i18next.t('notifications:settings.saveFailedTitle'),
+      message: reason || i18next.t('notifications:settings.saveFailedDefault'),
     }),
     emailChangeCodeSent: (): NotificationTemplate => ({
       type: 'success',
-      title: '验证码已发送到新邮箱',
+      title: i18next.t('notifications:settings.emailChangeCodeSentTitle'),
     }),
     emailChangeSuccess: (): NotificationTemplate => ({
       type: 'success',
-      title: '邮箱更改成功',
-      message: '请重新登录',
+      title: i18next.t('notifications:settings.emailChangeSuccessTitle'),
+      message: i18next.t('notifications:settings.emailChangeSuccessMessage'),
     }),
     emailChangeFailed: (reason?: string): NotificationTemplate => ({
       type: 'error',
-      title: '验证失败',
-      message: reason || '验证码错误',
+      title: i18next.t('notifications:settings.emailChangeFailedTitle'),
+      message: reason || i18next.t('notifications:settings.emailChangeFailedDefault'),
     }),
   },
 
   admin: {
     userStatusChanged: (enabled: boolean): NotificationTemplate => ({
       type: 'success',
-      title: enabled ? '用户已启用' : '用户已禁用',
+      title: enabled
+        ? i18next.t('notifications:admin.userStatusChangedEnabledTitle')
+        : i18next.t('notifications:admin.userStatusChangedDisabledTitle'),
     }),
     userStatusChangeFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '操作失败',
-      message: '无法更新用户状态',
+      title: i18next.t('notifications:admin.userStatusChangeFailedTitle'),
+      message: i18next.t('notifications:admin.userStatusChangeFailedMessage'),
     }),
     userRoleChanged: (): NotificationTemplate => ({
       type: 'success',
-      title: '角色已更新',
+      title: i18next.t('notifications:admin.userRoleChangedTitle'),
     }),
     userRoleChangeFailed: (): NotificationTemplate => ({
       type: 'error',
-      title: '操作失败',
-      message: '无法更新用户角色',
+      title: i18next.t('notifications:admin.userRoleChangeFailedTitle'),
+      message: i18next.t('notifications:admin.userRoleChangeFailedMessage'),
     }),
     loadFailed: (resource: string): NotificationTemplate => ({
       type: 'error',
-      title: '加载失败',
-      message: `无法加载${resource}数据`,
+      title: i18next.t('notifications:admin.loadFailedTitle'),
+      message: i18next.t('notifications:admin.loadFailedMessage', { resource }),
     }),
   },
 
   common: {
     validationError: (field: string): NotificationTemplate => ({
       type: 'warning',
-      title: '请填写必填字段',
-      message: field ? `${field}不能为空` : undefined,
+      title: i18next.t('notifications:common.validationErrorTitle'),
+      message: field ? i18next.t('notifications:common.validationErrorMessage', { field }) : undefined,
     }),
     networkError: (): NotificationTemplate => ({
       type: 'error',
-      title: '网络错误',
-      message: '请检查网络连接后重试',
+      title: i18next.t('notifications:common.networkErrorTitle'),
+      message: i18next.t('notifications:common.networkErrorMessage'),
     }),
     unknownError: (): NotificationTemplate => ({
       type: 'error',
-      title: '操作失败',
-      message: '请稍后重试',
+      title: i18next.t('notifications:common.unknownErrorTitle'),
+      message: i18next.t('notifications:common.unknownErrorMessage'),
     }),
     comingSoon: (feature?: string): NotificationTemplate => ({
       type: 'info',
-      title: '功能开发中',
-      message: feature ? `${feature}功能即将上线` : undefined,
+      title: i18next.t('notifications:common.comingSoonTitle'),
+      message: feature ? i18next.t('notifications:common.comingSoonMessage', { feature }) : undefined,
     }),
     loginRequired: (): NotificationTemplate => ({
       type: 'warning',
-      title: '请先登录',
-      message: '登录后才能使用此功能',
+      title: i18next.t('notifications:common.loginRequiredTitle'),
+      message: i18next.t('notifications:common.loginRequiredMessage'),
     }),
   },
 } as const;

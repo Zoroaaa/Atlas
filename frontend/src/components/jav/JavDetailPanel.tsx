@@ -5,6 +5,7 @@ import {
   AlertCircle, Search, ChevronDown, ChevronUp, X,
   Shield, Play, FileDown, Heart, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { JavDetail, MagnetItem } from '@/types';
 import {
   downloadTorrentFile,
@@ -37,6 +38,7 @@ interface JavDetailPanelProps {
 // ── 复制按钮（带反馈） ─────────────────────────────────────────────
 
 function CopyBtn({ text, label }: { text: string; label?: string }) {
+  const { t } = useTranslation(['jav']);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     const ok = await copyToClipboard(text);
@@ -48,7 +50,7 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={copy}
-      title={label ?? '复制磁力链接'}
+      title={label ?? t('jav:detail.copyMagnetTitle')}
       className="p-1 rounded text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
     >
       {copied
@@ -61,6 +63,7 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
 // ── 下载种子按钮（带 loading） ─────────────────────────────────────
 
 function DownloadBtn({ magnet, name }: { magnet: string; name: string }) {
+  const { t } = useTranslation(['jav']);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -80,7 +83,7 @@ function DownloadBtn({ magnet, name }: { magnet: string; name: string }) {
     <button
       onClick={handleClick}
       disabled={loading}
-      title="下载种子文件"
+      title={t('jav:detail.downloadTorrentTitle')}
       className="p-1 rounded text-surface-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all disabled:opacity-60"
     >
       {loading
@@ -108,6 +111,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 // ── 磁力列表 ───────────────────────────────────────────────────────
 
 const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
+  const { t } = useTranslation(['jav']);
   const [showAll, setShowAll] = useState(false);
   const [playModal, setPlayModal] = useState<{ magnet: string; name: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -131,7 +135,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
     return (
       <div className="flex items-center gap-2 py-4 justify-center text-surface-400">
         <Magnet className="w-5 h-5 opacity-40" />
-        <p className="text-xs">暂无磁力链接</p>
+        <p className="text-xs">{t('jav:detail.noMagnets')}</p>
       </div>
     );
   }
@@ -140,10 +144,10 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
     <div className="space-y-1.5">
       {/* 表头 */}
       <div className="grid grid-cols-[1fr_80px_88px_116px] gap-2 px-2 py-1 text-[10px] font-semibold text-surface-400 uppercase tracking-wide border-b border-surface-100 dark:border-surface-800">
-        <span>磁力名称</span>
-        <span className="text-right">大小</span>
-        <span className="text-right">分享日期</span>
-        <span className="text-right">操作</span>
+        <span>{t('jav:detail.magnetName')}</span>
+        <span className="text-right">{t('jav:detail.size')}</span>
+        <span className="text-right">{t('jav:detail.shareDate')}</span>
+        <span className="text-right">{t('jav:detail.actions')}</span>
       </div>
 
       {displayed.map((m, i) => (
@@ -171,7 +175,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
               {/* 在线播放（WebTor） */}
               <button
                 onClick={() => setPlayModal({ magnet: m.magnet, name: m.name })}
-                title="WebTor 在线播放"
+                title={t('jav:detail.webtorPlay')}
                 className="p-1 rounded transition-all text-surface-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
               >
                 <Play className="w-3.5 h-3.5" />
@@ -193,8 +197,8 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
           className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-surface-400 hover:text-primary-500 hover:bg-surface-50 dark:hover:bg-surface-800/40 rounded-lg transition-all"
         >
           {showAll
-            ? <><ChevronUp className="w-3.5 h-3.5" />收起（共 {magnets.length} 条）</>
-            : <><ChevronDown className="w-3.5 h-3.5" />展开全部（共 {magnets.length} 条）</>}
+            ? <><ChevronUp className="w-3.5 h-3.5" />{t('jav:detail.collapseMagnets', { count: magnets.length })}</>
+            : <><ChevronDown className="w-3.5 h-3.5" />{t('jav:detail.expandMagnets', { count: magnets.length })}</>}
         </button>
       )}
 
@@ -202,7 +206,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
       <Modal
         isOpen={!!playModal}
         onClose={() => setPlayModal(null)}
-        title="在线播放提示"
+        title={t('jav:detail.playModalTitle')}
         size="sm"
       >
         {playModal && (
@@ -210,9 +214,9 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
             <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
               <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900 dark:text-amber-100">
-                <p className="font-medium mb-1">即将跳转至第三方网站 WebTor</p>
+                <p className="font-medium mb-1">{t('jav:detail.webtorWarnTitle')}</p>
                 <p className="text-xs text-amber-700 dark:text-amber-200">
-                  请先复制磁力链接，在 WebTor 中粘贴后搜索播放
+                  {t('jav:detail.webtorWarnBody')}
                 </p>
               </div>
             </div>
@@ -220,17 +224,17 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
             <div className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
               <Shield className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <div className="text-sm text-emerald-900 dark:text-emerald-100">
-                <p className="font-medium mb-1">推荐使用 PikPak 播放</p>
+                <p className="font-medium mb-1">{t('jav:detail.pikpakRecommendTitle')}</p>
                 <p className="text-xs text-emerald-700 dark:text-emerald-200 leading-relaxed">
-                  通过 Google Play 商店下载 PikPak，复制磁力链接后可直接解析播放，体验更流畅。
-                  <span className="text-emerald-600 dark:text-emerald-300">（免费用户存储空间 6GB）</span>
+                  {t('jav:detail.pikpakRecommendBody')}
+                  <span className="text-emerald-600 dark:text-emerald-300">{t('jav:detail.pikpakFreeStorage')}</span>
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-surface-500 dark:text-surface-400">
-                磁力链接
+                {t('jav:detail.magnetLink')}
               </label>
               <div className="p-2 bg-surface-100 dark:bg-surface-900 rounded text-xs text-surface-600 dark:text-surface-300 break-all font-mono max-h-20 overflow-y-auto">
                 {playModal.magnet}
@@ -245,12 +249,12 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
                 {copied ? (
                   <>
                     <Check className="w-4 h-4" />
-                    已复制
+                    {t('jav:detail.copied')}
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    复制磁力链接
+                    {t('jav:detail.copyMagnetLink')}
                   </>
                 )}
               </button>
@@ -259,7 +263,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
                 className="flex-1 px-4 py-2.5 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <ExternalLinkIcon className="w-4 h-4" />
-                前往 WebTor
+                {t('jav:detail.goToWebtor')}
               </button>
             </div>
           </div>
@@ -272,6 +276,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 // ── 主组件 ─────────────────────────────────────────────────────────
 
 export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
+  const { t } = useTranslation(['jav']);
   if (status === 'idle') return null;
 
   return (
@@ -283,7 +288,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
             <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">磁力提取</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('jav:detail.magnetExtract')}</span>
           {detail && (
             <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
               {detail.code}
@@ -291,7 +296,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
           )}
           {status === 'success' && detail && (
             <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
-              {detail.magnets.length} 条磁力
+              {t('jav:detail.magnetsCount', { count: detail.magnets.length })}
             </span>
           )}
         </div>
@@ -301,13 +306,13 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
               <button
                 onClick={() => onFavorite(detail)}
                 className={`p-1.5 rounded-lg transition-all ${isFavorited ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-surface-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}
-                title={isFavorited ? '取消收藏' : '收藏'}
+                title={isFavorited ? t('jav:detail.unfavorite') : t('jav:detail.favorite')}
               >
                 <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
               </button>
               {!isFavorited && (
                 <span className="text-xs font-medium text-rose-500 dark:text-rose-400 animate-pulse">
-                  喜欢就收藏吧~
+                  {t('jav:detail.favoriteHint')}
                 </span>
               )}
             </>
@@ -357,8 +362,8 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
       {status === 'loading' && (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-surface-400">
           <Loader2 className="w-8 h-8 animate-spin text-rose-400" />
-          <p className="text-sm">正在爬取 JavBus 详情页...</p>
-          <p className="text-xs opacity-60">通常需要 3~8 秒</p>
+          <p className="text-sm">{t('jav:detail.loadingDetail')}</p>
+          <p className="text-xs opacity-60">{t('jav:detail.loadingHint')}</p>
         </div>
       )}
 
@@ -366,8 +371,8 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
       {status === 'not_found' && (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-surface-400">
           <Search className="w-8 h-8 opacity-40" />
-          <p className="text-sm">JavBus 上未找到该番号</p>
-          <p className="text-xs opacity-60">可能是番号格式有误或资源尚未收录</p>
+          <p className="text-sm">{t('jav:detail.notFound')}</p>
+          <p className="text-xs opacity-60">{t('jav:detail.notFoundHint')}</p>
         </div>
       )}
 
@@ -375,7 +380,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
       {status === 'error' && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <AlertCircle className="w-8 h-8 text-error-400" />
-          <p className="text-sm text-surface-500">获取失败，请稍后重试</p>
+          <p className="text-sm text-surface-500">{t('jav:detail.fetchFailed')}</p>
         </div>
       )}
 
@@ -397,12 +402,12 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 {detail.title}
               </h3>
               <div className="space-y-1">
-                <InfoRow icon={Calendar}  label="发行日期" value={detail.releaseDate} />
-                <InfoRow icon={Clock}     label="时长"     value={detail.duration} />
-                <InfoRow icon={User}      label="导演"     value={detail.director} />
-                <InfoRow icon={Building2} label="制作商"   value={detail.maker} />
-                <InfoRow icon={Building2} label="发行商"   value={detail.publisher} />
-                <InfoRow icon={Film}      label="系列"     value={detail.series} />
+                <InfoRow icon={Calendar}  label={t('jav:detail.releaseDate')} value={detail.releaseDate} />
+                <InfoRow icon={Clock}     label={t('jav:detail.duration')}    value={detail.duration} />
+                <InfoRow icon={User}      label={t('jav:detail.director')}    value={detail.director} />
+                <InfoRow icon={Building2} label={t('jav:detail.maker')}      value={detail.maker} />
+                <InfoRow icon={Building2} label={t('jav:detail.publisher')}   value={detail.publisher} />
+                <InfoRow icon={Film}      label={t('jav:detail.series')}     value={detail.series} />
               </div>
               <a
                 href={detail.detailUrl}
@@ -411,7 +416,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 className="inline-flex items-center gap-1 text-xs text-primary-500 hover:underline mt-1"
               >
                 <ExternalLink className="w-3 h-3" />
-                在 JavBus 查看原页面
+                {t('jav:detail.viewOnJavBus')}
               </a>
             </div>
           </div>
@@ -421,7 +426,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Tag className="w-3.5 h-3.5 text-surface-400" />
-                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">类别</span>
+                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">{t('jav:detail.tagsLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {detail.tags.map((t, i) => (
@@ -438,7 +443,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <Star className="w-3.5 h-3.5 text-surface-400" />
-                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">演员</span>
+                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">{t('jav:detail.actressesLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {detail.actresses.map((a, i) => (
@@ -456,13 +461,13 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
               <div className="flex items-center gap-1.5">
                 <Magnet className="w-3.5 h-3.5 text-rose-500" />
                 <span className="text-xs font-semibold text-surface-700 dark:text-surface-300">
-                  磁力链接 ({detail.magnets.length})
+                  {t('jav:detail.magnetsHeader', { count: detail.magnets.length })}
                 </span>
               </div>
               {detail.magnets.length > 0 && (
                 <div className="flex items-center gap-1 text-[10px] text-surface-400">
                   <Shield className="w-3 h-3" />
-                  点击名称唤起客户端 · Play选择播放方式
+                  {t('jav:detail.magnetFooterHint')}
                 </div>
               )}
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/services/api';
+import i18next from '@/i18n';
 import type { JavRankings } from '@/types';
 import { JAV_CACHE_KEY, JAV_CACHE_TTL } from '@/types';
 
@@ -85,11 +86,11 @@ export function useJavRankings() {
         setData(resp.data);
         setCacheAge(0);
       } else {
-        setError('获取榜单失败');
+        setError(i18next.t('errors:hooks.javRankings.fetchRankingsFailed'));
       }
     } catch (err) {
       console.error('JAV rankings fetch error:', err);
-      setError('网络请求失败，请检查连接');
+      setError(i18next.t('errors:hooks.javRankings.networkFailed'));
     } finally {
       setIsLoading(false);
     }

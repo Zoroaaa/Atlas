@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, MessageSquarePlus, Bug, Lightbulb, MessageCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { feedbackApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
@@ -9,21 +10,21 @@ import { useToast } from '@/components/ui/Toast';
 const TYPE_OPTIONS = [
   {
     value: 'bug' as const,
-    label: '问题反馈',
+    labelKey: 'feedback:modal.typeBug',
     icon: Bug,
     activeClass: 'border-red-400 bg-red-50 dark:bg-red-900/20 dark:border-red-700',
     iconClass: 'text-red-500',
   },
   {
     value: 'suggestion' as const,
-    label: '优化建议',
+    labelKey: 'feedback:modal.typeSuggestion',
     icon: Lightbulb,
     activeClass: 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700',
     iconClass: 'text-amber-500',
   },
   {
     value: 'other' as const,
-    label: '其他',
+    labelKey: 'feedback:modal.typeOther',
     icon: MessageCircle,
     activeClass: 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700',
     iconClass: 'text-amber-500',
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation(['feedback']);
   const { user, isAuthenticated } = useAuthStore();
   const toast = useToast();
   const [type, setType] = useState<'bug' | 'suggestion' | 'other'>('bug');
@@ -60,15 +62,15 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const handleSubmit = async () => {
     if (!title.trim() || title.trim().length < 5) {
-      toast.error('标题至少需要 5 个字符');
+      toast.error(t('feedback:modal.errorTitleMinLength'));
       return;
     }
     if (!content.trim() || content.trim().length < 10) {
-      toast.error('内容至少需要 10 个字符');
+      toast.error(t('feedback:modal.errorContentMinLength'));
       return;
     }
     if (!isAuthenticated && (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))) {
-      toast.error('请填写有效的联系邮箱');
+      toast.error(t('feedback:modal.errorEmailInvalid'));
       return;
     }
 
@@ -83,7 +85,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
       });
       setSubmitted(true);
     } catch (err: any) {
-      toast.error(err.message || '提交失败，请稍后重试');
+      toast.error(err.message || t('feedback:modal.errorSubmitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -107,8 +109,8 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <MessageSquarePlus className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-stone-900 dark:text-stone-100 text-sm">反馈与建议</h3>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">帮助我们持续改进</p>
+              <h3 className="font-bold text-stone-900 dark:text-stone-100 text-sm">{t('feedback:modal.title')}</h3>
+              <p className="text-[11px] text-stone-500 dark:text-stone-400">{t('feedback:modal.subtitle')}</p>
             </div>
           </div>
           <button
@@ -125,18 +127,18 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
-            <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100 mb-2">感谢您的反馈！</h4>
+            <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100 mb-2">{t('feedback:modal.thankYou')}</h4>
             <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed mb-6">
-              我们已收到您的反馈，将尽快进行处理。
+              {t('feedback:modal.followUpBody')}
               {(isAuthenticated ? user?.email : contactEmail) && (
-                <><br />处理结果将通过邮件告知您。</>
+                <><br />{t('feedback:modal.followUpEmail')}</>
               )}
             </p>
             <button
               onClick={handleClose}
               className="px-6 py-2.5 bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
             >
-              关闭
+              {t('feedback:modal.close')}
             </button>
           </div>
         ) : (
@@ -146,7 +148,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* 反馈类型 */}
             <div>
               <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-2 uppercase tracking-wide">
-                反馈类型
+                {t('feedback:modal.typeLabel')}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {TYPE_OPTIONS.map((opt) => {
@@ -164,7 +166,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       )}
                     >
                       <Icon className={clsx('w-4 h-4', active ? opt.iconClass : 'text-stone-400')} />
-                      <span className={active ? 'text-stone-800 dark:text-stone-200' : ''}>{opt.label}</span>
+                      <span className={active ? 'text-stone-800 dark:text-stone-200' : ''}>{t(opt.labelKey)}</span>
                     </button>
                   );
                 })}
@@ -174,13 +176,13 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* 标题 */}
             <div>
               <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
-                标题 <span className="text-red-400">*</span>
+                {t('feedback:modal.titleLabel')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="简要描述您的问题或建议（5~100字）"
+                placeholder={t('feedback:modal.titlePlaceholder')}
                 maxLength={100}
                 className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-400 transition-all"
               />
@@ -190,17 +192,17 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* 内容 */}
             <div>
               <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
-                详细描述 <span className="text-red-400">*</span>
+                {t('feedback:modal.contentLabel')} <span className="text-red-400">*</span>
               </label>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={
                   type === 'bug'
-                    ? '请描述问题的复现步骤、出现情景，以及期望的正确行为...'
+                    ? t('feedback:modal.contentBugPlaceholder')
                     : type === 'suggestion'
-                    ? '请描述您希望改进的功能，以及改进后能解决什么问题...'
-                    : '请详细描述您的想法...'
+                    ? t('feedback:modal.contentSuggestionPlaceholder')
+                    : t('feedback:modal.contentOtherPlaceholder')
                 }
                 rows={5}
                 maxLength={2000}
@@ -214,19 +216,19 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                 <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
                 <p className="text-xs text-green-700 dark:text-green-400">
-                  处理结果将发送至：<strong>{user?.email}</strong>
+                  {t('feedback:modal.emailSentTo')}<strong>{user?.email}</strong>
                 </p>
               </div>
             ) : (
               <div>
                 <label className="block text-xs font-semibold text-stone-600 dark:text-stone-400 mb-1.5 uppercase tracking-wide">
-                  联系邮箱 <span className="text-red-400">*</span>
+                  {t('feedback:modal.contactEmailLabel')} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="用于接收处理结果通知"
+                  placeholder={t('feedback:modal.contactEmailPlaceholder')}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-400 transition-all"
                 />
               </div>
@@ -240,9 +242,9 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/25"
               >
                 {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />提交中...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" />{t('feedback:modal.submitting')}</>
                 ) : (
-                  <>提交反馈</>
+                  <>{t('feedback:modal.submit')}</>
                 )}
               </button>
             </div>

@@ -13,6 +13,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchStore, useAuthStore } from '@/stores';
 import { searchApi, userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
+import i18next from '@/i18n';
 import { useValidationRules, useUserLimits, usePaginationConfig } from '@/contexts';
 import type { SearchResult, SearchHistoryItem, SearchSuggestion } from '@/types';
 
@@ -67,7 +68,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const performSearch = useCallback(async (searchKeyword?: string, page = 1) => {
     const query = searchKeyword || keyword;
     if (!query?.trim()) {
-      setError('请输入搜索关键词');
+      setError(i18next.t('errors:hooks.search.keywordRequired'));
       return;
     }
 
@@ -121,9 +122,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         }
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '搜索失败，请稍后重试';
+      const errorMessage = err instanceof Error ? err.message : i18next.t('errors:hooks.search.searchFailedDefault');
       setError(errorMessage);
-      toast.error('搜索失败', errorMessage);
+      toast.error(i18next.t('errors:hooks.search.searchFailedTitle'), errorMessage);
     } finally {
       setSearching(false);
     }
@@ -186,7 +187,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       await userApi.deleteSearchHistoryItem(id);
       setSearchHistory(prev => prev.filter(h => h.id !== id));
     } catch (_err) {
-      toast.error('删除失败', '无法删除搜索历史');
+      toast.error(i18next.t('errors:hooks.search.deleteFailedTitle'), i18next.t('errors:hooks.search.deleteHistoryFailedMessage'));
     }
   }, [toast]);
 
@@ -194,9 +195,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     try {
       await userApi.clearSearchHistory();
       setSearchHistory([]);
-      toast.success('已清空', '搜索历史已清空');
+      toast.success(i18next.t('errors:hooks.search.clearedTitle'), i18next.t('errors:hooks.search.clearedMessage'));
     } catch (_err) {
-      toast.error('清空失败', '无法清空搜索历史');
+      toast.error(i18next.t('errors:hooks.search.clearHistoryFailedTitle'), i18next.t('errors:hooks.search.clearHistoryFailedMessage'));
     }
   }, [toast]);
 

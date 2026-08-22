@@ -3,6 +3,7 @@ import {
   Users, RefreshCw, Loader2, AlertCircle,
   ChevronDown, ChevronRight, Film,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useActresses, useStarDetail } from '@/hooks';
 import type { ActressEntry, JavItem } from '@/types/jav';
 import { Modal } from '@/components/ui';
@@ -31,11 +32,12 @@ const NAME_COLORS = [
 const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void }> = ({
   items, onCodeClick,
 }) => {
+  const { t } = useTranslation(['jav']);
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-surface-400">
         <Film className="w-8 h-8 mb-2 opacity-40" />
-        <p className="text-xs">该女优暂无番号数据</p>
+        <p className="text-xs">{t('jav:actresses.noCodeData')}</p>
       </div>
     );
   }
@@ -65,6 +67,7 @@ interface StarModalProps {
 }
 
 const StarModal: React.FC<StarModalProps> = ({ actress, onClose, onCodeClick }) => {
+  const { t } = useTranslation(['jav']);
   const { detail, status, fetch } = useStarDetail();
 
   useEffect(() => {
@@ -72,18 +75,18 @@ const StarModal: React.FC<StarModalProps> = ({ actress, onClose, onCodeClick }) 
   }, [actress.key, fetch]);
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`${actress.name} 的作品`} size="lg">
+    <Modal isOpen={true} onClose={onClose} title={t('jav:actresses.worksTitle', { name: actress.name })} size="lg">
       {status === 'loading' && (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-surface-400">
           <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
-          <p className="text-xs">正在获取作品列表...</p>
+          <p className="text-xs">{t('jav:actresses.loadingWorks')}</p>
         </div>
       )}
       {status === 'error' && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <AlertCircle className="w-6 h-6 text-error-400" />
-          <p className="text-xs text-error-500">获取失败，请稍后重试</p>
-          <button onClick={() => fetch(actress.key)} className="text-xs text-primary-500 underline">点击重试</button>
+          <p className="text-xs text-error-500">{t('jav:actresses.fetchFailed')}</p>
+          <button onClick={() => fetch(actress.key)} className="text-xs text-primary-500 underline">{t('jav:actresses.retry')}</button>
         </div>
       )}
       {status === 'success' && detail && (
@@ -92,7 +95,7 @@ const StarModal: React.FC<StarModalProps> = ({ actress, onClose, onCodeClick }) 
             <Users className="w-4 h-4 text-rose-500" />
             <span className="text-sm font-semibold text-surface-800 dark:text-surface-200">{detail.name}</span>
             <span className="px-2 py-0.5 text-xs font-semibold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
-              {detail.items.length} 部作品
+              {t('jav:actresses.worksCount', { count: detail.items.length })}
             </span>
           </div>
           <div className="max-h-[50vh] overflow-y-auto scrollbar-thin">
@@ -111,6 +114,7 @@ interface ActressesPanelProps {
 }
 
 export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) => {
+  const { t } = useTranslation(['jav']);
   const { data, isLoading, error, refresh } = useActresses();
   const [expanded, setExpanded] = useState(true);
   const [selectedActress, setSelectedActress] = useState<ActressEntry | null>(null);
@@ -132,7 +136,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) =
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
             </div>
-            <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">推荐女优</span>
+            <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('jav:actresses.title')}</span>
             {data.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-semibold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
                 {data.length}
@@ -144,7 +148,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) =
               onClick={(e) => { e.stopPropagation(); refresh(); }}
               disabled={isLoading}
               className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-40"
-              title="刷新女优列表"
+              title={t('jav:actresses.refresh')}
             >
               <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -160,13 +164,13 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) =
             {isLoading ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-surface-400">
                 <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
-                <p className="text-xs">正在获取女优列表...</p>
+                <p className="text-xs">{t('jav:actresses.loadingActresses')}</p>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center h-full gap-2">
                 <AlertCircle className="w-6 h-6 text-error-400" />
                 <p className="text-xs text-error-500">{error}</p>
-                <button onClick={refresh} className="text-xs text-primary-500 underline">点击重试</button>
+                <button onClick={refresh} className="text-xs text-primary-500 underline">{t('jav:actresses.retry')}</button>
               </div>
             ) : (
               <div className="h-full overflow-y-auto scrollbar-thin">
@@ -176,7 +180,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) =
                       key={actress.key}
                       onClick={() => setSelectedActress(actress)}
                       className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-left transition-all active:scale-[0.97] hover:shadow-sm ${NAME_COLORS[i % NAME_COLORS.length]}`}
-                      title={`查看${actress.name}的作品`}
+                      title={t('jav:actresses.viewWorksTitle', { name: actress.name })}
                     >
                       <span className="text-[10px] font-bold opacity-50 shrink-0 w-4 text-right">{i + 1}</span>
                       <span className="text-xs font-semibold truncate">{actress.name}</span>
@@ -190,7 +194,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onCodeClick }) =
           {/* 底部提示 */}
           <div className="px-3 sm:px-4 py-2.5 border-t border-surface-50 dark:border-surface-800/60 shrink-0">
             <p className="text-[10px] text-surface-400 dark:text-surface-500">
-              点击女优名查看作品列表，点击番号自动提取磁力
+              {t('jav:actresses.footerHint')}
             </p>
           </div>
         </div>

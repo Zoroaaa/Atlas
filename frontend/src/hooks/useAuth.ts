@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAuthStore } from '@/stores';
 import { authApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
+import i18next from '@/i18n';
 import type { User } from '@/types';
 
 interface UseAuthReturn {
@@ -57,14 +58,14 @@ export function useAuth(): UseAuthReturn {
         setUser(response.data.user);
         setToken(response.data.token);
         persistToken(response.data.token);
-        toast.success('登录成功', `欢迎回来，${response.data.user.username}`);
+        toast.success(i18next.t('errors:hooks.auth.loginSuccessTitle'), i18next.t('errors:hooks.auth.loginSuccessMessage', { username: response.data.user.username }));
         return true;
       }
-      toast.error('登录失败', response.message || '登录失败');
+      toast.error(i18next.t('errors:hooks.auth.loginFailedTitle'), response.message || i18next.t('errors:hooks.auth.loginFailedTitle'));
       return false;
     } catch (error) {
-      const { message = '登录失败，请稍后重试' } = error instanceof Error ? error : { message: '登录失败，请稍后重试' };
-      toast.error('登录失败', message);
+      const { message = i18next.t('errors:hooks.auth.loginFailedDefault') } = error instanceof Error ? error : { message: i18next.t('errors:hooks.auth.loginFailedDefault') };
+      toast.error(i18next.t('errors:hooks.auth.loginFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -79,14 +80,14 @@ export function useAuth(): UseAuthReturn {
         setUser(response.data.user);
         setToken(response.data.token);
         persistToken(response.data.token);
-        toast.success('注册成功', '欢迎加入 Atlas');
+        toast.success(i18next.t('errors:hooks.auth.registerSuccessTitle'), i18next.t('errors:hooks.auth.registerSuccessMessage'));
         return true;
       }
-      toast.error('注册失败', response.message || '注册失败');
+      toast.error(i18next.t('errors:hooks.auth.registerFailedTitle'), response.message || i18next.t('errors:hooks.auth.registerFailedTitle'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '注册失败，请稍后重试';
-      toast.error('注册失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.registerFailedDefault');
+      toast.error(i18next.t('errors:hooks.auth.registerFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -100,7 +101,7 @@ export function useAuth(): UseAuthReturn {
       console.error('Logout error:', error);
     } finally {
       logoutStore();
-      toast.success('已退出登录');
+      toast.success(i18next.t('errors:hooks.auth.logoutSuccessTitle'));
     }
   }, [logoutStore, toast]);
 
@@ -110,14 +111,14 @@ export function useAuth(): UseAuthReturn {
       const response = await authApi.getCurrentUser();
       if (response.success && response.data) {
         setUser({ ...response.data, ...data });
-        toast.success('更新成功');
+        toast.success(i18next.t('errors:hooks.auth.profileUpdateSuccessTitle'));
         return true;
       }
-      toast.error('更新失败');
+      toast.error(i18next.t('errors:hooks.auth.profileUpdateFailedTitle'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '更新失败';
-      toast.error('更新失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.profileUpdateFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.profileUpdateFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -129,14 +130,14 @@ export function useAuth(): UseAuthReturn {
     try {
       const response = await authApi.changePassword({ currentPassword, newPassword });
       if (response.success) {
-        toast.success('密码已更新', '请使用新密码登录');
+        toast.success(i18next.t('errors:hooks.auth.passwordChangeSuccessTitle'), i18next.t('errors:hooks.auth.passwordResetSuccessMessage'));
         return true;
       }
-      toast.error('修改失败', response.message || '修改失败');
+      toast.error(i18next.t('errors:hooks.auth.passwordChangeFailedTitle'), response.message || i18next.t('errors:hooks.auth.passwordChangeFailedTitle'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '修改失败';
-      toast.error('修改失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.passwordChangeFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.passwordChangeFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -148,14 +149,14 @@ export function useAuth(): UseAuthReturn {
     try {
       const response = await authApi.forgotPassword({ email });
       if (response.success) {
-        toast.success('邮件已发送', '请检查您的邮箱');
+        toast.success(i18next.t('errors:hooks.auth.emailSentTitle'), i18next.t('errors:hooks.auth.emailSentMessage'));
         return true;
       }
-      toast.error('发送失败', '发送验证码失败');
+      toast.error(i18next.t('errors:hooks.auth.sendFailedTitle'), i18next.t('errors:hooks.auth.sendCodeFailedDefault'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '发送失败';
-      toast.error('发送失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.sendFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.sendFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -167,14 +168,14 @@ export function useAuth(): UseAuthReturn {
     try {
       const response = await authApi.resetPassword({ email, verificationCode: code, newPassword });
       if (response.success) {
-        toast.success('密码已重置', '请使用新密码登录');
+        toast.success(i18next.t('errors:hooks.auth.passwordResetSuccessTitle'), i18next.t('errors:hooks.auth.passwordResetSuccessMessage'));
         return true;
       }
-      toast.error('重置失败', response.message || '重置失败');
+      toast.error(i18next.t('errors:hooks.auth.passwordResetFailedTitle'), response.message || i18next.t('errors:hooks.auth.passwordResetFailedTitle'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '重置失败';
-      toast.error('重置失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.passwordResetFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.passwordResetFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -189,14 +190,14 @@ export function useAuth(): UseAuthReturn {
         verificationType: type as 'registration' | 'password_reset' | 'email_change_old' | 'email_change_new' | 'account_delete'
       });
       if (response.success) {
-        toast.success('验证码已发送', '请检查您的邮箱');
+        toast.success(i18next.t('errors:hooks.auth.verificationCodeSentTitle'), i18next.t('errors:hooks.auth.emailSentMessage'));
         return true;
       }
-      toast.error('发送失败', '发送验证码失败');
+      toast.error(i18next.t('errors:hooks.auth.sendFailedTitle'), i18next.t('errors:hooks.auth.sendCodeFailedDefault'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '发送失败';
-      toast.error('发送失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.sendFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.sendFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);
@@ -209,14 +210,14 @@ export function useAuth(): UseAuthReturn {
       const response = await authApi.deleteAccount({ password, verificationCode, confirmText });
       if (response.success) {
         logoutStore();
-        toast.success('账户已删除');
+        toast.success(i18next.t('errors:hooks.auth.accountDeletedTitle'));
         return true;
       }
-      toast.error('删除失败', response.message || '删除失败');
+      toast.error(i18next.t('errors:hooks.auth.deleteAccountFailedTitle'), response.message || i18next.t('errors:hooks.auth.deleteAccountFailedTitle'));
       return false;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '删除失败';
-      toast.error('删除失败', message);
+      const message = error instanceof Error ? error.message : i18next.t('errors:hooks.auth.deleteAccountFailedTitle');
+      toast.error(i18next.t('errors:hooks.auth.deleteAccountFailedTitle'), message);
       return false;
     } finally {
       setIsLoading(false);

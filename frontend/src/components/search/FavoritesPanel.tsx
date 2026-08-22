@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, Download, Trash2, ExternalLink, Tag, ChevronDown, ChevronRight, Clock, Building2, Calendar, User, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
@@ -39,6 +40,7 @@ interface FavoritesPanelProps {
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
   favorites, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
 }) => {
+  const { t } = useTranslation(['search']);
   const toast = useToast();
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
@@ -48,20 +50,20 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
     try {
       const result = await userApi.updateFavoriteStatus(id, newStatus);
       if (result.success) {
-        toast.success('状态更新成功');
+        toast.success(t('search:favorites.updateSuccess'));
         onUpdate();
       } else {
-        toast.error(result.message || '状态更新失败');
+        toast.error(result.message || t('search:favorites.updateFailed'));
       }
     } catch (_error) {
-      toast.error('状态更新失败');
+      toast.error(t('search:favorites.updateFailed'));
     } finally {
       setUpdatingStatus(null);
     }
   };
 
   const getStatusText = (status: string) => {
-    return status === 'want' ? '想看' : '已看过';
+    return status === 'want' ? t('search:favorites.statusWant') : t('search:favorites.statusWatched');
   };
 
   const getStatusColor = (status: string) => {
@@ -81,7 +83,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
             <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 dark:text-rose-400" />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">我的收藏</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:favorites.title')}</span>
           {favorites.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-semibold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 rounded-full">
               {favorites.length}
@@ -93,7 +95,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
             <button
               onClick={(e) => { e.stopPropagation(); onExport(); }}
               className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all"
-              title="导出收藏"
+              title={t('search:favorites.export')}
             >
               <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -142,7 +144,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                                 ? 'opacity-50 cursor-not-allowed' 
                                 : 'hover:opacity-80 cursor-pointer'
                             } ${getStatusColor(item.status)}`}
-                            title={updatingStatus === item.id ? '更新中...' : `点击切换到${getStatusText(item.status === 'want' ? 'watched' : 'want')}`}
+                            title={updatingStatus === item.id ? t('search:favorites.updating') : t('search:favorites.toggleTo', { status: getStatusText(item.status === 'want' ? 'watched' : 'want') })}
                           >
                             {item.status === 'want' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                             {getStatusText(item.status)}
@@ -185,7 +187,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                       {item.duration && (
                         <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                           <Clock className="w-3 h-3" />
-                          {item.duration}分钟
+                          {t('search:favorites.durationMinutes', { count: item.duration })}
                         </span>
                       )}
                       {item.releaseDate && (
@@ -228,7 +230,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-surface-300 dark:text-surface-600 mb-2" />
-            <p className="text-xs sm:text-sm text-surface-400">暂无收藏内容</p>
+            <p className="text-xs sm:text-sm text-surface-400">{t('search:favorites.empty')}</p>
           </div>
         )}
       </div>

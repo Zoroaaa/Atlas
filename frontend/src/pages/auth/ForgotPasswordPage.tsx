@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Send, Lock, ShieldCheck, CheckCircle, Eye, EyeOff, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { authApi } from '@/services/api';
 import { Input } from '@/components/ui';
 import { useNotification } from '@/hooks';
@@ -13,6 +14,7 @@ import { useValidationRules } from '@/contexts';
 type Step = 'email' | 'verify' | 'success';
 
 export const ForgotPasswordPage: React.FC = () => {
+  const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
   const notification = useNotification();
   const validationRules = useValidationRules();
@@ -44,8 +46,8 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   const validateEmail = () => {
-    if (!email.trim()) { setError('请输入邮箱'); return false; }
-    if (!validationRules.EMAIL_REGEX.test(email)) { setError('请输入有效的邮箱地址'); return false; }
+    if (!email.trim()) { setError(t('auth:forgot.emailRequired')); return false; }
+    if (!validationRules.EMAIL_REGEX.test(email)) { setError(t('auth:forgot.emailInvalid')); return false; }
     setError(''); return true;
   };
 
@@ -103,11 +105,11 @@ export const ForgotPasswordPage: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = verificationCode.replace(/\s/g, '');
-    if (cleanCode.length !== validationRules.VERIFICATION_CODE_LENGTH) { notification.error('验证码错误', `请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`); return; }
-    if (!newPassword) { notification.error('密码错误', '请输入新密码'); return; }
-    if (newPassword.length < validationRules.PASSWORD_MIN_LENGTH) { notification.error('密码错误', `密码至少${validationRules.PASSWORD_MIN_LENGTH}个字符`); return; }
-    if (newPassword.length > validationRules.PASSWORD_MAX_LENGTH) { notification.error('密码错误', `密码最多${validationRules.PASSWORD_MAX_LENGTH}个字符`); return; }
-    if (newPassword !== confirmPassword) { notification.error('密码错误', '两次输入的密码不一致'); return; }
+    if (cleanCode.length !== validationRules.VERIFICATION_CODE_LENGTH) { notification.error(t('auth:forgot.codeErrorTitle'), t('auth:forgot.codeMustBeNDigits', { count: validationRules.VERIFICATION_CODE_LENGTH })); return; }
+    if (!newPassword) { notification.error(t('auth:forgot.passwordErrorTitle'), t('auth:forgot.newPasswordRequired')); return; }
+    if (newPassword.length < validationRules.PASSWORD_MIN_LENGTH) { notification.error(t('auth:forgot.passwordErrorTitle'), t('auth:forgot.newPasswordMinLength', { count: validationRules.PASSWORD_MIN_LENGTH })); return; }
+    if (newPassword.length > validationRules.PASSWORD_MAX_LENGTH) { notification.error(t('auth:forgot.passwordErrorTitle'), t('auth:forgot.passwordMaxLength', { count: validationRules.PASSWORD_MAX_LENGTH })); return; }
+    if (newPassword !== confirmPassword) { notification.error(t('auth:forgot.passwordErrorTitle'), t('auth:forgot.passwordMismatch')); return; }
     setIsLoading(true);
     try {
       const response = await authApi.resetPassword({ email, verificationCode: cleanCode, newPassword });
@@ -115,7 +117,7 @@ export const ForgotPasswordPage: React.FC = () => {
         setCurrentStep('success');
         notification.auth.passwordResetSuccess();
       } else {
-        notification.auth.passwordResetFailed(response.message || '验证码错误或已过期');
+        notification.auth.passwordResetFailed(response.message || t('auth:forgot.codeInvalidOrExpired'));
       }
     } catch (error: any) {
       notification.auth.passwordResetFailed(error.message);
@@ -136,14 +138,14 @@ export const ForgotPasswordPage: React.FC = () => {
         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 flex items-center justify-center">
           <Mail className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
-        <p className="text-sm text-stone-500 dark:text-stone-400">输入您的邮箱，我们将发送验证码</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">{t('auth:forgot.emailStepDesc')}</p>
       </div>
-      <Input label="邮箱" type="email" placeholder="请输入注册邮箱" value={email}
+      <Input label={t('auth:forgot.emailLabel')} type="email" placeholder={t('auth:forgot.emailPlaceholder')} value={email}
         onChange={(e) => setEmail(e.target.value)} error={error}
         leftIcon={<Mail className="w-5 h-5" />} fullWidth />
       <button type="submit" disabled={isLoading}
         className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white btn-gradient disabled:opacity-60">
-        {isLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />发送中...</> : <><Send className="w-4 h-4" />发送验证码</>}
+        {isLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t('auth:forgot.sending')}</> : <><Send className="w-4 h-4" />{t('auth:forgot.sendCode')}</>}
       </button>
     </form>
   );
@@ -155,47 +157,47 @@ export const ForgotPasswordPage: React.FC = () => {
           <ShieldCheck className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
         <p className="text-sm text-stone-500 dark:text-stone-400">
-          验证码已发送到{' '}
+          {t('auth:forgot.codeSentTo')}{' '}
           <span className="font-semibold text-stone-900 dark:text-stone-100">{maskedEmail}</span>
         </p>
       </div>
 
-      <Input label="验证码" type="text" placeholder={`请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`} value={verificationCode}
+      <Input label={t('auth:forgot.verificationCodeLabel')} type="text" placeholder={t('auth:forgot.verificationCodePlaceholder', { count: validationRules.VERIFICATION_CODE_LENGTH })} value={verificationCode}
         onChange={handleCodeChange} fullWidth className="text-center text-2xl tracking-[0.5em] font-mono" maxLength={validationRules.VERIFICATION_CODE_LENGTH + 1} />
 
       <p className="text-center text-sm text-stone-500 dark:text-stone-400">
         {countdown > 0
-          ? <>有效期 15 分钟，<span className="text-amber-700 dark:text-amber-400 font-semibold tabular-nums">{formatCountdown(countdown)}</span> 后可重发</>
-          : '未收到验证码？可以重新发送'}
+          ? <>{t('auth:forgot.validForMinutesPrefix')}<span className="text-amber-700 dark:text-amber-400 font-semibold tabular-nums">{formatCountdown(countdown)}</span>{t('auth:forgot.resendAfterSuffix')}</>
+          : t('auth:forgot.notReceived')}
       </p>
 
-      <Input label="新密码" type={showPassword ? 'text' : 'password'} placeholder={`请输入新密码（至少${validationRules.PASSWORD_MIN_LENGTH}位）`}
+      <Input label={t('auth:forgot.newPasswordLabel')} type={showPassword ? 'text' : 'password'} placeholder={t('auth:forgot.newPasswordPlaceholder', { count: validationRules.PASSWORD_MIN_LENGTH })}
         value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
         leftIcon={<Lock className="w-5 h-5" />}
         rightIcon={<button type="button" onClick={() => setShowPassword(!showPassword)} className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>} fullWidth />
 
-      <Input label="确认新密码" type={showPassword ? 'text' : 'password'} placeholder="请再次输入新密码"
+      <Input label={t('auth:forgot.confirmPasswordLabel')} type={showPassword ? 'text' : 'password'} placeholder={t('auth:forgot.confirmPasswordPlaceholder')}
         value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
         leftIcon={<Lock className="w-5 h-5" />} fullWidth />
 
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={() => setCurrentStep('email')}
           className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-200">
-          返回
+          {t('auth:forgot.back')}
         </button>
         <button type="submit" disabled={isLoading}
           className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm text-white btn-gradient disabled:opacity-60">
           {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
-          重置密码
+          {t('auth:forgot.submit')}
         </button>
       </div>
 
       <div className="text-center">
         <button type="button" onClick={handleResendCode} disabled={countdown > 0 || isLoading}
           className="text-sm text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          {countdown > 0 ? `重新发送 (${formatCountdown(countdown)})` : '重新发送验证码'}
+          {countdown > 0 ? t('auth:forgot.resendCodeWithCountdown', { time: formatCountdown(countdown) }) : t('auth:forgot.resendCodeFull')}
         </button>
       </div>
     </form>
@@ -206,24 +208,24 @@ export const ForgotPasswordPage: React.FC = () => {
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
         <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">密码重置成功！</h3>
-      <p className="text-stone-600 dark:text-stone-400 mb-7">请使用新密码登录您的账户</p>
+      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">{t('auth:forgot.successTitle')}</h3>
+      <p className="text-stone-600 dark:text-stone-400 mb-7">{t('auth:forgot.successDesc')}</p>
       <button onClick={() => navigate('/login')}
         className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white btn-gradient">
-        前往登录
+        {t('auth:forgot.goToLogin')}
       </button>
     </div>
   );
 
   const getStepTitle = () => {
-    if (currentStep === 'email') return '找回密码';
-    if (currentStep === 'verify') return '验证并重置';
-    return '重置成功';
+    if (currentStep === 'email') return t('auth:forgot.title');
+    if (currentStep === 'verify') return t('auth:forgot.verifyStepTitle');
+    return t('auth:forgot.successStepTitle');
   };
 
   const getStepDescription = () => {
-    if (currentStep === 'email') return '输入您的注册邮箱';
-    if (currentStep === 'verify') return '输入验证码并设置新密码';
+    if (currentStep === 'email') return t('auth:forgot.emailStepTitle');
+    if (currentStep === 'verify') return t('auth:forgot.verifyStepDesc');
     return '';
   };
 
@@ -238,7 +240,7 @@ export const ForgotPasswordPage: React.FC = () => {
       <div className="w-full max-w-md relative">
         <Link to="/login" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          返回登录
+          {t('auth:forgot.backToLogin')}
         </Link>
 
         <div className="rounded-2xl bg-white dark:bg-stone-900/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"

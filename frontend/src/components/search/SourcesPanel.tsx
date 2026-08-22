@@ -12,6 +12,7 @@ import {
   XCircle,
   CheckCircle,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { SearchSource, UserSourceConfig, MajorCategory, Category } from '@/types';
@@ -69,14 +70,16 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
   onCheckSingle,
   getSiteTypeBadge,
   getSiteTypeLabel,
-}) => (
+}) => {
+  const { t } = useTranslation(['search']);
+  return (
   <div className="collapsible-section animate-fade-in" style={{ animationDelay: '200ms' }}>
     <button onClick={onToggle} className="collapsible-header">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
           <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-600 dark:text-violet-400" />
         </div>
-        <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">搜索源管理</span>
+        <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:sources.title')}</span>
         <span className="px-2 py-0.5 text-xs font-semibold bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded-full">
           {allSources.length}
         </span>
@@ -89,9 +92,9 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
             className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-all disabled:opacity-50"
           >
             {isBatchChecking ? (
-              <><RefreshCw className="w-3 h-3 animate-spin" />检查中</>
+              <><RefreshCw className="w-3 h-3 animate-spin" />{t('search:sources.checking')}</>
             ) : (
-              <><Activity className="w-3 h-3" />批量检查</>
+              <><Activity className="w-3 h-3" />{t('search:sources.batchCheck')}</>
             )}
           </button>
         )}
@@ -129,13 +132,13 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                   <div className="text-left">
                     <span className="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-200">{majorCategory.name}</span>
                     <p className="text-[10px] sm:text-xs text-surface-400">
-                      {majorCategory.categories.length} 个分类 · {totalSources} 个搜索源
+                      {t('search:sources.majorCount', { categories: majorCategory.categories.length, sources: totalSources })}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="text-[10px] sm:text-xs px-2 py-1 bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400 rounded-lg font-medium">
-                    {enabledSources}/{totalSources} 启用
+                    {t('search:sources.enabledRatio', { enabled: enabledSources, total: totalSources })}
                   </span>
                 </div>
               </button>
@@ -165,11 +168,11 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                               )}
                             </div>
                             <span className="text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300">{category.name}</span>
-                            <span className="text-[10px] sm:text-xs text-surface-400">{category.sources.length} 个源</span>
+                            <span className="text-[10px] sm:text-xs text-surface-400">{t('search:sources.categoryCount', { count: category.sources.length })}</span>
                           </div>
                           <div className="flex items-center gap-1.5 sm:gap-2">
                             <span className="text-[10px] sm:text-xs text-surface-500 dark:text-surface-400">
-                              {categoryEnabledCount}/{category.sources.length} 启用
+                              {t('search:sources.enabledRatio', { enabled: categoryEnabledCount, total: category.sources.length })}
                             </span>
                           </div>
                         </button>
@@ -205,7 +208,7 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                                   : 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'
                                               }`}>
                                                 {isEnabled ? <CheckCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> : <XCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" />}
-                                                {isEnabled ? '启用' : '禁用'}
+                                                {isEnabled ? t('search:sources.enabled') : t('search:sources.disabled')}
                                               </span>
                                             {checkResult && (() => {
                                               const colorClass = checkResult.available
@@ -217,15 +220,15 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                                     : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400';
                                               const label = checkResult.available
                                                 ? checkResult.status === 'restricted'
-                                                  ? `受限 ${checkResult.responseTime}ms`
-                                                  : `${checkResult.responseTime}ms`
-                                                : checkResult.status === 'timeout' ? '超时'
-                                                  : checkResult.status === 'offline' ? '离线' : '异常';
+                                                  ? t('search:sources.restricted', { time: checkResult.responseTime })
+                                                  : t('search:sources.available', { time: checkResult.responseTime })
+                                                : checkResult.status === 'timeout' ? t('search:sources.timeout')
+                                                  : checkResult.status === 'offline' ? t('search:sources.offline') : t('search:sources.abnormal');
                                               const titleText = checkResult.available
                                                 ? checkResult.status === 'restricted'
-                                                  ? `服务器在线（访问受限），响应 ${checkResult.responseTime}ms`
-                                                  : `可正常访问，响应时间 ${checkResult.responseTime}ms`
-                                                : checkResult.error || '无法访问';
+                                                  ? t('search:sources.restrictedTitle', { time: checkResult.responseTime })
+                                                  : t('search:sources.availableTitle', { time: checkResult.responseTime })
+                                                : checkResult.error || t('search:sources.unavailableTitle');
                                               return (
                                                 <span
                                                   className={`flex items-center gap-0.5 text-[9px] sm:text-[10px] px-1 py-0.5 rounded font-medium ${colorClass}`}
@@ -250,7 +253,7 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                         <button
                                           onClick={() => onCheckSingle(source.id)}
                                           className="p-1 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-                                          title="健康检查"
+                                          title={t('search:sources.healthCheck')}
                                         >
                                           <RefreshCw className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                         </button>
@@ -260,7 +263,7 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
                                             window.open(isProxyEnabled ? convertToProxyUrl(homepageUrl) : homepageUrl, '_blank');
                                           }}
                                           className="p-1 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-                                          title="访问站点"
+                                          title={t('search:sources.visitSite')}
                                         >
                                           <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                         </button>
@@ -283,4 +286,5 @@ export const SourcesPanel: React.FC<SourcesPanelProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};

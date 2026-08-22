@@ -4,6 +4,8 @@ import {
   RefreshCw, Loader2, AlertCircle, Clock,
   ChevronDown, ChevronRight, Search, TrendingUp,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useJavRankings } from '@/hooks';
 import type { JavItem, GroupRanking } from '@/types';
 
@@ -25,13 +27,13 @@ export const JAV_HEADER_HEIGHT = 64;
 // 内容区精确高度 = 总高 - header - tab栏 - padding - footer
 const CONTENT_H = JAV_PANEL_HEIGHT - JAV_HEADER_HEIGHT - 52 - 24 - 34; // = 192px
 
-function formatAge(ms: number | null): string {
+function formatAge(t: TFunction, ms: number | null): string {
   if (ms === null) return '';
   const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}秒前`;
+  if (sec < 60) return t('jav:rankings.ageSeconds', { count: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}分钟前`;
-  return `${Math.floor(min / 60)}小时前`;
+  if (min < 60) return t('jav:rankings.ageMinutes', { count: min });
+  return t('jav:rankings.ageHours', { count: Math.floor(min / 60) });
 }
 
 const CODE_COLORS = [
@@ -43,13 +45,14 @@ const CODE_COLORS = [
 ];
 
 const CodeGrid: React.FC<{ items: JavItem[]; onCodeClick: (c: string) => void; emptyText?: string }> = ({
-  items, onCodeClick, emptyText = '暂无数据',
+  items, onCodeClick, emptyText,
 }) => {
+  const { t } = useTranslation(['jav']);
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-surface-400">
         <Search className="w-8 h-8 mb-2 opacity-40" />
-        <p className="text-xs">{emptyText}</p>
+        <p className="text-xs">{emptyText ?? t('jav:rankings.emptyDefault')}</p>
       </div>
     );
   }
@@ -75,13 +78,14 @@ const GroupTabs: React.FC<{
   onCodeClick: (c: string) => void;
   emptyText?: string;
   emptyIcon?: React.ElementType;
-}> = ({ groups, onCodeClick, emptyText = '数据加载中，请稍后刷新', emptyIcon: Icon = Tag }) => {
+}> = ({ groups, onCodeClick, emptyText, emptyIcon: Icon = Tag }) => {
+  const { t } = useTranslation(['jav']);
   const [activeKey, setActiveKey] = useState<string>(groups[0]?.key ?? '');
   if (groups.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-surface-400">
         <Icon className="w-8 h-8 mb-2 opacity-40" />
-        <p className="text-xs">{emptyText}</p>
+        <p className="text-xs">{emptyText ?? t('jav:rankings.emptyLoading')}</p>
       </div>
     );
   }
@@ -105,28 +109,29 @@ const GroupTabs: React.FC<{
         ))}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-        <CodeGrid items={current.items} onCodeClick={onCodeClick} emptyText="该分组暂无数据" />
+        <CodeGrid items={current.items} onCodeClick={onCodeClick} emptyText={t('jav:rankings.emptyGroup')} />
       </div>
     </div>
   );
 };
 
 type TabId = 'censored' | 'uncensored' | 'hd' | 'subtitle' | 'genres' | 'actresses';
-interface TabDef { id: TabId; label: string; short: string; icon: React.ElementType; color: string; bg: string; }
+interface TabDef { id: TabId; labelKey: string; shortKey: string; icon: React.ElementType; color: string; bg: string; }
 const TABS: TabDef[] = [
-  { id: 'censored',   label: '有码精选', short: '有码', icon: Film,     color: 'text-rose-600 dark:text-rose-400',      bg: 'bg-rose-100 dark:bg-rose-900/30' },
-  { id: 'uncensored', label: '无码精选', short: '无码', icon: Eye,      color: 'text-rose-600 dark:text-rose-400',        bg: 'bg-rose-100 dark:bg-rose-900/30' },
-  { id: 'hd',         label: '高清专区', short: '高清', icon: Tv,       color: 'text-sky-600 dark:text-sky-400',         bg: 'bg-sky-100 dark:bg-sky-900/30' },
-  { id: 'subtitle',   label: '字幕专区', short: '字幕', icon: FileText, color: 'text-teal-600 dark:text-teal-400',       bg: 'bg-teal-100 dark:bg-teal-900/30' },
-  { id: 'genres',     label: '随机类别', short: '类别', icon: Tag,      color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-100 dark:bg-amber-900/30' },
-  { id: 'actresses',  label: '随机女优', short: '女优', icon: Users,    color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+  { id: 'censored',   labelKey: 'jav:rankings.tabCensored',   shortKey: 'jav:rankings.shortCensored',   icon: Film,     color: 'text-rose-600 dark:text-rose-400',      bg: 'bg-rose-100 dark:bg-rose-900/30' },
+  { id: 'uncensored', labelKey: 'jav:rankings.tabUncensored', shortKey: 'jav:rankings.shortUncensored', icon: Eye,      color: 'text-rose-600 dark:text-rose-400',        bg: 'bg-rose-100 dark:bg-rose-900/30' },
+  { id: 'hd',         labelKey: 'jav:rankings.tabHd',         shortKey: 'jav:rankings.shortHd',         icon: Tv,       color: 'text-sky-600 dark:text-sky-400',         bg: 'bg-sky-100 dark:bg-sky-900/30' },
+  { id: 'subtitle',   labelKey: 'jav:rankings.tabSubtitle',   shortKey: 'jav:rankings.shortSubtitle',   icon: FileText, color: 'text-teal-600 dark:text-teal-400',       bg: 'bg-teal-100 dark:bg-teal-900/30' },
+  { id: 'genres',     labelKey: 'jav:rankings.tabGenres',     shortKey: 'jav:rankings.shortGenres',     icon: Tag,      color: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  { id: 'actresses',  labelKey: 'jav:rankings.tabActresses',  shortKey: 'jav:rankings.shortActresses',  icon: Users,    color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
 ];
 
 export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick }) => {
+  const { t } = useTranslation(['jav']);
   const { data, isLoading, error, fromCache, cacheAge, refresh } = useJavRankings();
   const [activeTab, setActiveTab] = useState<TabId>('censored');
   const [expanded, setExpanded] = useState(true);
-  const tabCfg = TABS.find(t => t.id === activeTab)!;
+  const tabCfg = TABS.find(tab => tab.id === activeTab)!;
 
   const activeCount = (() => {
     if (!data) return 0;
@@ -147,7 +152,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
           <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${tabCfg.bg} flex items-center justify-center`}>
             <TrendingUp className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${tabCfg.color}`} />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">JAV 榜单</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('jav:rankings.title')}</span>
           {data && activeCount > 0 && (
             <span className={`px-2 py-0.5 text-xs font-semibold ${tabCfg.bg} ${tabCfg.color} rounded-full`}>
               {activeCount}
@@ -162,14 +167,14 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
         <div className="flex items-center gap-1.5 sm:gap-2">
           {fromCache && cacheAge !== null && (
             <span className="hidden sm:flex items-center gap-1 text-[10px] text-surface-400 shrink-0">
-              <Clock className="w-3 h-3" />{formatAge(cacheAge)}
+              <Clock className="w-3 h-3" />{formatAge(t, cacheAge)}
             </span>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); refresh(); }}
             disabled={isLoading}
             className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-40"
-            title="刷新榜单"
+            title={t('jav:rankings.refresh')}
           >
             <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -198,8 +203,8 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
                   }`}
                 >
                   <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.short}</span>
+                  <span className="hidden sm:inline">{t(tab.labelKey)}</span>
+                  <span className="sm:hidden">{t(tab.shortKey)}</span>
                 </button>
               );
             })}
@@ -211,32 +216,32 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-surface-400">
               <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
-              <p className="text-xs">正在获取榜单数据...</p>
+              <p className="text-xs">{t('jav:rankings.loading')}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
               <AlertCircle className="w-6 h-6 text-error-400" />
               <p className="text-xs text-error-500">{error}</p>
-              <button onClick={refresh} className="text-xs text-primary-500 underline">点击重试</button>
+              <button onClick={refresh} className="text-xs text-primary-500 underline">{t('jav:rankings.retry')}</button>
             </div>
           ) : activeTab === 'genres' ? (
-            <GroupTabs groups={data?.genres ?? []} onCodeClick={onCodeClick} emptyText="类别数据加载失败" emptyIcon={Tag} />
+            <GroupTabs groups={data?.genres ?? []} onCodeClick={onCodeClick} emptyText={t('jav:rankings.genresError')} emptyIcon={Tag} />
           ) : activeTab === 'actresses' ? (
-            <GroupTabs groups={data?.actresses ?? []} onCodeClick={onCodeClick} emptyText="女优数据加载失败" emptyIcon={Users} />
+            <GroupTabs groups={data?.actresses ?? []} onCodeClick={onCodeClick} emptyText={t('jav:rankings.actressesError')} emptyIcon={Users} />
           ) : activeTab === 'hd' ? (
             <div className="h-full overflow-y-auto scrollbar-thin">
-              <CodeGrid items={data?.hd ?? []} onCodeClick={onCodeClick} emptyText="高清数据暂无，点击刷新重试" />
+              <CodeGrid items={data?.hd ?? []} onCodeClick={onCodeClick} emptyText={t('jav:rankings.hdEmpty')} />
             </div>
           ) : activeTab === 'subtitle' ? (
             <div className="h-full overflow-y-auto scrollbar-thin">
-              <CodeGrid items={data?.subtitle ?? []} onCodeClick={onCodeClick} emptyText="字幕数据暂无，点击刷新重试" />
+              <CodeGrid items={data?.subtitle ?? []} onCodeClick={onCodeClick} emptyText={t('jav:rankings.subtitleEmpty')} />
             </div>
           ) : (
             <div className="h-full overflow-y-auto scrollbar-thin">
               <CodeGrid
                 items={(data?.[activeTab as 'censored' | 'uncensored'] as JavItem[]) ?? []}
                 onCodeClick={onCodeClick}
-                emptyText="暂无数据，点击右上角刷新按钮重试"
+                emptyText={t('jav:rankings.censoredEmpty')}
               />
             </div>
           )}
@@ -245,13 +250,13 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
         {/* 底部提示 */}
         <div className="px-3 sm:px-4 py-2.5 border-t border-surface-50 dark:border-surface-800/60 shrink-0 flex items-center justify-between">
           <p className="text-[10px] text-surface-400 dark:text-surface-500">
-            💡 点击番号自动搜索
+            {t('jav:rankings.footerHint')}
             {fromCache && cacheAge !== null && (
-              <span className="ml-2 sm:hidden">· 缓存 {formatAge(cacheAge)}</span>
+              <span className="ml-2 sm:hidden">{t('jav:rankings.cacheAgePrefix', { age: formatAge(t, cacheAge) })}</span>
             )}
           </p>
           {(activeTab === 'genres' || activeTab === 'actresses') && (
-            <p className="text-[10px] text-surface-400 dark:text-surface-500">🔀 刷新将重新随机</p>
+            <p className="text-[10px] text-surface-400 dark:text-surface-500">{t('jav:rankings.reshuffleHint')}</p>
           )}
         </div>
       </div>

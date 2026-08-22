@@ -24,10 +24,11 @@ import { Card, Button, Input, Badge, Modal, Loading, EmptyState, SourceIcon, Dro
 import { sourceApi } from '@/services/api';
 import { useNotification } from '@/hooks';
 import { useAuthStore } from '@/stores';
-import type { 
-  SearchSource, 
-  MajorCategory, 
-  Category, 
+import { useTranslation } from 'react-i18next';
+import type {
+  SearchSource,
+  MajorCategory,
+  Category,
   UserSourceConfig,
   SourceStats,
   CreateSourceRequest,
@@ -52,6 +53,7 @@ interface MajorCategoryWithCategories extends MajorCategory {
 
 export const SourceManager: React.FC = () => {
   const notification = useNotification();
+  const { t } = useTranslation(['dashboard']);
   const { user } = useAuthStore();
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   
@@ -222,12 +224,12 @@ export const SourceManager: React.FC = () => {
   const handleToggleSource = async (sourceId: string, isEnabled: boolean) => {
     try {
       await sourceApi.updateUserSourceConfig(sourceId, { isEnabled });
-      setSources(prev => prev.map(s => 
-        s.id === sourceId 
+      setSources(prev => prev.map(s =>
+        s.id === sourceId
           ? { ...s, userConfig: { ...s.userConfig, isEnabled } as UserSourceConfig }
           : s
       ));
-      notification.source.enabled(isEnabled ? '搜索源' : undefined);
+      notification.source.enabled(isEnabled ? t('dashboard:sources.sourceFallback') : undefined);
     } catch (_error) {
       notification.source.createFailed();
     }
@@ -310,8 +312,8 @@ export const SourceManager: React.FC = () => {
   };
 
   const handleDeleteSource = async (sourceId: string) => {
-    if (!confirm('确定要删除这个搜索源吗？此操作不可撤销。')) return;
-    
+    if (!confirm(t('dashboard:sources.deleteConfirm'))) return;
+
     try {
       await sourceApi.deleteSource(sourceId);
       notification.source.deleted();
@@ -336,23 +338,23 @@ export const SourceManager: React.FC = () => {
         }));
 
         const source = sources.find(s => s.id === sourceId);
-        const name = source?.name || '搜索源';
+        const name = source?.name || t('dashboard:sources.sourceFallback');
 
         if (response.data.available) {
           const label = response.data.status === 'restricted'
-            ? `${name} 在线（访问受限）`
-            : `${name} 在线`;
-          notification.source.testSuccess(label, `响应时间 ${response.data.responseTime}ms`);
+            ? t('dashboard:sources.statusOnlineRestricted', { name })
+            : t('dashboard:sources.statusOnline', { name });
+          notification.source.testSuccess(label, t('dashboard:sources.statusResponseTime', { time: response.data.responseTime }));
         } else {
           const reason = response.data.status === 'timeout'
-            ? '请求超时'
-            : response.data.error || '无法访问';
+            ? t('dashboard:sources.statusTimeout')
+            : response.data.error || t('dashboard:sources.statusUnreachable');
           notification.source.testFailed(`${name}：${reason}`);
         }
       }
     } catch (_error) {
       const source = sources.find(s => s.id === sourceId);
-      notification.source.testFailed(source?.name || '搜索源');
+      notification.source.testFailed(source?.name || t('dashboard:sources.sourceFallback'));
     }
   };
 
@@ -360,7 +362,7 @@ export const SourceManager: React.FC = () => {
     // 检查所有源（不限于已启用的），方便用户了解全部状态
     const checkableSources = sources.filter(s => s.searchable || s.homepageUrl);
     if (checkableSources.length === 0) {
-      notification.warning('没有可检查的搜索源');
+      notification.warning(t('dashboard:sources.noSourcesToCheck'));
       return;
     }
 
@@ -408,15 +410,15 @@ export const SourceManager: React.FC = () => {
 
       const unavailable = totalChecked - totalAvailable;
       if (unavailable === 0) {
-        notification.success('检查完成', `全部 ${totalChecked} 个搜索源均可正常访问 ✓`);
+        notification.success(t('dashboard:sources.checkComplete'), t('dashboard:sources.allAvailable', { count: totalChecked }));
       } else {
         notification.warning(
-          `检查完成（${totalAvailable}/${totalChecked} 可用）`,
-          `${unavailable} 个搜索源可能无法访问`
+          t('dashboard:sources.checkResultAvailable', { available: totalAvailable, total: totalChecked }),
+          t('dashboard:sources.unavailableCount', { count: unavailable })
         );
       }
     } catch (_error) {
-      notification.error('批量检查失败', '请检查网络连接后重试');
+      notification.error(t('dashboard:sources.batchCheckFailed'), t('dashboard:sources.checkNetworkRetry'));
     } finally {
       setIsBatchChecking(false);
     }
@@ -472,9 +474,9 @@ export const SourceManager: React.FC = () => {
 
   const getSiteTypeBadge = (siteType: string) => {
     const map: Record<string, { variant: 'primary' | 'accent' | 'default'; label: string }> = {
-      search: { variant: 'primary', label: '搜索' },
-      browse: { variant: 'accent', label: '浏览' },
-      reference: { variant: 'default', label: '参考' },
+      search: { variant: 'primary', label: t('dashboard:sources.siteTypeSearch') },
+      browse: { variant: 'accent', label: t('dashboard:sources.siteTypeBrowse') },
+      reference: { variant: 'default', label: t('dashboard:sources.siteTypeReference') },
     };
     return map[siteType] || map.search;
   };
@@ -482,7 +484,7 @@ export const SourceManager: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载搜索源..." />
+        <Loading size="lg" text={t('dashboard:sources.loading')} />
       </div>
     );
   }
@@ -496,55 +498,55 @@ export const SourceManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-              搜索源管理
+              {t('dashboard:sources.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              按大类、分类管理搜索源的启用状态
+              {t('dashboard:sources.subtitle')}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleBatchCheckStatus}
               disabled={isBatchChecking}
               leftIcon={isBatchChecking ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
               className="text-primary-600 border-primary-300 hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-900/20"
             >
-              {isBatchChecking ? '检查中...' : '批量检查'}
+              {isBatchChecking ? t('dashboard:sources.checking') : t('dashboard:sources.batchCheck')}
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => handleToggleAll(true)}
               leftIcon={<CheckCircle className="w-4 h-4" />}
               className="text-success-600 border-success-300 hover:bg-success-50 dark:border-success-700 dark:text-success-400 dark:hover:bg-success-900/20"
             >
-              全部启用
+              {t('dashboard:sources.enableAll')}
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => handleToggleAll(false)}
               leftIcon={<XCircle className="w-4 h-4" />}
               className="text-surface-600 border-surface-300 hover:bg-surface-50 dark:border-surface-600 dark:text-surface-400 dark:hover:bg-surface-800"
             >
-              全部禁用
+              {t('dashboard:sources.disableAll')}
             </Button>
           </div>
           <Dropdown
             trigger={
               <Button variant="outline" leftIcon={<Download className="w-4 h-4" />}>
-                导出
+                {t('dashboard:sources.export')}
                 <ChevronDown className="w-4 h-4 ml-1" />
               </Button>
             }
             items={[
-              { label: '导出为 JSON', onClick: () => handleExport('json') },
-              { label: '导出为 CSV', onClick: () => handleExport('csv') },
-              { label: '导出为 OPML', onClick: () => handleExport('opml') },
+              { label: t('dashboard:sources.exportJson'), onClick: () => handleExport('json') },
+              { label: t('dashboard:sources.exportCsv'), onClick: () => handleExport('csv') },
+              { label: t('dashboard:sources.exportOpml'), onClick: () => handleExport('opml') },
             ]}
           />
           <Button
@@ -552,7 +554,7 @@ export const SourceManager: React.FC = () => {
             leftIcon={<Plus className="w-4 h-4" />}
             onClick={() => setCreateModal(true)}
           >
-            添加搜索源
+            {t('dashboard:sources.addSource')}
           </Button>
         </div>
       </div>
@@ -565,7 +567,7 @@ export const SourceManager: React.FC = () => {
                 <Database className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-surface-500 dark:text-surface-400">总搜索源</p>
+                <p className="text-sm text-surface-500 dark:text-surface-400">{t('dashboard:sources.statsTotalSources')}</p>
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {stats.totalSources}
                 </p>
@@ -578,7 +580,7 @@ export const SourceManager: React.FC = () => {
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-surface-500 dark:text-surface-400">已启用</p>
+                <p className="text-sm text-surface-500 dark:text-surface-400">{t('dashboard:sources.statsEnabled')}</p>
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {sources.filter(s => s.userConfig?.isEnabled !== false).length}
                 </p>
@@ -591,7 +593,7 @@ export const SourceManager: React.FC = () => {
                 <Tag className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-surface-500 dark:text-surface-400">分类数</p>
+                <p className="text-sm text-surface-500 dark:text-surface-400">{t('dashboard:sources.statsCategories')}</p>
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {stats.totalCategories}
                 </p>
@@ -604,7 +606,7 @@ export const SourceManager: React.FC = () => {
                 <Layers className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm text-surface-500 dark:text-surface-400">大类数</p>
+                <p className="text-sm text-surface-500 dark:text-surface-400">{t('dashboard:sources.statsMajorCategories')}</p>
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {stats.totalMajorCategories}
                 </p>
@@ -618,7 +620,7 @@ export const SourceManager: React.FC = () => {
         <div className="flex items-center gap-3">
           <Filter className="w-5 h-5 text-surface-400" />
           <Input
-            placeholder="搜索大类、分类或搜索源..."
+            placeholder={t('dashboard:sources.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftIcon={<Search className="w-5 h-5" />}
@@ -630,7 +632,7 @@ export const SourceManager: React.FC = () => {
       <div className="space-y-4">
         {filteredMajorCategories.map((majorCategory) => {
           const isMajorExpanded = expandedMajorCategories.has(majorCategory.id);
-          
+
           return (
             <Card key={majorCategory.id} className="overflow-hidden border-surface-200/50 dark:border-surface-700/50 shadow-lg">
               <div className="p-4 sm:p-5 bg-gradient-to-r from-surface-50 to-surface-100 dark:from-surface-800/50 dark:to-surface-800">
@@ -641,7 +643,7 @@ export const SourceManager: React.FC = () => {
                     className="flex items-center gap-3 flex-1 text-left min-w-0"
                   >
                     <ChevronRight className={`w-4 h-4 shrink-0 text-surface-400 transition-transform duration-200 ${isMajorExpanded ? 'rotate-90' : ''}`} />
-                    <div 
+                    <div
                       className="w-9 h-9 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md"
                       style={{ backgroundColor: majorCategory.color || '#d4a853' }}
                     >
@@ -656,11 +658,11 @@ export const SourceManager: React.FC = () => {
                         {majorCategory.name}
                       </h3>
                       <p className="text-xs sm:text-sm text-surface-500 dark:text-surface-400">
-                        {majorCategory.categories.length} 个分类 · {majorCategory.totalCount} 个搜索源
+                        {t('dashboard:sources.majorCategoryStats', { categories: majorCategory.categories.length, sources: majorCategory.totalCount })}
                       </p>
                     </div>
                   </button>
-                  
+
                   {/* Controls: shrink-0 so they never wrap into the title */}
                   <div className="shrink-0 flex items-center gap-2">
                     <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-100 dark:bg-surface-700 text-xs text-surface-600 dark:text-surface-300 whitespace-nowrap">
@@ -669,14 +671,14 @@ export const SourceManager: React.FC = () => {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, true); }}
                       className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
-                      title="启用全部"
+                      title={t('dashboard:sources.enableAllTitle')}
                     >
                       <CheckCircle className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleToggleMajorCategory(majorCategory.id, false); }}
                       className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
-                      title="禁用全部"
+                      title={t('dashboard:sources.disableAllTitle')}
                     >
                       <XCircle className="w-4 h-4" />
                     </button>
@@ -686,21 +688,21 @@ export const SourceManager: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               {isMajorExpanded && (
                 <div className="border-t border-surface-200 dark:border-surface-700">
                   {majorCategory.categories.map((category) => {
                     const isCategoryExpanded = expandedCategories.has(category.id);
-                    
+
                     return (
                       <div key={category.id} className="border-b border-surface-100 dark:border-surface-800 last:border-b-0">
-                        <div 
+                        <div
                           className="flex items-center justify-between px-4 py-3 sm:pl-12 hover:bg-surface-50 dark:hover:bg-surface-800/50 cursor-pointer transition-colors"
                           onClick={() => toggleCategoryExpand(category.id)}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <ChevronRight className={`w-4 h-4 shrink-0 text-surface-400 transition-transform duration-200 ${isCategoryExpanded ? 'rotate-90' : ''}`} />
-                            <div 
+                            <div
                               className="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm"
                               style={{ backgroundColor: category.color || '#6366f1' }}
                             >
@@ -715,7 +717,7 @@ export const SourceManager: React.FC = () => {
                                 {category.name}
                               </span>
                               <span className="text-xs text-surface-400">
-                                {category.totalCount} 个源
+                                {t('dashboard:sources.sourcesCount', { count: category.totalCount })}
                               </span>
                             </div>
                           </div>
@@ -726,14 +728,14 @@ export const SourceManager: React.FC = () => {
                             <button
                               onClick={() => handleToggleCategory(category.id, true)}
                               className="p-1.5 rounded-lg text-success-600 dark:text-success-400 hover:bg-success-50 dark:hover:bg-success-900/20 transition-all"
-                              title="启用全部"
+                              title={t('dashboard:sources.enableAllTitle')}
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleToggleCategory(category.id, false)}
                               className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 transition-all"
-                              title="禁用全部"
+                              title={t('dashboard:sources.disableAllTitle')}
                             >
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
@@ -742,16 +744,16 @@ export const SourceManager: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        
+
                         {isCategoryExpanded && (
                           <div className="bg-surface-50/50 dark:bg-surface-900/30">
                             {category.sources.map((source) => {
                               const isEnabled = source.userConfig?.isEnabled !== false;
                               const siteType = getSiteTypeBadge(source.siteType);
                               const checkResult = batchCheckResults[source.id];
-                              
+
                               return (
-                                <div 
+                                <div
                                   key={source.id}
                                   className={`px-4 py-3 sm:pl-16 hover:bg-surface-100/50 dark:hover:bg-surface-800/30 transition-colors border-b border-surface-100/80 dark:border-surface-800/50 last:border-b-0 ${
                                     !isEnabled ? 'opacity-60' : ''
@@ -778,7 +780,7 @@ export const SourceManager: React.FC = () => {
                                         {source.isSystem && (
                                           <Badge variant="accent" className="flex items-center gap-1 text-xs shrink-0">
                                             <Shield className="w-2.5 h-2.5" />
-                                            系统
+                                            {t('dashboard:sources.system')}
                                           </Badge>
                                         )}
                                         {checkResult && (() => {
@@ -791,18 +793,18 @@ export const SourceManager: React.FC = () => {
                                                 : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400';
                                           const statusLabel = checkResult.available
                                             ? checkResult.status === 'restricted'
-                                              ? `受限 ${checkResult.responseTime}ms`
-                                              : `在线 ${checkResult.responseTime}ms`
+                                              ? t('dashboard:sources.checkRestricted', { time: checkResult.responseTime })
+                                              : t('dashboard:sources.checkOnline', { time: checkResult.responseTime })
                                             : checkResult.status === 'timeout'
-                                              ? '超时'
+                                              ? t('dashboard:sources.checkTimeout')
                                               : checkResult.status === 'offline'
-                                                ? '离线'
-                                                : checkResult.error || '不可用';
+                                                ? t('dashboard:sources.checkOffline')
+                                                : checkResult.error || t('dashboard:sources.checkUnavailable');
                                           const titleText = checkResult.available
                                             ? checkResult.status === 'restricted'
-                                              ? `服务器在线（访问受限），响应 ${checkResult.responseTime}ms`
-                                              : `可正常访问，响应时间 ${checkResult.responseTime}ms`
-                                            : checkResult.error || '无法访问';
+                                              ? t('dashboard:sources.checkTitleRestricted', { time: checkResult.responseTime })
+                                              : t('dashboard:sources.checkTitleOnline', { time: checkResult.responseTime })
+                                            : checkResult.error || t('dashboard:sources.checkTitleUnreachable');
                                           return (
                                             <Badge
                                               variant={checkResult.available ? 'primary' : 'default'}
@@ -835,14 +837,14 @@ export const SourceManager: React.FC = () => {
                                           }`}
                                         >
                                           {isEnabled ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                                          {isEnabled ? '已启用' : '已禁用'}
+                                          {isEnabled ? t('dashboard:sources.enabled') : t('dashboard:sources.disabled')}
                                         </button>
                                         <div className="flex items-center gap-0.5 ml-auto">
                                           <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => handleCheckStatus(source.id)}
-                                            title="检测状态"
+                                            title={t('dashboard:sources.actionCheckStatus')}
                                             className="p-1.5 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                                           >
                                             <RefreshCw className="w-3.5 h-3.5" />
@@ -866,7 +868,7 @@ export const SourceManager: React.FC = () => {
                                                   });
                                                   setEditModal({ isOpen: true, source });
                                                 }}
-                                                title="编辑"
+                                                title={t('dashboard:sources.actionEdit')}
                                                 className="p-1.5 hover:bg-accent-50 dark:hover:bg-accent-900/20"
                                               >
                                                 <Edit className="w-3.5 h-3.5" />
@@ -875,7 +877,7 @@ export const SourceManager: React.FC = () => {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => handleDeleteSource(source.id)}
-                                                title="删除"
+                                                title={t('dashboard:sources.actionDelete')}
                                                 className="p-1.5 text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
                                               >
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -883,7 +885,7 @@ export const SourceManager: React.FC = () => {
                                             </>
                                           )}
                                           {source.isSystem && !isAdmin && (
-                                            <span title="系统数据，仅管理员可编辑" className="p-1.5">
+                                            <span title={t('dashboard:sources.systemDataLock')} className="p-1.5">
                                               <LockKeyhole className="w-3.5 h-3.5 text-surface-400" />
                                             </span>
                                           )}
@@ -904,15 +906,15 @@ export const SourceManager: React.FC = () => {
             </Card>
           );
         })}
-        
+
         {filteredMajorCategories.length === 0 && (
           <EmptyState
             icon={<Database className="w-12 h-12" />}
-            title="没有找到搜索源"
-            description="尝试调整搜索条件或添加新的搜索源"
+            title={t('dashboard:sources.emptyTitle')}
+            description={t('dashboard:sources.emptyDesc')}
             action={
               <Button variant="primary" onClick={() => setCreateModal(true)}>
-                添加搜索源
+                {t('dashboard:sources.addSource')}
               </Button>
             }
           />
@@ -936,63 +938,63 @@ export const SourceManager: React.FC = () => {
             searchPriority: 0,
           });
         }}
-        title={editModal.isOpen ? '编辑搜索源' : '添加搜索源'}
+        title={editModal.isOpen ? t('dashboard:sources.modalEdit') : t('dashboard:sources.modalCreate')}
         size="lg"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="名称 *"
+              label={t('dashboard:sources.formNameLabel')}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="搜索源名称"
+              placeholder={t('dashboard:sources.formNamePlaceholder')}
               fullWidth
             />
             <Input
-              label="副标题"
+              label={t('dashboard:sources.formSubtitleLabel')}
               value={formData.subtitle}
               onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-              placeholder="简短描述"
+              placeholder={t('dashboard:sources.formSubtitlePlaceholder')}
               fullWidth
             />
           </div>
-          
+
           <Input
-            label="URL模板 *"
+            label={t('dashboard:sources.formUrlTemplateLabel')}
             value={formData.urlTemplate}
             onChange={(e) => setFormData({ ...formData, urlTemplate: e.target.value })}
             placeholder="https://example.com/search?q={keyword}"
             fullWidth
           />
-          
+
           <Input
-            label="主页URL"
+            label={t('dashboard:sources.formHomepageUrlLabel')}
             value={formData.homepageUrl}
             onChange={(e) => setFormData({ ...formData, homepageUrl: e.target.value })}
             placeholder="https://example.com"
             fullWidth
           />
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                分类 *
+                {t('dashboard:sources.formCategoryLabel')}
               </label>
               <select
                 value={formData.categoryId}
                 onChange={(e) => {
                   const newCategoryId = e.target.value;
                   const selectedCategory = categories.find(c => c.id === newCategoryId);
-                  
-                  setFormData({ 
-                    ...formData, 
+
+                  setFormData({
+                    ...formData,
                     categoryId: newCategoryId,
                     searchable: selectedCategory?.defaultSearchable ?? true,
                   });
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
               >
-                <option value="">选择分类</option>
+                <option value="">{t('dashboard:sources.formCategoryPlaceholder')}</option>
                 {majorCategories.map(mc => (
                   <optgroup key={mc.id} label={mc.name}>
                     {categories.filter(c => c.majorCategoryId === mc.id).map(c => (
@@ -1003,28 +1005,28 @@ export const SourceManager: React.FC = () => {
               </select>
             </div>
           </div>
-          
+
           <Input
-            label="图标URL"
+            label={t('dashboard:sources.formIconUrlLabel')}
             value={formData.icon}
             onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
             placeholder="https://example.com/icon.png"
             fullWidth
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              描述
+              {t('dashboard:sources.formDescriptionLabel')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="搜索源详细描述"
+              placeholder={t('dashboard:sources.formDescriptionPlaceholder')}
               rows={3}
               className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <label className="flex items-center gap-2">
               <input
@@ -1033,17 +1035,17 @@ export const SourceManager: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, searchable: e.target.checked })}
                 className="rounded border-surface-300 dark:border-surface-600"
               />
-              <span className="text-sm text-surface-700 dark:text-surface-300">可搜索</span>
+              <span className="text-sm text-surface-700 dark:text-surface-300">{t('dashboard:sources.formSearchableLabel')}</span>
             </label>
             <Input
-              label="优先级"
+              label={t('dashboard:sources.formPriorityLabel')}
               type="number"
               value={formData.searchPriority}
               onChange={(e) => setFormData({ ...formData, searchPriority: parseInt(e.target.value) || 0 })}
               fullWidth
             />
           </div>
-          
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
@@ -1052,13 +1054,13 @@ export const SourceManager: React.FC = () => {
                 setEditModal({ isOpen: false, source: null });
               }}
             >
-              取消
+              {t('dashboard:sources.cancel')}
             </Button>
             <Button
               variant="primary"
               onClick={editModal.isOpen ? handleUpdateSource : handleCreateSource}
             >
-              {editModal.isOpen ? '保存更改' : '创建'}
+              {editModal.isOpen ? t('dashboard:sources.saveChanges') : t('dashboard:sources.create')}
             </Button>
           </div>
         </div>

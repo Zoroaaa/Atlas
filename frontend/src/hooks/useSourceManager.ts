@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useMajorCategories, useCategories, useSourcesWithUserConfig } from '@/hooks';
 import { sourceApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
+import i18next from '@/i18n';
 import type { MajorCategory, Category, SearchSource, UserSourceConfig } from '@/types';
 
 interface SourceWithUserConfig extends SearchSource {
@@ -83,7 +84,7 @@ export function useSourceManager() {
 
   const handleBatchCheckSources = async () => {
     const checkableSources = allSources.filter(s => s.searchable || s.homepageUrl);
-    if (checkableSources.length === 0) { toast.warning('没有可检查的搜索源'); return; }
+    if (checkableSources.length === 0) { toast.warning(i18next.t('errors:hooks.source.noCheckableSourcesTitle')); return; }
     setIsBatchChecking(true);
     setBatchCheckResults({});
     let totalAvailable = 0;
@@ -107,11 +108,11 @@ export function useSourceManager() {
       }
       const unavailable = totalChecked - totalAvailable;
       if (unavailable === 0) {
-        toast.success(`检查完成：全部 ${totalChecked} 个搜索源均可正常访问 ✓`);
+        toast.success(i18next.t('errors:hooks.source.batchCheckAllSuccessTitle', { count: totalChecked }));
       } else {
-        toast.warning(`检查完成：${totalAvailable}/${totalChecked} 可用，${unavailable} 个无法访问`);
+        toast.warning(i18next.t('errors:hooks.source.batchCheckPartialTitle', { available: totalAvailable, total: totalChecked, unavailable }));
       }
-    } catch { toast.error('批量检查失败', '请检查网络连接后重试'); }
+    } catch { toast.error(i18next.t('errors:hooks.source.batchCheckFailedTitle'), i18next.t('errors:hooks.source.batchCheckFailedMessage')); }
     finally { setIsBatchChecking(false); }
   };
 
@@ -125,12 +126,12 @@ export function useSourceManager() {
         }));
         const { status, available, responseTime, error } = response.data;
         if (available) {
-          toast.success(status === 'restricted' ? '在线（访问受限）' : '在线', `响应时间 ${responseTime}ms`);
+          toast.success(status === 'restricted' ? i18next.t('errors:hooks.source.onlineRestrictedTitle') : i18next.t('errors:hooks.source.onlineTitle'), i18next.t('errors:hooks.source.responseTimeMessage', { time: responseTime }));
         } else {
-          toast.error('检查失败', status === 'timeout' ? '请求超时' : error || '无法访问');
+          toast.error(i18next.t('errors:hooks.source.checkFailedTitle'), status === 'timeout' ? i18next.t('errors:hooks.source.timeoutMessage') : error || i18next.t('errors:hooks.source.unavailableMessage'));
         }
       }
-    } catch { toast.error('检查失败', '请检查网络连接后重试'); }
+    } catch { toast.error(i18next.t('errors:hooks.source.checkFailedTitle'), i18next.t('errors:hooks.source.checkFailedMessage')); }
   };
 
   return {

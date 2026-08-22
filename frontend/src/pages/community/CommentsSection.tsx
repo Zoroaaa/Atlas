@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
 import { Card, Button, Input } from '@/components/ui';
@@ -10,19 +11,8 @@ interface CommentsSectionProps {
   postId: string;
 }
 
-const formatDate = (timestamp: number) => {
-  if (!timestamp) return '';
-  const d = new Date(timestamp);
-  const now = Date.now();
-  const diff = now - timestamp;
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
-  return d.toLocaleDateString('zh-CN');
-};
-
 export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const { isAuthenticated } = useAuthStore();
   const {
@@ -42,17 +32,29 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     }
   }, [postId, fetchComments]);
 
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return '';
+    const d = new Date(timestamp);
+    const now = Date.now();
+    const diff = now - timestamp;
+    if (diff < 60000) return t('communityPages:comments.justNow');
+    if (diff < 3600000) return t('communityPages:comments.minutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('communityPages:comments.hoursAgo', { count: Math.floor(diff / 3600000) });
+    if (diff < 604800000) return t('communityPages:comments.daysAgo', { count: Math.floor(diff / 86400000) });
+    return d.toLocaleDateString('zh-CN');
+  };
+
   const handleSubmit = async () => {
     if (!isAuthenticated) {
-      toast.warning('请先登录');
+      toast.warning(t('communityPages:comments.loginRequired'));
       return;
     }
     if (!commentText.trim()) {
-      toast.error('请输入评论内容');
+      toast.error(t('communityPages:comments.emptyContent'));
       return;
     }
     if (commentText.length > 500) {
-      toast.error('评论内容不能超过500字');
+      toast.error(t('communityPages:comments.tooLong'));
       return;
     }
 
@@ -63,23 +65,23 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         content: commentText.trim(),
       });
       setCommentText('');
-      toast.success('评论发表成功');
+      toast.success(t('communityPages:comments.published'));
     } catch (error) {
       console.error('发表评论失败:', error);
-      toast.error('发表失败，请重试');
+      toast.error(t('communityPages:comments.publishFailed'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!confirm('确定要删除这条评论吗？')) return;
+    if (!confirm(t('communityPages:comments.deleteConfirm'))) return;
     try {
       await deleteComment(commentId);
-      toast.success('已删除');
+      toast.success(t('communityPages:comments.deleted'));
     } catch (error) {
       console.error('删除评论失败:', error);
-      toast.error('删除失败，请重试');
+      toast.error(t('communityPages:comments.deleteFailed'));
     }
   };
 
@@ -96,7 +98,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
       <div className="flex items-center gap-2">
         <MessageSquare className="w-5 h-5 text-stone-500" />
         <h3 className="font-semibold text-stone-900 dark:text-stone-100">
-          评论 ({comments.length})
+          {t('communityPages:comments.title', { count: comments.length })}
         </h3>
       </div>
 
@@ -107,11 +109,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isAuthenticated ? '写下你的想法...（Ctrl+Enter 发送）' : '登录后即可参与讨论'}
+            placeholder={isAuthenticated ? t('communityPages:comments.inputPlaceholder') : t('communityPages:comments.inputPlaceholderGuest')}
             disabled={!isAuthenticated || submitting}
             fullWidth
             className="flex-1"
-            hint={!isAuthenticated ? undefined : `${commentText.length}/500`}
+            hint={!isAuthenticated ? undefined : t('communityPages:comments.inputHint', { count: commentText.length })}
           />
           <Button
             variant="primary"
@@ -145,8 +147,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
       ) : comments.length === 0 ? (
         <Card padding="lg" className="text-center">
           <MessageSquare className="w-12 h-12 mx-auto text-stone-300 mb-3" />
-          <p className="text-sm font-medium text-stone-600 dark:text-stone-400">快来发表第一条评论</p>
-          <p className="text-xs text-stone-400 mt-1">分享你的看法和感受</p>
+          <p className="text-sm font-medium text-stone-600 dark:text-stone-400">{t('communityPages:comments.emptyTitle')}</p>
+          <p className="text-xs text-stone-400 mt-1">{t('communityPages:comments.emptyDescription')}</p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -170,7 +172,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
-                      {comment.userName || '匿名用户'}
+                      {comment.userName || t('communityPages:comments.anonymous')}
                     </span>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs text-stone-400 whitespace-nowrap">
@@ -184,7 +186,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                             'p-1 rounded-lg transition-all',
                             'text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                           )}
-                          title="删除评论"
+                          title={t('communityPages:comments.deleteButton')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { clsx } from 'clsx';
 import { Megaphone, ChevronDown, X, Info, AlertTriangle, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { announcementApi, type Announcement } from '@/services/api/announcement';
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -20,6 +21,7 @@ const TYPE_STYLE: Record<string, { dot: string; badge: string }> = {
 const CLOSED_KEY_PREFIX = 'announcement_closed_';
 
 export const AnnouncementBar: React.FC = () => {
+  const { t } = useTranslation(['search']);
   const [items, setItems] = useState<Announcement[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -83,7 +85,7 @@ export const AnnouncementBar: React.FC = () => {
             </span>
             {latest.is_pinned === 1 && (
               <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
-                置顶
+                {t('search:announcement.pinned')}
               </span>
             )}
             <span className="hidden sm:block min-w-0 flex-1 text-xs text-surface-500 dark:text-surface-400 truncate">
@@ -109,7 +111,7 @@ export const AnnouncementBar: React.FC = () => {
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClose(e as unknown as React.MouseEvent); } }}
               className="p-1 rounded-lg text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-              title="关闭(本会话不再显示)"
+              title={t('search:announcement.close')}
             >
               <X className="w-3.5 h-3.5" />
             </span>
@@ -139,7 +141,7 @@ export const AnnouncementBar: React.FC = () => {
                         <h4 className="font-medium text-sm truncate">{item.title}</h4>
                         {item.is_pinned === 1 && (
                           <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
-                            置顶
+                            {t('search:announcement.pinned')}
                           </span>
                         )}
                       </div>

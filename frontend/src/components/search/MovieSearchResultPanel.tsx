@@ -5,6 +5,8 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Heart, ShieldCheck, LayoutGrid, List,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type {
   MovieEnrichedData,
   TMDBResult,
@@ -21,12 +23,13 @@ import { MovieGroupedView } from './MovieGroupedView';
 const ratingColor = (n: number) =>
   n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-stone-400';
 
-const mediaTypeLabel = (t: 'movie' | 'tv') =>
-  t === 'movie' ? '电影' : '剧集';
+const mediaTypeLabel = (t: TFunction, m: 'movie' | 'tv') =>
+  m === 'movie' ? t('search:movie.type.movie') : t('search:movie.type.tv');
 
 // ─── 资源卡片（单条资源） ────────────────────────────────────────────
 
 function ResourceCard({ item }: { item: ResourceItem }) {
+  const { t } = useTranslation(['search']);
   return (
     <div className="grid grid-cols-[1fr_auto] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
       {/* 左侧：标题 + 元信息 */}
@@ -44,10 +47,10 @@ function ResourceCard({ item }: { item: ResourceItem }) {
           )}
           {/* 资源类型标签 */}
           {item.resourceType === 'drive' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">网盘</span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">{t('search:movie.cloudDrive')}</span>
           )}
           {item.resourceType === 'direct' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">直链</span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">{t('search:movie.directLink')}</span>
           )}
           {/* 标题（点击唤起客户端或打开链接） */}
           {item.resourceType === 'drive' && item.driveUrl ? (
@@ -64,7 +67,7 @@ function ResourceCard({ item }: { item: ResourceItem }) {
             <a
               href={item.magnet}
               className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-              title={`点击唤起 BT 客户端下载：${item.title}`}
+              title={t('search:movie.btDownloadHint', { title: item.title })}
             >
               {item.title}
             </a>
@@ -87,21 +90,21 @@ function ResourceCard({ item }: { item: ResourceItem }) {
               href={item.driveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title="打开网盘链接"
+              title={t('search:movie.openDriveLink')}
               className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
             {item.driveCode && (
-              <CopyButton text={item.driveCode} label={`复制提取码: ${item.driveCode}`} />
+              <CopyButton text={item.driveCode} label={t('search:movie.copyDriveCode', { code: item.driveCode })} />
             )}
           </>
         ) : item.magnet ? (
           <>
-            <CopyButton text={item.magnet} label="复制磁力链接" />
+            <CopyButton text={item.magnet} label={t('search:movie.copyMagnet')} />
             <a
               href={item.magnet}
-              title="打开磁力链接（唤起BT客户端）"
+              title={t('search:movie.openMagnetHint')}
               className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
             >
               <Magnet className="w-3.5 h-3.5" />
@@ -122,7 +125,9 @@ const MovieCard: React.FC<{
   isAuthenticated: boolean;
   isFavorited: boolean;
   onToggleFavorite: (item: TMDBResult) => void;
-}> = ({ item, onSelect, active, isAuthenticated, isFavorited, onToggleFavorite }) => (
+}> = ({ item, onSelect, active, isAuthenticated, isFavorited, onToggleFavorite }) => {
+  const { t } = useTranslation(['search']);
+  return (
   <div className={`group text-left w-full flex gap-3 p-3 rounded-xl border transition-all ${
     active
       ? 'border-amber-500/60 bg-amber-500/10'
@@ -160,16 +165,16 @@ const MovieCard: React.FC<{
       )}
       <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-stone-400">
         {item.source === 'douban' ? (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">豆瓣</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">{t('search:movie.sourceDouban')}</span>
         ) : (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400">TMDB</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400">{t('search:movie.sourceTMDB')}</span>
         )}
         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
           item.mediaType === 'movie'
             ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
             : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
         }`}>
-          {mediaTypeLabel(item.mediaType)}
+          {mediaTypeLabel(t, item.mediaType)}
         </span>
         {item.year && (
           <span className="flex items-center gap-0.5">
@@ -195,14 +200,15 @@ const MovieCard: React.FC<{
               ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
               : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
           }`}
-          title={isFavorited ? '取消收藏' : '收藏'}
+          title={isFavorited ? t('search:movie.unfavorite') : t('search:movie.favorite')}
         >
           <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
         </button>
       )}
     </div>
   </div>
-);
+  );
+};
 
 // ─── main component ──────────────────────────────────────────────────────────
 
@@ -229,6 +235,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   onToggleFavorite,
   onLoginRequired,
 }) => {
+  const { t } = useTranslation(['search']);
   const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(
     data.results.length > 0 ? data.results[0] : null
   );
@@ -279,22 +286,22 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
       {/* stats bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-xs text-stone-500">
-          <span>{data.total} 条影视</span>
+          <span>{t('search:movie.movieCount', { count: data.total })}</span>
           <span>·</span>
-          <span>{data.resourceTotal} 条资源</span>
+          <span>{t('search:movie.resourceTotalCount', { count: data.resourceTotal })}</span>
           {magnetCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-              磁力 {magnetCount}
+              {t('search:movie.magnetCount', { count: magnetCount })}
             </span>
           )}
           {driveCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-              网盘 {driveCount}
+              {t('search:movie.driveCount', { count: driveCount })}
             </span>
           )}
           {data.resourceSources && data.resourceSources.length > 0 && (
             <span className="text-stone-400">
-              来自 {data.resourceSources.join(' / ')}
+              {t('search:movie.sourcesFrom', { sources: data.resourceSources.join(' / ') })}
             </span>
           )}
         </div>
@@ -320,7 +327,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
               onClick={onRefresh}
               className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
             >
-              <RefreshCw className="w-3 h-3" /> 刷新
+              <RefreshCw className="w-3 h-3" />{t('search:movie.refresh')}
             </button>
           </div>
         )}
@@ -334,9 +341,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                   ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
                   : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
               }`}
-              title="按影视聚合展示"
+              title={t('search:movie.groupedViewTitle')}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />聚合
+              <LayoutGrid className="w-3.5 h-3.5" />{t('search:movie.grouped')}
             </button>
             <button
               onClick={() => setViewMode('sources')}
@@ -345,9 +352,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                   ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
                   : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
               }`}
-              title="按数据源分区展示"
+              title={t('search:movie.sourcesViewTitle')}
             >
-              <List className="w-3.5 h-3.5" />分源
+              <List className="w-3.5 h-3.5" />{t('search:movie.sourcesView')}
             </button>
           </div>
         )}
@@ -357,25 +364,25 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
       {data.tmdbError && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>TMDB 请求失败：{data.tmdbError}</span>
+          <span>{t('search:movie.tmdbError', { error: data.tmdbError })}</span>
         </div>
       )}
       {data.doubanError && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>豆瓣请求失败：{data.doubanError}</span>
+          <span>{t('search:movie.doubanError', { error: data.doubanError })}</span>
         </div>
       )}
       {data.tpbError && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>TPB 请求失败：{data.tpbError}</span>
+          <span>{t('search:movie.tpbError', { error: data.tpbError })}</span>
         </div>
       )}
       {data.eztvError && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-700 text-sm dark:bg-cyan-500/10 dark:border-cyan-500/30 dark:text-cyan-400">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>EZTV 请求失败：{data.eztvError}</span>
+          <span>{t('search:movie.eztvError', { error: data.eztvError })}</span>
         </div>
       )}
 
@@ -383,8 +390,8 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
       {results.length === 0 && resources.length === 0 && !data.tmdbError && !data.doubanError && !data.tpbError && !data.eztvError && (
         <div className="text-center py-16">
           <Wifi className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">未找到相关结果</p>
-          <p className="text-xs text-stone-400 mt-1">尝试更换关键词</p>
+          <p className="text-sm text-stone-500">{t('search:movie.empty')}</p>
+          <p className="text-xs text-stone-400 mt-1">{t('search:movie.emptyHint')}</p>
         </div>
       )}
 
@@ -407,9 +414,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-amber-500" />
               <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                影视匹配
+                {t('search:movie.matchTitle')}
               </h2>
-              <span className="ml-auto text-xs text-stone-400">{results.length} 条</span>
+              <span className="ml-auto text-xs text-stone-400">{t('search:movie.countItems', { count: results.length })}</span>
             </div>
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
               {results.map((item) => (
@@ -438,10 +445,10 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                              hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                              dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" /> 上页
+                  <ChevronLeft className="w-3.5 h-3.5" />{t('search:movie.prevPage')}
                 </button>
                 <span className="flex items-center px-3 text-xs text-stone-500">
-                  第 {data.page} 页
+                  {t('search:movie.pageNumber', { page: data.page })}
                 </span>
                 <button
                   onClick={() => onPageChange(data.page + 1)}
@@ -449,7 +456,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                              hover:bg-stone-200 hover:text-stone-700 transition-all
                              dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                 >
-                  下页 <ChevronRight className="w-3.5 h-3.5" />
+                  {t('search:movie.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -457,7 +464,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
         ) : !data.tmdbError && !data.doubanError ? (
           <div className="rounded-xl border p-6 text-center bg-white dark:bg-stone-800/30 border-stone-200 dark:border-stone-700">
             <Film className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-            <p className="text-sm text-stone-500">未找到影视匹配结果</p>
+            <p className="text-sm text-stone-500">{t('search:movie.noMatchResults')}</p>
           </div>
         ) : null}
 
@@ -499,13 +506,13 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                                 ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
                                 : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
                             }`}
-                            title={isMovieFavorited(selectedItem) ? '取消收藏' : '收藏'}
+                            title={isMovieFavorited(selectedItem) ? t('search:movie.unfavorite') : t('search:movie.favorite')}
                           >
                             <Heart className={`w-4 h-4 ${isMovieFavorited(selectedItem) ? 'fill-current' : ''}`} />
                           </button>
                           {!isMovieFavorited(selectedItem) && (
                             <span className="text-xs font-medium text-rose-500 dark:text-rose-400 animate-pulse hidden sm:inline">
-                              收藏
+                              {t('search:movie.favorite')}
                             </span>
                           )}
                         </>
@@ -518,7 +525,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                           <>
                             {isProxyEnabled && (
                               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                <ShieldCheck className="w-3 h-3" />代理
+                                <ShieldCheck className="w-3 h-3" />{t('search:movie.proxyAccessible')}
                               </span>
                             )}
                             <a
@@ -544,11 +551,11 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     <div className="flex flex-wrap gap-2 text-sm">
                       {selectedItem.source === 'douban' ? (
                         <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-full">
-                          豆瓣
+                          {t('search:movie.sourceDouban')}
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 rounded-full">
-                          TMDB
+                          {t('search:movie.sourceTMDB')}
                         </span>
                       )}
                       <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
@@ -556,7 +563,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                           ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
                           : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
                       }`}>
-                        {mediaTypeLabel(selectedItem.mediaType)}
+                        {mediaTypeLabel(t, selectedItem.mediaType)}
                       </span>
                       {selectedItem.year && (
                         <span className="flex items-center gap-1 text-xs text-stone-500">
@@ -566,7 +573,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                       {selectedItem.rating > 0 && (
                         <span className={`flex items-center gap-1 text-sm font-semibold ${ratingColor(selectedItem.rating)}`}>
                           <Star className="w-3.5 h-3.5 fill-current" />{selectedItem.rating.toFixed(1)}
-                          <span className="text-xs text-stone-400 font-normal">({selectedItem.voteCount} 人评价)</span>
+                          <span className="text-xs text-stone-400 font-normal">{t('search:movie.voteCount', { count: selectedItem.voteCount })}</span>
                         </span>
                       )}
                     </div>
@@ -590,18 +597,18 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                   <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
                 </div>
                 <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">
-                  下载资源
+                  {t('search:movie.downloadResources')}
                 </span>
                 {displayResources.length > 0 && (
                   <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
-                    {displayResources.length} 条
+                    {t('search:movie.countItems', { count: displayResources.length })}
                   </span>
                 )}
               </div>
               {displayResources.length > 0 && (
                 <div className="flex items-center gap-1 text-[10px] text-stone-400">
                   <Magnet className="w-3 h-3" />
-                  点击名称唤起客户端 · 图标复制链接
+                  {t('search:movie.resourceHint')}
                 </div>
               )}
             </div>
@@ -611,13 +618,12 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
               {displayResources.length === 0 ? (
                 <div className="text-center py-8">
                   <Magnet className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-                  <p className="text-sm text-stone-500">未抓取到资源</p>
+                  <p className="text-sm text-stone-500">{t('search:movie.noResources')}</p>
                   <p className="text-xs text-stone-400 mt-2">
-                    可直接前往
+                    {t('search:movie.searchExternal')}
                     <a href={`https://yts.mx/movies?query_term=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">YTS</a>·
                     <a href={`https://1337x.to/search/${encodeURIComponent(data.keyword)}/1/`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">1337x</a>·
                     <a href={`https://www.lightbt.top/search?q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">LightBT</a>
-                    搜索
                   </p>
                 </div>
               ) : (
@@ -625,8 +631,8 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                   <div className="space-y-1.5">
                     {/* 表头 */}
                     <div className="grid grid-cols-[1fr_80px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-                      <span>资源名称</span>
-                      <span className="text-right">操作</span>
+                      <span>{t('search:movie.resourceHeader')}</span>
+                      <span className="text-right">{t('search:movie.actions')}</span>
                     </div>
 
                     {/* 资源列表 */}
@@ -641,8 +647,8 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                         className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-stone-400 hover:text-primary-500 hover:bg-stone-50 dark:hover:bg-stone-800/40 rounded-lg transition-all"
                       >
                         {showAllResources
-                          ? <><ChevronUp className="w-3.5 h-3.5" />收起</>
-                          : <><ChevronDown className="w-3.5 h-3.5" />展开全部（共 {pagedResources.length} 条）</>}
+                          ? <><ChevronUp className="w-3.5 h-3.5" />{t('search:movie.collapse')}</>
+                          : <><ChevronDown className="w-3.5 h-3.5" />{t('search:movie.expandAll', { count: pagedResources.length })}</>}
                       </button>
                     )}
                   </div>
@@ -657,11 +663,11 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                                    hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                                    dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                       >
-                        <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                        <ChevronLeft className="w-3.5 h-3.5" />{t('search:movie.prevPage')}
                       </button>
                       <span className="text-xs text-stone-500 px-2">
                         {resourcePage} / {resTotalPages}
-                        <span className="ml-1 text-stone-400">（共 {displayResources.length} 条）</span>
+                        <span className="ml-1 text-stone-400">{t('search:movie.totalCount', { count: displayResources.length })}</span>
                       </span>
                       <button
                         disabled={resourcePage >= resTotalPages}
@@ -670,7 +676,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                                    hover:bg-stone-200 hover:text-stone-700 transition-all
                                    dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                       >
-                        下一页 <ChevronRight className="w-3.5 h-3.5" />
+                        {t('search:movie.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}

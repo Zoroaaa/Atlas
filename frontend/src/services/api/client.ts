@@ -1,5 +1,6 @@
 import { API_BASE_URL, API_CONFIG } from '@/constants';
 import { useAuthStore } from '@/stores/authStore';
+import i18next from '@/i18n';
 
 const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
@@ -74,7 +75,7 @@ export class ApiClient {
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          throw new Error('网络连接不可用');
+          throw new Error(i18next.t('errors:offline'));
         }
 
         const controller = timeout ? new AbortController() : null;
@@ -98,13 +99,13 @@ export class ApiClient {
           if (this.getToken()) {
             useAuthStore.getState().logout();
           }
-          const authError = new Error('认证失败，请重新登录');
+          const authError = new Error(i18next.t('errors:authFailed'));
           (authError as unknown as Record<string, unknown>).code = 'AUTH_FAILED';
           throw authError;
         }
 
         if (response.status === 403) {
-          const permError = new Error('权限不足');
+          const permError = new Error(i18next.t('errors:permissionDenied'));
           (permError as unknown as Record<string, unknown>).code = 'PERMISSION_DENIED';
           throw permError;
         }
@@ -116,7 +117,7 @@ export class ApiClient {
             await this.delay(waitTime);
             continue;
           }
-          const rateLimitError = new Error('请求过于频繁，请稍后再试');
+          const rateLimitError = new Error(i18next.t('errors:rateLimited'));
           (rateLimitError as unknown as Record<string, unknown>).code = 'RATE_LIMITED';
           throw rateLimitError;
         }
@@ -127,6 +128,7 @@ export class ApiClient {
         }
 
         const errorData = await response.json().catch(() => ({}));
+        // 后端返回的 errorData.message 原样透传给用户（不翻译）
         const errorMessage = errorData.message || errorData.error?.message || `HTTP error! status: ${response.status}`;
         throw new ApiError(errorMessage, response.status, errorData);
 
@@ -134,7 +136,7 @@ export class ApiClient {
         lastError = error as Error;
 
         if ((error as Error).name === 'AbortError') {
-          throw new ApiError('请求超时', 408, { timeout: true });
+          throw new ApiError(i18next.t('errors:timeout'), 408, { timeout: true });
         }
 
         if (((error as Error).name === 'TypeError' || (error as Error).message?.includes('fetch')) &&
@@ -146,7 +148,7 @@ export class ApiClient {
       }
     }
 
-    throw lastError || new Error('请求失败');
+    throw lastError || new Error(i18next.t('errors:requestFailed'));
   }
 
   async get<T>(endpoint: string, signal?: AbortSignal): Promise<T> {

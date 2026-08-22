@@ -6,22 +6,24 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chrome } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { useNotification } from '@/hooks';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  google_not_configured: 'Google 登录未配置，请联系管理员',
-  google_cancelled: '已取消 Google 授权',
-  google_invalid_params: 'OAuth 参数异常，请重试',
-  google_state_mismatch: '安全校验失败，请重新发起登录',
-  google_token_failed: '获取 Google 授权失败，请重试',
-  google_email_not_verified: 'Google 邮箱未验证，无法登录',
-  google_db_error: '用户数据处理失败，请重试',
-  google_server_error: '服务器内部错误，请稍后重试',
-  account_disabled: '该账号已被禁用',
+const ERROR_MESSAGE_KEYS: Record<string, string> = {
+  google_not_configured: 'auth:callback.google.notConfigured',
+  google_cancelled: 'auth:callback.google.cancelled',
+  google_invalid_params: 'auth:callback.invalidParams',
+  google_state_mismatch: 'auth:callback.stateMismatch',
+  google_token_failed: 'auth:callback.google.tokenFailed',
+  google_email_not_verified: 'auth:callback.google.emailNotVerified',
+  google_db_error: 'auth:callback.dbError',
+  google_server_error: 'auth:callback.serverError',
+  account_disabled: 'auth:callback.accountDisabled',
 };
 
 export const GoogleCallbackPage: React.FC = () => {
+  const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setUser, setToken, persistToken } = useAuthStore();
@@ -39,14 +41,14 @@ export const GoogleCallbackPage: React.FC = () => {
     const errorCode = searchParams.get('error');
 
     if (errorCode) {
-      const msg = ERROR_MESSAGES[errorCode] || `Google 登录失败 (${errorCode})`;
-      notification.error('登录失败', msg);
+      const msg = t(ERROR_MESSAGE_KEYS[errorCode] || 'auth:callback.google.failedWithCode', { code: errorCode });
+      notification.error(t('auth:callback.loginFailedTitle'), msg);
       navigate('/login', { replace: true });
       return;
     }
 
     if (!token || !userRaw) {
-      notification.error('登录失败', '回调参数缺失，请重试');
+      notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.missingParams'));
       navigate('/login', { replace: true });
       return;
     }
@@ -56,13 +58,13 @@ export const GoogleCallbackPage: React.FC = () => {
       setToken(token);
       persistToken(token);
       setUser(user);
-      notification.success('登录成功', `欢迎回来，${user.username}！`);
+      notification.success(t('auth:callback.loginSuccessTitle'), t('auth:callback.welcomeBack', { username: user.username }));
       navigate('/main', { replace: true });
     } catch {
-      notification.error('登录失败', '用户数据解析失败，请重试');
+      notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.parseFailed'));
       navigate('/login', { replace: true });
     }
-  }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser]);
+  }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-[#0a0a0b]">
@@ -71,7 +73,7 @@ export const GoogleCallbackPage: React.FC = () => {
           <Chrome className="w-8 h-8 text-blue-500" />
         </div>
         <p className="text-stone-600 dark:text-stone-400 text-sm font-medium">
-          正在处理 Google 登录…
+          {t('auth:callback.google.processing')}
         </p>
       </div>
     </div>

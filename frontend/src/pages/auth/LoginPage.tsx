@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Lock, User, ArrowLeft, Search, Github, Chrome } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { authApi, analyticsApi } from '@/services/api';
 import { Input } from '@/components/ui';
@@ -8,6 +9,7 @@ import { useNotification } from '@/hooks';
 import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
 
 export const LoginPage: React.FC = () => {
+  const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
   const { setUser, setToken } = useAuthStore();
   const notification = useNotification();
@@ -27,9 +29,9 @@ export const LoginPage: React.FC = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.identifier.trim()) newErrors.identifier = '请输入用户名或邮箱';
-    if (!formData.password) newErrors.password = '请输入密码';
-    else if (formData.password.length < validationRules.PASSWORD_MIN_LENGTH) newErrors.password = `密码至少${validationRules.PASSWORD_MIN_LENGTH}个字符`;
+    if (!formData.identifier.trim()) newErrors.identifier = t('auth:login.identifierRequired');
+    if (!formData.password) newErrors.password = t('auth:login.passwordRequired');
+    else if (formData.password.length < validationRules.PASSWORD_MIN_LENGTH) newErrors.password = t('auth:login.passwordMinLength', { count: validationRules.PASSWORD_MIN_LENGTH });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -64,7 +66,7 @@ export const LoginPage: React.FC = () => {
         notification.auth.loginFailed(response.message);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '网络错误，请稍后重试';
+      const message = error instanceof Error ? error.message : t('auth:login.networkError');
       notification.auth.loginFailed(message);
     } finally {
       setIsLoading(false);
@@ -98,7 +100,7 @@ export const LoginPage: React.FC = () => {
         {/* Back link */}
         <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          返回首页
+          {t('auth:login.backHome')}
         </Link>
 
         {/* Card */}
@@ -112,10 +114,10 @@ export const LoginPage: React.FC = () => {
               <Lock className="w-6 h-6 text-white" />
             </div>
             <h1 className="display-font text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight mb-1.5">
-              欢迎回来
+              {t('auth:login.title')}
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
-              登录您的账号继续使用
+              {t('auth:login.subtitle')}
             </p>
           </div>
 
@@ -125,9 +127,9 @@ export const LoginPage: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label="用户名或邮箱"
+              label={t('auth:login.identifierLabel')}
               type="text"
-              placeholder="请输入用户名或邮箱"
+              placeholder={t('auth:login.identifierPlaceholder')}
               value={formData.identifier}
               onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
               error={errors.identifier}
@@ -136,9 +138,9 @@ export const LoginPage: React.FC = () => {
             />
 
             <Input
-              label="密码"
+              label={t('auth:login.passwordLabel')}
               type={showPassword ? 'text' : 'password'}
-              placeholder="请输入密码"
+              placeholder={t('auth:login.passwordPlaceholder')}
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               error={errors.password}
@@ -158,10 +160,10 @@ export const LoginPage: React.FC = () => {
             <div className="flex items-center justify-between text-xs sm:text-sm">
               <label className="flex items-center gap-2 text-stone-600 dark:text-stone-400 cursor-pointer select-none py-2 -my-2">
                 <input type="checkbox" className="w-4 h-4 rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-500 flex-shrink-0" />
-                <span>记住我</span>
+                <span>{t('auth:login.rememberMe')}</span>
               </label>
               <Link to="/forgot-password" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 transition-colors font-medium">
-                忘记密码？
+                {t('auth:login.forgotPassword')}
               </Link>
             </div>
 
@@ -171,14 +173,14 @@ export const LoginPage: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white btn-gradient disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {isLoading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              {isLoading ? '登录中...' : '登录'}
+              {isLoading ? t('auth:login.submitting') : t('auth:login.submit')}
             </button>
           </form>
 
           {/* OAuth 分割线 */}
           <div className="mt-5 flex items-center gap-3">
             <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
-            <span className="text-xs text-stone-400 dark:text-stone-500 whitespace-nowrap">或通过以下方式登录</span>
+            <span className="text-xs text-stone-400 dark:text-stone-500 whitespace-nowrap">{t('auth:login.orDivider')}</span>
             <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
           </div>
 
@@ -197,7 +199,7 @@ export const LoginPage: React.FC = () => {
               ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <Github className="w-4 h-4" />
             }
-            {isGithubLoading ? '跳转中...' : '使用 GitHub 一键登录'}
+            {isGithubLoading ? t('auth:login.redirecting') : t('auth:login.githubLogin')}
           </button>
 
           {/* Google 登录按钮 */}
@@ -215,21 +217,21 @@ export const LoginPage: React.FC = () => {
               ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-700 dark:border-stone-600 dark:border-t-stone-200 rounded-full animate-spin" />
               : <Chrome className="w-4 h-4 text-blue-500" />
             }
-            {isGoogleLoading ? '跳转中...' : '使用 Google 一键登录'}
+            {isGoogleLoading ? t('auth:login.redirecting') : t('auth:login.googleLogin')}
           </button>
 
           {/* Footer */}
           <div className="mt-6 text-center">
             {enableRegistration ? (
               <p className="text-sm text-stone-600 dark:text-stone-400">
-                还没有账号？{' '}
+                {t('auth:login.noAccount')}{' '}
                 <Link to="/register" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-semibold transition-colors">
-                  立即注册
+                  {t('auth:login.registerLink')}
                 </Link>
               </p>
             ) : (
               <p className="text-sm text-stone-500 dark:text-stone-400">
-                注册功能暂未开放
+                {t('auth:login.registrationClosed')}
               </p>
             )}
           </div>

@@ -4,10 +4,12 @@ import { RefreshCw, MapPin, Monitor, XCircle, Users, Wifi, Clock, Smartphone, Mo
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper, StatCard, StatsGrid } from './shared';
 
 export const SessionsTab: React.FC = () => {
   const toast = useToast();
+  const { t } = useTranslation(['admin']);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -30,23 +32,23 @@ export const SessionsTab: React.FC = () => {
       setSessions(result.items);
       setTotalPages(result.totalPages);
       setTotal(result.total);
-    } catch { toast.error('加载会话失败'); } finally { setLoading(false); }
-  }, [page, statusFilter, toast]);
+    } catch { toast.error(t('admin:sessions.loadFailed')); } finally { setLoading(false); }
+  }, [page, statusFilter, toast, t]);
 
   const loadStats = useCallback(async () => {
-    try { setStats(await adminApi.getSessionsStats()); } catch { toast.error('加载统计数据失败'); }
-  }, [toast]);
+    try { setStats(await adminApi.getSessionsStats()); } catch { toast.error(t('admin:sessions.loadStatsFailed')); }
+  }, [toast, t]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
   const handleTerminate = async (sessionId: string) => {
-    if (!confirm('确定要强制终止此会话吗？')) return;
-    try { await adminApi.terminateSession(sessionId); toast.success('会话已终止'); loadSessions(); loadStats(); } catch { toast.error('操作失败'); }
+    if (!confirm(t('admin:sessions.terminateConfirm'))) return;
+    try { await adminApi.terminateSession(sessionId); toast.success(t('admin:sessions.terminatedToast')); loadSessions(); loadStats(); } catch { toast.error(t('admin:sessions.opFailed')); }
   };
 
   const formatExpiry = (seconds: number) => {
-    if (seconds <= 0) return '已过期';
+    if (seconds <= 0) return t('admin:sessions.expired');
     const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
@@ -56,10 +58,10 @@ export const SessionsTab: React.FC = () => {
     const m = Math.floor(diff / 60000);
     const h = Math.floor(diff / 3600000);
     const d = Math.floor(diff / 86400000);
-    if (m < 1) return '刚刚';
-    if (m < 60) return `${m}分钟前`;
-    if (h < 24) return `${h}小时前`;
-    return `${d}天前`;
+    if (m < 1) return t('admin:sessions.time.justNow');
+    if (m < 60) return t('admin:sessions.time.minutesAgo', { count: m });
+    if (h < 24) return t('admin:sessions.time.hoursAgo', { count: h });
+    return t('admin:sessions.time.daysAgo', { count: d });
   };
 
   const getDeviceIcon = (deviceType: string) => {
@@ -103,13 +105,13 @@ export const SessionsTab: React.FC = () => {
     <div className="space-y-4">
       {stats && (
         <StatsGrid>
-          <StatCard icon={Wifi} label="活跃会话" value={stats.active} color="green" />
-          <StatCard icon={Users} label="在线用户" value={stats.uniqueUsers} color="blue" />
-          <StatCard icon={Zap} label="1小时内活跃" value={stats.recentlyActive} color="orange" />
-          <StatCard icon={Clock} label="今日新会话" value={stats.todaySessions} color="purple" />
-          <StatCard icon={Monitor} label="总会话记录" value={stats.total} color="teal" />
+          <StatCard icon={Wifi} label={t('admin:sessions.stat.active')} value={stats.active} color="green" />
+          <StatCard icon={Users} label={t('admin:sessions.stat.onlineUsers')} value={stats.uniqueUsers} color="blue" />
+          <StatCard icon={Zap} label={t('admin:sessions.stat.recentlyActive')} value={stats.recentlyActive} color="orange" />
+          <StatCard icon={Clock} label={t('admin:sessions.stat.todaySessions')} value={stats.todaySessions} color="purple" />
+          <StatCard icon={Monitor} label={t('admin:sessions.stat.total')} value={stats.total} color="teal" />
           {stats.deviceDistribution[0] && (
-            <StatCard icon={getDeviceIcon(stats.deviceDistribution[0].device_type)} label="主要设备" value={stats.deviceDistribution[0].device_type} subLabel={`${stats.deviceDistribution[0].count} 个`} color="pink" />
+            <StatCard icon={getDeviceIcon(stats.deviceDistribution[0].device_type)} label={t('admin:sessions.stat.mainDevice')} value={stats.deviceDistribution[0].device_type} subLabel={t('admin:sessions.stat.deviceCount', { count: stats.deviceDistribution[0].count })} color="pink" />
           )}
         </StatsGrid>
       )}
@@ -117,20 +119,20 @@ export const SessionsTab: React.FC = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm">
-            <option value="">全部会话</option><option value="active">活跃会话</option><option value="expired">已过期</option>
+            <option value="">{t('admin:sessions.filter.all')}</option><option value="active">{t('admin:sessions.filter.active')}</option><option value="expired">{t('admin:sessions.filter.expired')}</option>
           </select>
-          <span className="text-sm text-surface-500">共 {total} 条记录</span>
+          <span className="text-sm text-surface-500">{t('admin:sessions.totalRecords', { count: total })}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { loadSessions(); loadStats(); }}><RefreshCw className="w-4 h-4 mr-2" />刷新</Button>
+        <Button variant="outline" size="sm" onClick={() => { loadSessions(); loadStats(); }}><RefreshCw className="w-4 h-4 mr-2" />{t('admin:sessions.refresh')}</Button>
       </div>
       <TableWrapper>
         <table className="w-full text-sm">
           <thead className="bg-surface-50 dark:bg-surface-900">
-            <tr>{['用户', 'IP地址', '设备', '最后活跃', '剩余时间', '状态', '操作'].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{h}</th>)}</tr>
+            <tr>{[t('admin:sessions.table.colUser'), t('admin:sessions.table.colIp'), t('admin:sessions.table.colDevice'), t('admin:sessions.table.colLastActive'), t('admin:sessions.table.colExpiry'), t('admin:sessions.table.colStatus'), t('admin:sessions.table.colActions')].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{h}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
-            {loading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">加载中...</td></tr>
-              : sessions.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">暂无数据</td></tr>
+            {loading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">{t('admin:sessions.table.loading')}</td></tr>
+              : sessions.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">{t('admin:sessions.table.empty')}</td></tr>
               : sessions.map(s => (
                 <tr key={s.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
                   <td className="px-4 py-3"><div className="font-medium text-surface-900 dark:text-surface-100">{s.username || '-'}</div><div className="text-xs text-surface-500 truncate max-w-[120px]">{s.email || '-'}</div></td>
@@ -140,11 +142,11 @@ export const SessionsTab: React.FC = () => {
                   <td className="px-4 py-3 text-surface-500">{formatExpiry(s.expiresInSeconds)}</td>
                   <td className="px-4 py-3">
                     <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', s.isActive ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>
-                      {s.isActive ? '活跃' : '已过期'}
+                      {s.isActive ? t('admin:sessions.table.statusActive') : t('admin:sessions.table.statusExpired')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {s.isActive && <button onClick={() => handleTerminate(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-surface-400 hover:text-red-600" title="终止会话"><XCircle className="w-4 h-4" /></button>}
+                    {s.isActive && <button onClick={() => handleTerminate(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-surface-400 hover:text-red-600" title={t('admin:sessions.table.terminateTitle')}><XCircle className="w-4 h-4" /></button>}
                   </td>
                 </tr>
               ))}

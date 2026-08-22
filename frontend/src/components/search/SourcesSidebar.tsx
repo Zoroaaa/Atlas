@@ -14,6 +14,7 @@ import {
   PanelRightClose,
   X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { SearchSource, UserSourceConfig, MajorCategory, Category } from '@/types';
@@ -61,7 +62,9 @@ const SourceTree: React.FC<SourceTreeProps> = ({
   onCheckSingle,
   getSiteTypeBadge,
   getSiteTypeLabel,
-}) => (
+}) => {
+  const { t } = useTranslation(['search']);
+  return (
   <div className="space-y-1">
     {majorCategoriesWithCategories.map((majorCategory) => {
       const isMajorExpanded = expandedMajorCategories.has(majorCategory.id);
@@ -91,13 +94,13 @@ const SourceTree: React.FC<SourceTreeProps> = ({
               <div className="text-left">
                 <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">{majorCategory.name}</span>
                 <p className="text-xs text-stone-400">
-                  {majorCategory.categories.length} 个分类 · {totalSources} 个搜索源
+                  {t('search:sources.sidebar.categoriesAndSources', { categories: majorCategory.categories.length, sources: totalSources })}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs px-2 py-1 bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-lg font-medium">
-                {enabledSources}/{totalSources} 启用
+                {t('search:sources.sidebar.enabledRatio', { enabled: enabledSources, total: totalSources })}
               </span>
             </div>
           </button>
@@ -127,11 +130,11 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                           )}
                         </div>
                         <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{category.name}</span>
-                        <span className="text-xs text-stone-400">{category.sources.length} 个源</span>
+                        <span className="text-xs text-stone-400">{t('search:sources.sidebar.sourceCount', { count: category.sources.length })}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-stone-500 dark:text-stone-400">
-                          {categoryEnabledCount}/{category.sources.length} 启用
+                          {t('search:sources.sidebar.enabledRatio', { enabled: categoryEnabledCount, total: category.sources.length })}
                         </span>
                       </div>
                     </button>
@@ -167,7 +170,7 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                             : 'bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-400'
                                         }`}>
                                           {isEnabled ? <CheckCircle className="w-2 h-2" /> : <XCircle className="w-2 h-2" />}
-                                          {isEnabled ? '启用' : '禁用'}
+                                          {isEnabled ? t('search:sources.sidebar.enabled') : t('search:sources.sidebar.disabled')}
                                         </span>
                                         {checkResult && (() => {
                                           const colorClass = checkResult.available
@@ -179,15 +182,15 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                                 : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
                                           const label = checkResult.available
                                             ? checkResult.status === 'restricted'
-                                              ? `受限 ${checkResult.responseTime}ms`
-                                              : `${checkResult.responseTime}ms`
-                                            : checkResult.status === 'timeout' ? '超时'
-                                              : checkResult.status === 'offline' ? '离线' : '异常';
+                                              ? t('search:sources.sidebar.restricted', { time: checkResult.responseTime })
+                                              : t('search:sources.sidebar.ms', { time: checkResult.responseTime })
+                                            : checkResult.status === 'timeout' ? t('search:sources.sidebar.timeout')
+                                              : checkResult.status === 'offline' ? t('search:sources.sidebar.offline') : t('search:sources.sidebar.errorStatus');
                                           const titleText = checkResult.available
                                             ? checkResult.status === 'restricted'
-                                              ? `服务器在线（访问受限），响应 ${checkResult.responseTime}ms`
-                                              : `可正常访问，响应时间 ${checkResult.responseTime}ms`
-                                            : checkResult.error || '无法访问';
+                                              ? t('search:sources.sidebar.onlineRestrictedTitle', { time: checkResult.responseTime })
+                                              : t('search:sources.sidebar.accessibleTitle', { time: checkResult.responseTime })
+                                            : checkResult.error || t('search:sources.sidebar.inaccessibleTitle');
                                           return (
                                             <span
                                               className={`flex items-center gap-0.5 text-[10px] px-1 py-0.5 rounded font-medium ${colorClass}`}
@@ -212,7 +215,7 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                     <button
                                       onClick={() => onCheckSingle(source.id)}
                                       className="p-1 rounded-lg text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
-                                      title="健康检查"
+                                      title={t('search:sources.sidebar.healthCheck')}
                                     >
                                       <RefreshCw className="w-2.5 h-2.5" />
                                     </button>
@@ -222,7 +225,7 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                         window.open(isProxyEnabled ? convertToProxyUrl(homepageUrl) : homepageUrl, '_blank');
                                       }}
                                       className="p-1 rounded-lg text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
-                                      title="访问站点"
+                                      title={t('search:sources.sidebar.visitSite')}
                                     >
                                       <ExternalLink className="w-2.5 h-2.5" />
                                     </button>
@@ -243,7 +246,8 @@ const SourceTree: React.FC<SourceTreeProps> = ({
       );
     })}
   </div>
-);
+  );
+};
 
 interface SourcesSidebarProps {
   show: boolean;
@@ -290,6 +294,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
   collapsed: externalCollapsed,
   onCollapsedChange,
 }) => {
+  const { t } = useTranslation(['search']);
   const [internalCollapsed, setInternalCollapsed] = useState(!defaultExpanded);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
@@ -331,7 +336,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
               <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
             </div>
-            <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">搜索源管理</span>
+            <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:sources.sidebar.managementTitle')}</span>
             <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
               {allSources.length}
             </span>
@@ -344,9 +349,9 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-all disabled:opacity-50"
               >
                 {isBatchChecking ? (
-                  <><RefreshCw className="w-3 h-3 animate-spin" />检查中</>
+                  <><RefreshCw className="w-3 h-3 animate-spin" />{t('search:sources.sidebar.checking')}</>
                 ) : (
-                  <><Activity className="w-3 h-3" />批量检查</>
+                  <><Activity className="w-3 h-3" />{t('search:sources.sidebar.batchCheck')}</>
                 )}
               </button>
             )}
@@ -381,7 +386,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
       <aside
         className={`hidden lg:block sources-sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`}
         role="complementary"
-        aria-label="搜索源管理"
+        aria-label={t('search:sources.sidebar.managementTitle')}
       >
         {/* 折叠时的窄条触发器 */}
         {collapsible && isCollapsed && (
@@ -389,7 +394,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
             onClick={toggleCollapsed}
             className="sidebar-toggle-btn"
             aria-expanded={!isCollapsed}
-            title="展开搜索源面板"
+            title={t('search:sources.sidebar.expandPanel')}
           >
             <Globe className="w-5 h-5" />
           </button>
@@ -401,7 +406,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
             {/* 头部区域 */}
             <header className="sidebar-header">
               <div className="flex items-center justify-between">
-                <h3 className="sidebar-title">搜索源管理</h3>
+                <h3 className="sidebar-title">{t('search:sources.sidebar.managementTitle')}</h3>
                 <div className="flex items-center gap-1.5">
                   {/* 批量检查按钮 */}
                   <button
@@ -410,9 +415,9 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
                     className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-all disabled:opacity-50"
                   >
                     {isBatchChecking ? (
-                      <><RefreshCw className="w-3 h-3 animate-spin" />检查中</>
+                      <><RefreshCw className="w-3 h-3 animate-spin" />{t('search:sources.sidebar.checking')}</>
                     ) : (
-                      <><Activity className="w-3 h-3" />批量检查</>
+                      <><Activity className="w-3 h-3" />{t('search:sources.sidebar.batchCheck')}</>
                     )}
                   </button>
 
@@ -422,7 +427,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
                       onClick={toggleCollapsed}
                       className="icon-btn-sm"
                       aria-expanded={!isCollapsed}
-                      title="折叠侧边栏 (Ctrl+S)"
+                      title={t('search:sources.sidebar.collapseHint')}
                     >
                       <PanelRightClose className="w-4 h-4" />
                     </button>
@@ -432,8 +437,8 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
 
               {/* 统计信息 */}
               <div className="stats-row">
-                <span>共 {allSources.length} 个源</span>
-                <span>{enabledCount} 个启用</span>
+                <span>{t('search:sources.sidebar.totalSources', { count: allSources.length })}</span>
+                <span>{t('search:sources.sidebar.enabledCount', { count: enabledCount })}</span>
               </div>
             </header>
 
@@ -468,7 +473,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
           {/* 底部抽屉 */}
           <div className="mobile-drawer open">
             <div className="drawer-header">
-              <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">搜索源管理</h3>
+              <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{t('search:sources.sidebar.managementTitle')}</h3>
               <button
                 onClick={() => setShowMobileDrawer(false)}
                 className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:text-stone-300 dark:hover:bg-stone-800 transition-all"
@@ -485,9 +490,9 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-all disabled:opacity-50"
               >
                 {isBatchChecking ? (
-                  <><RefreshCw className="w-4 h-4 animate-spin" />批量检查中...</>
+                  <><RefreshCw className="w-4 h-4 animate-spin" />{t('search:sources.sidebar.batchChecking')}</>
                 ) : (
-                  <><Activity className="w-4 h-4" />批量检查所有源</>
+                  <><Activity className="w-4 h-4" />{t('search:sources.sidebar.batchCheckAll')}</>
                 )}
               </button>
             </div>
@@ -518,7 +523,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
                    shadow-lg shadow-amber-500/30
                    flex items-center justify-center
                    hover:bg-amber-600 active:scale-95 transition-all"
-        aria-label="打开搜索源管理"
+        aria-label={t('search:sources.sidebar.openManagement')}
       >
         <Globe className="w-6 h-6" />
         {allSources.length > 0 && (

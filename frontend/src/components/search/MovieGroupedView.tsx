@@ -4,6 +4,8 @@ import {
   ChevronDown, ChevronRight, Heart,
   Filter, ArrowUpDown,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type {
   MovieEnrichedData,
   TMDBResult,
@@ -17,13 +19,13 @@ import { CopyButton } from '@/components/ui/CopyButton';
 const ratingColor = (n: number) =>
   n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-stone-400';
 
-const mediaTypeLabel = (t: 'movie' | 'tv') => t === 'movie' ? '电影' : '剧集';
+const mediaTypeLabel = (t: TFunction, m: 'movie' | 'tv') => m === 'movie' ? t('search:movie.type.movie') : t('search:movie.type.tv');
 
 function extractQuality(title: string): string {
-  const t = title.toLowerCase();
-  if (t.includes('2160') || t.includes('4k')) return '4K';
-  if (t.includes('1080')) return '1080p';
-  if (t.includes('720')) return '720p';
+  const lower = title.toLowerCase();
+  if (lower.includes('2160') || lower.includes('4k')) return '4K';
+  if (lower.includes('1080')) return '1080p';
+  if (lower.includes('720')) return '720p';
   return '';
 }
 
@@ -33,6 +35,7 @@ type FilterQuality = 'all' | '4K' | '1080p' | '720p';
 // ─── 资源卡片 ──────────────────────────────────────────────────
 
 function MovieResourceCard({ item }: { item: ResourceItem }) {
+  const { t } = useTranslation(['search']);
   const quality = extractQuality(item.title);
   return (
     <div className="grid grid-cols-[1fr_auto] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
@@ -57,7 +60,7 @@ function MovieResourceCard({ item }: { item: ResourceItem }) {
           )}
           {/* 网盘标记 */}
           {item.resourceType === 'drive' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">网盘</span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">{t('search:movie.cloudDrive')}</span>
           )}
           {/* 标题 */}
           {item.resourceType === 'drive' && item.driveUrl ? (
@@ -65,7 +68,7 @@ function MovieResourceCard({ item }: { item: ResourceItem }) {
               {item.title}
             </a>
           ) : item.magnet ? (
-            <a href={item.magnet} className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate" title={`点击唤起 BT 客户端下载：${item.title}`}>
+            <a href={item.magnet} className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate" title={t('search:movie.btDownloadHint', { title: item.title })}>
               {item.title}
             </a>
           ) : (
@@ -81,15 +84,15 @@ function MovieResourceCard({ item }: { item: ResourceItem }) {
       <div className="flex items-center gap-0.5 shrink-0">
         {item.resourceType === 'drive' && item.driveUrl ? (
           <>
-            <a href={item.driveUrl} target="_blank" rel="noopener noreferrer" title="打开网盘链接" className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
+            <a href={item.driveUrl} target="_blank" rel="noopener noreferrer" title={t('search:movie.openDriveLink')} className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
-            {item.driveCode && <CopyButton text={item.driveCode} label={`复制提取码: ${item.driveCode}`} />}
+            {item.driveCode && <CopyButton text={item.driveCode} label={t('search:movie.copyDriveCode', { code: item.driveCode })} />}
           </>
         ) : item.magnet ? (
           <>
-            <CopyButton text={item.magnet} label="复制磁力链接" />
-            <a href={item.magnet} title="打开磁力链接" className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
+            <CopyButton text={item.magnet} label={t('search:movie.copyMagnet')} />
+            <a href={item.magnet} title={t('search:movie.openMagnet')} className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
               <Magnet className="w-3.5 h-3.5" />
             </a>
           </>
@@ -133,6 +136,7 @@ function GroupedMovieCard({
   onToggleFavorite: (item: TMDBResult) => void;
   defaultExpanded: boolean;
 }) {
+  const { t } = useTranslation(['search']);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [sortBy, setSortBy] = useState<SortKey>('date');
   const [filterQuality, setFilterQuality] = useState<FilterQuality>('all');
@@ -206,24 +210,24 @@ function GroupedMovieCard({
                     ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                     : 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400'
                 }`}>
-                  {subject.source === 'douban' ? '豆瓣' : 'TMDB'}
+                  {subject.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
                 </span>
                 <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full ${
                   subject.mediaType === 'movie'
                     ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
                     : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
                 }`}>
-                  {mediaTypeLabel(subject.mediaType)}
+                  {mediaTypeLabel(t, subject.mediaType)}
                 </span>
                 {/* 资源数量 */}
                 <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                  {resources.length} 资源
+                  {t('search:movie.resourceCount', { count: resources.length })}
                 </span>
                 {magnetCount > 0 && (
-                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">磁力 {magnetCount}</span>
+                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">{t('search:movie.magnetCount', { count: magnetCount })}</span>
                 )}
                 {driveCount > 0 && (
-                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">网盘 {driveCount}</span>
+                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">{t('search:movie.driveCount', { count: driveCount })}</span>
                 )}
               </div>
               <h3 className={`font-semibold text-sm leading-snug line-clamp-2 transition-colors ${
@@ -246,7 +250,7 @@ function GroupedMovieCard({
                       ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
                       : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
                   }`}
-                  title={isFavorited ? '取消收藏' : '收藏'}
+                  title={isFavorited ? t('search:movie.unfavorite') : t('search:movie.favorite')}
                 >
                   <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
                 </span>
@@ -308,10 +312,10 @@ function GroupedMovieCard({
             {Object.keys(qualityCounts).length > 0 && (
               <>
                 <div className="flex items-center gap-1 text-[10px] text-stone-400">
-                  <Filter className="w-3 h-3" />清晰度
+                  <Filter className="w-3 h-3" />{t('search:movie.quality')}
                 </div>
                 <div className="flex items-center gap-1">
-                  <FilterChip active={filterQuality === 'all'} onClick={() => changeFilter(setFilterQuality, 'all')}>全部</FilterChip>
+                  <FilterChip active={filterQuality === 'all'} onClick={() => changeFilter(setFilterQuality, 'all')}>{t('search:movie.all')}</FilterChip>
                   {Object.entries(qualityCounts).map(([q, count]) => (
                     <FilterChip key={q} active={filterQuality === q} onClick={() => changeFilter(setFilterQuality, q as FilterQuality)}>
                       {q} ({count})
@@ -321,19 +325,19 @@ function GroupedMovieCard({
               </>
             )}
             <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-auto">
-              <ArrowUpDown className="w-3 h-3" />排序
+              <ArrowUpDown className="w-3 h-3" />{t('search:movie.sort')}
             </div>
             <div className="flex items-center gap-1">
-              <FilterChip active={sortBy === 'date'} onClick={() => changeFilter(setSortBy, 'date')}>日期</FilterChip>
-              <FilterChip active={sortBy === 'size'} onClick={() => changeFilter(setSortBy, 'size')}>大小</FilterChip>
+              <FilterChip active={sortBy === 'date'} onClick={() => changeFilter(setSortBy, 'date')}>{t('search:movie.sortByDate')}</FilterChip>
+              <FilterChip active={sortBy === 'size'} onClick={() => changeFilter(setSortBy, 'size')}>{t('search:movie.sortBySize')}</FilterChip>
             </div>
           </div>
 
           {/* 资源列表 */}
           <div className="space-y-1.5">
             <div className="grid grid-cols-[1fr_80px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-              <span>资源名称</span>
-              <span className="text-right">操作</span>
+              <span>{t('search:movie.resourceHeader')}</span>
+              <span className="text-right">{t('search:movie.actions')}</span>
             </div>
             {pagedResources.map((item, i) => (
               <MovieResourceCard key={item.magnet + i} item={item} />
@@ -348,7 +352,7 @@ function GroupedMovieCard({
                 onClick={() => setResPage(p => p - 1)}
                 className="px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                上一页
+                {t('search:movie.prevPage')}
               </button>
               <span className="text-xs text-stone-500 px-2">{resPage} / {resTotalPages}</span>
               <button
@@ -356,7 +360,7 @@ function GroupedMovieCard({
                 onClick={() => setResPage(p => p + 1)}
                 className="px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                下一页
+                {t('search:movie.nextPage')}
               </button>
             </div>
           )}
@@ -369,6 +373,7 @@ function GroupedMovieCard({
 // ─── 未归组资源 ──────────────────────────────────────────────────
 
 function UngroupedMovieResources({ resources }: { resources: ResourceItem[] }) {
+  const { t } = useTranslation(['search']);
   const [expanded, setExpanded] = useState(false);
   if (resources.length === 0) return null;
 
@@ -379,16 +384,16 @@ function UngroupedMovieResources({ resources }: { resources: ResourceItem[] }) {
           <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
             <Magnet className="w-3.5 h-3.5 text-stone-400" />
           </div>
-          <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">未匹配资源</span>
+          <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:movie.unmatchedResources')}</span>
           <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-            {resources.length} 条
+            {t('search:movie.countItems', { count: resources.length })}
           </span>
         </div>
         {expanded ? <ChevronDown className="w-4 h-4 text-stone-400" /> : <ChevronRight className="w-4 h-4 text-stone-400" />}
       </button>
       {expanded && (
         <div className="px-4 pb-4 border-t border-stone-100 dark:border-stone-800 pt-2">
-          <p className="text-[10px] text-stone-400 mb-2">以下资源未能精确匹配到具体影视作品</p>
+          <p className="text-[10px] text-stone-400 mb-2">{t('search:movie.unmatchedHint')}</p>
           <div className="space-y-1.5">
             {resources.map((item, i) => (
               <MovieResourceCard key={item.magnet + i} item={item} />
@@ -415,6 +420,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
   favorites = [],
   onToggleFavorite,
 }) => {
+  const { t } = useTranslation(['search']);
   const grouped = data.grouped;
   if (!grouped) return null;
 
@@ -433,19 +439,19 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
       {/* 统计栏 */}
       <div className="flex items-center gap-2 text-xs text-stone-500">
         <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-medium">
-          影视聚合视图
+          {t('search:movie.groupedView')}
         </span>
-        <span>{withResources.length} 部作品有资源</span>
+        <span>{t('search:movie.worksWithResources', { count: withResources.length })}</span>
         {grouped.ungrouped.length > 0 && (
           <>
             <span>·</span>
-            <span>{grouped.ungrouped.length} 条未匹配资源</span>
+            <span>{t('search:movie.unmatchedResourcesCount', { count: grouped.ungrouped.length })}</span>
           </>
         )}
         {withoutResources.length > 0 && (
           <>
             <span>·</span>
-            <span>{withoutResources.length} 部作品暂无资源</span>
+            <span>{t('search:movie.worksWithoutResources', { count: withoutResources.length })}</span>
           </>
         )}
       </div>
@@ -478,9 +484,9 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
               <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
                 <Film className="w-3.5 h-3.5 text-stone-400" />
               </div>
-              <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">暂无资源的影视</span>
+              <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:movie.noResourceWorks')}</span>
               <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-                {withoutResources.length} 部
+                {t('search:movie.worksCount', { count: withoutResources.length })}
               </span>
             </div>
           </div>
@@ -507,7 +513,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
                       <Star className="w-2.5 h-2.5 inline fill-current" /> {group.subject.rating.toFixed(1)}
                     </p>
                   )}
-                  <p className="text-[9px] text-stone-400 mt-0.5">{group.subject.source === 'douban' ? '豆瓣' : 'TMDB'}</p>
+                  <p className="text-[9px] text-stone-400 mt-0.5">{group.subject.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}</p>
                 </div>
               </a>
             ))}
@@ -519,8 +525,8 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
       {withResources.length === 0 && grouped.ungrouped.length === 0 && withoutResources.length === 0 && (
         <div className="text-center py-16">
           <Magnet className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">未找到相关结果</p>
-          <p className="text-xs text-stone-400 mt-1">尝试更换关键词</p>
+          <p className="text-sm text-stone-500">{t('search:movie.empty')}</p>
+          <p className="text-xs text-stone-400 mt-1">{t('search:movie.emptyHint')}</p>
         </div>
       )}
     </div>

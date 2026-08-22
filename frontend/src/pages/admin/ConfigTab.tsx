@@ -24,13 +24,14 @@ import { Card, Button, Input, Modal } from '@/components/ui';
 import { configApi, type SystemConfigItem, type ConfigGroup, type GroupedConfigs, type ConfigChangeLog } from '@/services/api';
 import { useNotification } from '@/hooks';
 import { useConfig } from '@/contexts';
+import { useTranslation } from 'react-i18next';
 
 const CONFIG_TYPE_LABELS: Record<string, string> = {
-  string: '文本',
-  integer: '整数',
-  float: '小数',
-  boolean: '布尔值',
-  json: 'JSON',
+  string: 'admin:config.type.string',
+  integer: 'admin:config.type.integer',
+  float: 'admin:config.type.float',
+  boolean: 'admin:config.type.boolean',
+  json: 'admin:config.type.json',
 };
 
 const CONFIG_GROUP_ICONS: Record<string, React.ReactNode> = {
@@ -44,6 +45,7 @@ const CONFIG_GROUP_ICONS: Record<string, React.ReactNode> = {
 export const ConfigTab: React.FC = () => {
   const notification = useNotification();
   const { refreshConfig } = useConfig();
+  const { t } = useTranslation(['admin']);
   const [isLoading, setIsLoading] = useState(true);
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
   const [groupedConfigs, setGroupedConfigs] = useState<Record<string, GroupedConfigs>>({});
@@ -70,11 +72,11 @@ export const ConfigTab: React.FC = () => {
         setGroupedConfigs(response.data.groupedConfigs || {});
       }
     } catch (err: any) {
-      notification.error('加载失败', err.message);
+      notification.error(t('admin:config.loadFailed'), err.message);
     } finally {
       setIsLoading(false);
     }
-  }, [notification]);
+  }, [notification, t]);
 
   useEffect(() => {
     loadConfigs();
@@ -88,7 +90,7 @@ export const ConfigTab: React.FC = () => {
         setConfigLogs(response.data.logs);
       }
     } catch (error: any) {
-      notification.error('加载日志失败', error.message);
+      notification.error(t('admin:config.loadLogsFailed'), error.message);
     } finally {
       setLogsLoading(false);
     }
@@ -98,7 +100,7 @@ export const ConfigTab: React.FC = () => {
     if (!editingConfig) return;
 
     if (!editValue.trim()) {
-      notification.error('验证失败', '配置值不能为空');
+      notification.error(t('admin:config.validateFailed'), t('admin:config.valueRequired'));
       return;
     }
 
@@ -109,34 +111,34 @@ export const ConfigTab: React.FC = () => {
       });
 
       if (response.success) {
-        notification.success('更新成功', `配置 ${editingConfig.key} 已更新`);
+        notification.success(t('admin:config.updateSuccess'), t('admin:config.updateSuccessMsg', { key: editingConfig.key }));
         setEditingConfig(null);
         setEditValue('');
         setEditReason('');
         loadConfigs();
         refreshConfig();
       } else {
-        notification.error('更新失败', response.message || '未知错误');
+        notification.error(t('admin:config.updateFailed'), response.message || t('admin:config.unknownError'));
       }
     } catch (error: any) {
-      notification.error('更新失败', error.message);
+      notification.error(t('admin:config.updateFailed'), error.message);
     }
   };
 
   const handleResetConfig = async (key: string) => {
-    if (!confirm(`确定要重置配置 ${key} 为默认值吗？`)) return;
+    if (!confirm(t('admin:config.resetConfirm', { key }))) return;
 
     try {
       const response = await configApi.resetConfig(key);
       if (response.success) {
-        notification.success('重置成功', `配置 ${key} 已重置为默认值`);
+        notification.success(t('admin:config.resetSuccess'), t('admin:config.resetSuccessMsg', { key }));
         loadConfigs();
         refreshConfig();
       } else {
-        notification.error('重置失败', response.message || '未知错误');
+        notification.error(t('admin:config.resetFailed'), response.message || t('admin:config.unknownError'));
       }
     } catch (error: any) {
-      notification.error('重置失败', error.message);
+      notification.error(t('admin:config.resetFailed'), error.message);
     }
   };
 
@@ -153,17 +155,17 @@ export const ConfigTab: React.FC = () => {
         a.download = `config-export-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        notification.success('导出成功', '配置已导出为JSON文件');
+        notification.success(t('admin:config.exportSuccess'), t('admin:config.exportSuccessMsg'));
         setShowExportModal(false);
       }
     } catch (error: any) {
-      notification.error('导出失败', error.message);
+      notification.error(t('admin:config.exportFailed'), error.message);
     }
   };
 
   const handleImport = async () => {
     if (!importData.trim()) {
-      notification.error('导入失败', '请粘贴配置数据');
+      notification.error(t('admin:config.importFailed'), t('admin:config.importDataRequired'));
       return;
     }
 
@@ -172,12 +174,12 @@ export const ConfigTab: React.FC = () => {
       const parsed = JSON.parse(importData);
       configs = parsed.configs || parsed;
     } catch {
-      notification.error('导入失败', 'JSON格式错误');
+      notification.error(t('admin:config.importFailed'), t('admin:config.importJsonInvalid'));
       return;
     }
 
     if (!Array.isArray(configs)) {
-      notification.error('导入失败', '配置数据格式错误');
+      notification.error(t('admin:config.importFailed'), t('admin:config.importDataInvalid'));
       return;
     }
 
@@ -185,18 +187,18 @@ export const ConfigTab: React.FC = () => {
       const response = await configApi.importConfig(configs, importOverwrite);
       if (response.success) {
         notification.success(
-          '导入成功',
-          `创建 ${response.data.created} 项，更新 ${response.data.updated} 项，跳过 ${response.data.skipped} 项`
+          t('admin:config.importSuccess'),
+          t('admin:config.importSuccessMsg', { created: response.data.created, updated: response.data.updated, skipped: response.data.skipped })
         );
         setShowImportModal(false);
         setImportData('');
         loadConfigs();
         refreshConfig();
       } else {
-        notification.error('导入失败', response.message || '未知错误');
+        notification.error(t('admin:config.importFailed'), response.message || t('admin:config.unknownError'));
       }
     } catch (error: any) {
-      notification.error('导入失败', error.message);
+      notification.error(t('admin:config.importFailed'), error.message);
     }
   };
 
@@ -246,12 +248,12 @@ export const ConfigTab: React.FC = () => {
         return config.value === '1' || config.value === 'true' ? (
           <span className="inline-flex items-center gap-1 text-success-600 dark:text-success-400">
             <CheckCircle className="w-4 h-4" />
-            是
+            {t('admin:config.booleanYes')}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-surface-500">
             <XCircle className="w-4 h-4" />
-            否
+            {t('admin:config.booleanNo')}
           </span>
         );
       default:
@@ -270,16 +272,16 @@ export const ConfigTab: React.FC = () => {
             {config.key}
           </span>
           <span className="px-2 py-0.5 text-xs rounded-full bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
-            {CONFIG_TYPE_LABELS[config.config_type] || config.config_type}
+            {t(CONFIG_TYPE_LABELS[config.config_type] || config.config_type)}
           </span>
           {config.is_sensitive === 1 && (
             <span className="px-2 py-0.5 text-xs rounded-full bg-warning-100 dark:bg-warning-900/30 text-warning-600 dark:text-warning-400">
-              敏感
+              {t('admin:config.sensitive')}
             </span>
           )}
           {config.is_public === 1 && (
             <span className="px-2 py-0.5 text-xs rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
-              公开
+              {t('admin:config.public')}
             </span>
           )}
         </div>
@@ -298,7 +300,7 @@ export const ConfigTab: React.FC = () => {
             <button
               onClick={() => toggleSensitive(config.key)}
               className="p-1.5 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500"
-              title={showSensitive.has(config.key) ? '隐藏值' : '显示值'}
+              title={showSensitive.has(config.key) ? t('admin:config.hideValueTitle') : t('admin:config.showValueTitle')}
             >
               {showSensitive.has(config.key) ? (
                 <EyeOff className="w-4 h-4" />
@@ -314,14 +316,14 @@ export const ConfigTab: React.FC = () => {
               setEditReason('');
             }}
             className="p-1.5 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500"
-            title="编辑"
+            title={t('admin:config.editTitle')}
           >
             <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleResetConfig(config.key)}
             className="p-1.5 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500"
-            title="重置为默认值"
+            title={t('admin:config.resetTitle')}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -338,21 +340,21 @@ export const ConfigTab: React.FC = () => {
         setEditValue('');
         setEditReason('');
       }}
-      title={`编辑配置: ${editingConfig?.key}`}
+      title={t('admin:config.editModal.title', { key: editingConfig?.key })}
       size="md"
     >
       {editingConfig && (
         <div className="space-y-4">
           <div className="p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
-            <p className="text-sm text-surface-500 dark:text-surface-400 mb-1">描述</p>
+            <p className="text-sm text-surface-500 dark:text-surface-400 mb-1">{t('admin:config.editModal.descLabel')}</p>
             <p className="text-surface-900 dark:text-surface-100">
-              {editingConfig.description || '无描述'}
+              {editingConfig.description || t('admin:config.editModal.noDescription')}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-              配置值
+              {t('admin:config.editModal.valueLabel')}
             </label>
             {editingConfig.config_type === 'boolean' ? (
               <div className="flex gap-3">
@@ -369,7 +371,7 @@ export const ConfigTab: React.FC = () => {
                       editValue === '1' ? 'text-success-600' : 'text-surface-400'
                     }`}
                   />
-                  <span className="block mt-1 text-sm">是</span>
+                  <span className="block mt-1 text-sm">{t('admin:config.booleanYes')}</span>
                 </button>
                 <button
                   onClick={() => setEditValue('0')}
@@ -384,7 +386,7 @@ export const ConfigTab: React.FC = () => {
                       editValue === '0' ? 'text-error-600' : 'text-surface-400'
                     }`}
                   />
-                  <span className="block mt-1 text-sm">否</span>
+                  <span className="block mt-1 text-sm">{t('admin:config.booleanNo')}</span>
                 </button>
               </div>
             ) : (
@@ -398,10 +400,10 @@ export const ConfigTab: React.FC = () => {
           </div>
 
           <Input
-            label="变更原因（可选）"
+            label={t('admin:config.editModal.changeReasonLabel')}
             value={editReason}
             onChange={(e) => setEditReason(e.target.value)}
-            placeholder="请输入变更原因"
+            placeholder={t('admin:config.editModal.changeReasonPlaceholder')}
             fullWidth
           />
 
@@ -415,10 +417,10 @@ export const ConfigTab: React.FC = () => {
                 setEditReason('');
               }}
             >
-              取消
+              {t('admin:config.editModal.cancel')}
             </Button>
             <Button variant="primary" fullWidth onClick={handleUpdateConfig}>
-              保存
+              {t('admin:config.editModal.save')}
             </Button>
           </div>
         </div>
@@ -430,7 +432,7 @@ export const ConfigTab: React.FC = () => {
     <Modal
       isOpen={showLogsModal}
       onClose={() => setShowLogsModal(false)}
-      title="配置变更日志"
+      title={t('admin:config.logsModal.title')}
       size="lg"
     >
       <div className="space-y-4">
@@ -440,14 +442,14 @@ export const ConfigTab: React.FC = () => {
             size="sm"
             onClick={() => loadConfigLogs()}
           >
-            全部
+            {t('admin:config.logsModal.all')}
           </Button>
         </div>
 
         {logsLoading ? (
-          <div className="text-center py-8 text-surface-500">加载中...</div>
+          <div className="text-center py-8 text-surface-500">{t('admin:config.logsModal.loading')}</div>
         ) : configLogs.length === 0 ? (
-          <div className="text-center py-8 text-surface-500">暂无日志记录</div>
+          <div className="text-center py-8 text-surface-500">{t('admin:config.logsModal.empty')}</div>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {configLogs.map((log) => (
@@ -469,29 +471,29 @@ export const ConfigTab: React.FC = () => {
                     }`}
                   >
                     {log.change_type === 'create'
-                      ? '创建'
+                      ? t('admin:config.logsModal.typeCreate')
                       : log.change_type === 'update'
-                      ? '更新'
+                      ? t('admin:config.logsModal.typeUpdate')
                       : log.change_type === 'delete'
-                      ? '删除'
-                      : '重置'}
+                      ? t('admin:config.logsModal.typeDelete')
+                      : t('admin:config.logsModal.typeReset')}
                   </span>
                 </div>
                 <div className="text-sm text-surface-600 dark:text-surface-400 space-y-1">
                   {log.old_value !== null && (
                     <p>
-                      旧值: <span className="font-mono">{log.old_value}</span>
+                      {t('admin:config.logsModal.oldValue')} <span className="font-mono">{log.old_value}</span>
                     </p>
                   )}
                   <p>
-                    新值: <span className="font-mono">{log.new_value}</span>
+                    {t('admin:config.logsModal.newValue')} <span className="font-mono">{log.new_value}</span>
                   </p>
                   <div className="flex items-center gap-4 text-xs text-surface-500">
-                    <span>操作人: {log.changed_by_username || '系统'}</span>
-                    <span>时间: {new Date(log.created_at).toLocaleString()}</span>
+                    <span>{t('admin:config.logsModal.operator')} {log.changed_by_username || t('admin:config.logsModal.systemOperator')}</span>
+                    <span>{t('admin:config.logsModal.time')} {new Date(log.created_at).toLocaleString()}</span>
                   </div>
                   {log.change_reason && (
-                    <p className="text-xs text-surface-500">原因: {log.change_reason}</p>
+                    <p className="text-xs text-surface-500">{t('admin:config.logsModal.reason')} {log.change_reason}</p>
                   )}
                 </div>
               </div>
@@ -506,7 +508,7 @@ export const ConfigTab: React.FC = () => {
     <Modal
       isOpen={showExportModal}
       onClose={() => setShowExportModal(false)}
-      title="导出配置"
+      title={t('admin:config.exportModal.title')}
       size="md"
     >
       <div className="space-y-4">
@@ -514,15 +516,15 @@ export const ConfigTab: React.FC = () => {
           <div className="flex items-start gap-3">
             <Info className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-surface-600 dark:text-surface-400">
-              <p>导出的配置文件将包含所有配置项的当前值。</p>
-              <p className="mt-1">敏感配置的值将被替换为 ****** ，需要手动设置。</p>
+              <p>{t('admin:config.exportModal.desc1')}</p>
+              <p className="mt-1">{t('admin:config.exportModal.desc2')}</p>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3">
           <Button variant="outline" fullWidth onClick={() => setShowExportModal(false)}>
-            取消
+            {t('admin:config.exportModal.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -530,7 +532,7 @@ export const ConfigTab: React.FC = () => {
             onClick={handleExport}
             leftIcon={<Download className="w-4 h-4" />}
           >
-            导出JSON
+            {t('admin:config.exportModal.exportJson')}
           </Button>
         </div>
       </div>
@@ -544,7 +546,7 @@ export const ConfigTab: React.FC = () => {
         setShowImportModal(false);
         setImportData('');
       }}
-      title="导入配置"
+      title={t('admin:config.importModal.title')}
       size="lg"
     >
       <div className="space-y-4">
@@ -552,20 +554,20 @@ export const ConfigTab: React.FC = () => {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-surface-600 dark:text-surface-400">
-              <p>导入配置将修改系统配置，请确保配置文件来源可信。</p>
-              <p className="mt-1">敏感配置需要手动设置，无法通过导入修改。</p>
+              <p>{t('admin:config.importModal.warn1')}</p>
+              <p className="mt-1">{t('admin:config.importModal.warn2')}</p>
             </div>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-            配置数据（JSON格式）
+            {t('admin:config.importModal.dataLabel')}
           </label>
           <textarea
             value={importData}
             onChange={(e) => setImportData(e.target.value)}
-            placeholder="粘贴配置JSON数据..."
+            placeholder={t('admin:config.importModal.dataPlaceholder')}
             className="w-full h-48 p-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -578,13 +580,13 @@ export const ConfigTab: React.FC = () => {
             className="w-4 h-4 rounded border-surface-300 dark:border-surface-600"
           />
           <span className="text-sm text-surface-700 dark:text-surface-300">
-            覆盖已存在的配置
+            {t('admin:config.importModal.overwriteLabel')}
           </span>
         </label>
 
         <div className="flex gap-3">
           <Button variant="outline" fullWidth onClick={() => setShowImportModal(false)}>
-            取消
+            {t('admin:config.importModal.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -592,7 +594,7 @@ export const ConfigTab: React.FC = () => {
             onClick={handleImport}
             leftIcon={<Upload className="w-4 h-4" />}
           >
-            导入配置
+            {t('admin:config.importModal.submit')}
           </Button>
         </div>
       </div>
@@ -602,7 +604,7 @@ export const ConfigTab: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-surface-500">加载中...</div>
+        <div className="text-surface-500">{t('admin:config.pageLoading')}</div>
       </div>
     );
   }
@@ -615,8 +617,8 @@ export const ConfigTab: React.FC = () => {
             <Settings className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">系统配置</h2>
-            <p className="text-surface-500 dark:text-surface-400">管理系统全局配置项</p>
+            <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{t('admin:config.headerTitle')}</h2>
+            <p className="text-surface-500 dark:text-surface-400">{t('admin:config.headerSubtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -629,7 +631,7 @@ export const ConfigTab: React.FC = () => {
             }}
             leftIcon={<History className="w-4 h-4" />}
           >
-            变更日志
+            {t('admin:config.logsBtn')}
           </Button>
           <Button
             variant="outline"
@@ -637,7 +639,7 @@ export const ConfigTab: React.FC = () => {
             onClick={() => setShowImportModal(true)}
             leftIcon={<Upload className="w-4 h-4" />}
           >
-            导入
+            {t('admin:config.importBtn')}
           </Button>
           <Button
             variant="outline"
@@ -645,7 +647,7 @@ export const ConfigTab: React.FC = () => {
             onClick={() => setShowExportModal(true)}
             leftIcon={<Download className="w-4 h-4" />}
           >
-            导出
+            {t('admin:config.exportBtn')}
           </Button>
         </div>
       </div>
@@ -653,7 +655,7 @@ export const ConfigTab: React.FC = () => {
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <Input
-            placeholder="搜索配置项..."
+            placeholder={t('admin:config.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leftIcon={<Search className="w-5 h-5" />}
@@ -682,7 +684,7 @@ export const ConfigTab: React.FC = () => {
                       {group.display_name}
                     </h3>
                     <p className="text-sm text-surface-500 dark:text-surface-400">
-                      {configs.length} 个配置项
+                      {t('admin:config.groupConfigCount', { count: configs.length })}
                     </p>
                   </div>
                 </div>

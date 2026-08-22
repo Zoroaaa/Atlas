@@ -16,16 +16,19 @@ import {
 import { Card, Loading, Badge, EmptyState, Button } from '@/components/ui';
 import { userApi } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { SearchHistoryItem, FavoriteItem } from '@/types';
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
-const getUserLevel = (total: number): { label: string; color: string; next: number } => {
-  if (total < 10)  return { label: '新手',   color: 'from-stone-400 to-stone-500',     next: 10  };
-  if (total < 50)  return { label: '熟练',   color: 'from-green-400 to-emerald-500',   next: 50  };
-  if (total < 200) return { label: '专业',   color: 'from-amber-400 to-amber-500',     next: 200 };
-  if (total < 500) return { label: '专家',   color: 'from-rose-400 to-rose-500',       next: 500 };
-  return             { label: '大师',   color: 'from-amber-400 to-orange-500',    next: Infinity };
+type TFunc = (key: string, options?: Record<string, unknown>) => string;
+
+const getUserLevel = (total: number, t: TFunc): { label: string; color: string; next: number } => {
+  if (total < 10)  return { label: t('dashboard:stats.userLevel.beginner'),   color: 'from-stone-400 to-stone-500',     next: 10  };
+  if (total < 50)  return { label: t('dashboard:stats.userLevel.skilled'),   color: 'from-green-400 to-emerald-500',   next: 50  };
+  if (total < 200) return { label: t('dashboard:stats.userLevel.professional'),   color: 'from-amber-400 to-amber-500',     next: 200 };
+  if (total < 500) return { label: t('dashboard:stats.userLevel.expert'),   color: 'from-rose-400 to-rose-500',       next: 500 };
+  return             { label: t('dashboard:stats.userLevel.master'),   color: 'from-amber-400 to-orange-500',    next: Infinity };
 };
 
 const getLast30DaysLabels = () => {
@@ -38,13 +41,14 @@ const getLast30DaysLabels = () => {
   return labels;
 };
 
-const getLast7DaysLabels = () => {
-  const days = ['日', '一', '二', '三', '四', '五', '六'];
+const getLast7DaysLabels = (t: TFunc) => {
+  const weekdayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+  const weekPrefix = t('dashboard:stats.weekPrefix');
   const labels: string[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    labels.push(`周${days[d.getDay()]}`);
+    labels.push(`${weekPrefix}${t(`dashboard:stats.weekdays.${weekdayKeys[d.getDay()]}`)}`);
   }
   return labels;
 };
@@ -76,24 +80,25 @@ const BarChart: React.FC<{
   labels: string[];
   color: string;
   height?: number;
-}> = ({ data, labels, color, height = 80 }) => {
+  t: TFunc;
+}> = ({ data, labels, color, height = 80, t }) => {
   const max = Math.max(...data, 1);
   const showEvery = Math.ceil(labels.length / 10);
   const labelHeight = 16;
   const gap = 2;
   const chartHeight = height - labelHeight - gap;
-  
+
   return (
     <div className="flex items-end gap-0.5 w-full" style={{ height }}>
       {data.map((val, i) => {
-        const barHeight = max > 0 && val > 0 
-          ? Math.max((val / max) * chartHeight, 4) 
+        const barHeight = max > 0 && val > 0
+          ? Math.max((val / max) * chartHeight, 4)
           : 0;
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group relative">
             <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
               <div className="bg-surface-900 dark:bg-surface-100 text-surface-100 dark:text-surface-900 text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-                {labels[i]}: {val}次
+                {t('dashboard:stats.barTooltip', { label: labels[i], count: val })}
               </div>
             </div>
             <div
@@ -113,8 +118,8 @@ const BarChart: React.FC<{
 };
 
 // 热力格子
-const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabel?: string }> = ({
-  value, max, label, sublabel,
+const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabel?: string; t: TFunc }> = ({
+  value, max, label, sublabel, t,
 }) => {
   const intensity = max > 0 ? value / max : 0;
   const bg =
@@ -129,7 +134,7 @@ const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabe
     <div className={`flex-1 rounded-lg border p-3 flex flex-col items-center gap-1 transition-all hover:scale-105 cursor-default ${bg} group relative`}>
       <div className={`absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none`}>
         <div className="bg-surface-900 dark:bg-surface-100 text-surface-100 dark:text-surface-900 text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-          {label}: {value}次搜索
+          {t('dashboard:stats.heatmapTooltip', { label, count: value })}
         </div>
       </div>
       <span className={`text-xs font-medium ${text}`}>{label}</span>
@@ -140,11 +145,11 @@ const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabe
 };
 
 // 关键词云
-const KeywordCloud: React.FC<{ keywords: Array<{ keyword: string; count: number }> }> = ({ keywords }) => {
+const KeywordCloud: React.FC<{ keywords: Array<{ keyword: string; count: number }>; t: TFunc }> = ({ keywords, t }) => {
   if (keywords.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-surface-400 dark:text-surface-500 text-sm">
-        暂无搜索数据
+        {t('dashboard:stats.noSearchData')}
       </div>
     );
   }
@@ -169,7 +174,7 @@ const KeywordCloud: React.FC<{ keywords: Array<{ keyword: string; count: number 
             key={keyword}
             className={`cursor-pointer px-2 py-0.5 rounded-full font-medium transition-all ${colorClass} border border-transparent hover:border-current`}
             style={{ fontSize: size, opacity }}
-            title={`搜索 ${count} 次`}
+            title={t('dashboard:stats.searchCountTitle', { count })}
           >
             {keyword}
           </span>
@@ -185,7 +190,8 @@ const SourceUsageBar: React.FC<{
   count: number;
   total: number;
   rank: number;
-}> = ({ name, count, total, rank }) => {
+  t: TFunc;
+}> = ({ name, count, total, rank, t }) => {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   const rankColors = ['from-amber-400 to-yellow-500', 'from-stone-300 to-stone-400', 'from-amber-600 to-amber-700'];
   const barColor = rank <= 3 ? 'bg-gradient-to-r from-primary-500 to-primary-400' : 'bg-gradient-to-r from-surface-400 to-surface-300 dark:from-surface-600 dark:to-surface-500';
@@ -198,7 +204,7 @@ const SourceUsageBar: React.FC<{
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium text-surface-800 dark:text-surface-200 truncate">{name}</span>
-          <span className="text-xs text-surface-500 ml-2 flex-shrink-0">{count}次 · {pct}%</span>
+          <span className="text-xs text-surface-500 ml-2 flex-shrink-0">{t('dashboard:stats.sourceUsageCount', { count, percent: pct })}</span>
         </div>
         <div className="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
           <div
@@ -212,8 +218,8 @@ const SourceUsageBar: React.FC<{
 };
 
 // 用户等级卡
-const UserLevelCard: React.FC<{ totalActions: number }> = ({ totalActions }) => {
-  const level = getUserLevel(totalActions);
+const UserLevelCard: React.FC<{ totalActions: number; t: TFunc }> = ({ totalActions, t }) => {
+  const level = getUserLevel(totalActions, t);
   const prevThreshold = totalActions < 10 ? 0 : totalActions < 50 ? 10 : totalActions < 200 ? 50 : totalActions < 500 ? 200 : 500;
   const nextThreshold = level.next === Infinity ? totalActions : level.next;
   const progress = level.next === Infinity ? 100 : Math.min(100, Math.round(((totalActions - prevThreshold) / (nextThreshold - prevThreshold)) * 100));
@@ -228,15 +234,15 @@ const UserLevelCard: React.FC<{ totalActions: number }> = ({ totalActions }) => 
             <Award className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-white/70 font-medium">用户等级</p>
+            <p className="text-xs text-white/70 font-medium">{t('dashboard:stats.userLevelLabel')}</p>
             <p className="text-xl font-bold">{level.label}</p>
           </div>
         </div>
         <div className="mt-2">
           <div className="flex justify-between text-xs text-white/70 mb-1">
-            <span>累计操作 {totalActions} 次</span>
-            {level.next !== Infinity && <span>距下一级还差 {level.next - totalActions} 次</span>}
-            {level.next === Infinity && <span>已达最高等级 🎉</span>}
+            <span>{t('dashboard:stats.totalActionsCount', { count: totalActions })}</span>
+            {level.next !== Infinity && <span>{t('dashboard:stats.toNextLevel', { count: level.next - totalActions })}</span>}
+            {level.next === Infinity && <span>{t('dashboard:stats.maxLevelReached')}</span>}
           </div>
           <div className="h-2 rounded-full bg-white/20 overflow-hidden">
             <div
@@ -254,6 +260,7 @@ const UserLevelCard: React.FC<{ totalActions: number }> = ({ totalActions }) => 
 
 export const StatsManager: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['dashboard']);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -341,7 +348,7 @@ export const StatsManager: React.FC = () => {
     .slice(0, 8);
 
   const totalActions = history.length + favorites.length;
-  const week7Labels = getLast7DaysLabels();
+  const week7Labels = getLast7DaysLabels(t);
   const month30Labels = getLast30DaysLabels();
 
   const maxWeek = Math.max(...last7Days, 1);
@@ -349,7 +356,7 @@ export const StatsManager: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载统计数据..." />
+        <Loading size="lg" text={t('dashboard:stats.loading')} />
       </div>
     );
   }
@@ -363,58 +370,58 @@ export const StatsManager: React.FC = () => {
             <BarChart2 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">数据统计</h2>
-            <p className="text-surface-500 dark:text-surface-400">搜索行为分析与可视化</p>
+            <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{t('dashboard:stats.title')}</h2>
+            <p className="text-surface-500 dark:text-surface-400">{t('dashboard:stats.subtitle')}</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} isLoading={isRefreshing} leftIcon={<RefreshCw className="w-4 h-4" />}>
-          刷新
+          {t('dashboard:stats.refresh')}
         </Button>
       </div>
 
       {/* ── 用户等级 + 基础统计 ── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <UserLevelCard totalActions={totalActions} />
+        <UserLevelCard totalActions={totalActions} t={t} />
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
           <StatMiniCard
             icon={<Search className="w-5 h-5" />}
-            label="总搜索次数"
+            label={t('dashboard:stats.statCards.totalSearches')}
             value={serverStats?.totalSearches ?? history.length}
             gradient="from-primary-500 to-primary-600"
-            sub={`今日 ${todayCount} 次`}
+            sub={t('dashboard:stats.statCards.todayCount', { count: todayCount })}
           />
           <StatMiniCard
             icon={<Calendar className="w-5 h-5" />}
-            label="本周搜索"
+            label={t('dashboard:stats.statCards.weeklySearches')}
             value={weekCount}
             gradient="from-accent-500 to-accent-600"
-            sub={`活跃 ${activeDays} 天`}
+            sub={t('dashboard:stats.statCards.activeDays', { count: activeDays })}
           />
           <StatMiniCard
             icon={<Target className="w-5 h-5" />}
-            label="不同关键词"
+            label={t('dashboard:stats.statCards.uniqueKeywords')}
             value={uniqueKeywords}
             gradient="from-cyan-500 to-teal-600"
           />
           <StatMiniCard
             icon={<Heart className="w-5 h-5" />}
-            label="收藏总数"
+            label={t('dashboard:stats.statCards.totalFavorites')}
             value={favorites.length}
             gradient="from-error-500 to-pink-600"
-            sub="点击管理"
+            sub={t('dashboard:stats.statCards.clickToManage')}
           />
           <StatMiniCard
             icon={<Clock className="w-5 h-5" />}
-            label="活跃天数"
+            label={t('dashboard:stats.statCards.activeDaysCount')}
             value={activeDays}
             gradient="from-success-500 to-emerald-600"
           />
           <StatMiniCard
             icon={<Zap className="w-5 h-5" />}
-            label="日均搜索"
+            label={t('dashboard:stats.statCards.dailyAverage')}
             value={activeDays > 0 ? Math.round(history.length / activeDays) : 0}
             gradient="from-warning-500 to-orange-600"
-            sub="次/活跃天"
+            sub={t('dashboard:stats.statCards.perActiveDay')}
           />
         </div>
       </div>
@@ -425,7 +432,7 @@ export const StatsManager: React.FC = () => {
           <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
             <TrendingUp className="w-4 h-4 text-primary-600 dark:text-primary-400" />
           </div>
-          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">最近 30 天搜索趋势</h3>
+          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{t('dashboard:stats.trend30Days')}</h3>
         </div>
         {history.length > 0 ? (
           <BarChart
@@ -433,9 +440,10 @@ export const StatsManager: React.FC = () => {
             labels={month30Labels}
             color="bg-gradient-to-t from-primary-600 to-primary-400 dark:from-primary-500 dark:to-primary-300"
             height={100}
+            t={t}
           />
         ) : (
-          <div className="flex items-center justify-center h-24 text-surface-400 text-sm">暂无搜索数据</div>
+          <div className="flex items-center justify-center h-24 text-surface-400 text-sm">{t('dashboard:stats.noSearchData')}</div>
         )}
       </Card>
 
@@ -445,11 +453,11 @@ export const StatsManager: React.FC = () => {
           <div className="w-8 h-8 rounded-lg bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
             <Calendar className="w-4 h-4 text-accent-600 dark:text-accent-400" />
           </div>
-          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">一周活动热力图</h3>
+          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{t('dashboard:stats.weekHeatmap')}</h3>
         </div>
         <div className="flex gap-2">
           {last7Days.map((val, i) => (
-            <HeatmapCell key={i} value={val} max={maxWeek} label={week7Labels[i]} />
+            <HeatmapCell key={i} value={val} max={maxWeek} label={week7Labels[i]} t={t} />
           ))}
         </div>
       </Card>
@@ -461,16 +469,16 @@ export const StatsManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-success-100 dark:bg-success-900/30 flex items-center justify-center">
               <Tag className="w-4 h-4 text-success-600 dark:text-success-400" />
             </div>
-            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">热门搜索关键词</h3>
-            <Badge variant="outline" className="ml-auto text-xs">{topKeywords.length} 个</Badge>
+            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{t('dashboard:stats.hotKeywords')}</h3>
+            <Badge variant="outline" className="ml-auto text-xs">{t('dashboard:stats.keywordsCount', { count: topKeywords.length })}</Badge>
           </div>
           {topKeywords.length > 0 ? (
-            <KeywordCloud keywords={topKeywords} />
+            <KeywordCloud keywords={topKeywords} t={t} />
           ) : (
             <EmptyState
               icon={<Tag className="w-10 h-10" />}
-              title="暂无关键词数据"
-              description="开始搜索后将生成关键词云"
+              title={t('dashboard:stats.noKeywordsTitle')}
+              description={t('dashboard:stats.noKeywordsDesc')}
             />
           )}
         </Card>
@@ -481,25 +489,26 @@ export const StatsManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-warning-100 dark:bg-warning-900/30 flex items-center justify-center">
               <Globe className="w-4 h-4 text-warning-600 dark:text-warning-400" />
             </div>
-            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">搜索源使用分布</h3>
+            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{t('dashboard:stats.sourceDistribution')}</h3>
           </div>
           {topSources.length > 0 ? (
             <div className="space-y-3">
               {topSources.map((src, i) => (
                 <SourceUsageBar
                   key={src.source}
-                  name={src.source === 'unknown' ? '未知来源' : src.source}
+                  name={src.source === 'unknown' ? t('dashboard:stats.unknownSource') : src.source}
                   count={src.count}
                   total={totalSrcSearches}
                   rank={i + 1}
+                  t={t}
                 />
               ))}
             </div>
           ) : (
             <EmptyState
               icon={<Globe className="w-10 h-10" />}
-              title="暂无来源数据"
-              description="搜索记录将统计搜索源分布"
+              title={t('dashboard:stats.noSourceDataTitle')}
+              description={t('dashboard:stats.noSourceDataDesc')}
             />
           )}
         </Card>
@@ -512,7 +521,7 @@ export const StatsManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-error-100 dark:bg-error-900/30 flex items-center justify-center">
               <Search className="w-4 h-4 text-error-600 dark:text-error-400" />
             </div>
-            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">搜索频率排行 Top 10</h3>
+            <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">{t('dashboard:stats.searchRanking')}</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {topKeywords.slice(0, 10).map((kw, i) => (
@@ -532,7 +541,7 @@ export const StatsManager: React.FC = () => {
                 <span className="flex-1 text-sm font-medium text-surface-800 dark:text-surface-200 truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                   {kw.keyword}
                 </span>
-                <span className="text-xs text-surface-400 dark:text-surface-500 flex-shrink-0">{kw.count}次</span>
+                <span className="text-xs text-surface-400 dark:text-surface-500 flex-shrink-0">{t('dashboard:stats.searchCountTitle', { count: kw.count })}</span>
               </div>
             ))}
           </div>

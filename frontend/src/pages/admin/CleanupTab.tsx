@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw, Trash2, CheckCircle } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useTranslation } from 'react-i18next';
 
 interface CleanupResult {
   oldPasswordResetLogs: number;
@@ -12,17 +13,18 @@ interface CleanupResult {
 
 export const CleanupTab: React.FC = () => {
   const toast = useToast();
+  const { t } = useTranslation(['admin']);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CleanupResult | null>(null);
 
   const handleCleanup = async () => {
-    if (!confirm('确定要清理过期数据吗？此操作不可撤销。')) return;
+    if (!confirm(t('admin:cleanup.confirm'))) return;
     setLoading(true);
     try {
       setResult(await adminApi.cleanup());
-      toast.success('数据清理完成');
+      toast.success(t('admin:cleanup.successToast'));
     } catch {
-      toast.error('清理失败');
+      toast.error(t('admin:cleanup.failedToast'));
     } finally {
       setLoading(false);
     }
@@ -34,22 +36,22 @@ export const CleanupTab: React.FC = () => {
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
           <div>
-            <h3 className="font-semibold text-orange-700 dark:text-orange-400 mb-2">数据清理说明</h3>
+            <h3 className="font-semibold text-orange-700 dark:text-orange-400 mb-2">{t('admin:cleanup.noticeTitle')}</h3>
             <p className="text-sm text-orange-600 dark:text-orange-400/80 mb-2">
-              以下数据由触发器实时清理，无需手动操作：
+              {t('admin:cleanup.autoCleanDesc')}
             </p>
             <ul className="text-sm text-orange-600 dark:text-orange-400/80 space-y-1 mb-3">
-              <li>• 过期会话（user_sessions）</li>
-              <li>• 过期邮箱验证记录（email_verifications）</li>
-              <li>• 过期安全锁定记录（security_lockouts）</li>
+              <li>{t('admin:cleanup.autoCleanSessions')}</li>
+              <li>{t('admin:cleanup.autoCleanEmailVerifications')}</li>
+              <li>{t('admin:cleanup.autoCleanLockouts')}</li>
             </ul>
             <p className="text-sm text-orange-600 dark:text-orange-400/80 mb-2">
-              以下数据根据动态配置的保留天数清理：
+              {t('admin:cleanup.retentionDesc')}
             </p>
             <ul className="text-sm text-orange-600 dark:text-orange-400/80 space-y-1">
-              <li>• 密码重置日志（默认保留30天）</li>
-              <li>• 用户行为日志（默认保留90天）</li>
-              <li>• 安全事件日志（默认保留90天）</li>
+              <li>{t('admin:cleanup.retentionPassword')}</li>
+              <li>{t('admin:cleanup.retentionActions')}</li>
+              <li>{t('admin:cleanup.retentionSecurity')}</li>
             </ul>
           </div>
         </div>
@@ -58,7 +60,7 @@ export const CleanupTab: React.FC = () => {
       <div className="flex justify-center">
         <Button variant="primary" onClick={handleCleanup} disabled={loading}>
           {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-          {loading ? '清理中...' : '执行清理'}
+          {loading ? t('admin:cleanup.executing') : t('admin:cleanup.execute')}
         </Button>
       </div>
 
@@ -66,15 +68,15 @@ export const CleanupTab: React.FC = () => {
         <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-5">
           <h3 className="font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-500" />
-            清理结果
+            {t('admin:cleanup.resultTitle')}
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {[
-              ['密码重置日志', result.oldPasswordResetLogs],
-              ['用户行为日志', result.oldActions],
-              ['安全事件日志', result.oldSecurityEvents],
+              [t('admin:cleanup.resultPassword'), result.oldPasswordResetLogs],
+              [t('admin:cleanup.resultActions'), result.oldActions],
+              [t('admin:cleanup.resultSecurity'), result.oldSecurityEvents],
             ].map(([label, value]) => (
-              <div key={label} className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
+              <div key={label as string} className="bg-surface-50 dark:bg-surface-900 rounded-lg p-3 text-center">
                 <div className="text-xl font-bold text-surface-900 dark:text-surface-100">{value}</div>
                 <div className="text-xs text-surface-500 mt-0.5">{label}</div>
               </div>

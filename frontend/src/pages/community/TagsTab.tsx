@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tag as TagIcon, Plus, Search, Hash } from 'lucide-react';
 import { Card, Button, Input, Loading, EmptyState } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useToast } from '@/components/ui/Toast';
 
 export const TagsTab: React.FC = () => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const { tags, tagsLoading, fetchTags } = useCommunityStore();
 
@@ -30,12 +32,12 @@ export const TagsTab: React.FC = () => {
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) {
-      toast.error('请输入标签名称');
+      toast.error(t('communityPages:tags.nameRequired'));
       return;
     }
     // 这里可以调用创建标签API
     // 暂时只做前端提示
-    toast.success(`标签 "${newTagName}" 创建成功（演示）`);
+    toast.success(t('communityPages:tags.created', { name: newTagName }));
     setNewTagName('');
     setShowCreateForm(false);
   };
@@ -58,7 +60,7 @@ export const TagsTab: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Input
-              placeholder="搜索标签..."
+              placeholder={t('communityPages:tags.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<Search className="w-4 h-4" />}
@@ -71,7 +73,7 @@ export const TagsTab: React.FC = () => {
             onClick={() => setShowCreateForm(!showCreateForm)}
             leftIcon={<Plus className="w-4 h-4" />}
           >
-            {showCreateForm ? '取消' : '新建标签'}
+            {showCreateForm ? t('communityPages:tags.cancel') : t('communityPages:tags.createTag')}
           </Button>
         </div>
 
@@ -81,19 +83,19 @@ export const TagsTab: React.FC = () => {
             <div className="flex gap-3 items-end">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
-                  标签名称 *
+                  {t('communityPages:tags.nameLabel')}
                 </label>
                 <input
                   type="text"
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="输入标签名称"
+                  placeholder={t('communityPages:tags.namePlaceholder')}
                   className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">颜色</label>
+                <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">{t('communityPages:tags.colorLabel')}</label>
                 <input
                   type="color"
                   value={newTagColor}
@@ -101,7 +103,7 @@ export const TagsTab: React.FC = () => {
                   className="h-10 w-16 rounded-lg border border-stone-300 dark:border-stone-600 cursor-pointer"
                 />
               </div>
-              <Button variant="primary" onClick={handleCreateTag}>创建</Button>
+              <Button variant="primary" onClick={handleCreateTag}>{t('communityPages:tags.create')}</Button>
             </div>
           </div>
         )}
@@ -110,8 +112,8 @@ export const TagsTab: React.FC = () => {
       {/* 标签统计 */}
       {!tagsLoading && tags.length > 0 && (
         <p className="text-sm text-stone-400">
-          共 <span className="font-semibold text-stone-600">{tags.length}</span> 个标签
-          {searchQuery && `（搜索结果：${sortedTags.length}）`}
+          {t('communityPages:tags.totalCount', { count: tags.length })}
+          {searchQuery && t('communityPages:tags.searchResult', { count: sortedTags.length })}
         </p>
       )}
 
@@ -119,20 +121,20 @@ export const TagsTab: React.FC = () => {
       {tags.length === 0 ? (
         <EmptyState
           icon={<TagIcon className="w-10 h-10" />}
-          title="暂无标签"
-          description="社区还没有任何标签，创建第一个标签吧"
+          title={t('communityPages:tags.emptyTitle')}
+          description={t('communityPages:tags.emptyDescription')}
           action={
             <Button variant="primary" onClick={() => setShowCreateForm(true)}>
               <Plus className="w-4 h-4 mr-1" />
-              创建标签
+              {t('communityPages:tags.createAction')}
             </Button>
           }
         />
       ) : sortedTags.length === 0 ? (
         <EmptyState
           icon={<Search className="w-10 h-10" />}
-          title="没有匹配的标签"
-          description={`没有找到与 "${searchQuery}" 相关的标签`}
+          title={t('communityPages:tags.noMatchTitle')}
+          description={t('communityPages:tags.noMatchDescription', { query: searchQuery })}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -173,7 +175,7 @@ export const TagsTab: React.FC = () => {
 
                 {/* 使用数 */}
                 <div className="shrink-0 px-2 py-1 rounded-full bg-stone-100 dark:bg-stone-800 text-xs text-stone-500 group-hover:bg-stone-200 dark:group-hover:bg-stone-700 transition-colors">
-                  {tag.postsCount || 0} 帖子
+                  {t('communityPages:tags.postCount', { count: tag.postsCount || 0 })}
                 </div>
               </div>
             </Card>

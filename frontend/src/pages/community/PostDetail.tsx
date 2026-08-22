@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import {
   ArrowLeft,
@@ -32,12 +33,12 @@ interface PostDetailProps {
 }
 
 const POST_TYPE_CONFIG = {
-  jav: { label: '番号', icon: Film, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
-  anime: { label: '动漫', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
-  movie: { label: '影视', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
-  manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
-  novel: { label: '小说', icon: Library, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
-  actress: { label: '女优', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-900/20' },
+  jav: { labelKey: 'communityPages:postDetail.types.jav', icon: Film, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
+  anime: { labelKey: 'communityPages:postDetail.types.anime', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
+  movie: { labelKey: 'communityPages:postDetail.types.movie', icon: Film, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
+  manga: { labelKey: 'communityPages:postDetail.types.manga', icon: BookOpen, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
+  novel: { labelKey: 'communityPages:postDetail.types.novel', icon: Library, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
+  actress: { labelKey: 'communityPages:postDetail.types.actress', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-900/20' },
 };
 
 /**
@@ -80,98 +81,103 @@ const formatDate = (timestamp: number) => {
 };
 
 // JAV 内容渲染
-const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
-  <div className="space-y-4">
-    {/* 基本信息 */}
-    <div className="grid grid-cols-2 gap-3 text-sm">
-      {data.code && (
+const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
+  const magnetLinks = data.magnetLinks || data.magnets;
+  return (
+    <div className="space-y-4">
+      {/* 基本信息 */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        {data.code && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.code')}</span>
+            <p className="font-mono font-semibold text-stone-900 dark:text-stone-100">{data.code}</p>
+          </div>
+        )}
+        {data.releaseDate && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.releaseDate')}</span>
+            <p className="text-stone-700 dark:text-stone-300">{data.releaseDate}</p>
+          </div>
+        )}
+        {data.duration && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.duration')}</span>
+            <p className="text-stone-700 dark:text-stone-300">{data.duration}</p>
+          </div>
+        )}
+        {(data.maker || data.publisher) && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.maker')}</span>
+            <p className="text-stone-700 dark:text-stone-300">{data.maker || data.publisher}</p>
+          </div>
+        )}
+        {data.series && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.series')}</span>
+            <p className="text-stone-700 dark:text-stone-300">{data.series}</p>
+          </div>
+        )}
+        {data.director && (
+          <div>
+            <span className="text-stone-400">{t('communityPages:postDetail.jav.director')}</span>
+            <p className="text-stone-700 dark:text-stone-300">{data.director}</p>
+          </div>
+        )}
+      </div>
+
+      {/* 演员列表 */}
+      {data.actresses && Array.isArray(data.actresses) && data.actresses.length > 0 && (
         <div>
-          <span className="text-stone-400">番号</span>
-          <p className="font-mono font-semibold text-stone-900 dark:text-stone-100">{data.code}</p>
+          <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
+            <Users className="w-4 h-4" />
+            {t('communityPages:postDetail.jav.actressesCount', { count: data.actresses.length })}
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {data.actresses.map((actress: string | { name?: string }, idx: number) => (
+              <Badge key={idx} variant="default" size="md">
+                {typeof actress === 'string' ? actress : actress.name}
+              </Badge>
+            ))}
+          </div>
         </div>
       )}
-      {data.releaseDate && (
+
+      {/* 标签 */}
+      {data.tags && Array.isArray(data.tags) && data.tags.length > 0 && (
         <div>
-          <span className="text-stone-400">发布日期</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.releaseDate}</p>
+          <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">{t('communityPages:postDetail.jav.tags')}</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {data.tags.map((tag: string, idx: number) => (
+              <span key={idx} className="px-2.5 py-1 text-xs rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       )}
-      {data.duration && (
+
+      {/* 磁力链接列表 */}
+      {magnetLinks && Array.isArray(magnetLinks) && magnetLinks.length > 0 && (
         <div>
-          <span className="text-stone-400">时长</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.duration}</p>
-        </div>
-      )}
-      {(data.maker || data.publisher) && (
-        <div>
-          <span className="text-stone-400">制作商</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.maker || data.publisher}</p>
-        </div>
-      )}
-      {data.series && (
-        <div>
-          <span className="text-stone-400">系列</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.series}</p>
-        </div>
-      )}
-      {data.director && (
-        <div>
-          <span className="text-stone-400">导演</span>
-          <p className="text-stone-700 dark:text-stone-300">{data.director}</p>
+          <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
+            <LinkIcon className="w-4 h-4" />
+            {t('communityPages:postDetail.jav.magnetLinksCount', { count: magnetLinks.length })}
+          </h4>
+          <div className="space-y-2">
+            {magnetLinks.map((link: any, idx: number) => (
+              <ResourceItem key={idx} resource={link} index={idx + 1} />
+            ))}
+          </div>
         </div>
       )}
     </div>
-
-    {/* 演员列表 */}
-    {data.actresses && Array.isArray(data.actresses) && data.actresses.length > 0 && (
-      <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
-          <Users className="w-4 h-4" />
-          演员 ({data.actresses.length})
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {data.actresses.map((actress: string | { name?: string }, idx: number) => (
-            <Badge key={idx} variant="default" size="md">
-              {typeof actress === 'string' ? actress : actress.name}
-            </Badge>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* 标签 */}
-    {data.tags && Array.isArray(data.tags) && data.tags.length > 0 && (
-      <div>
-        <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">标签</h4>
-        <div className="flex flex-wrap gap-1.5">
-          {data.tags.map((tag: string, idx: number) => (
-            <span key={idx} className="px-2.5 py-1 text-xs rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* 磁力链接列表 */}
-    {(data.magnetLinks || data.magnets) && Array.isArray(data.magnetLinks || data.magnets) && (data.magnetLinks || data.magnets).length > 0 && (
-      <div>
-        <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
-          <LinkIcon className="w-4 h-4" />
-          磁力链接 ({(data.magnetLinks || data.magnets).length})
-        </h4>
-        <div className="space-y-2">
-          {(data.magnetLinks || data.magnets).map((link: any, idx: number) => (
-            <ResourceItem key={idx} resource={link} index={idx + 1} />
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // Anime 内容渲染
 const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
   const bgm = data.bgm?.[0];
   const allResources = [
     ...(data.nyaa || []),
@@ -201,7 +207,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
                     {bgm.rating}
                   </span>
                 )}
-                {bgm.eps > 0 && <span>共 {bgm.eps} 集</span>}
+                {bgm.eps > 0 && <span>{t('communityPages:postDetail.anime.epsCount', { count: bgm.eps })}</span>}
                 {bgm.airDate && (
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />{bgm.airDate}
@@ -233,14 +239,14 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
             <Download className="w-4 h-4" />
-            资源 ({allResources.length})
+            {t('communityPages:postDetail.anime.resourcesCount', { count: allResources.length })}
           </h4>
           <div className="space-y-2">
             {allResources.slice(0, 10).map((resource: any, idx: number) => (
               <ResourceItem key={idx} resource={resource} index={idx + 1} />
             ))}
             {allResources.length > 10 && (
-              <p className="text-xs text-center text-stone-400 py-2">还有 {allResources.length - 10} 条资源...</p>
+              <p className="text-xs text-center text-stone-400 py-2">{t('communityPages:postDetail.anime.moreResources', { count: allResources.length - 10 })}</p>
             )}
           </div>
         </div>
@@ -251,6 +257,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
 // Movie 内容渲染
 const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
   const movie = data.results?.[0];
   const resources = data.resources || [];
 
@@ -280,7 +287,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
                     <Calendar className="w-3.5 h-3.5" />{movie.releaseDate}
                   </span>
                 )}
-                {movie.mediaType && <Badge variant="default" size="sm">{movie.mediaType === 'tv' ? '剧集' : '电影'}</Badge>}
+                {movie.mediaType && <Badge variant="default" size="sm">{movie.mediaType === 'tv' ? t('communityPages:postDetail.movie.typeTv') : t('communityPages:postDetail.movie.typeMovie')}</Badge>}
               </div>
             </div>
           </div>
@@ -295,7 +302,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
       {/* 其他搜索结果 */}
       {data.results?.length > 1 && (
         <div>
-          <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">其他相关结果 ({data.results.length - 1})</h4>
+          <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">{t('communityPages:postDetail.movie.otherResultsCount', { count: data.results.length - 1 })}</h4>
           <div className="space-y-1.5">
             {data.results.slice(1, 6).map((r: any, idx: number) => (
               <div key={idx} className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
@@ -313,14 +320,14 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
             <Download className="w-4 h-4" />
-            下载资源 ({resources.length})
+            {t('communityPages:postDetail.movie.downloadResourcesCount', { count: resources.length })}
           </h4>
           <div className="space-y-2">
             {resources.slice(0, 10).map((resource: any, idx: number) => (
               <ResourceItem key={idx} resource={resource} index={idx + 1} />
             ))}
             {resources.length > 10 && (
-              <p className="text-xs text-center text-stone-400 py-2">还有 {resources.length - 10} 条资源...</p>
+              <p className="text-xs text-center text-stone-400 py-2">{t('communityPages:postDetail.movie.moreResources', { count: resources.length - 10 })}</p>
             )}
           </div>
         </div>
@@ -331,6 +338,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
 // Manga 内容渲染
 const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
   const mangaList = data.manga || [];
   return (
     <div className="space-y-3">
@@ -359,7 +367,7 @@ const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         ))}
       </div>
       {mangaList.length > 12 && (
-        <p className="text-xs text-center text-stone-400 py-2">还有 {mangaList.length - 12} 部漫画...</p>
+        <p className="text-xs text-center text-stone-400 py-2">{t('communityPages:postDetail.manga.more', { count: mangaList.length - 12 })}</p>
       )}
     </div>
   );
@@ -367,6 +375,7 @@ const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
 // Novel 内容渲染
 const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
   const novels = data.novels || [];
   return (
     <div className="space-y-3">
@@ -391,14 +400,16 @@ const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </div>
       ))}
       {novels.length > 10 && (
-        <p className="text-xs text-center text-stone-400 py-2">还有 {novels.length - 10} 本小说...</p>
+        <p className="text-xs text-center text-stone-400 py-2">{t('communityPages:postDetail.novel.more', { count: novels.length - 10 })}</p>
       )}
     </div>
   );
 };
 
 // Actress 内容渲染
-const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => (
+const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
+  const { t } = useTranslation(['communityPages']);
+  return (
   <div className="space-y-4">
     {/* 姓名信息 */}
     <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-2">
@@ -407,44 +418,44 @@ const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data 
         {data.ruby && <span className="text-sm text-stone-500">{data.ruby}</span>}
       </div>
       {data.romaji && <p className="text-sm text-stone-500">{data.romaji}</p>}
-      {data.alias && <p className="text-xs text-stone-400">别名：{data.alias}</p>}
+      {data.alias && <p className="text-xs text-stone-400">{t('communityPages:postDetail.actress.alias', { alias: data.alias })}</p>}
     </div>
 
     {/* 基本资料 */}
     <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
       {data.birthday && (
         <div>
-          <span className="text-xs text-stone-400">生日</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.birthday')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.birthday}</p>
         </div>
       )}
       {data.zodiac && (
         <div>
-          <span className="text-xs text-stone-400">星座</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.zodiac')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.zodiac}</p>
         </div>
       )}
       {data.height && (
         <div>
-          <span className="text-xs text-stone-400">身高</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.height')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.height}</p>
         </div>
       )}
       {data.prefecture && (
         <div>
-          <span className="text-xs text-stone-400">出身地</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.prefecture')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.prefecture}</p>
         </div>
       )}
       {data.agency && (
         <div>
-          <span className="text-xs text-stone-400">事务所</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.agency')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.agency}</p>
         </div>
       )}
       {data.activePeriod && (
         <div>
-          <span className="text-xs text-stone-400">活跃期</span>
+          <span className="text-xs text-stone-400">{t('communityPages:postDetail.actress.activePeriod')}</span>
           <p className="text-sm text-stone-700 dark:text-stone-300">{data.activePeriod}</p>
         </div>
       )}
@@ -468,10 +479,12 @@ const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data 
       </div>
     )}
   </div>
-);
+  );
+};
 
 // 资源项（统一处理磁力链接和种子资源）
 const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, index }) => {
+  const { t } = useTranslation(['communityPages']);
   const [copied, setCopied] = useState(false);
   const isString = typeof resource === 'string';
   const url = isString ? resource : resource.magnet || resource.url || resource.link || '';
@@ -500,7 +513,7 @@ const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, in
         {title && <p className="text-sm font-medium text-stone-700 dark:text-stone-300 truncate">{title}</p>}
         <div className="flex items-center gap-2 text-xs text-stone-400">
           {size && <span>{size}</span>}
-          {seeders !== undefined && <span>· 种子 {seeders}</span>}
+          {seeders !== undefined && <span>{t('communityPages:postDetail.resource.seeders', { seeders })}</span>}
           {sourceLabel && <span>· {sourceLabel}</span>}
           {date && <span>· {date}</span>}
         </div>
@@ -509,16 +522,17 @@ const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, in
       <button
         onClick={handleCopy}
         className="shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-        title="复制链接"
+        title={t('communityPages:postDetail.copyLink')}
       >
         <Copy className="w-3.5 h-3.5" />
       </button>
-      {copied && <span className="text-xs text-success-500 shrink-0">已复制!</span>}
+      {copied && <span className="text-xs text-success-500 shrink-0">{t('communityPages:postDetail.copied')}</span>}
     </div>
   );
 };
 
 export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const {
     currentPost,
@@ -568,7 +582,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   if (!currentPost) {
     return (
       <div className="text-center py-20">
-        <p className="text-stone-500">帖子不存在或已被删除</p>
+        <p className="text-stone-500">{t('communityPages:postDetail.notFound')}</p>
         {onBack && (
           <Button variant="outline" onClick={onBack} className="mt-4">
             返回
@@ -591,15 +605,15 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   const handleShare = () => {
     const url = `${window.location.origin}/community/post/${postId}`;
     navigator.clipboard.writeText(url).then(() => {
-      toast.success('链接已复制到剪贴板');
+      toast.success(t('communityPages:postDetail.linkCopied'));
     }).catch(() => {
-      toast.error('复制失败');
+      toast.error(t('communityPages:postDetail.copyFailed'));
     });
   };
 
   const handleReport = async () => {
     if (!reportReason.trim()) {
-      toast.error('请选择或填写举报原因');
+      toast.error(t('communityPages:postDetail.reportReasonRequired'));
       return;
     }
 
@@ -610,7 +624,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         reason: reportReason.trim(),
         details: reportDetails.trim() || undefined,
       });
-      toast.success('举报已提交，我们会尽快处理');
+      toast.success(t('communityPages:postDetail.reportSubmitted'));
       setReportModalOpen(false);
       setReportReason('');
       setReportDetails('');
@@ -649,12 +663,12 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         {onBack && (
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-1" />
-            返回
+            {t('communityPages:postDetail.back')}
           </Button>
         )}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ backgroundColor: typeConfig.color.includes('bg-') ? undefined : undefined }}>
           <TypeIcon className={clsx('w-4 h-4', typeConfig.color.split(' ')[0])} />
-          <span className={clsx('text-sm font-medium', typeConfig.color.split(' ')[0])}>{typeConfig.label}</span>
+          <span className={clsx('text-sm font-medium', typeConfig.color.split(' ')[0])}>{t(typeConfig.labelKey)}</span>
         </div>
       </div>
 
@@ -803,38 +817,38 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           setReportReason('');
           setReportDetails('');
         }}
-        title="举报帖子"
+        title={t('communityPages:postDetail.report.title')}
         size="md"
       >
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">
-              举报原因 <span className="text-red-500">*</span>
+              {t('communityPages:postDetail.report.reason')} <span className="text-red-500">*</span>
             </label>
             <div className="space-y-2">
-              {['内容违规', '虚假信息', '侵犯版权', '恶意广告', '其他原因'].map((reason) => (
+              {[['reasonViolation', 'report.reasonViolation'], ['reasonFalse', 'report.reasonFalse'], ['reasonCopyright', 'report.reasonCopyright'], ['reasonSpam', 'report.reasonSpam'], ['reasonOther', 'report.reasonOther']].map(([id, key]) => (
                 <button
-                  key={reason}
+                  key={id}
                   type="button"
-                  onClick={() => setReportReason(reason)}
+                  onClick={() => setReportReason(t(`communityPages:postDetail.${key}`))}
                   className={clsx(
                     'w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all',
-                    reportReason === reason
+                    reportReason === t(`communityPages:postDetail.${key}`)
                       ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
                       : 'bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700'
                   )}
                 >
-                  {reason}
+                  {t(`communityPages:postDetail.${key}`)}
                 </button>
               ))}
             </div>
           </div>
 
           <TextArea
-            label="详细说明（可选）"
+            label={t('communityPages:postDetail.report.detailsLabel')}
             value={reportDetails}
             onChange={(e) => setReportDetails(e.target.value)}
-            placeholder="请详细描述您要举报的问题..."
+            placeholder={t('communityPages:postDetail.report.detailsPlaceholder')}
             rows={3}
             fullWidth
           />

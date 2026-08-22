@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Send, ShieldCheck, CheckCircle, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { authApi } from '@/services/api';
 import { Input } from '@/components/ui';
@@ -10,6 +11,7 @@ import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
 type Step = 'form' | 'verify' | 'success';
 
 export const RegisterPage: React.FC = () => {
+  const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
   const { setUser, setToken } = useAuthStore();
   const notification = useNotification();
@@ -49,17 +51,17 @@ export const RegisterPage: React.FC = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.username.trim()) newErrors.username = '请输入用户名';
-    else if (formData.username.length < validationRules.USERNAME_MIN_LENGTH) newErrors.username = `用户名至少${validationRules.USERNAME_MIN_LENGTH}个字符`;
-    else if (formData.username.length > validationRules.USERNAME_MAX_LENGTH) newErrors.username = `用户名最多${validationRules.USERNAME_MAX_LENGTH}个字符`;
-    else if (!validationRules.USERNAME_REGEX.test(formData.username)) newErrors.username = '用户名只能包含字母、数字和下划线';
-    if (!formData.email.trim()) newErrors.email = '请输入邮箱';
-    else if (!validationRules.EMAIL_REGEX.test(formData.email)) newErrors.email = '请输入有效的邮箱地址';
-    if (!formData.password) newErrors.password = '请输入密码';
-    else if (formData.password.length < validationRules.PASSWORD_MIN_LENGTH) newErrors.password = `密码至少${validationRules.PASSWORD_MIN_LENGTH}个字符`;
-    else if (formData.password.length > validationRules.PASSWORD_MAX_LENGTH) newErrors.password = `密码最多${validationRules.PASSWORD_MAX_LENGTH}个字符`;
-    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = '两次密码输入不一致';
-    if (!agreed) notification.common.validationError('服务条款');
+    if (!formData.username.trim()) newErrors.username = t('auth:register.usernameRequired');
+    else if (formData.username.length < validationRules.USERNAME_MIN_LENGTH) newErrors.username = t('auth:register.usernameMinLength', { count: validationRules.USERNAME_MIN_LENGTH });
+    else if (formData.username.length > validationRules.USERNAME_MAX_LENGTH) newErrors.username = t('auth:register.usernameMaxLength', { count: validationRules.USERNAME_MAX_LENGTH });
+    else if (!validationRules.USERNAME_REGEX.test(formData.username)) newErrors.username = t('auth:register.usernameFormat');
+    if (!formData.email.trim()) newErrors.email = t('auth:register.emailRequired');
+    else if (!validationRules.EMAIL_REGEX.test(formData.email)) newErrors.email = t('auth:register.emailInvalid');
+    if (!formData.password) newErrors.password = t('auth:register.passwordRequired');
+    else if (formData.password.length < validationRules.PASSWORD_MIN_LENGTH) newErrors.password = t('auth:register.passwordMinLength', { count: validationRules.PASSWORD_MIN_LENGTH });
+    else if (formData.password.length > validationRules.PASSWORD_MAX_LENGTH) newErrors.password = t('auth:register.passwordMaxLength', { count: validationRules.PASSWORD_MAX_LENGTH });
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = t('auth:register.passwordMismatch');
+    if (!agreed) notification.common.validationError(t('auth:register.termsOfService'));
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0 && agreed;
   };
@@ -76,7 +78,7 @@ export const RegisterPage: React.FC = () => {
         setCurrentStep('verify');
         notification.auth.emailCodeSent();
       } else {
-        notification.auth.emailCodeFailed('验证码发送失败');
+        notification.auth.emailCodeFailed(t('auth:register.codeSendFailed'));
       }
     } catch (error: any) {
       notification.auth.emailCodeFailed(error.message);
@@ -115,7 +117,7 @@ export const RegisterPage: React.FC = () => {
   const handleVerifyAndRegister = async () => {
     const cleanCode = verificationCode.replace(/\s/g, '');
     if (cleanCode.length !== 6) {
-      notification.error('验证码错误', '请输入6位验证码');
+      notification.error(t('auth:register.codeErrorTitle'), t('auth:register.codeMustBe6Digits'));
       return;
     }
     setIsLoading(true);
@@ -133,7 +135,7 @@ export const RegisterPage: React.FC = () => {
         notification.auth.registerSuccess();
         setTimeout(() => navigate('/main'), 2000);
       } else {
-        notification.auth.registerFailed(response.message || '验证码错误或已过期');
+        notification.auth.registerFailed(response.message || t('auth:register.codeInvalidOrExpired'));
       }
     } catch (error: any) {
       notification.auth.registerFailed(error.message);
@@ -158,9 +160,9 @@ export const RegisterPage: React.FC = () => {
   const renderFormStep = () => (
     <form onSubmit={(e) => { e.preventDefault(); handleSendCode(); }} className="space-y-4">
       <Input
-        label="用户名"
+        label={t('auth:register.usernameLabel')}
         type="text"
-        placeholder="请输入用户名"
+        placeholder={t('auth:register.usernamePlaceholder')}
         value={formData.username}
         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
         error={errors.username}
@@ -168,9 +170,9 @@ export const RegisterPage: React.FC = () => {
         fullWidth
       />
       <Input
-        label="邮箱"
+        label={t('auth:register.emailLabel')}
         type="email"
-        placeholder="请输入邮箱"
+        placeholder={t('auth:register.emailPlaceholder')}
         value={formData.email}
         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
         error={errors.email}
@@ -178,9 +180,9 @@ export const RegisterPage: React.FC = () => {
         fullWidth
       />
       <Input
-        label="密码"
+        label={t('auth:register.passwordLabel')}
         type={showPassword ? 'text' : 'password'}
-        placeholder="请输入密码"
+        placeholder={t('auth:register.passwordPlaceholder')}
         value={formData.password}
         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
         error={errors.password}
@@ -193,9 +195,9 @@ export const RegisterPage: React.FC = () => {
         fullWidth
       />
       <Input
-        label="确认密码"
+        label={t('auth:register.confirmPasswordLabel')}
         type={showPassword ? 'text' : 'password'}
-        placeholder="请再次输入密码"
+        placeholder={t('auth:register.confirmPasswordPlaceholder')}
         value={formData.confirmPassword}
         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
         error={errors.confirmPassword}
@@ -211,10 +213,10 @@ export const RegisterPage: React.FC = () => {
           className="mt-0.5 rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-500 w-4 h-4 flex-shrink-0"
         />
         <span className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
-          我已阅读并同意{' '}
-          <Link to="/terms" className="text-amber-700 dark:text-amber-400 hover:underline">服务条款</Link>
-          {' '}和{' '}
-          <Link to="/privacy" className="text-amber-700 dark:text-amber-400 hover:underline">隐私政策</Link>
+          {t('auth:register.iHaveReadAndAgreed')}{' '}
+          <Link to="/terms" className="text-amber-700 dark:text-amber-400 hover:underline">{t('auth:register.termsOfService')}</Link>
+          {' '}{t('auth:register.and')}{' '}
+          <Link to="/privacy" className="text-amber-700 dark:text-amber-400 hover:underline">{t('auth:register.privacyPolicy')}</Link>
         </span>
       </label>
 
@@ -224,8 +226,8 @@ export const RegisterPage: React.FC = () => {
         className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-white btn-gradient disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isLoading
-          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />发送中...</>
-          : <><Send className="w-4 h-4" />发送验证码</>
+          ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t('auth:register.sending')}</>
+          : <><Send className="w-4 h-4" />{t('auth:register.sendCode')}</>
         }
       </button>
     </form>
@@ -237,18 +239,18 @@ export const RegisterPage: React.FC = () => {
         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 flex items-center justify-center">
           <ShieldCheck className="w-8 h-8 text-amber-700 dark:text-amber-400" />
         </div>
-        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-1.5 tracking-tight">验证邮箱地址</h3>
+        <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-1.5 tracking-tight">{t('auth:register.verifyEmailTitle')}</h3>
         <p className="text-sm text-stone-500 dark:text-stone-400">
-          验证码已发送到{' '}
+          {t('auth:register.codeSentTo')}{' '}
           <span className="font-semibold text-stone-900 dark:text-stone-100">{maskedEmail}</span>
         </p>
       </div>
 
       <div className="space-y-4">
         <Input
-          label="验证码"
+          label={t('auth:register.verificationCodeLabel')}
           type="text"
-          placeholder={`请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`}
+          placeholder={t('auth:register.verificationCodePlaceholder', { count: validationRules.VERIFICATION_CODE_LENGTH })}
           value={verificationCode}
           onChange={handleCodeChange}
           fullWidth
@@ -259,10 +261,10 @@ export const RegisterPage: React.FC = () => {
         {countdown > 0 ? (
           <div className="flex items-center justify-center gap-2 text-sm text-stone-500">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            验证码将在 <span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatCountdown(countdown)}</span> 后过期
+            {t('auth:register.codeExpiresInPrefix')}<span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{formatCountdown(countdown)}</span>{t('auth:register.codeExpiresInSuffix')}
           </div>
         ) : (
-          <p className="text-center text-sm text-red-500 dark:text-red-400">验证码已过期</p>
+          <p className="text-center text-sm text-red-500 dark:text-red-400">{t('auth:register.codeExpired')}</p>
         )}
 
         <div className="grid grid-cols-2 gap-3">
@@ -271,7 +273,7 @@ export const RegisterPage: React.FC = () => {
             onClick={() => setCurrentStep('form')}
             className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-200"
           >
-            返回修改
+            {t('auth:register.backToEdit')}
           </button>
           <button
             type="button"
@@ -279,7 +281,7 @@ export const RegisterPage: React.FC = () => {
             disabled={isLoading}
             className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm text-white btn-gradient disabled:opacity-60"
           >
-            {isLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />验证中</> : '验证并注册'}
+            {isLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t('auth:register.verifying')}</> : t('auth:register.verifyAndRegister')}
           </button>
         </div>
 
@@ -290,7 +292,7 @@ export const RegisterPage: React.FC = () => {
             disabled={countdown > 0 || isLoading}
             className="text-sm text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {countdown > 0 ? `重新发送 (${formatCountdown(countdown)})` : '重新发送验证码'}
+            {countdown > 0 ? t('auth:register.resendCodeWithCountdown', { time: formatCountdown(countdown) }) : t('auth:register.resendCodeFull')}
           </button>
         </div>
       </div>
@@ -302,8 +304,8 @@ export const RegisterPage: React.FC = () => {
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center">
         <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">注册成功！</h3>
-      <p className="text-stone-600 dark:text-stone-400 mb-6">欢迎加入{appInfo.NAME}，即将跳转到主页...</p>
+      <h3 className="display-font text-xl font-bold text-stone-900 dark:text-stone-100 mb-2 tracking-tight">{t('auth:register.successTitle')}</h3>
+      <p className="text-stone-600 dark:text-stone-400 mb-6">{t('auth:register.welcomeMessage', { name: appInfo.NAME })}</p>
       <div className="flex items-center justify-center gap-2">
         {[0, 150, 300].map((delay, i) => (
           <div key={i} className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
@@ -313,14 +315,14 @@ export const RegisterPage: React.FC = () => {
   );
 
   const getStepTitle = () => {
-    if (currentStep === 'form') return '创建账号';
-    if (currentStep === 'verify') return '验证邮箱';
-    return '注册成功';
+    if (currentStep === 'form') return t('auth:register.title');
+    if (currentStep === 'verify') return t('auth:register.verifyEmailStep');
+    return t('auth:register.successStep');
   };
 
   const getStepDescription = () => {
-    if (currentStep === 'form') return '注册即可享受更多功能';
-    if (currentStep === 'verify') return '请输入邮箱验证码';
+    if (currentStep === 'form') return t('auth:register.formStepDesc');
+    if (currentStep === 'verify') return t('auth:register.verifyStepDesc');
     return '';
   };
 
@@ -336,7 +338,7 @@ export const RegisterPage: React.FC = () => {
         <div className="w-full max-w-md relative">
           <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            返回首页
+            {t('auth:register.backHome')}
           </Link>
 
           <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8 text-center"
@@ -344,20 +346,20 @@ export const RegisterPage: React.FC = () => {
             <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center">
               <Lock className="w-6 h-6 text-stone-400" />
             </div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-2">注册功能暂未开放</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">管理员尚未开放注册功能，请稍后再试</p>
+            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-2">{t('auth:register.registrationClosedTitle')}</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">{t('auth:register.registrationClosedDesc')}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => navigate('/')}
                 className="flex-1 py-2.5 px-4 rounded-xl font-medium text-sm border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 transition-all"
               >
-                返回首页
+                {t('auth:register.backHome')}
               </button>
               <button
                 onClick={() => navigate('/login')}
                 className="flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm text-white btn-gradient"
               >
-                前往登录
+                {t('auth:register.goToLogin')}
               </button>
             </div>
           </div>
@@ -386,7 +388,7 @@ export const RegisterPage: React.FC = () => {
 
         <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          返回首页
+          {t('auth:register.backHome')}
         </Link>
 
         <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
@@ -439,9 +441,9 @@ export const RegisterPage: React.FC = () => {
           {currentStep === 'form' && (
             <div className="mt-6 text-center">
               <p className="text-sm text-stone-600 dark:text-stone-400">
-                已有账号？{' '}
+                {t('auth:register.hasAccount')}{' '}
                 <Link to="/login" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-semibold transition-colors">
-                  立即登录
+                  {t('auth:register.loginLink')}
                 </Link>
               </p>
             </div>

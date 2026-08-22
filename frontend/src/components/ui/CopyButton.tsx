@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CopyButtonProps {
   text: string;
@@ -12,6 +13,7 @@ interface CopyButtonProps {
  * 点击后复制文本到剪贴板，显示勾选图标 2 秒
  */
 export const CopyButton: React.FC<CopyButtonProps> = ({ text, label, className = '' }) => {
+  const { t } = useTranslation(['ui']);
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -25,7 +27,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ text, label, className =
   return (
     <button
       onClick={copy}
-      title={label ?? '复制链接'}
+      title={label ?? t('ui:copyButton.defaultTitle')}
       className={`p-1 rounded text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all ${className}`}
     >
       {copied

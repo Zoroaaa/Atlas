@@ -1,6 +1,7 @@
 import React from 'react';
 import { Zap, Database, Settings, Globe, ShieldAlert, Link } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface QuickActionsPanelProps {
   isAdmin: boolean;
@@ -8,11 +9,12 @@ interface QuickActionsPanelProps {
   layout?: 'vertical' | 'horizontal';
 }
 
-export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({ 
-  isAdmin, 
+export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
+  isAdmin,
   communityEnabled,
   layout = 'vertical'
 }) => {
+  const { t } = useTranslation(['search']);
   const navigate = useNavigate();
 
   if (layout === 'horizontal') {
@@ -22,33 +24,33 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">快捷入口</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:quickActions.titleHorizontal')}</span>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             onClick={() => navigate('/main?tab=sources')}
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all active:scale-[0.99]"
           >
-            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />资源站点
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.resources')}
           </button>
           <button
             onClick={() => navigate('/dashboard/sources')}
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all active:scale-[0.99]"
           >
-            <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />管理搜索源
+            <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.manageSources')}
           </button>
           <button
             onClick={() => navigate('/dashboard/settings')}
             className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all active:scale-[0.99]"
           >
-            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />系统设置
+            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.systemSettings')}
           </button>
           {communityEnabled && (
             <button
               onClick={() => navigate('/community')}
               className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all active:scale-[0.99]"
             >
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />社区分享
+              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.community')}
             </button>
           )}
           {isAdmin && (
@@ -56,7 +58,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
               onClick={() => navigate('/admin-panel')}
               className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 hover:text-red-700 dark:hover:text-red-400 transition-all active:scale-[0.99]"
             >
-              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />管理后台
+              <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.adminPanel')}
             </button>
           )}
         </div>
@@ -70,33 +72,33 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
           <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
         </div>
-        <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">快捷操作</span>
+        <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:quickActions.titleVertical')}</span>
       </div>
       <div className="space-y-1.5 sm:space-y-2">
         <button
           onClick={() => navigate('/main?tab=sources')}
           className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all text-left active:scale-[0.99]"
         >
-          <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />资源站点
+          <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.resources')}
         </button>
         <button
           onClick={() => navigate('/dashboard/sources')}
           className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all text-left active:scale-[0.99]"
         >
-          <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />管理搜索源
+          <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.manageSources')}
         </button>
         <button
           onClick={() => navigate('/dashboard/settings')}
           className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-surface-50 dark:hover:bg-surface-800/60 hover:border-primary-200 dark:hover:border-primary-800/60 transition-all text-left active:scale-[0.99]"
         >
-          <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />系统设置
+          <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.systemSettings')}
         </button>
         {communityEnabled && (
           <button
             onClick={() => navigate('/community')}
             className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 hover:text-emerald-700 dark:hover:text-emerald-400 transition-all text-left active:scale-[0.99]"
           >
-            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />社区分享
+            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.community')}
           </button>
         )}
         {isAdmin && (
@@ -104,7 +106,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
             onClick={() => navigate('/admin-panel')}
             className="w-full flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium text-surface-700 dark:text-surface-300 border border-surface-200/60 dark:border-surface-700/60 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 hover:text-red-700 dark:hover:text-red-400 transition-all text-left active:scale-[0.99]"
           >
-            <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />管理后台
+            <ShieldAlert className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-surface-400" />{t('search:quickActions.adminPanel')}
           </button>
         )}
       </div>

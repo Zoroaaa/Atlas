@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Heart, RefreshCw, Compass } from 'lucide-react';
 import { Button, Loading, EmptyState } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
@@ -6,6 +7,7 @@ import { useAuthStore } from '@/stores';
 import { PostCard } from './PostCard';
 
 export const FavoritesTab: React.FC = () => {
+  const { t } = useTranslation(['communityPages']);
   const { isAuthenticated } = useAuthStore();
   const {
     myFavorites,
@@ -37,8 +39,8 @@ export const FavoritesTab: React.FC = () => {
     return (
       <EmptyState
         icon={<Heart className="w-10 h-10" />}
-        title="请先登录"
-        description="登录后可查看你收藏的帖子"
+        title={t('communityPages:favorites.loginRequiredTitle')}
+        description={t('communityPages:favorites.loginRequiredDescription')}
       />
     );
   }
@@ -53,7 +55,7 @@ export const FavoritesTab: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-stone-500">
           <Heart className="w-4 h-4 text-red-400" />
-          <span>我的收藏</span>
+          <span>{t('communityPages:favorites.title')}</span>
           {myFavorites.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium">
               {myFavorites.length}
@@ -61,7 +63,7 @@ export const FavoritesTab: React.FC = () => {
           )}
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh}>
-          <RefreshCw className="w-4 h-4 mr-1" />刷新
+          <RefreshCw className="w-4 h-4 mr-1" />{t('communityPages:favorites.refresh')}
         </Button>
       </div>
 
@@ -69,12 +71,12 @@ export const FavoritesTab: React.FC = () => {
       {myFavorites.length === 0 ? (
         <EmptyState
           icon={<Heart className="w-10 h-10" />}
-          title="还没有收藏"
-          description="在社区浏览时点击收藏按钮，喜欢的帖子将出现在这里"
+          title={t('communityPages:favorites.emptyTitle')}
+          description={t('communityPages:favorites.emptyDescription')}
           action={
             <Button variant="primary" onClick={() => window.location.hash = '#browse'}>
               <Compass className="w-4 h-4 mr-1" />
-              去浏览
+              {t('communityPages:favorites.browseAction')}
             </Button>
           }
         />
@@ -98,14 +100,14 @@ export const FavoritesTab: React.FC = () => {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
-            >上一页</Button>
+            >{t('communityPages:favorites.prevPage')}</Button>
             <span className="mx-3 px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600">{page}</span>
             <Button
               variant="outline"
               size="sm"
               disabled={myFavorites.length < 20}
               onClick={() => setPage(p => p + 1)}
-            >下一页</Button>
+            >{t('communityPages:favorites.nextPage')}</Button>
           </div>
         </>
       )}

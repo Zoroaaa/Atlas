@@ -10,5 +10,5 @@ export { RolesTab } from './RolesTab';
 export { CleanupTab } from './CleanupTab';
 export { FeedbackTab } from './FeedbackTab';
 export { ObservabilityTab } from './ObservabilityTab';
-export { Pagination, TableWrapper, formatDate, formatRelativeTime, actionLabels, actionColors } from './shared';
+export { Pagination, TableWrapper, formatDate, formatRelativeTime, actionLabels, actionColors, resolveActionLabel } from './shared';
 

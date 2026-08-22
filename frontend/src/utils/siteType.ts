@@ -1,3 +1,5 @@
+import i18next from '@/i18n';
+
 export const getSiteTypeBadge = (siteType?: string) => {
   const map: Record<string, string> = {
     search: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -8,6 +10,10 @@ export const getSiteTypeBadge = (siteType?: string) => {
 };
 
 export const getSiteTypeLabel = (siteType?: string) => {
-  const map: Record<string, string> = { search: '搜索', browse: '浏览', reference: '参考' };
-  return map[siteType || 'search'] || '搜索';
+  const map: Record<string, string> = {
+    search: i18next.t('errors:utils.siteType.search'),
+    browse: i18next.t('errors:utils.siteType.browse'),
+    reference: i18next.t('errors:utils.siteType.reference'),
+  };
+  return map[siteType || 'search'] || i18next.t('errors:utils.siteType.search');
 };

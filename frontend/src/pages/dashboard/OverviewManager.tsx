@@ -20,14 +20,15 @@ import { systemApi, userApi, sourceApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { useNavigate } from 'react-router-dom';
 import { useFeatureFlags } from '@/contexts';
+import { useTranslation } from 'react-i18next';
 import type { FavoriteItem, SearchHistoryItem, SearchSource, UserSourceConfig } from '@/types';
 
-const getUserLevel = (total: number) => {
-  if (total < 10)  return { label: '新手',   color: 'from-stone-400 to-stone-500',   icon: '🌱', next: 10,  prev: 0   };
-  if (total < 50)  return { label: '熟练',   color: 'from-green-400 to-emerald-500', icon: '⚡', next: 50,  prev: 10  };
-  if (total < 200) return { label: '专业',   color: 'from-amber-400 to-amber-500',   icon: '🎯', next: 200, prev: 50  };
-  if (total < 500) return { label: '专家',   color: 'from-rose-400 to-rose-500',     icon: '🔥', next: 500, prev: 200 };
-  return             { label: '大师',   color: 'from-amber-400 to-orange-500',   icon: '👑', next: Infinity, prev: 500 };
+const getUserLevel = (total: number, t: (key: string) => string) => {
+  if (total < 10)  return { label: t('dashboard:overview.userLevel.beginner'),   color: 'from-stone-400 to-stone-500',   icon: '🌱', next: 10,  prev: 0   };
+  if (total < 50)  return { label: t('dashboard:overview.userLevel.skilled'),   color: 'from-green-400 to-emerald-500', icon: '⚡', next: 50,  prev: 10  };
+  if (total < 200) return { label: t('dashboard:overview.userLevel.professional'),   color: 'from-amber-400 to-amber-500',   icon: '🎯', next: 200, prev: 50  };
+  if (total < 500) return { label: t('dashboard:overview.userLevel.expert'),   color: 'from-rose-400 to-rose-500',     icon: '🔥', next: 500, prev: 200 };
+  return             { label: t('dashboard:overview.userLevel.master'),   color: 'from-amber-400 to-orange-500',   icon: '👑', next: Infinity, prev: 500 };
 };
 
 interface StatCardProps {
@@ -40,6 +41,7 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, color, onClick }) => {
+  const { t } = useTranslation(['dashboard']);
   const colorStyles = {
     primary: 'from-primary-500 to-primary-600',
     success: 'from-success-500 to-success-600',
@@ -61,7 +63,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, color, 
             <div className={`flex items-center gap-1 mt-2 text-sm ${change >= 0 ? 'text-success-600' : 'text-error-600'}`}>
               {change >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
               <span>{Math.abs(change)}%</span>
-              <span className="text-surface-400">vs 上周</span>
+              <span className="text-surface-400">{t('dashboard:overview.vsLastWeek')}</span>
             </div>
           )}
         </div>
@@ -98,6 +100,7 @@ const QuickAction: React.FC<QuickActionProps> = ({ icon, title, description, onC
 
 export const OverviewManager: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['dashboard']);
   const { user } = useAuthStore();
   const { communityEnabled } = useFeatureFlags();
   
@@ -224,17 +227,17 @@ export const OverviewManager: React.FC = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diff < 60) return '刚刚';
-    if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-    return `${Math.floor(diff / 86400)} 天前`;
+
+    if (diff < 60) return t('dashboard:overview.timeAgo.justNow');
+    if (diff < 3600) return t('dashboard:overview.timeAgo.minutesAgo', { count: Math.floor(diff / 60) });
+    if (diff < 86400) return t('dashboard:overview.timeAgo.hoursAgo', { count: Math.floor(diff / 3600) });
+    return t('dashboard:overview.timeAgo.daysAgo', { count: Math.floor(diff / 86400) });
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载中..." />
+        <Loading size="lg" text={t('dashboard:overview.loading')} />
       </div>
     );
   }
@@ -255,10 +258,10 @@ export const OverviewManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-              欢迎回来，{user?.username || '用户'}
+              {t('dashboard:overview.welcome', { username: user?.username || t('dashboard:overview.defaultUsername') })}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              这是您的个人数据概览
+              {t('dashboard:overview.subtitle')}
             </p>
           </div>
         </div>
@@ -269,13 +272,13 @@ export const OverviewManager: React.FC = () => {
           isLoading={isRefreshing}
           leftIcon={<RefreshCw className="w-4 h-4" />}
         >
-          刷新
+          {t('dashboard:overview.refresh')}
         </Button>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="我的搜索次数"
+          title={t('dashboard:overview.stats.searchCount')}
           value={userStats.searchCount}
           change={userSearchStats?.searchGrowthPercent}
           icon={<Search className="w-6 h-6" />}
@@ -283,21 +286,21 @@ export const OverviewManager: React.FC = () => {
           onClick={() => navigate('/dashboard/history')}
         />
         <StatCard
-          title="我的收藏"
+          title={t('dashboard:overview.stats.favorites')}
           value={userStats.favoriteCount}
           icon={<Heart className="w-6 h-6" />}
           color="error"
           onClick={() => navigate('/dashboard/favorites')}
         />
         <StatCard
-          title="本周登录"
+          title={t('dashboard:overview.stats.weeklyLogins')}
           value={activityStats?.thisWeekLogins ?? 0}
           change={activityStats?.lastWeekLogins ? Math.round((((activityStats.thisWeekLogins ?? 0) - activityStats.lastWeekLogins) / Math.max(activityStats.lastWeekLogins, 1)) * 100) : undefined}
           icon={<LogIn className="w-6 h-6" />}
           color="success"
         />
         <StatCard
-          title="可用搜索源"
+          title={t('dashboard:overview.stats.availableSources')}
           value={userStats.sourceCount}
           icon={<Database className="w-6 h-6" />}
           color="accent"
@@ -312,14 +315,14 @@ export const OverviewManager: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                 <Activity className="w-4 h-4 text-primary-600 dark:text-primary-400" />
               </div>
-              最近活动
+              {t('dashboard:overview.recentActivities')}
             </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/dashboard/activities')}
             >
-              查看全部
+              {t('dashboard:overview.viewAll')}
             </Button>
           </div>
           
@@ -332,9 +335,9 @@ export const OverviewManager: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate">
-                      {activity.action === 'search' && `搜索了 "${activity.target}"`}
-                      {activity.action === 'favorite' && `收藏了 ${activity.target}`}
-                      {activity.action === 'login' && '登录了账户'}
+                      {activity.action === 'search' && t('dashboard:overview.activityMessage.search', { target: activity.target })}
+                      {activity.action === 'favorite' && t('dashboard:overview.activityMessage.favorite', { target: activity.target })}
+                      {activity.action === 'login' && t('dashboard:overview.activityMessage.login')}
                       {!['search', 'favorite', 'login'].includes(activity.action) && activity.action}
                     </p>
                     <p className="text-xs text-surface-500 dark:text-surface-400">
@@ -346,9 +349,9 @@ export const OverviewManager: React.FC = () => {
                     activity.action === 'favorite' ? 'error' :
                     'default'
                   }>
-                    {activity.action === 'search' && '搜索'}
-                    {activity.action === 'favorite' && '收藏'}
-                    {activity.action === 'login' && '登录'}
+                    {activity.action === 'search' && t('dashboard:overview.activityBadge.search')}
+                    {activity.action === 'favorite' && t('dashboard:overview.activityBadge.favorite')}
+                    {activity.action === 'login' && t('dashboard:overview.activityBadge.login')}
                     {!['search', 'favorite', 'login'].includes(activity.action) && activity.action}
                   </Badge>
                 </div>
@@ -357,7 +360,7 @@ export const OverviewManager: React.FC = () => {
           ) : (
             <div className="text-center py-8">
               <Activity className="w-12 h-12 mx-auto text-surface-300 dark:text-surface-600 mb-3" />
-              <p className="text-surface-500 dark:text-surface-400">暂无活动记录</p>
+              <p className="text-surface-500 dark:text-surface-400">{t('dashboard:overview.noActivities')}</p>
             </div>
           )}
         </Card>
@@ -367,35 +370,35 @@ export const OverviewManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
               <Zap className="w-4 h-4 text-accent-600 dark:text-accent-400" />
             </div>
-            快速操作
+            {t('dashboard:overview.quickActions')}
           </h3>
           <div className="space-y-3">
             <QuickAction
               icon={<Search className="w-5 h-5" />}
-              title="开始搜索"
-              description="搜索磁力资源"
+              title={t('dashboard:overview.actions.startSearch.title')}
+              description={t('dashboard:overview.actions.startSearch.description')}
               onClick={() => navigate('/')}
               gradient="bg-gradient-to-br from-primary-500 to-primary-600"
             />
             <QuickAction
               icon={<Database className="w-5 h-5" />}
-              title="管理搜索源"
-              description="添加或编辑搜索源"
+              title={t('dashboard:overview.actions.manageSources.title')}
+              description={t('dashboard:overview.actions.manageSources.description')}
               onClick={() => navigate('/dashboard/sources')}
               gradient="bg-gradient-to-br from-accent-500 to-accent-600"
             />
             <QuickAction
               icon={<Heart className="w-5 h-5" />}
-              title="查看收藏"
-              description="管理您的收藏"
+              title={t('dashboard:overview.actions.viewFavorites.title')}
+              description={t('dashboard:overview.actions.viewFavorites.description')}
               onClick={() => navigate('/dashboard/favorites')}
               gradient="bg-gradient-to-br from-error-500 to-error-600"
             />
             {communityEnabled && (
               <QuickAction
                 icon={<Globe className="w-5 h-5" />}
-                title="社区分享"
-                description="发现优质搜索源"
+                title={t('dashboard:overview.actions.communityShare.title')}
+                description={t('dashboard:overview.actions.communityShare.description')}
                 onClick={() => navigate('/community')}
                 gradient="bg-gradient-to-br from-success-500 to-success-600"
               />
@@ -408,7 +411,7 @@ export const OverviewManager: React.FC = () => {
         {/* 用户等级卡 */}
         {(() => {
           const totalActions = (userSearchStats?.totalSearches || searchHistory.length) + favorites.length;
-          const level = getUserLevel(totalActions);
+          const level = getUserLevel(totalActions, t);
           const progress = level.next === Infinity
             ? 100
             : Math.min(100, Math.round(((totalActions - level.prev) / (level.next - level.prev)) * 100));
@@ -419,26 +422,26 @@ export const OverviewManager: React.FC = () => {
                 <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                   <Award className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                用户成就
+                {t('dashboard:overview.userAchievement')}
               </h3>
               <div className={`relative rounded-2xl bg-gradient-to-br ${level.color} p-5 text-white mb-4`}>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl">{level.icon}</span>
                   <div>
-                    <p className="text-xs text-white/70 font-medium">当前等级</p>
+                    <p className="text-xs text-white/70 font-medium">{t('dashboard:overview.currentLevel')}</p>
                     <p className="text-2xl font-bold">{level.label}</p>
                   </div>
                   <div className="ml-auto text-right">
-                    <p className="text-xs text-white/70">累计操作</p>
+                    <p className="text-xs text-white/70">{t('dashboard:overview.totalActions')}</p>
                     <p className="text-xl font-bold">{totalActions}</p>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs text-white/70 mb-1">
-                    <span>等级进度</span>
+                    <span>{t('dashboard:overview.levelProgress')}</span>
                     {level.next !== Infinity
-                      ? <span>还差 {level.next - totalActions} 次升级</span>
-                      : <span>🎉 已达最高等级</span>}
+                      ? <span>{t('dashboard:overview.levelsToNext', { count: level.next - totalActions })}</span>
+                      : <span>{t('dashboard:overview.maxLevel')}</span>}
                   </div>
                   <div className="h-2 rounded-full bg-white/20">
                     <div className="h-full rounded-full bg-white/60 transition-all duration-700" style={{ width: `${progress}%` }} />
@@ -448,17 +451,17 @@ export const OverviewManager: React.FC = () => {
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
                   <p className="text-lg font-bold text-surface-900 dark:text-surface-100">{userStats.searchCount}</p>
-                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">搜索次数</p>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{t('dashboard:overview.achievementStats.searchCount')}</p>
                 </div>
                 <div className="text-center p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
                   <p className="text-lg font-bold text-surface-900 dark:text-surface-100">{userStats.favoriteCount}</p>
-                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">收藏数量</p>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{t('dashboard:overview.achievementStats.favoriteCount')}</p>
                 </div>
                 <div className="text-center p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
                   <p className="text-lg font-bold text-surface-900 dark:text-surface-100">
                     {new Set(searchHistory.map(h => h.query)).size}
                   </p>
-                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">不同词</p>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">{t('dashboard:overview.achievementStats.uniqueKeywords')}</p>
                 </div>
               </div>
             </Card>
@@ -471,12 +474,12 @@ export const OverviewManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
               <Clock className="w-4 h-4 text-rose-600 dark:text-rose-400" />
             </div>
-            搜索习惯
+            {t('dashboard:overview.searchHabits')}
           </h3>
-          
+
           <div className="space-y-4">
             <div className="p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
-              <p className="text-xs text-surface-500 dark:text-surface-400 mb-2">本周最常搜索</p>
+              <p className="text-xs text-surface-500 dark:text-surface-400 mb-2">{t('dashboard:overview.weeklyTopSearch')}</p>
               {userSearchStats?.topSources && userSearchStats.topSources.length > 0 ? (
                 <div className="space-y-2">
                   {userSearchStats.topSources.slice(0, 3).map((item, index) => (
@@ -487,12 +490,12 @@ export const OverviewManager: React.FC = () => {
                         </span>
                         <span className="text-sm text-surface-700 dark:text-surface-300 truncate max-w-[150px]">{item.source}</span>
                       </div>
-                      <span className="text-sm font-medium text-surface-900 dark:text-surface-100">{item.count}次</span>
+                      <span className="text-sm font-medium text-surface-900 dark:text-surface-100">{item.count}{t('dashboard:overview.countSuffix')}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-surface-400 dark:text-surface-500">暂无数据</p>
+                <p className="text-sm text-surface-400 dark:text-surface-500">{t('dashboard:overview.noData')}</p>
               )}
             </div>
 
@@ -501,13 +504,13 @@ export const OverviewManager: React.FC = () => {
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {new Set(searchHistory.map(h => h.query)).size}
                 </p>
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">不同关键词</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">{t('dashboard:overview.uniqueKeywordsFull')}</p>
               </div>
               <div className="p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl text-center">
                 <p className="text-2xl font-bold text-surface-900 dark:text-surface-100">
                   {userSearchStats?.thisWeekSearches ?? 0}
                 </p>
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">本周搜索</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">{t('dashboard:overview.weeklySearches')}</p>
               </div>
             </div>
 
@@ -515,7 +518,7 @@ export const OverviewManager: React.FC = () => {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Tag className="w-3.5 h-3.5 text-surface-400" />
-                  <span className="text-xs text-surface-500 dark:text-surface-400 font-medium">最近搜索</span>
+                  <span className="text-xs text-surface-500 dark:text-surface-400 font-medium">{t('dashboard:overview.recentSearches')}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {[...new Set(searchHistory.slice(0, 10).map(h => h.query))].slice(0, 6).map(q => (

@@ -21,8 +21,9 @@ import {
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
 import type { SearchTabType } from '@/types/source';
-import { DropdownMenu, userMenuItems, Modal } from '@/components/ui';
+import { DropdownMenu, userMenuItems, Modal, LanguageSwitcher } from '@/components/ui';
 import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
+import { useTranslation } from 'react-i18next';
 
 /* ── 类型定义 ── */
 
@@ -68,6 +69,7 @@ interface TabButtonProps {
 }
 
 const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) => {
+  const { t } = useTranslation(['tabs']);
   const isCommunity = tab.id === 'community';
   return (
     <button
@@ -94,7 +96,7 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       )}
     >
       <span className="tab-icon">{tab.icon}</span>
-      <span className="tab-label hidden md:inline ml-1.5">{tab.label}</span>
+      <span className="tab-label hidden md:inline ml-1.5">{t(tab.labelKey)}</span>
     </button>
   );
 });
@@ -109,6 +111,7 @@ interface MobileTabProps {
 }
 
 const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) => {
+  const { t } = useTranslation(['tabs']);
   const isCommunity = tab.id === 'community';
   return (
     <button
@@ -136,7 +139,7 @@ const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) =>
         isCommunity && 'drop-shadow-sm'
       )}>{tab.icon}</span>
       <span className="text-[10px] xs:text-xs mt-0.5 font-medium leading-tight">
-        {tab.label.replace('搜索', '').replace('访问', '')}
+        {t(tab.shortLabelKey)}
       </span>
     </button>
   );
@@ -153,66 +156,75 @@ interface UserDropdownProps {
 }
 
 const UserDropdown: React.FC<UserDropdownProps> = memo(
-  ({ isAuthenticated, user, navigate, handleLogout }) => (
-    <DropdownMenu
-      trigger={
-        <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200">
-          {isAuthenticated ? (
-            <>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#d4a853] to-[#f59e0b] shadow-sm">
-                {user?.username?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <span className="hidden sm:inline text-sm font-medium">{user?.username}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-            </>
-          ) : (
-            <>
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm font-medium">登录</span>
-            </>
-          )}
-        </button>
-      }
-      items={
-        isAuthenticated
-          ? userMenuItems(navigate, handleLogout, user?.username)
-          : [
-              { id: 'login', label: '登录', icon: <User className="w-4 h-4" />, onClick: () => navigate('/login') },
-              { id: 'register', label: '注册', icon: <User className="w-4 h-4" />, onClick: () => navigate('/register') },
-            ]
-      }
-      triggerMode="click"
-      align="right"
-      showArrow={false}
-    />
-  )
+  ({ isAuthenticated, user, navigate, handleLogout }) => {
+    const { t } = useTranslation(['nav']);
+    return (
+      <DropdownMenu
+        trigger={
+          <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200">
+            {isAuthenticated ? (
+              <>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#d4a853] to-[#f59e0b] shadow-sm">
+                  {user?.username?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <span className="hidden sm:inline text-sm font-medium">{user?.username}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+              </>
+            ) : (
+              <>
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">{t('nav:userMenu.login')}</span>
+              </>
+            )}
+          </button>
+        }
+        items={
+          isAuthenticated
+            ? userMenuItems(t, navigate, handleLogout, user?.username)
+            : [
+                { id: 'login', label: t('nav:userMenu.login'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/login') },
+                { id: 'register', label: t('nav:userMenu.register'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/register') },
+              ]
+        }
+        triggerMode="click"
+        align="right"
+        showArrow={false}
+      />
+    );
+  }
 );
 
 UserDropdown.displayName = 'UserDropdown';
 
 /** 管理员入口 */
-const AdminLink: React.FC = memo(() => (
-  <Link
-    to="/admin-panel"
-    className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-    title="管理后台"
-  >
-    <ShieldAlert className="w-4 h-4" />
-  </Link>
-));
+const AdminLink: React.FC = memo(() => {
+  const { t } = useTranslation(['nav']);
+  return (
+    <Link
+      to="/admin-panel"
+      className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+      title={t('nav:adminLink.title')}
+    >
+      <ShieldAlert className="w-4 h-4" />
+    </Link>
+  );
+});
 
 AdminLink.displayName = 'AdminLink';
 
 /** 社区入口 */
-const CommunityLink: React.FC = memo(() => (
-  <Link
-    to="/community"
-    className="p-2 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
-    title="社区"
-  >
-    <Globe className="w-4 h-4" />
-  </Link>
-));
+const CommunityLink: React.FC = memo(() => {
+  const { t } = useTranslation(['nav']);
+  return (
+    <Link
+      to="/community"
+      className="p-2 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
+      title={t('nav:communityLink.title')}
+    >
+      <Globe className="w-4 h-4" />
+    </Link>
+  );
+});
 
 CommunityLink.displayName = 'CommunityLink';
 
@@ -222,6 +234,7 @@ interface ToolButtonsProps {
 }
 
 const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) => {
+  const { t } = useTranslation(['nav']);
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy, initializeProxy } = useProxyStore();
 
@@ -242,7 +255,7 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
         onClick={toggleProxy}
         disabled={isProxyLoading}
         className={getProxyButtonClass()}
-        title={isProxyEnabled ? '代理已启用 - 点击关闭' : '代理已关闭 - 点击启用'}
+        title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
       >
         {isProxyLoading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -256,7 +269,7 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
       </button>
 
       {/* 主题切换 */}
-      <button onClick={toggleTheme} className="theme-toggle-btn" aria-label="切换主题" title="切换深色/浅色模式">
+      <button onClick={toggleTheme} className="theme-toggle-btn" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
         {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
@@ -267,7 +280,7 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
       <button
         onClick={() => setIsHelpModalOpen(true)}
         className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-        title="使用说明"
+        title={t('nav:help.buttonTitle')}
       >
         <HelpCircle className="w-4 h-4" />
       </button>
@@ -278,7 +291,7 @@ const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) =>
         target="_blank"
         rel="noopener noreferrer"
         className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-        title="GitHub"
+        title={t('nav:github.title')}
       >
         <Github className="w-4 h-4" />
       </a>
@@ -297,6 +310,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   user,
   isAdmin,
 }) => {
+  const { t } = useTranslation(['nav']);
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
@@ -368,7 +382,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   }}
                   disabled={isProxyLoading}
                   className={clsx(getProxyButtonClass(), 'sm:p-2 p-1.5')}
-                  title={isProxyEnabled ? '代理已启用 - 点击关闭' : '代理已关闭 - 点击启用'}
+                  title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
                 >
                   {isProxyLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -382,7 +396,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 </button>
 
                 {/* 主题切换 */}
-                <button onClick={toggleTheme} className="theme-toggle-btn sm:p-2 p-1.5" aria-label="切换主题" title="切换主题">
+                <button onClick={toggleTheme} className="theme-toggle-btn sm:p-2 p-1.5" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
               </div>
@@ -395,11 +409,14 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
               {/* 以下按钮移动端隐藏，避免溢出 */}
               <div className="hidden sm:flex items-center gap-0.5">
+                {/* 语言切换 */}
+                <LanguageSwitcher />
+
                 {/* 帮助按钮 */}
                 <button
                   onClick={() => setIsHelpModalOpen(true)}
                   className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-                  title="使用说明"
+                  title={t('nav:help.buttonTitle')}
                 >
                   <HelpCircle className="w-4 h-4" />
                 </button>
@@ -410,7 +427,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-                  title="GitHub"
+                  title={t('nav:github.title')}
                 >
                   <Github className="w-4 h-4" />
                 </a>
@@ -442,7 +459,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom border-t border-stone-200/60 dark:border-stone-700/60"
         role="navigation"
-        aria-label="主导航"
+        aria-label={t('nav:mobileNav.ariaLabel')}
       >
         <div className="flex items-stretch justify-between h-14 max-w-lg mx-auto">
           {PINNED_TABS.map((tab) => (
@@ -461,34 +478,34 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
       <Modal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
-        title="使用说明"
+        title={t('nav:help.modalTitle')}
         size="lg"
       >
         <div className="text-sm text-stone-600 dark:text-stone-300 space-y-4">
-          <p><strong>Atlas</strong>是一站式聚合搜索引擎，覆盖 JAV / 动漫 / 影视，支持多源聚合搜索。</p>
+          <p dangerouslySetInnerHTML={{ __html: t('nav:help.intro') }} />
 
           <div>
-            <h3 className="font-semibold text-base mb-2">如何使用</h3>
+            <h3 className="font-semibold text-base mb-2">{t('nav:help.howToUseTitle')}</h3>
             <ol className="list-decimal list-inside space-y-1.5 ml-2">
-              <li>使用顶部导航切换搜索类型（JAV / 动漫 / 影视 / 搜索源）</li>
-              <li>在搜索框输入关键词或番号，按回车或点击搜索</li>
-              <li>使用分类标签筛选特定类型的资源</li>
-              <li>点击结果卡片上的按钮访问资源或收藏</li>
+              <li>{t('nav:help.howToUse1')}</li>
+              <li>{t('nav:help.howToUse2')}</li>
+              <li>{t('nav:help.howToUse3')}</li>
+              <li>{t('nav:help.howToUse4')}</li>
             </ol>
           </div>
 
           <div>
-            <h3 className="font-semibold text-base mb-2">快捷操作</h3>
+            <h3 className="font-semibold text-base mb-2">{t('nav:help.shortcutsTitle')}</h3>
             <ul className="list-disc list-inside space-y-1.5 ml-2">
-              <li><strong>代理开关</strong>：访问受限资源时开启网络代理</li>
-              <li><strong>收藏功能</strong>：登录后可收藏资源，多端同步</li>
-              <li><strong>搜索历史</strong>：自动记录搜索记录，一键回搜</li>
-              <li><strong>JAV排行</strong>：JAV Tab 下展示热门番号排行</li>
+              <li dangerouslySetInnerHTML={{ __html: t('nav:help.proxyShortcut') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('nav:help.favoriteShortcut') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('nav:help.historyShortcut') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('nav:help.javRankingShortcut') }} />
             </ul>
           </div>
 
           <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs">
-            提示：输入 JAV 畗号格式（如 SONE-520）会自动触发详情提取
+            {t('nav:help.tip')}
           </div>
         </div>
       </Modal>
@@ -497,7 +514,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
       <Modal
         isOpen={isProxyConfirmOpen}
         onClose={() => setIsProxyConfirmOpen(false)}
-        title="开启访问代理"
+        title={t('nav:proxyConfirm.title')}
         size="md"
       >
         <div className="space-y-4">
@@ -505,32 +522,32 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
             <ShieldCheck className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
             <div className="space-y-2">
               <p className="text-sm text-stone-700 dark:text-stone-300 font-medium">
-                开启后，以下访问将通过代理服务器转发：
+                {t('nav:proxyConfirm.description')}
               </p>
               <ul className="text-xs text-stone-600 dark:text-stone-400 space-y-1 ml-4 list-disc">
-                <li>JAV 搜索结果访问</li>
-                <li>动漫搜索结果访问</li>
-                <li>影视搜索结果访问</li>
-                <li>漫画搜索结果访问</li>
-                <li>我的收藏中的第三方链接</li>
+                <li>{t('nav:proxyConfirm.items.jav')}</li>
+                <li>{t('nav:proxyConfirm.items.anime')}</li>
+                <li>{t('nav:proxyConfirm.items.movie')}</li>
+                <li>{t('nav:proxyConfirm.items.manga')}</li>
+                <li>{t('nav:proxyConfirm.items.favorites')}</li>
               </ul>
             </div>
           </div>
           <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/30">
             <p className="text-xs text-violet-700 dark:text-violet-300">
-              <strong>代理访问密钥：</strong>
+              <span dangerouslySetInnerHTML={{ __html: t('nav:proxyConfirm.keyLabel') }} />
               <code className="ml-2 px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-800/50 font-mono">pp520</code>
             </p>
           </div>
           <p className="text-xs text-stone-500 dark:text-stone-400 text-center">
-            旨在解决网络限制导致的第三方网站访问失败问题
+            {t('nav:proxyConfirm.purpose')}
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => setIsProxyConfirmOpen(false)}
               className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
             >
-              取消
+              {t('nav:proxyConfirm.cancel')}
             </button>
             <button
               onClick={() => {
@@ -539,7 +556,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               }}
               className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md shadow-amber-500/25 transition-all"
             >
-              确认开启
+              {t('nav:proxyConfirm.confirm')}
             </button>
           </div>
         </div>

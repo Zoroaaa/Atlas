@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 import { useFavoritesQuery, useAddFavorite, useRemoveFavorite } from '@/hooks';
 import { useToast } from '@/components/ui/Toast';
+import i18next from '@/i18n';
 import type { JavDetail } from '@/types/jav';
 import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem, ActressProfile } from '@/types/search';
 import type { SearchResultItem } from './useSearchFlow';
@@ -28,13 +29,13 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
   }, [favorites]);
 
   const handleToggleFavorite = async (result: SearchResultItem) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const existingFavoriteId = getFavoriteId(result.url || '');
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -43,21 +44,21 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           subtitle: result.subtitle,
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleFavoriteJavDetail = async (detail: JavDetail) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const detailUrl = detail.detailUrl || `https://javdb.com/search?q=${detail.code}&f=all`;
     const existingFavoriteId = getFavoriteId(detailUrl);
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -72,20 +73,20 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           publisher: detail.publisher || detail.maker,
           keyword: detail.code,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleToggleFavoriteAnime = async (subject: BangumiSubject) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const existingFavoriteId = getFavoriteId(subject.url);
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -96,14 +97,14 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           tags: subject.tags?.join(', '),
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleToggleFavoriteMovie = async (item: TMDBResult) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const url = item.source === 'douban'
       ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
       : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
@@ -111,8 +112,8 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -123,21 +124,21 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           tags: item.year ? String(item.year) : undefined,
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleToggleFavoriteManga = async (item: MangaEnrichedData['manga'][0]) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const url = `https://mangadex.org/title/${item.id}`;
     const existingFavoriteId = favorites.find(f => f.url?.includes(item.id))?.id;
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -147,21 +148,21 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           tags: item.tags?.slice(0, 5).join(', '),
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleToggleFavoriteNovel = async (item: NovelItem) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const url = item.detailUrl;
     const existingFavoriteId = favorites.find(f => f.url?.includes(item.id))?.id;
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -174,21 +175,21 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           tags: [item.format, item.year, item.category].filter(Boolean).join(', '),
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleToggleFavoriteActress = async (actress: ActressProfile) => {
-    if (!isAuthenticated) { toast.warning('请先登录'); navigate('/login'); return; }
+    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
     const actressCode = `actress:${actress.id}`;
     const existingFavoriteId = favorites.find(f => f.code === actressCode)?.id;
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success('已取消收藏');
-      } catch { toast.error('取消收藏失败', '请稍后重试'); }
+        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     } else {
       try {
         const response = await addFavoriteMutation.mutateAsync({
@@ -201,17 +202,17 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           tags: actress.tags?.join(', '),
           keyword: keyword.trim() || undefined,
         });
-        if (!response.success) { toast.error('收藏失败', response.message || '请稍后重试'); return; }
-        toast.success('已添加到收藏');
-      } catch { toast.error('收藏失败', '请稍后重试'); }
+        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
+        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
+      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
     }
   };
 
   const handleRemoveFavorite = async (id: string) => {
     try {
       await removeFavoriteMutation.mutateAsync(id);
-      toast.success('已移除收藏');
-    } catch { toast.error('移除失败', '请稍后重试'); }
+      toast.success(i18next.t('errors:hooks.favorites.removedFromListTitle'));
+    } catch { toast.error(i18next.t('errors:hooks.favorites.removeFavoriteFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
   };
 
   const handleExportFavorites = () => {
@@ -223,7 +224,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     a.download = `favorites-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('导出成功');
+    toast.success(i18next.t('errors:hooks.favorites.exportSuccessTitle'));
   };
 
   return {

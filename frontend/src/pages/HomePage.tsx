@@ -20,8 +20,10 @@ import { UnifiedNavBar } from '@/components/layout';
 import { useNavigate } from 'react-router-dom';
 import { useFeatureFlags } from '@/contexts';
 import { FeedbackButton } from '@/components/feedback';
+import { useTranslation } from 'react-i18next';
 
 export const HomePage: React.FC = () => {
+  const { t } = useTranslation(['home']);
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
   const { initializeProxy } = useProxyStore();
@@ -38,43 +40,43 @@ export const HomePage: React.FC = () => {
   const features = [
     {
       icon: <Zap className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '极速搜索',
-      description: '多源并发搜索，毫秒级响应，快速获取结果',
+      title: t('home:features.fast.title'),
+      description: t('home:features.fast.description'),
       gradient: 'from-[#d4a853] to-[#f59e0b]',
       glow: 'rgba(212,168,83,0.25)',
     },
     {
       icon: <Shield className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '安全可靠',
-      description: '智能过滤有害内容，保护您的设备和隐私安全',
+      title: t('home:features.secure.title'),
+      description: t('home:features.secure.description'),
       gradient: 'from-emerald-400 to-teal-500',
       glow: 'rgba(52,211,153,0.25)',
     },
     {
       icon: <Globe className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '多源聚合',
-      description: '聚合多个优质资源站点，一站式搜索体验',
+      title: t('home:features.multiSource.title'),
+      description: t('home:features.multiSource.description'),
       gradient: 'from-blue-400 to-cyan-500',
       glow: 'rgba(96,165,250,0.25)',
     },
     {
       icon: <Cloud className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '云端同步',
-      description: '收藏和历史记录云端存储，多设备无缝切换',
+      title: t('home:features.cloudSync.title'),
+      description: t('home:features.cloudSync.description'),
       gradient: 'from-violet-400 to-purple-500',
       glow: 'rgba(167,139,250,0.25)',
     },
     {
       icon: <Heart className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '智能收藏',
-      description: '一键收藏喜爱的资源，随时回顾精彩内容',
+      title: t('home:features.smartFavorite.title'),
+      description: t('home:features.smartFavorite.description'),
       gradient: 'from-rose-400 to-pink-500',
       glow: 'rgba(251,113,133,0.25)',
     },
     {
       icon: <Layers className="w-5 h-5 sm:w-6 sm:h-6" />,
-      title: '分类管理',
-      description: '清晰的分类体系，快速找到所需资源类型',
+      title: t('home:features.category.title'),
+      description: t('home:features.category.description'),
       gradient: 'from-cyan-400 to-teal-500',
       glow: 'rgba(34,211,238,0.25)',
     },
@@ -106,21 +108,22 @@ export const HomePage: React.FC = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-amber-200/60 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/8 text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-8 animate-fade-in backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Atlas · 极速安全的磁力搜索工具</span>
+            <span>{t('home:badge')}</span>
           </div>
 
           {/* Headline */}
           <h1 className="display-font text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-stone-900 dark:text-white mb-6 sm:mb-8 leading-[1.05] tracking-tight animate-fade-in animation-delay-100">
-            Atlas
-            <span className="gradient-text"> 聚合搜索 </span>
+            {t('home:hero.headlineAtlas')}
+            <span className="gradient-text"> {t('home:hero.headlineMiddle')} </span>
             <br className="hidden sm:block" />
-            聚合搜索平台
+            {t('home:hero.headlineSuffix')}
           </h1>
 
           {/* Subhead */}
           <p className="text-base sm:text-lg lg:text-xl text-stone-600 dark:text-stone-400 mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
-            聚合多个优质资源站点，提供快速、安全、便捷的搜索体验。
-            支持云端同步、智能收藏，让资源管理更轻松。
+            {t('home:hero.subhead1')}
+            <br />
+            {t('home:hero.subhead2')}
           </p>
 
           {/* CTA Buttons */}
@@ -129,23 +132,23 @@ export const HomePage: React.FC = () => {
               onClick={() => navigate(isAuthenticated ? '/main' : (enableRegistration ? '/register' : '/login'))}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-white btn-gradient text-sm sm:text-base"
             >
-              {isAuthenticated ? '开始搜索' : (enableRegistration ? '立即体验' : '立即登录')}
+              {isAuthenticated ? t('home:hero.ctaStartSearch') : (enableRegistration ? t('home:hero.ctaTryNow') : t('home:hero.ctaLoginNow'))}
               <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <button
               onClick={() => navigate('/login')}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm sm:text-base border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-amber-300 dark:hover:border-amber-600 hover:text-amber-700 dark:hover:text-amber-400 transition-all duration-200 bg-white/60 dark:bg-stone-800/60 backdrop-blur-sm"
             >
-              已有账号？登录
+              {t('home:hero.ctaHasAccountLogin')}
             </button>
           </div>
 
           {/* Decorative stats row */}
           <div className="mt-14 sm:mt-16 grid grid-cols-3 gap-4 sm:gap-8 max-w-lg mx-auto animate-fade-in animation-delay-400">
             {[
-              { num: '多源', label: '聚合搜索' },
-              { num: '安全', label: '智能过滤' },
-              { num: '免费', label: '开箱即用' },
+              { num: t('home:hero.statMultiSourceNum'), label: t('home:hero.statMultiSourceLabel') },
+              { num: t('home:hero.statSecureNum'), label: t('home:hero.statSecureLabel') },
+              { num: t('home:hero.statFreeNum'), label: t('home:hero.statFreeLabel') },
             ].map((stat) => (
               <div key={stat.label} className="text-center group">
                 <div className="display-font text-2xl sm:text-3xl font-bold gradient-text mb-1 group-hover:scale-110 transition-transform">{stat.num}</div>
@@ -164,13 +167,13 @@ export const HomePage: React.FC = () => {
           <div className="text-center mb-12 sm:mb-16">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200/60 dark:border-amber-700/30 text-amber-700 dark:text-amber-400 text-xs font-semibold mb-4 uppercase tracking-wider">
               <Star className="w-3.5 h-3.5" />
-              产品特色
+              {t('home:featuresSection.badge')}
             </div>
             <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
-              专为搜索体验而生
+              {t('home:featuresSection.title')}
             </h2>
             <p className="text-sm sm:text-base text-stone-600 dark:text-stone-400 max-w-2xl mx-auto">
-              简洁高效、安全可靠，让资源搜索变得轻松愉快
+              {t('home:featuresSection.subtitle')}
             </p>
           </div>
 
@@ -215,13 +218,13 @@ export const HomePage: React.FC = () => {
           <div className="text-center mb-12 sm:mb-16">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200/60 dark:border-blue-700/30 text-blue-700 dark:text-blue-400 text-xs font-semibold mb-4 uppercase tracking-wider">
               <TrendingUp className="w-3.5 h-3.5" />
-              使用流程
+              {t('home:howItWorks.badge')}
             </div>
             <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-900 dark:text-white mb-3 sm:mb-4 tracking-tight">
-              简单三步，即刻开始
+              {t('home:howItWorks.title')}
             </h2>
             <p className="text-sm sm:text-base text-stone-600 dark:text-stone-400">
-              无需复杂配置，立即体验高效搜索
+              {t('home:howItWorks.subtitle')}
             </p>
           </div>
 
@@ -230,9 +233,9 @@ export const HomePage: React.FC = () => {
             <div className="hidden sm:block absolute top-8 left-1/6 right-1/6 h-px bg-gradient-to-r from-transparent via-amber-300/40 dark:via-amber-600/20 to-transparent" />
 
             {[
-              { step: '01', title: '快速注册', desc: '邮箱注册，秒速开启搜索之旅', icon: <Zap className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-[#d4a853] to-[#f59e0b]' },
-              { step: '02', title: '输入关键词', desc: '一键搜索，聚合多个优质资源', icon: <Search className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-amber-400 to-[#d4a853]' },
-              { step: '03', title: '收藏管理', desc: '云端同步，随时随地访问收藏', icon: <Heart className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-rose-500 to-pink-600' },
+              { step: '01', title: t('home:howItWorks.step1Title'), desc: t('home:howItWorks.step1Desc'), icon: <Zap className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-[#d4a853] to-[#f59e0b]' },
+              { step: '02', title: t('home:howItWorks.step2Title'), desc: t('home:howItWorks.step2Desc'), icon: <Search className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-amber-400 to-[#d4a853]' },
+              { step: '03', title: t('home:howItWorks.step3Title'), desc: t('home:howItWorks.step3Desc'), icon: <Heart className="w-5 h-5 sm:w-6 sm:h-6" />, gradient: 'from-rose-500 to-pink-600' },
             ].map((item, index) => (
               <div key={index} className="text-center group relative">
                 {/* Step badge */}
@@ -278,14 +281,14 @@ export const HomePage: React.FC = () => {
             <div className="relative">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-medium mb-6 backdrop-blur-sm">
                 <Clock className="w-3.5 h-3.5" />
-                <span>立即体验，永久免费</span>
+                <span>{t('home:ctaBanner.badge')}</span>
               </div>
 
               <h2 className="display-font text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 tracking-tight">
-                准备好开始了吗？
+                {t('home:ctaBanner.title')}
               </h2>
               <p className="text-sm sm:text-base text-white/75 mb-8 sm:mb-10 max-w-xl mx-auto leading-relaxed">
-                {enableRegistration ? '免费注册，即刻开启高效磁力搜索体验' : '立即登录，开启高效磁力搜索体验'}
+                {enableRegistration ? t('home:ctaBanner.subtitleRegister') : t('home:ctaBanner.subtitleLogin')}
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -294,7 +297,7 @@ export const HomePage: React.FC = () => {
                     onClick={() => navigate('/register')}
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold bg-white text-amber-900 hover:bg-amber-50 transition-all duration-200 text-sm sm:text-base shadow-lg shadow-black/20 hover:scale-105 active:scale-95"
                   >
-                    免费注册
+                    {t('home:ctaBanner.register')}
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 ) : null}
@@ -306,7 +309,7 @@ export const HomePage: React.FC = () => {
                       : 'bg-white text-amber-900 hover:bg-amber-50 shadow-lg shadow-black/20'
                   }`}
                 >
-                  {enableRegistration ? '已有账号' : '立即登录'}
+                  {enableRegistration ? t('home:ctaBanner.hasAccount') : t('home:ctaBanner.login')}
                 </button>
               </div>
             </div>
@@ -318,21 +321,21 @@ export const HomePage: React.FC = () => {
       <Modal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
-        title="使用说明"
+        title={t('home:helpModal.title')}
       >
         <div className="text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed">
           <p className="mb-4">
-            Atlas 是一款聚合搜索引擎，覆盖 JAV / 动漫 / 影视 / 漫画/小说等多个资源类型，帮助您一站式找到所需资源。
+            {t('home:helpModal.intro')}
           </p>
           <p className="mb-4">
-            使用步骤：
+            {t('home:helpModal.stepsTitle')}
           </p>
           <ol className="list-decimal pl-5 mb-4 space-y-2">
-            <li>注册或登录账号</li>
-            <li>在搜索框输入关键词（支持番号、标题等）</li>
-            <li>选择合适的搜索源和分类</li>
-            <li>点击搜索按钮开始查找</li>
-            <li>收藏和管理找到的资源</li>
+            <li>{t('home:helpModal.step1')}</li>
+            <li>{t('home:helpModal.step2')}</li>
+            <li>{t('home:helpModal.step3')}</li>
+            <li>{t('home:helpModal.step4')}</li>
+            <li>{t('home:helpModal.step5')}</li>
           </ol>
         </div>
       </Modal>

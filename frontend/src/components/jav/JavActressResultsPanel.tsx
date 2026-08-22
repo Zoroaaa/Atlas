@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Building2, Star, Link2, Ruler, Film, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import type { JavItem } from '@/types/jav';
 import { getProxyImageUrl } from '@/utils/imageProxy';
@@ -37,6 +38,7 @@ interface ActressCardProps {
 }
 
 function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onLoginRequired }: ActressCardProps) {
+  const { t } = useTranslation(['jav']);
   // 统一走后端 /api/jav/proxy-image 避开浏览器 ORB
   const imgSrc = item.cover ? getProxyImageUrl(item.cover) : undefined;
 
@@ -86,7 +88,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
         {/* 别名：独立行，明显区分 */}
         {item.alias && (
           <div className="text-xs text-stone-500 dark:text-stone-400">
-            <span className="text-stone-400 dark:text-stone-500 mr-1">别名</span>
+            <span className="text-stone-400 dark:text-stone-500 mr-1">{t('jav:actressResults.alias')}</span>
             <span className="font-medium">{item.alias}</span>
           </div>
         )}
@@ -108,31 +110,31 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
         {/* 基本信息分组：grid 双列布局，每项 label:value 清晰 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
           {item.birthday && (
-            <InfoRow icon={Calendar} label="生日" value={item.birthday + (item.zodiac ? ` ${item.zodiac}` : '')} />
+            <InfoRow icon={Calendar} label={t('jav:actressResults.birthday')} value={item.birthday + (item.zodiac ? ` ${item.zodiac}` : '')} />
           )}
           {item.prefecture && (
-            <InfoRow icon={MapPin} label="出身" value={item.prefecture} />
+            <InfoRow icon={MapPin} label={t('jav:actressResults.prefecture')} value={item.prefecture} />
           )}
           {item.activePeriod && (
-            <InfoRow icon={Star} label="出道" value={item.activePeriod} />
+            <InfoRow icon={Star} label={t('jav:actressResults.activePeriod')} value={item.activePeriod} />
           )}
           {item.agency && (
-            <InfoRow icon={Building2} label="事务所" value={item.agency} />
+            <InfoRow icon={Building2} label={t('jav:actressResults.agency')} value={item.agency} />
           )}
           {item.debutWork && (
-            <InfoRow icon={Ruler} label="出道作" value={item.debutWork} />
+            <InfoRow icon={Ruler} label={t('jav:actressResults.debutWork')} value={item.debutWork} />
           )}
         </div>
 
         {/* 标签：独立分组 */}
         {item.tags && item.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {item.tags.slice(0, 10).map((t, i) => (
+            {item.tags.slice(0, 10).map((tag, i) => (
               <span
                 key={i}
                 className="px-2 py-0.5 text-xs bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 rounded-md"
               >
-                {t}
+                {tag}
               </span>
             ))}
           </div>
@@ -148,7 +150,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
               >
-                <Link2 className="w-3 h-3" />博客
+                <Link2 className="w-3 h-3" />{t('jav:actressResults.blog')}
               </a>
             )}
             {item.officialUrl && (
@@ -158,7 +160,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
               >
-                <Link2 className="w-3 h-3" />官网
+                <Link2 className="w-3 h-3" />{t('jav:actressResults.officialSite')}
               </a>
             )}
           </div>
@@ -175,7 +177,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
               ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
               : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
           }`}
-          title={isFavorited ? '取消收藏' : '收藏'}
+          title={isFavorited ? t('jav:actressResults.unfavorite') : t('jav:actressResults.favorite')}
         >
           <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
         </button>
@@ -230,6 +232,7 @@ export interface JavActressResultsPanelProps {
 }
 
 export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, onToggleFavorite, onLoginRequired, onWorkClick }: JavActressResultsPanelProps) {
+  const { t } = useTranslation(['jav']);
   const [page, setPage] = useState(1);
   const actresses = data.actresses ?? [];
   const works = data.actressWorks ?? [];
@@ -241,7 +244,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
       <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 p-6">
         <div className="flex items-center gap-2 text-pink-600 dark:text-pink-400">
           <Wifi className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm">女优搜索失败：{errorMsg}</span>
+          <span className="text-sm">{t('jav:actressResults.searchFailed', { message: errorMsg })}</span>
         </div>
       </div>
     );
@@ -264,8 +267,8 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
             <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500 dark:text-pink-400" />
           </div>
-          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">AV女优</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{actresses.length} 位</span>
+          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.title')}</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{t('jav:actressResults.actressCount', { count: actresses.length })}</span>
         </div>
         <a
           href={`https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`}
@@ -273,7 +276,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
           rel="noopener noreferrer"
           className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
         >
-          minnano 站内搜索 →
+          {t('jav:actressResults.minnanoSearch')}
         </a>
       </div>
 
@@ -301,11 +304,11 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
                            hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                            dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                <ChevronLeft className="w-3.5 h-3.5" /> {t('jav:actressResults.previousPage')}
               </button>
               <span className="text-xs text-stone-500 px-2">
                 {page} / {totalPages}
-                <span className="ml-1 text-stone-400">（共 {actresses.length} 位）</span>
+                <span className="ml-1 text-stone-400">{t('jav:actressResults.totalCount', { count: actresses.length })}</span>
               </span>
               <button
                 disabled={page >= totalPages}
@@ -314,7 +317,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
                            hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                            dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                下一页 <ChevronRight className="w-3.5 h-3.5" />
+                {t('jav:actressResults.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -345,6 +348,7 @@ function ActressWorksSection({
   normalizedKeyword: string;
   onWorkClick?: (code: string) => void;
 }) {
+  const { t } = useTranslation(['jav']);
   return (
     <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
       {/* 头部 */}
@@ -353,8 +357,8 @@ function ActressWorksSection({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
             <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
           </div>
-          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">JavBus 作品</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{works.length} 部</span>
+          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.worksTitle')}</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{t('jav:actressResults.worksCount', { count: works.length })}</span>
         </div>
         <a
           href={`https://www.javbus.com/search/${encodeURIComponent(normalizedKeyword)}`}
@@ -362,7 +366,7 @@ function ActressWorksSection({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-400 transition-colors"
         >
-          JavBus 站内搜索
+          {t('jav:actressResults.javbusSearch')}
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>
@@ -376,7 +380,7 @@ function ActressWorksSection({
         </div>
         {onWorkClick && (
           <p className="mt-3 text-[10px] text-stone-400 dark:text-stone-500 text-center">
-            💡 点击作品卡片自动搜索番号
+            {t('jav:actressResults.workClickHint')}
           </p>
         )}
       </div>

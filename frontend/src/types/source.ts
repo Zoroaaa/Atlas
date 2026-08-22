@@ -18,15 +18,16 @@ export type SearchTabType = typeof TAB_IDS[number];
 export const JAV_SUB_MODES = ['code', 'actress', 'title'] as const;
 export type JavSubMode = typeof JAV_SUB_MODES[number];
 
-// Tab 配置接口
+// Tab 配置接口 - 文本字段存储 i18n key,在消费端用 t(key) 解析
 export interface TabConfig {
   id: SearchTabType;
-  label: string;
+  labelKey: string;       // 完整标签 i18n key,如 'tabs:jav.label'
+  shortLabelKey: string;  // 简短标签 i18n key(移动端底部导航用),如 'tabs:jav.short'
   icon: string;
   gradient: string;
   majorCategoryId: string | null;
-  placeholder: string;
-  description: string;
+  placeholderKey: string; // 搜索框 placeholder i18n key
+  descriptionKey: string; // Tab 描述 i18n key
   pinned?: boolean; // 是否常驻主导航,不设为 true 的进"更多"
 }
 

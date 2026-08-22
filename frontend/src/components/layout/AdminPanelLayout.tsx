@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
+import { useTranslation } from 'react-i18next';
 
 interface NavItem {
   id: string;
@@ -37,23 +38,24 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'overview', label: '看板概览', icon: <LayoutDashboard className="w-[18px] h-[18px]" />, path: '/admin-panel' },
-  { id: 'users', label: '用户管理', icon: <Users className="w-[18px] h-[18px]" />, path: '/admin-panel/users' },
-  { id: 'sessions', label: '会话管理', icon: <Server className="w-[18px] h-[18px]" />, path: '/admin-panel/sessions' },
-  { id: 'actions', label: '行为日志', icon: <Activity className="w-[18px] h-[18px]" />, path: '/admin-panel/actions' },
-  { id: 'analytics', label: '数据分析', icon: <BarChart2 className="w-[18px] h-[18px]" />, path: '/admin-panel/analytics' },
-  { id: 'observability', label: '系统观测', icon: <Bug className="w-[18px] h-[18px]" />, path: '/admin-panel/observability' },
-  { id: 'trends', label: '趋势报表', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
-  { id: 'data-storage', label: '数据存储', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
-  { id: 'reports', label: '举报处理', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
-  { id: 'roles', label: '角色管理', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },
-  { id: 'config', label: '系统配置', icon: <Settings className="w-[18px] h-[18px]" />, path: '/admin-panel/config' },
-  { id: 'cleanup', label: '数据清理', icon: <Trash2 className="w-[18px] h-[18px]" />, path: '/admin-panel/cleanup' },
-  { id: 'feedback', label: '用户反馈', icon: <MessageSquarePlus className="w-[18px] h-[18px]" />, path: '/admin-panel/feedback' },
-  { id: 'announcements', label: '网站公告', icon: <Megaphone className="w-[18px] h-[18px]" />, path: '/admin-panel/announcements' },
+  { id: 'overview', label: 'nav:adminPanel.items.overview', icon: <LayoutDashboard className="w-[18px] h-[18px]" />, path: '/admin-panel' },
+  { id: 'users', label: 'nav:adminPanel.items.users', icon: <Users className="w-[18px] h-[18px]" />, path: '/admin-panel/users' },
+  { id: 'sessions', label: 'nav:adminPanel.items.sessions', icon: <Server className="w-[18px] h-[18px]" />, path: '/admin-panel/sessions' },
+  { id: 'actions', label: 'nav:adminPanel.items.actions', icon: <Activity className="w-[18px] h-[18px]" />, path: '/admin-panel/actions' },
+  { id: 'analytics', label: 'nav:adminPanel.items.analytics', icon: <BarChart2 className="w-[18px] h-[18px]" />, path: '/admin-panel/analytics' },
+  { id: 'observability', label: 'nav:adminPanel.items.observability', icon: <Bug className="w-[18px] h-[18px]" />, path: '/admin-panel/observability' },
+  { id: 'trends', label: 'nav:adminPanel.items.trends', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
+  { id: 'data-storage', label: 'nav:adminPanel.items.dataStorage', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
+  { id: 'reports', label: 'nav:adminPanel.items.reports', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
+  { id: 'roles', label: 'nav:adminPanel.items.roles', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },
+  { id: 'config', label: 'nav:adminPanel.items.config', icon: <Settings className="w-[18px] h-[18px]" />, path: '/admin-panel/config' },
+  { id: 'cleanup', label: 'nav:adminPanel.items.cleanup', icon: <Trash2 className="w-[18px] h-[18px]" />, path: '/admin-panel/cleanup' },
+  { id: 'feedback', label: 'nav:adminPanel.items.feedback', icon: <MessageSquarePlus className="w-[18px] h-[18px]" />, path: '/admin-panel/feedback' },
+  { id: 'announcements', label: 'nav:adminPanel.items.announcements', icon: <Megaphone className="w-[18px] h-[18px]" />, path: '/admin-panel/announcements' },
 ];
 
 export const AdminPanelLayout: React.FC = () => {
+  const { t } = useTranslation(['nav']);
   const { user, logout } = useAuthStore();
   const { resolvedTheme, toggleTheme, sidebarCollapsed, toggleSidebar } = useThemeStore();
   const { communityEnabled } = useFeatureFlags();
@@ -71,7 +73,7 @@ export const AdminPanelLayout: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  const currentPageLabel = navItems.find((item) => isActive(item.path))?.label || '管理看板';
+  const currentPageLabel = navItems.find((item) => isActive(item.path))?.label || 'nav:adminPanel.title';
 
   const handleNavClick = (path: string) => {
     navigate(path);
@@ -90,7 +92,7 @@ export const AdminPanelLayout: React.FC = () => {
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <span className="font-bold text-base gradient-text display-font">管理看板</span>
+              <span className="font-bold text-base gradient-text display-font">{t('nav:adminPanel.title')}</span>
               <p className="text-[10px] text-stone-500 dark:text-stone-400">Admin Panel</p>
             </div>
           </div>
@@ -120,7 +122,7 @@ export const AdminPanelLayout: React.FC = () => {
         <div className="mb-5">
           {(!sidebarCollapsed || mobile) && (
             <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400 dark:text-stone-600">
-              管理功能
+              {t('nav:adminPanel.groupHeading')}
             </p>
           )}
           <ul className="space-y-0.5">
@@ -136,7 +138,7 @@ export const AdminPanelLayout: React.FC = () => {
                       <span className={clsx('flex-shrink-0', active ? 'text-rose-600 dark:text-rose-400' : 'text-stone-400')}>
                         {item.icon}
                       </span>
-                      <span className="font-medium text-sm">{item.label}</span>
+                      <span className="font-medium text-sm">{t(item.label)}</span>
                       {item.badge && (
                         <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 rounded-full">
                           {item.badge}
@@ -150,7 +152,7 @@ export const AdminPanelLayout: React.FC = () => {
                 <li key={item.id}>
                   <Link 
                     to={item.path} 
-                    title={sidebarCollapsed ? item.label : undefined}
+                    title={sidebarCollapsed ? t(item.label) : undefined}
                     className={clsx('sidebar-nav-item group', active && 'active', active && 'bg-rose-50 dark:bg-rose-900/20')}
                       >
                     <span className={clsx('flex-shrink-0', active ? 'text-rose-600 dark:text-rose-400' : 'text-stone-400')}>
@@ -158,7 +160,7 @@ export const AdminPanelLayout: React.FC = () => {
                     </span>
                     {!sidebarCollapsed && (
                       <>
-                        <span className={clsx('font-medium text-sm', active && 'text-rose-700 dark:text-rose-300')}>{item.label}</span>
+                        <span className={clsx('font-medium text-sm', active && 'text-rose-700 dark:text-rose-300')}>{t(item.label)}</span>
                         {item.badge && (
                           <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 rounded-full">
                             {item.badge}
@@ -168,7 +170,7 @@ export const AdminPanelLayout: React.FC = () => {
                     )}
                     {sidebarCollapsed && (
                       <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                        {item.label}
+                        {t(item.label)}
                       </div>
                     )}
                   </Link>
@@ -191,13 +193,13 @@ export const AdminPanelLayout: React.FC = () => {
                   {user?.username}
                 </p>
                 <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">
-                  {user?.role === 'super_admin' ? '超级管理员' : '管理员'}
+                  {user?.role === 'super_admin' ? t('nav:adminPanel.roleSuperAdmin') : t('nav:adminPanel.roleAdmin')}
                 </p>
               </div>
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-xl text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
-                title="退出登录"
+                title={t('nav:userMenu.logout')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -249,7 +251,7 @@ export const AdminPanelLayout: React.FC = () => {
                 <Menu className="w-5 h-5" />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
-                {currentPageLabel}
+                {t(currentPageLabel)}
               </h1>
             </div>
 
@@ -257,38 +259,38 @@ export const AdminPanelLayout: React.FC = () => {
               <Link to="/main"
                 className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 transition-all">
                 <Search className="w-4 h-4" />
-                返回首页
+                {t('nav:backHome')}
               </Link>
               <Link to="/dashboard"
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                 <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden lg:inline">控制台</span>
+                <span className="hidden lg:inline">{t('nav:userMenu.dashboard')}</span>
               </Link>
               {communityEnabled && (
                 <Link to="/community"
                   className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                   <Globe className="w-4 h-4" />
-                  <span className="hidden lg:inline">社区</span>
+                  <span className="hidden lg:inline">{t('nav:userMenu.community')}</span>
                 </Link>
               )}
               <Link to="/admin-panel"
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 transition-all">
                 <Shield className="w-4 h-4" />
-                <span className="hidden lg:inline">管理看板</span>
+                <span className="hidden lg:inline">{t('nav:adminPanel.title')}</span>
               </Link>
 
-              <Link to="/main" className="mobile-header-btn md:hidden" title="搜索">
+              <Link to="/main" className="mobile-header-btn md:hidden" title={t('nav:search')}>
                 <Search className="w-5 h-5" />
               </Link>
-              <Link to="/dashboard" className="mobile-header-btn md:hidden" title="控制台">
+              <Link to="/dashboard" className="mobile-header-btn md:hidden" title={t('nav:userMenu.dashboard')}>
                 <LayoutDashboard className="w-5 h-5" />
               </Link>
               {communityEnabled && (
-                <Link to="/community" className="mobile-header-btn md:hidden" title="社区">
+                <Link to="/community" className="mobile-header-btn md:hidden" title={t('nav:userMenu.community')}>
                   <Globe className="w-5 h-5" />
                 </Link>
               )}
-              <Link to="/admin-panel" className="mobile-header-btn md:hidden text-rose-500 hover:text-rose-600" title="管理看板">
+              <Link to="/admin-panel" className="mobile-header-btn md:hidden text-rose-500 hover:text-rose-600" title={t('nav:adminPanel.title')}>
                 <Shield className="w-5 h-5" />
               </Link>
 

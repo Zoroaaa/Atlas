@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/services/api';
+import i18next from '@/i18n';
 import type { ActressEntry } from '@/types/jav';
 import { ACTRESSES_CACHE_KEY, ACTRESSES_CACHE_TTL } from '@/types/jav';
 
@@ -55,11 +56,11 @@ export function useActresses() {
         writeCache(resp.data);
         setData(resp.data);
       } else {
-        setError('获取女优列表失败');
+        setError(i18next.t('errors:hooks.actresses.fetchListFailed'));
       }
     } catch (err) {
       console.error('Actresses fetch error:', err);
-      setError('网络请求失败');
+      setError(i18next.t('errors:hooks.actresses.networkFailed'));
     } finally {
       setIsLoading(false);
     }

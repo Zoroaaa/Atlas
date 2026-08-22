@@ -23,6 +23,7 @@ import { ProxyImage } from '@/components/ui';
 import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { FavoriteItem, SearchHistoryItem } from '@/types';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
@@ -41,6 +42,7 @@ const getProxyImageUrl = (url: string): string => {
 
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
+  const { t } = useTranslation(['dashboard']);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,7 +61,7 @@ export const FavoritesManager: React.FC = () => {
         setFavorites(response.data.favorites);
       }
     } catch (_error) {
-      toast.error('加载失败', '无法加载收藏数据');
+      toast.error(t('dashboard:favoritesHistory.favorites.loadFailedTitle'), t('dashboard:favoritesHistory.favorites.loadFailedDesc'));
     } finally {
       setIsLoading(false);
     }
@@ -74,9 +76,9 @@ export const FavoritesManager: React.FC = () => {
     try {
       await userApi.removeFavorite(id);
       setFavorites(prev => prev.filter(f => f.id !== id));
-      toast.success('已移除收藏');
+      toast.success(t('dashboard:favoritesHistory.favorites.removeSuccess'));
     } catch (_error) {
-      toast.error('移除失败', '请稍后重试');
+      toast.error(t('dashboard:favoritesHistory.favorites.removeFailedTitle'), t('dashboard:favoritesHistory.favorites.retryLater'));
     }
   };
 
@@ -88,30 +90,30 @@ export const FavoritesManager: React.FC = () => {
         setFavorites(prev => prev.map(f => 
           f.id === id ? { ...f, status: newStatus } : f
         ));
-        toast.success('状态更新成功');
+        toast.success(t('dashboard:favoritesHistory.favorites.statusUpdateSuccess'));
       } else {
-        toast.error(result.message || '状态更新失败');
+        toast.error(result.message || t('dashboard:favoritesHistory.favorites.statusUpdateFailed'));
       }
     } catch (_error) {
-      toast.error('状态更新失败');
+      toast.error(t('dashboard:favoritesHistory.favorites.statusUpdateFailed'));
     }
   };
 
   const handleBatchRemove = async () => {
     if (selectedItems.size === 0) {
-      toast.warning('请先选择要删除的收藏');
+      toast.warning(t('dashboard:favoritesHistory.favorites.selectToDelete'));
       return;
     }
     
-    if (!confirm(`确定要删除选中的 ${selectedItems.size} 个收藏吗？`)) return;
+    if (!confirm(t('dashboard:favoritesHistory.favorites.batchDeleteConfirm', { count: selectedItems.size }))) return;
     
     try {
       await Promise.all(Array.from(selectedItems).map(id => userApi.removeFavorite(id)));
       setFavorites(prev => prev.filter(f => !selectedItems.has(f.id)));
       setSelectedItems(new Set());
-      toast.success('批量删除成功');
+      toast.success(t('dashboard:favoritesHistory.favorites.batchDeleteSuccess'));
     } catch (_error) {
-      toast.error('删除失败', '部分收藏可能未删除');
+      toast.error(t('dashboard:favoritesHistory.favorites.batchDeleteFailedTitle'), t('dashboard:favoritesHistory.favorites.batchDeleteFailedDesc'));
     }
   };
 
@@ -124,19 +126,19 @@ export const FavoritesManager: React.FC = () => {
     a.download = `favorites-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('导出成功');
+    toast.success(t('dashboard:favoritesHistory.favorites.exportSuccess'));
   };
 
   const handleImport = async () => {
     if (!importData.trim()) {
-      toast.error('请输入导入数据');
+      toast.error(t('dashboard:favoritesHistory.favorites.importDataRequired'));
       return;
     }
     
     try {
       const data = JSON.parse(importData);
       if (!Array.isArray(data)) {
-        toast.error('数据格式错误');
+        toast.error(t('dashboard:favoritesHistory.favorites.invalidFormat'));
         return;
       }
       
@@ -148,12 +150,12 @@ export const FavoritesManager: React.FC = () => {
           if (res.success) successCount++;
         } catch (_e) { /* skip duplicates/errors */ }
       }
-      toast.success(`成功导入 ${successCount} 个收藏`);
+      toast.success(t('dashboard:favoritesHistory.favorites.importSuccess', { count: successCount }));
       setImportModal(false);
       setImportData('');
       loadFavorites();
     } catch (_error) {
-      toast.error('导入失败', '请检查数据格式');
+      toast.error(t('dashboard:favoritesHistory.favorites.importFailedTitle'), t('dashboard:favoritesHistory.favorites.importFailedDesc'));
     }
   };
 
@@ -173,7 +175,7 @@ export const FavoritesManager: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载收藏..." />
+        <Loading size="lg" text={t('dashboard:favoritesHistory.favorites.loading')} />
       </div>
     );
   }
@@ -187,10 +189,10 @@ export const FavoritesManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-              我的收藏
+              {t('dashboard:favoritesHistory.favorites.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              共 {favorites.length} 个收藏
+              {t('dashboard:favoritesHistory.favorites.total', { count: favorites.length })}
             </p>
           </div>
         </div>
@@ -200,7 +202,7 @@ export const FavoritesManager: React.FC = () => {
             leftIcon={<Upload className="w-4 h-4" />}
             onClick={() => setImportModal(true)}
           >
-            导入
+            {t('dashboard:favoritesHistory.favorites.import')}
           </Button>
           <Button
             variant="outline"
@@ -208,7 +210,7 @@ export const FavoritesManager: React.FC = () => {
             onClick={handleExport}
             disabled={favorites.length === 0}
           >
-            导出
+            {t('dashboard:favoritesHistory.favorites.export')}
           </Button>
         </div>
       </div>
@@ -217,7 +219,7 @@ export const FavoritesManager: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Input
-              placeholder="搜索收藏..."
+              placeholder={t('dashboard:favoritesHistory.favorites.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<Search className="w-5 h-5" />}
@@ -230,8 +232,8 @@ export const FavoritesManager: React.FC = () => {
               onChange={(e) => setSortBy(e.target.value as 'date' | 'title')}
               className="px-4 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500"
             >
-              <option value="date">按日期排序</option>
-              <option value="title">按标题排序</option>
+              <option value="date">{t('dashboard:favoritesHistory.favorites.sortByDate')}</option>
+              <option value="title">{t('dashboard:favoritesHistory.favorites.sortByTitle')}</option>
             </select>
             <Button
               variant="outline"
@@ -247,7 +249,7 @@ export const FavoritesManager: React.FC = () => {
         <Card className="p-4 bg-gradient-to-r from-error-50 to-error-100/50 dark:from-error-900/20 dark:to-error-800/20 border-error-200 dark:border-error-800 shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-error-700 dark:text-error-300">
-              已选择 {selectedItems.size} 个收藏
+              {t('dashboard:favoritesHistory.favorites.selected', { count: selectedItems.size })}
             </span>
             <div className="flex gap-2">
               <Button
@@ -256,14 +258,14 @@ export const FavoritesManager: React.FC = () => {
                 onClick={handleBatchRemove}
                 leftIcon={<Trash2 className="w-4 h-4" />}
               >
-                批量删除
+                {t('dashboard:favoritesHistory.favorites.batchDelete')}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedItems(new Set())}
               >
-                取消选择
+                {t('dashboard:favoritesHistory.favorites.cancelSelection')}
               </Button>
             </div>
           </div>
@@ -297,7 +299,7 @@ export const FavoritesManager: React.FC = () => {
                           }`}
                         >
                           {favorite.status === 'want' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          {favorite.status === 'want' ? '想看' : '已看过'}
+                          {favorite.status === 'want' ? t('dashboard:favoritesHistory.favorites.wantToWatch') : t('dashboard:favoritesHistory.favorites.watched')}
                         </button>
                       )}
                       {favorite.code && (
@@ -337,7 +339,7 @@ export const FavoritesManager: React.FC = () => {
                     {favorite.duration && (
                       <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                         <Clock className="w-3 h-3" />
-                        {favorite.duration}分钟
+                        {t('dashboard:favoritesHistory.favorites.durationMin', { count: favorite.duration })}
                       </span>
                     )}
                     {favorite.releaseDate && (
@@ -380,8 +382,8 @@ export const FavoritesManager: React.FC = () => {
       ) : (
         <EmptyState
           icon={<Heart className="w-12 h-12" />}
-          title="暂无收藏"
-          description="搜索时点击收藏按钮即可添加收藏"
+          title={t('dashboard:favoritesHistory.favorites.emptyTitle')}
+          description={t('dashboard:favoritesHistory.favorites.emptyDesc')}
         />
       )}
 
@@ -391,12 +393,12 @@ export const FavoritesManager: React.FC = () => {
           setImportModal(false);
           setImportData('');
         }}
-        title="导入收藏"
+        title={t('dashboard:favoritesHistory.favorites.importModalTitle')}
         size="lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-surface-600 dark:text-surface-400">
-            请粘贴导出的 JSON 数据，或输入符合格式的 JSON 数组
+            {t('dashboard:favoritesHistory.favorites.importModalDesc')}
           </p>
           <textarea
             value={importData}
@@ -407,10 +409,10 @@ export const FavoritesManager: React.FC = () => {
           />
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setImportModal(false)}>
-              取消
+              {t('dashboard:favoritesHistory.favorites.cancel')}
             </Button>
             <Button variant="primary" onClick={handleImport}>
-              导入
+              {t('dashboard:favoritesHistory.favorites.import')}
             </Button>
           </div>
         </div>
@@ -422,6 +424,7 @@ export const FavoritesManager: React.FC = () => {
 export const HistoryManager: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation(['dashboard']);
   
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -438,7 +441,7 @@ export const HistoryManager: React.FC = () => {
         setHistory(response.data.history);
       }
     } catch (_error) {
-      toast.error('加载失败', '无法加载搜索历史');
+      toast.error(t('dashboard:favoritesHistory.history.loadFailedTitle'), t('dashboard:favoritesHistory.history.loadFailedDesc'));
     } finally {
       setIsLoading(false);
     }
@@ -450,14 +453,14 @@ export const HistoryManager: React.FC = () => {
   }, [loadHistory]);
 
   const handleClearHistory = async () => {
-    if (!confirm('确定要清空所有搜索历史吗？此操作不可撤销。')) return;
+    if (!confirm(t('dashboard:favoritesHistory.history.clearConfirm'))) return;
     
     try {
       await userApi.clearSearchHistory();
       setHistory([]);
-      toast.success('历史已清空');
+      toast.success(t('dashboard:favoritesHistory.history.clearSuccess'));
     } catch (_error) {
-      toast.error('清空失败', '请稍后重试');
+      toast.error(t('dashboard:favoritesHistory.history.clearFailedTitle'), t('dashboard:favoritesHistory.history.retryLater'));
     }
   };
 
@@ -465,15 +468,15 @@ export const HistoryManager: React.FC = () => {
     try {
       await userApi.deleteSearchHistoryItem(id);
       setHistory(prev => prev.filter(h => h.id !== id));
-      toast.success('已删除');
+      toast.success(t('dashboard:favoritesHistory.history.deleteSuccess'));
     } catch (_error) {
-      toast.error('删除失败', '请稍后重试');
+      toast.error(t('dashboard:favoritesHistory.history.deleteFailedTitle'), t('dashboard:favoritesHistory.history.retryLater'));
     }
   };
 
   const handleBatchDelete = async () => {
     if (selectedItems.size === 0) {
-      toast.warning('请先选择要删除的记录');
+      toast.warning(t('dashboard:favoritesHistory.history.selectToDelete'));
       return;
     }
     
@@ -481,9 +484,9 @@ export const HistoryManager: React.FC = () => {
       await Promise.all(Array.from(selectedItems).map(id => userApi.deleteSearchHistoryItem(id)));
       setHistory(prev => prev.filter(h => !selectedItems.has(h.id)));
       setSelectedItems(new Set());
-      toast.success('批量删除成功');
+      toast.success(t('dashboard:favoritesHistory.history.batchDeleteSuccess'));
     } catch (_error) {
-      toast.error('删除失败', '部分记录可能未删除');
+      toast.error(t('dashboard:favoritesHistory.history.batchDeleteFailedTitle'), t('dashboard:favoritesHistory.history.batchDeleteFailedDesc'));
     }
   };
 
@@ -526,9 +529,9 @@ export const HistoryManager: React.FC = () => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    if (diff < 60000) return t('dashboard:favoritesHistory.history.timeAgoJustNow');
+    if (diff < 3600000) return t('dashboard:favoritesHistory.history.timeAgoMinutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('dashboard:favoritesHistory.history.timeAgoHoursAgo', { count: Math.floor(diff / 3600000) });
     
     return date.toLocaleDateString('zh-CN', {
       month: 'short',
@@ -575,13 +578,13 @@ export const HistoryManager: React.FC = () => {
     a.download = `search-history-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('导出成功');
+    toast.success(t('dashboard:favoritesHistory.history.exportSuccess'));
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载历史..." />
+        <Loading size="lg" text={t('dashboard:favoritesHistory.history.loading')} />
       </div>
     );
   }
@@ -595,10 +598,10 @@ export const HistoryManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-              搜索历史
+              {t('dashboard:favoritesHistory.history.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              共 {history.length} 条记录
+              {t('dashboard:favoritesHistory.history.total', { count: history.length })}
             </p>
           </div>
         </div>
@@ -610,7 +613,7 @@ export const HistoryManager: React.FC = () => {
             onClick={handleExportHistory}
             disabled={history.length === 0}
           >
-            导出
+            {t('dashboard:favoritesHistory.history.export')}
           </Button>
           <Button
             variant="outline"
@@ -618,7 +621,7 @@ export const HistoryManager: React.FC = () => {
             leftIcon={<BarChart2 className="w-4 h-4" />}
             onClick={() => setShowKeywordCloud(v => !v)}
           >
-            {showKeywordCloud ? '隐藏' : '关键词云'}
+            {showKeywordCloud ? t('dashboard:favoritesHistory.history.hideKeywordCloud') : t('dashboard:favoritesHistory.history.showKeywordCloud')}
           </Button>
           <Button
             variant="danger"
@@ -627,7 +630,7 @@ export const HistoryManager: React.FC = () => {
             onClick={handleClearHistory}
             disabled={history.length === 0}
           >
-            清空
+            {t('dashboard:favoritesHistory.history.clear')}
           </Button>
         </div>
       </div>
@@ -635,10 +638,10 @@ export const HistoryManager: React.FC = () => {
       {/* 统计小卡 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: '总记录', value: history.length, color: 'from-primary-500 to-primary-600' },
-          { label: '今日搜索', value: todayCount, color: 'from-accent-500 to-accent-600' },
-          { label: '不同关键词', value: uniqueKeywords, color: 'from-success-500 to-emerald-600' },
-          { label: '活跃天数', value: activeDays, color: 'from-warning-500 to-orange-600' },
+          { label: t('dashboard:favoritesHistory.history.statsTotalRecords'), value: history.length, color: 'from-primary-500 to-primary-600' },
+          { label: t('dashboard:favoritesHistory.history.statsTodaySearches'), value: todayCount, color: 'from-accent-500 to-accent-600' },
+          { label: t('dashboard:favoritesHistory.history.statsUniqueKeywords'), value: uniqueKeywords, color: 'from-success-500 to-emerald-600' },
+          { label: t('dashboard:favoritesHistory.history.statsActiveDays'), value: activeDays, color: 'from-warning-500 to-orange-600' },
         ].map(stat => (
           <div key={stat.label} className="flex items-center gap-3 p-3 bg-surface-50 dark:bg-surface-800/60 rounded-xl border border-surface-200/50 dark:border-surface-700/30">
             <div className={`w-2 h-8 rounded-full bg-gradient-to-b ${stat.color} flex-shrink-0`} />
@@ -655,8 +658,8 @@ export const HistoryManager: React.FC = () => {
         <Card className="p-5 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
           <div className="flex items-center gap-2 mb-3">
             <Tag className="w-4 h-4 text-surface-400" />
-            <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300">热门搜索关键词</h3>
-            <Badge variant="outline" className="ml-auto text-xs">{topKeywords.length} 个</Badge>
+            <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300">{t('dashboard:favoritesHistory.history.hotKeywords')}</h3>
+            <Badge variant="outline" className="ml-auto text-xs">{t('dashboard:favoritesHistory.history.keywordsCount', { count: topKeywords.length })}</Badge>
           </div>
           <div className="flex flex-wrap gap-2">
             {topKeywords.map(({ keyword, count }) => {
@@ -670,7 +673,7 @@ export const HistoryManager: React.FC = () => {
                   onClick={() => navigate('/main')}
                   className="px-2.5 py-1 rounded-full bg-surface-100 dark:bg-surface-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 border border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-700 transition-all"
                   style={{ fontSize: size }}
-                  title={`搜索 ${count} 次`}
+                  title={t('dashboard:favoritesHistory.history.searchCountTitle', { count })}
                 >
                   {keyword}
                 </button>
@@ -684,7 +687,7 @@ export const HistoryManager: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Input
-              placeholder="搜索历史记录..."
+              placeholder={t('dashboard:favoritesHistory.history.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<Search className="w-5 h-5" />}
@@ -697,10 +700,10 @@ export const HistoryManager: React.FC = () => {
               onChange={(e) => setDateFilter(e.target.value as 'all' | 'today' | 'week' | 'month')}
               className="px-4 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 focus:ring-2 focus:ring-primary-500"
             >
-              <option value="all">全部时间</option>
-              <option value="today">今天</option>
-              <option value="week">最近一周</option>
-              <option value="month">最近一月</option>
+              <option value="all">{t('dashboard:favoritesHistory.history.dateFilterAll')}</option>
+              <option value="today">{t('dashboard:favoritesHistory.history.dateFilterToday')}</option>
+              <option value="week">{t('dashboard:favoritesHistory.history.dateFilterWeek')}</option>
+              <option value="month">{t('dashboard:favoritesHistory.history.dateFilterMonth')}</option>
             </select>
           </div>
         </div>
@@ -710,7 +713,7 @@ export const HistoryManager: React.FC = () => {
         <Card className="p-4 bg-gradient-to-r from-error-50 to-error-100/50 dark:from-error-900/20 dark:to-error-800/20 border-error-200 dark:border-error-800 shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-error-700 dark:text-error-300">
-              已选择 {selectedItems.size} 条记录
+              {t('dashboard:favoritesHistory.history.selected', { count: selectedItems.size })}
             </span>
             <div className="flex gap-2">
               <Button
@@ -719,14 +722,14 @@ export const HistoryManager: React.FC = () => {
                 onClick={handleBatchDelete}
                 leftIcon={<Trash2 className="w-4 h-4" />}
               >
-                批量删除
+                {t('dashboard:favoritesHistory.history.batchDelete')}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedItems(new Set())}
               >
-                取消选择
+                {t('dashboard:favoritesHistory.history.cancelSelection')}
               </Button>
             </div>
           </div>
@@ -774,7 +777,7 @@ export const HistoryManager: React.FC = () => {
                           <span>{formatDate(item.createdAt)}</span>
                           {item.resultsCount !== undefined && (
                             <span className="px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded">
-                              {item.resultsCount}条
+                              {t('dashboard:favoritesHistory.history.resultsCount', { count: item.resultsCount })}
                             </span>
                           )}
                           {item.source && (
@@ -787,7 +790,7 @@ export const HistoryManager: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => navigate('/main')}
-                          title="重新搜索此关键词"
+                          title={t('dashboard:favoritesHistory.history.reSearchTitle')}
                           className="text-primary-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                         >
                           <Search className="w-4 h-4" />
@@ -818,7 +821,7 @@ export const HistoryManager: React.FC = () => {
                           {item.duration && (
                             <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <Clock className="w-2.5 h-2.5" />
-                              {item.duration}分钟
+                              {t('dashboard:favoritesHistory.history.durationMin', { count: item.duration })}
                             </span>
                           )}
                           {item.releaseDate && (
@@ -854,8 +857,8 @@ export const HistoryManager: React.FC = () => {
       ) : (
         <EmptyState
           icon={<Clock className="w-12 h-12" />}
-          title="暂无搜索历史"
-          description="开始搜索后，历史记录将显示在这里"
+          title={t('dashboard:favoritesHistory.history.emptyTitle')}
+          description={t('dashboard:favoritesHistory.history.emptyDesc')}
         />
       )}
     </div>

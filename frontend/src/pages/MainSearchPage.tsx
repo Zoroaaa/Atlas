@@ -18,8 +18,10 @@ import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
 import { getSiteTypeBadge, getSiteTypeLabel } from '@/utils/siteType';
 import { getResultPanel } from '@/config/resultPanels';
+import { useTranslation } from 'react-i18next';
 
 export const MainSearchPage: React.FC = () => {
+  const { t } = useTranslation(['tabs', 'home', 'search']);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
@@ -137,11 +139,11 @@ export const MainSearchPage: React.FC = () => {
         <AnnouncementBar />
         <div className="mb-4 sm:mb-6 animate-fade-in">
           <h1 className="text-lg sm:text-xl lg:text-2xl text-heading">
-            嗨，<span className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
-              {isAuthenticated ? user?.username : '访客'}
+            {t('home:javSubmode.greeting')}，<span className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+              {isAuthenticated ? user?.username : t('home:javSubmode.guest')}
             </span> 👋
           </h1>
-          <p className="text-xs sm:text-sm text-caption mt-0.5">{SEARCH_TABS[activeTab].description}</p>
+          <p className="text-xs sm:text-sm text-caption mt-0.5">{t(SEARCH_TABS[activeTab].descriptionKey)}</p>
         </div>
 
         {activeTab !== 'sources' && (
@@ -151,9 +153,9 @@ export const MainSearchPage: React.FC = () => {
           {activeTab === 'jav' && (
             <div className="flex gap-2 mb-3 relative z-10">
               {[
-                { id: 'code' as const, label: '番号搜索', placeholder: '输入番号搜索，如 SONE-520' },
-                { id: 'actress' as const, label: '女优搜索', placeholder: '输入女优名搜索' },
-                { id: 'title' as const, label: '影片标题', placeholder: '输入影片标题搜索' },
+                { id: 'code' as const, labelKey: 'home:javSubmode.code.label', placeholderKey: 'home:javSubmode.code.placeholder' },
+                { id: 'actress' as const, labelKey: 'home:javSubmode.actress.label', placeholderKey: 'home:javSubmode.actress.placeholder' },
+                { id: 'title' as const, labelKey: 'home:javSubmode.title.label', placeholderKey: 'home:javSubmode.title.placeholder' },
               ].map((sub) => (
                 <button
                   key={sub.id}
@@ -171,7 +173,7 @@ export const MainSearchPage: React.FC = () => {
                       : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700'
                   }`}
                 >
-                  {sub.label}
+                  {t(sub.labelKey)}
                 </button>
               ))}
             </div>
@@ -184,11 +186,11 @@ export const MainSearchPage: React.FC = () => {
               <input type="text" placeholder={
                 activeTab === 'jav'
                   ? javSubMode === 'code'
-                    ? '输入番号搜索，如 SONE-520'
+                    ? t('home:javSubmode.code.placeholder')
                     : javSubMode === 'actress'
-                      ? '输入女优名搜索'
-                      : '输入影片标题搜索'
-                  : SEARCH_TABS[activeTab].placeholder
+                      ? t('home:javSubmode.actress.placeholder')
+                      : t('home:javSubmode.title.placeholder')
+                  : t(SEARCH_TABS[activeTab].placeholderKey)
               } value={searchFlow.keyword}
                 onChange={(e) => searchFlow.setKeyword(e.target.value)} onKeyDown={searchFlow.handleKeyDown}
                 onFocus={() => setIsInputFocused(true)}
@@ -208,7 +210,7 @@ export const MainSearchPage: React.FC = () => {
             </div>
             <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching || (activeTab === 'jav' && javSubMode === 'code' && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid)} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
               {searchFlow.isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" strokeWidth={2.5} />}
-              <span>搜索</span>
+              <span>{t('home:javSubmode.searchButton')}</span>
             </button>
           </div>
           {/* JAV 子模式提示 */}
@@ -216,13 +218,13 @@ export const MainSearchPage: React.FC = () => {
             <div className="relative z-10">
               {/* 番号格式错误提示：仅在输入框未聚焦时显示，避免与搜索建议冲突 */}
               {javSubMode === 'code' && !isInputFocused && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid && (
-                <p className="text-xs text-red-400 mt-2 ml-1">格式請按照【SONE-520】或【SONE520】搜尋</p>
+                <p className="text-xs text-red-400 mt-2 ml-1">{t('search:javFormatHint')}</p>
               )}
               {javSubMode === 'actress' && (
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：可直接輸入中文名（簡繁均可）或日文名，系統自動轉換為日文搜尋</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">{t('search:actressNameHint')}</p>
               )}
               {javSubMode === 'title' && (
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">提示：請嘗試縮短字數，並優先使用【日文】搜尋</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">{t('search:actressShortenHint')}</p>
               )}
             </div>
           )}

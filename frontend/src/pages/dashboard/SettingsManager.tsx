@@ -14,16 +14,21 @@ import {
   Settings,
 } from 'lucide-react';
 import { Card, Button, Input, Tabs, Modal } from '@/components/ui';
-import { useAuthStore, useThemeStore } from '@/stores';
+import { useAuthStore, useThemeStore, useLanguageStore } from '@/stores';
 import { userApi, authApi } from '@/services/api';
 import { useNotification } from '@/hooks';
 import { useValidationRules } from '@/contexts';
+import { useTranslation } from 'react-i18next';
+import i18next from '@/i18n';
+import { SUPPORTED_LANGUAGES, type Language } from '@/i18n/config';
 
 export const SettingsManager: React.FC = () => {
   const navigate = useNavigate();
   const notification = useNotification();
+  const { t } = useTranslation(['common', 'dashboard']);
   const { user, logout } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
+  const { language, setLanguage } = useLanguageStore();
   const validationRules = useValidationRules();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
@@ -163,16 +168,16 @@ export const SettingsManager: React.FC = () => {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      notification.error('密码不匹配', '两次输入的密码不一致');
+      notification.error(i18next.t('dashboard:settings.passwordMismatch'), i18next.t('dashboard:settings.passwordMismatchMsg'));
       return;
     }
 
     if (passwordForm.newPassword.length < validationRules.PASSWORD_MIN_LENGTH) {
-      notification.error('密码太短', `密码至少需要${validationRules.PASSWORD_MIN_LENGTH}个字符`);
+      notification.error(i18next.t('dashboard:settings.passwordTooShort'), i18next.t('dashboard:settings.passwordTooShortMsg', { count: validationRules.PASSWORD_MIN_LENGTH }));
       return;
     }
     if (passwordForm.newPassword.length > validationRules.PASSWORD_MAX_LENGTH) {
-      notification.error('密码太长', `密码最多${validationRules.PASSWORD_MAX_LENGTH}个字符`);
+      notification.error(i18next.t('dashboard:settings.passwordTooLong'), i18next.t('dashboard:settings.passwordTooLongMsg', { count: validationRules.PASSWORD_MAX_LENGTH }));
       return;
     }
     
@@ -197,15 +202,15 @@ export const SettingsManager: React.FC = () => {
 
   const handleRequestEmailChange = async () => {
     if (!emailChangeForm.newEmail) {
-      notification.error('请输入新邮箱');
+      notification.error(i18next.t('dashboard:settings.newEmailRequired'));
       return;
     }
     if (!validationRules.EMAIL_REGEX.test(emailChangeForm.newEmail)) {
-      notification.error('请输入有效的邮箱地址');
+      notification.error(i18next.t('dashboard:settings.emailInvalid'));
       return;
     }
     if (!emailChangeForm.currentPassword) {
-      notification.error('请输入当前密码');
+      notification.error(i18next.t('dashboard:settings.currentPasswordRequired'));
       return;
     }
 
@@ -266,7 +271,7 @@ export const SettingsManager: React.FC = () => {
   const handleVerifyEmailChange = async () => {
     const cleanCode = emailChangeForm.verificationCode.replace(/\s/g, '');
     if (cleanCode.length !== 6) {
-      notification.error('请输入6位验证码');
+      notification.error(i18next.t('dashboard:settings.code6DigitsRequired'));
       return;
     }
 
@@ -305,7 +310,7 @@ export const SettingsManager: React.FC = () => {
       const response = await authApi.cancelEmailChangeRequest(emailChangeRequestId);
       
       if (response.success) {
-        notification.success('邮箱更改请求已取消');
+        notification.success(i18next.t('dashboard:settings.cancelSuccess'));
         setEmailChangeModal(false);
         setEmailChangeStep('request');
         setEmailChangeForm({ newEmail: '', currentPassword: '', verificationCode: '' });
@@ -313,10 +318,10 @@ export const SettingsManager: React.FC = () => {
         setEmailChangeMaskedEmail('');
         setEmailChangeCountdown(0);
       } else {
-        notification.error(response.message || '取消失败');
+        notification.error(response.message || i18next.t('dashboard:settings.cancelFailed'));
       }
     } catch (error: any) {
-      notification.error(error.message || '取消失败');
+      notification.error(error.message || i18next.t('dashboard:settings.cancelFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -346,14 +351,14 @@ export const SettingsManager: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== '删除我的账户') {
-      notification.error('请输入正确的确认文字');
+    if (deleteConfirmText !== i18next.t('dashboard:settings.deleteConfirmText')) {
+      notification.error(i18next.t('dashboard:settings.deleteConfirmTextInvalid'));
       return;
     }
 
     const cleanCode = deleteVerificationCode.replace(/\s/g, '');
     if (cleanCode.length !== 6) {
-      notification.error('请输入6位验证码');
+      notification.error(i18next.t('dashboard:settings.code6DigitsRequired'));
       return;
     }
 
@@ -372,10 +377,10 @@ export const SettingsManager: React.FC = () => {
           navigate('/');
         }, 2000);
       } else {
-        notification.error('删除失败', response.message || '验证码错误');
+        notification.error(i18next.t('dashboard:settings.deleteFailed'), response.message || i18next.t('dashboard:settings.codeError'));
       }
     } catch (error: any) {
-      notification.error('删除失败', error.message);
+      notification.error(i18next.t('dashboard:settings.deleteFailed'), error.message);
     } finally {
       setIsLoading(false);
     }
@@ -389,22 +394,22 @@ export const SettingsManager: React.FC = () => {
         setEmailChangeStep('request');
         setEmailChangeForm({ newEmail: '', currentPassword: '', verificationCode: '' });
       }}
-      title="更改邮箱"
+      title={t('dashboard:settings.changeEmailTitle')}
       size="md"
     >
       {emailChangeStep === 'request' ? (
         <div className="space-y-4">
           <div className="p-4 bg-gradient-to-r from-surface-50 to-surface-100 dark:from-surface-800/50 dark:to-surface-800 rounded-xl">
-            <p className="text-sm text-surface-600 dark:text-surface-400">当前邮箱</p>
+            <p className="text-sm text-surface-600 dark:text-surface-400">{t('dashboard:settings.currentEmail')}</p>
             <p className="font-medium text-surface-900 dark:text-surface-100">
               {maskEmail(user?.email || '')}
             </p>
           </div>
 
           <Input
-            label="新邮箱地址"
+            label={t('dashboard:settings.newEmailLabel')}
             type="email"
-            placeholder="请输入新邮箱"
+            placeholder={t('dashboard:settings.newEmailPlaceholder')}
             value={emailChangeForm.newEmail}
             onChange={(e) => setEmailChangeForm({ ...emailChangeForm, newEmail: e.target.value })}
             leftIcon={<Mail className="w-5 h-5" />}
@@ -412,9 +417,9 @@ export const SettingsManager: React.FC = () => {
           />
 
           <Input
-            label="当前密码"
+            label={t('dashboard:settings.currentPasswordLabel')}
             type="password"
-            placeholder="请输入当前密码验证身份"
+            placeholder={t('dashboard:settings.currentPasswordPlaceholder')}
             value={emailChangeForm.currentPassword}
             onChange={(e) => setEmailChangeForm({ ...emailChangeForm, currentPassword: e.target.value })}
             leftIcon={<Lock className="w-5 h-5" />}
@@ -427,7 +432,7 @@ export const SettingsManager: React.FC = () => {
               fullWidth
               onClick={() => setEmailChangeModal(false)}
             >
-              取消
+              {t('dashboard:settings.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -436,7 +441,7 @@ export const SettingsManager: React.FC = () => {
               isLoading={isLoading}
               leftIcon={<Send className="w-5 h-5" />}
             >
-              发送验证码
+              {t('dashboard:settings.sendCode')}
             </Button>
           </div>
         </div>
@@ -447,14 +452,14 @@ export const SettingsManager: React.FC = () => {
               <Mail className="w-6 h-6 text-white" />
             </div>
             <p className="text-sm text-surface-600 dark:text-surface-400">
-              验证码已发送到 <span className="font-medium">{emailChangeMaskedEmail}</span>
+              {t('dashboard:settings.codeSentTo')} <span className="font-medium">{emailChangeMaskedEmail}</span>
             </p>
           </div>
 
           <Input
-            label="验证码"
+            label={t('dashboard:settings.verificationCodeLabel')}
             type="text"
-            placeholder={`请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`}
+            placeholder={t('dashboard:settings.verifyCodePlaceholder', { count: validationRules.VERIFICATION_CODE_LENGTH })}
             value={emailChangeForm.verificationCode}
             onChange={(e) => setEmailChangeForm({ 
               ...emailChangeForm, 
@@ -467,10 +472,10 @@ export const SettingsManager: React.FC = () => {
 
           {emailChangeCountdown > 0 ? (
             <p className="text-center text-sm text-surface-500">
-              验证码 {formatCountdown(emailChangeCountdown)} 后过期
+              {t('dashboard:settings.codeExpiresIn', { countdown: formatCountdown(emailChangeCountdown) })}
             </p>
           ) : (
-            <p className="text-center text-sm text-error-500">验证码已过期</p>
+            <p className="text-center text-sm text-error-500">{t('dashboard:settings.codeExpired')}</p>
           )}
 
           <div className="flex gap-3">
@@ -479,7 +484,7 @@ export const SettingsManager: React.FC = () => {
               fullWidth
               onClick={() => setEmailChangeStep('request')}
             >
-              返回
+              {t('dashboard:settings.back')}
             </Button>
             <Button
               variant="primary"
@@ -487,7 +492,7 @@ export const SettingsManager: React.FC = () => {
               onClick={handleVerifyEmailChange}
               isLoading={isLoading}
             >
-              验证并更改
+              {t('dashboard:settings.verifyAndChange')}
             </Button>
           </div>
 
@@ -499,7 +504,7 @@ export const SettingsManager: React.FC = () => {
               isLoading={isLoading}
               className="text-error-600 hover:text-error-700 hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
             >
-              取消此次更换
+              {t('dashboard:settings.cancelChange')}
             </Button>
           </div>
 
@@ -510,7 +515,7 @@ export const SettingsManager: React.FC = () => {
               disabled={emailChangeCountdown > 0 || isLoading}
               className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {emailChangeCountdown > 0 ? `重新发送 (${formatCountdown(emailChangeCountdown)})` : '重新发送验证码'}
+              {emailChangeCountdown > 0 ? `${t('dashboard:settings.resend')} (${formatCountdown(emailChangeCountdown)})` : t('dashboard:settings.resendCode')}
             </button>
           </div>
         </div>
@@ -527,7 +532,7 @@ export const SettingsManager: React.FC = () => {
         setDeleteConfirmText('');
         setDeleteVerificationCode('');
       }}
-      title="删除账户"
+      title={t('dashboard:settings.deleteAccount')}
       size="md"
     >
       {deleteAccountStep === 'confirm' ? (
@@ -539,16 +544,16 @@ export const SettingsManager: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-error-700 dark:text-error-400 mb-1">
-                  警告：此操作无法撤销
+                  {t('dashboard:settings.warningCannotUndo')}
                 </h4>
                 <p className="text-sm text-error-600 dark:text-error-400">
-                  删除账户将永久移除您的所有数据，包括：
+                  {t('dashboard:settings.deleteAccountWarningDesc')}
                 </p>
                 <ul className="text-sm text-error-600 dark:text-error-400 mt-2 list-disc list-inside">
-                  <li>个人资料和设置</li>
-                  <li>所有收藏夹</li>
-                  <li>搜索历史记录</li>
-                  <li>社区分享的搜索源</li>
+                  <li>{t('dashboard:settings.deleteItemProfile')}</li>
+                  <li>{t('dashboard:settings.deleteItemFavorites')}</li>
+                  <li>{t('dashboard:settings.deleteItemHistory')}</li>
+                  <li>{t('dashboard:settings.deleteItemSources')}</li>
                 </ul>
               </div>
             </div>
@@ -560,7 +565,7 @@ export const SettingsManager: React.FC = () => {
               fullWidth
               onClick={() => setDeleteAccountModal(false)}
             >
-              取消
+              {t('dashboard:settings.cancel')}
             </Button>
             <Button
               variant="danger"
@@ -568,7 +573,7 @@ export const SettingsManager: React.FC = () => {
               onClick={handleSendDeleteCode}
               isLoading={isLoading}
             >
-              我理解风险，继续
+              {t('dashboard:settings.iUnderstandContinue')}
             </Button>
           </div>
         </div>
@@ -579,31 +584,31 @@ export const SettingsManager: React.FC = () => {
               <AlertTriangle className="w-6 h-6 text-white" />
             </div>
             <p className="text-sm text-surface-600 dark:text-surface-400">
-              验证码已发送到 <span className="font-medium">{deleteMaskedEmail}</span>
+              {t('dashboard:settings.codeSentTo')} <span className="font-medium">{deleteMaskedEmail}</span>
             </p>
           </div>
 
           <div className="p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
             <p className="text-sm text-surface-600 dark:text-surface-400 mb-2">
-              请输入以下文字确认删除：
+              {t('dashboard:settings.deleteConfirmPrompt')}
             </p>
             <p className="font-mono font-bold text-surface-900 dark:text-surface-100">
-              删除我的账户
+              {t('dashboard:settings.deleteConfirmText')}
             </p>
           </div>
 
           <Input
             type="text"
-            placeholder="请输入确认文字"
+            placeholder={t('dashboard:settings.confirmTextPlaceholder')}
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             fullWidth
           />
 
           <Input
-            label="验证码"
+            label={t('dashboard:settings.verificationCodeLabel')}
             type="text"
-            placeholder={`请输入${validationRules.VERIFICATION_CODE_LENGTH}位验证码`}
+            placeholder={t('dashboard:settings.verifyCodePlaceholder', { count: validationRules.VERIFICATION_CODE_LENGTH })}
             value={deleteVerificationCode}
             onChange={(e) => setDeleteVerificationCode(formatVerificationCode(e.target.value))}
             fullWidth
@@ -613,10 +618,10 @@ export const SettingsManager: React.FC = () => {
 
           {deleteCountdown > 0 ? (
             <p className="text-center text-sm text-surface-500">
-              验证码 {formatCountdown(deleteCountdown)} 后过期
+              {t('dashboard:settings.codeExpiresIn', { countdown: formatCountdown(deleteCountdown) })}
             </p>
           ) : (
-            <p className="text-center text-sm text-error-500">验证码已过期</p>
+            <p className="text-center text-sm text-error-500">{t('dashboard:settings.codeExpired')}</p>
           )}
 
           <div className="flex gap-3">
@@ -625,7 +630,7 @@ export const SettingsManager: React.FC = () => {
               fullWidth
               onClick={() => setDeleteAccountStep('confirm')}
             >
-              返回
+              {t('dashboard:settings.back')}
             </Button>
             <Button
               variant="danger"
@@ -633,7 +638,7 @@ export const SettingsManager: React.FC = () => {
               onClick={handleDeleteAccount}
               isLoading={isLoading}
             >
-              确认删除账户
+              {t('dashboard:settings.confirmDeleteAccount')}
             </Button>
           </div>
 
@@ -644,7 +649,7 @@ export const SettingsManager: React.FC = () => {
               disabled={deleteCountdown > 0 || isLoading}
               className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {deleteCountdown > 0 ? `重新发送 (${formatCountdown(deleteCountdown)})` : '重新发送验证码'}
+              {deleteCountdown > 0 ? `${t('dashboard:settings.resend')} (${formatCountdown(deleteCountdown)})` : t('dashboard:settings.resendCode')}
             </button>
           </div>
         </div>
@@ -660,19 +665,19 @@ export const SettingsManager: React.FC = () => {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-            系统设置
+            {t('dashboard:settings.systemSettings')}
           </h2>
           <p className="text-surface-500 dark:text-surface-400">
-            管理您的账户和偏好设置
+            {t('dashboard:settings.manageAccountSubtitle')}
           </p>
         </div>
       </div>
 
       <Tabs
         tabs={[
-          { id: 'profile', label: '个人资料', icon: <User className="w-4 h-4" /> },
-          { id: 'security', label: '安全设置', icon: <Shield className="w-4 h-4" /> },
-          { id: 'appearance', label: '外观设置', icon: <Palette className="w-4 h-4" /> },
+          { id: 'profile', label: t('dashboard:settings.tabProfile'), icon: <User className="w-4 h-4" /> },
+          { id: 'security', label: t('dashboard:settings.tabSecurity'), icon: <Shield className="w-4 h-4" /> },
+          { id: 'appearance', label: t('dashboard:settings.tabAppearance'), icon: <Palette className="w-4 h-4" /> },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -684,18 +689,18 @@ export const SettingsManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
               <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
             </div>
-            个人资料
+            {t('dashboard:settings.profile')}
           </h3>
           <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-md">
             <Input
-              label="用户名"
+              label={t('dashboard:settings.usernameLabel')}
               value={profileForm.username}
               onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
               fullWidth
             />
             <div className="space-y-2">
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                邮箱
+                {t('dashboard:settings.email')}
               </label>
               <div className="flex items-center gap-3">
                 <div className="flex-1 p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl">
@@ -708,12 +713,12 @@ export const SettingsManager: React.FC = () => {
                   onClick={() => setEmailChangeModal(true)}
                   leftIcon={<Mail className="w-4 h-4" />}
                 >
-                  更改
+                  {t('dashboard:settings.change')}
                 </Button>
               </div>
             </div>
             <Button type="submit" variant="primary" isLoading={isLoading}>
-              保存更改
+              {t('dashboard:settings.saveChanges')}
             </Button>
           </form>
         </Card>
@@ -726,11 +731,11 @@ export const SettingsManager: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-success-100 dark:bg-success-900/30 flex items-center justify-center">
                 <Lock className="w-4 h-4 text-success-600 dark:text-success-400" />
               </div>
-              修改密码
-            </h3>
+            {t('dashboard:settings.changePassword')}
+          </h3>
             <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
               <Input
-                label="当前密码"
+                label={t('dashboard:settings.currentPasswordLabel')}
                 type={showPassword ? 'text' : 'password'}
                 value={passwordForm.currentPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
@@ -738,7 +743,7 @@ export const SettingsManager: React.FC = () => {
                 fullWidth
               />
               <Input
-                label="新密码"
+                label={t('dashboard:settings.newPasswordLabel')}
                 type={showPassword ? 'text' : 'password'}
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
@@ -755,7 +760,7 @@ export const SettingsManager: React.FC = () => {
                 fullWidth
               />
               <Input
-                label="确认新密码"
+                label={t('dashboard:settings.confirmNewPasswordLabel')}
                 type={showPassword ? 'text' : 'password'}
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
@@ -763,7 +768,7 @@ export const SettingsManager: React.FC = () => {
                 fullWidth
               />
               <Button type="submit" variant="primary" isLoading={isLoading}>
-                修改密码
+                {t('dashboard:settings.changePassword')}
               </Button>
             </form>
           </Card>
@@ -773,17 +778,17 @@ export const SettingsManager: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-error-100 dark:bg-error-900/30 flex items-center justify-center">
                 <AlertTriangle className="w-4 h-4 text-error-600 dark:text-error-400" />
               </div>
-              危险操作
-            </h3>
+            {t('dashboard:settings.dangerZone')}
+          </h3>
             <p className="text-sm text-surface-600 dark:text-surface-400 mb-4">
-              以下操作不可撤销，请谨慎操作
+              {t('dashboard:settings.dangerZoneDesc')}
             </p>
             <Button
               variant="danger"
               onClick={() => setDeleteAccountModal(true)}
               leftIcon={<Trash2 className="w-4 h-4" />}
             >
-              删除账户
+              {t('dashboard:settings.deleteAccount')}
             </Button>
           </Card>
         </div>
@@ -795,18 +800,18 @@ export const SettingsManager: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
               <Palette className="w-4 h-4 text-accent-600 dark:text-accent-400" />
             </div>
-            外观设置
+            {t('dashboard:settings.appearance')}
           </h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">
-                主题模式
+                {t('dashboard:settings.themeMode')}
               </label>
               <div className="flex gap-3">
                 {[
-                  { value: 'light', label: '浅色', icon: '☀️' },
-                  { value: 'dark', label: '深色', icon: '🌙' },
-                  { value: 'system', label: '跟随系统', icon: '💻' },
+                  { value: 'light', label: t('dashboard:settings.themeLight'), icon: '☀️' },
+                  { value: 'dark', label: t('dashboard:settings.themeDark'), icon: '🌙' },
+                  { value: 'system', label: t('dashboard:settings.themeSystem'), icon: '💻' },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -819,6 +824,27 @@ export const SettingsManager: React.FC = () => {
                   >
                     <span className="text-xl">{option.icon}</span>
                     <span className="font-medium">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">
+                {t('common:languageLabel')}
+              </label>
+              <div className="flex gap-3 flex-wrap">
+                {SUPPORTED_LANGUAGES.map((option) => (
+                  <button
+                    key={option.code}
+                    onClick={() => setLanguage(option.code as Language)}
+                    className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all duration-200 ${
+                      language === option.code
+                        ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-accent-50 text-primary-600 dark:from-primary-900/20 dark:to-accent-900/20 dark:text-primary-400 shadow-md'
+                        : 'border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-600'
+                    }`}
+                  >
+                    <span className="font-medium">{option.nativeName}</span>
                   </button>
                 ))}
               </div>

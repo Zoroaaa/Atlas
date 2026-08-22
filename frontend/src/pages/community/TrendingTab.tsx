@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Film, Tv, BookOpen, Eye, Heart, MessageSquare, Bookmark, Calendar, User, Award, Users, Library } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Card, Loading, Badge } from '@/components/ui';
@@ -7,15 +8,16 @@ import { useToast } from '@/components/ui/Toast';
 import type { CommunityPost } from '@/types/community';
 
 const POST_TYPE_CONFIG = {
-  jav: { label: '番号', icon: Film, color: 'text-rose-500' },
-  anime: { label: '动漫', icon: Tv, color: 'text-rose-500' },
-  movie: { label: '影视', icon: Film, color: 'text-amber-500' },
-  manga: { label: '漫画', icon: BookOpen, color: 'text-violet-500' },
-  novel: { label: '小说', icon: Library, color: 'text-emerald-500' },
-  actress: { label: '女优', icon: Users, color: 'text-pink-500' },
+  jav: { icon: Film, color: 'text-rose-500' },
+  anime: { icon: Tv, color: 'text-rose-500' },
+  movie: { icon: Film, color: 'text-amber-500' },
+  manga: { icon: BookOpen, color: 'text-violet-500' },
+  novel: { icon: Library, color: 'text-emerald-500' },
+  actress: { icon: Users, color: 'text-pink-500' },
 };
 
 export const TrendingTab: React.FC = () => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const [popular, setPopular] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ export const TrendingTab: React.FC = () => {
       try {
         const response = await communityApi.getPosts({ sort: 'hot', pageSize: 10 });
         if (!cancelled) setPopular(response.items || []);
-      } catch { if (!cancelled) toast.error('加载失败'); } finally { if (!cancelled) setLoading(false); }
+      } catch { if (!cancelled) toast.error(t('communityPages:trending.loadFailed')); } finally { if (!cancelled) setLoading(false); }
     };
     load();
     return () => { cancelled = true; };
@@ -68,7 +70,7 @@ export const TrendingTab: React.FC = () => {
           <div className="flex items-center gap-2 mt-0.5">
             <Badge variant="default" size="sm" className={typeConfig.color}>
               <TypeIcon className="w-3 h-3 mr-1" />
-              {typeConfig.label}
+              {t(`communityPages:trending.types.${post.postType}`)}
             </Badge>
           </div>
           <div className="flex items-center gap-3 text-xs text-stone-500 mt-1">
@@ -83,7 +85,7 @@ export const TrendingTab: React.FC = () => {
             <Calendar className="w-3 h-3" />{formatDate(post.createdAt)}
           </p>
           <p className="text-xs text-stone-400 flex items-center gap-1 justify-end">
-            <User className="w-3 h-3" />{post.userName || '匿名'}
+            <User className="w-3 h-3" />{post.userName || t('communityPages:trending.anonymous')}
           </p>
         </div>
       </div>
@@ -96,7 +98,7 @@ export const TrendingTab: React.FC = () => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
             <Award className="w-5 h-5 text-yellow-500" />
-            最受欢迎排行
+            {t('communityPages:trending.title')}
           </h3>
         </div>
       </Card>
@@ -104,7 +106,7 @@ export const TrendingTab: React.FC = () => {
       <Card className="p-5">
         <div className="mb-4 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
           <p className="text-sm text-stone-600 dark:text-stone-400">
-            <strong>排序规则：</strong>按浏览量、点赞数综合排序，浏览量和点赞数越高排名越靠前。
+            <strong>{t('communityPages:trending.rules')}</strong>{t('communityPages:trending.rulesDescription')}
           </p>
         </div>
 
@@ -114,7 +116,7 @@ export const TrendingTab: React.FC = () => {
         {popular.length === 0 && (
           <div className="text-center py-8">
             <Award className="w-12 h-12 mx-auto text-stone-300 mb-2" />
-            <p className="text-sm text-stone-400">暂无数据</p>
+            <p className="text-sm text-stone-400">{t('communityPages:trending.empty')}</p>
           </div>
         )}
       </Card>

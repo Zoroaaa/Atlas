@@ -4,6 +4,7 @@ import { useSearchMutation, useSearchHistory, useSearchSuggestions, searchHistor
 import { userApi, analyticsApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useQueryClient } from '@tanstack/react-query';
+import i18next from '@/i18n';
 import { SEARCH_TABS } from '@/config/tabs';
 import type { SearchTabType, JavSubMode } from '@/types/source';
 import type { EnrichedSearchData, JavEnrichedData, NovelEnrichedData } from '@/types/search';
@@ -109,12 +110,12 @@ export function useSearchFlow({
     const effectiveSubMode = overrideSubMode ?? javSubMode;
     const query = overrideKeyword || keyword;
     if (!query.trim()) {
-      toast.warning('请输入搜索关键词');
+      toast.warning(i18next.t('errors:hooks.search.keywordRequired'));
       return;
     }
     // JAV 番号搜索格式校验：仅 code 模式生效
     if (activeTab === 'jav' && effectiveSubMode === 'code' && !isValidJavCode(query)) {
-      toast.warning('格式有误', '格式請按照【SONE-520】或【SONE520】搜尋');
+      toast.warning(i18next.t('errors:hooks.search.formatErrorTitle'), i18next.t('errors:hooks.search.formatErrorMessage'));
       return;
     }
     // 关闭搜索建议
@@ -154,11 +155,11 @@ export function useSearchFlow({
             if (errorMsg && javData.total === 0) {
               // 区分不同错误类型，给出更精确的提示
               if (errorMsg.includes('未找到') || errorMsg.includes('无该')) {
-                toast.info('无该资源', errorMsg);
+                toast.info(i18next.t('errors:hooks.search.resourceNotFoundTitle'), errorMsg);
               } else if (errorMsg.includes('格式') || errorMsg.includes('无效')) {
-                toast.warning('格式有误', errorMsg);
+                toast.warning(i18next.t('errors:hooks.search.formatErrorTitle'), errorMsg);
               } else {
-                toast.info('暂无结果', errorMsg);
+                toast.info(i18next.t('errors:hooks.search.noResultsTitle'), errorMsg);
               }
             }
 
@@ -205,7 +206,7 @@ export function useSearchFlow({
               const errors = enriched.errors as Record<string, string | null>;
               const errorKeys = Object.keys(errors).filter(k => errors[k]);
               if (errorKeys.length > 0) {
-                toast.info('暂无相关资源', '尝试更换关键词或稍后再试');
+                toast.info(i18next.t('errors:hooks.search.noRelatedResourcesTitle'), i18next.t('errors:hooks.search.noRelatedResourcesMessage'));
               }
             }
           }
@@ -223,7 +224,7 @@ export function useSearchFlow({
           }));
           setSearchResults(mappedResults);
           if (mappedResults.length === 0) {
-            toast.info('未找到结果', '尝试更换关键词搜索');
+            toast.info(i18next.t('errors:hooks.search.notFoundTitle'), i18next.t('errors:hooks.search.notFoundMessage'));
           }
         }
         const trimmed = query.trim().toUpperCase();
@@ -237,8 +238,8 @@ export function useSearchFlow({
         }
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '搜索失败，请稍后重试';
-      toast.error('搜索失败', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : i18next.t('errors:hooks.search.searchFailedDefault');
+      toast.error(i18next.t('errors:hooks.search.searchFailedTitle'), errorMessage);
     } finally {
       setSearching(false);
     }

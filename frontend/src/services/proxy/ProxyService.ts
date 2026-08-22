@@ -4,6 +4,7 @@ import {
   type ProxyStatus,
   type ProxyStatusInfo,
 } from './proxy-config';
+import i18next from '@/i18n';
 
 class ProxyService {
   private currentStatus: ProxyStatus = proxyConfig.status.DISABLED;
@@ -57,7 +58,7 @@ class ProxyService {
 
       if (!result.success) {
         this.currentStatus = proxyConfig.status.ERROR;
-        return { success: false, error: result.error || '代理服务器连接失败' };
+        return { success: false, error: result.error || i18next.t('errors:proxy.serverConnectionFailed') };
       }
 
       this.currentStatus = proxyConfig.status.ENABLED;

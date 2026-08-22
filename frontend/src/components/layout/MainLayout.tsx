@@ -8,8 +8,10 @@ import { clsx } from 'clsx';
 import { User, Moon, Sun, Menu, X } from 'lucide-react';
 import { useAuthStore, useThemeStore, useUIStore } from '@/stores';
 import { Button } from '@/components/ui';
+import { useTranslation } from 'react-i18next';
 
 export const MainLayout: React.FC = () => {
+  const { t } = useTranslation(['nav']);
   const { isAuthenticated, user } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isSidebarOpen, setSidebarOpen } = useUIStore();
@@ -28,7 +30,7 @@ export const MainLayout: React.FC = () => {
               <a
                 href={window.location.pathname}
                 className="flex items-center gap-2.5 group cursor-pointer"
-                title="刷新页面"
+                title={t('nav:main.refreshPage')}
               >
                 <div className="relative w-10 h-10">
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] opacity-0 group-hover:opacity-20 blur-lg transition-all" />
@@ -46,11 +48,11 @@ export const MainLayout: React.FC = () => {
               <nav className="hidden md:flex items-center gap-1">
                 {isAuthenticated ? (
                   <>
-                    <NavLink to="/main">主页</NavLink>
-                    <NavLink to="/dashboard">控制台</NavLink>
+                    <NavLink to="/main">{t('nav:main.home')}</NavLink>
+                    <NavLink to="/dashboard">{t('nav:userMenu.dashboard')}</NavLink>
                   </>
                 ) : (
-                  <NavLink to="/">首页</NavLink>
+                  <NavLink to="/">{t('nav:main.landing')}</NavLink>
                 )}
               </nav>
             </div>
@@ -60,7 +62,7 @@ export const MainLayout: React.FC = () => {
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200 active:scale-95"
-                aria-label="切换主题"
+                aria-label={t('nav:theme.toggle')}
               >
                 {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -76,8 +78,8 @@ export const MainLayout: React.FC = () => {
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>登录</Button>
-                  <Button variant="primary" size="sm" onClick={() => navigate('/register')}>注册</Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>{t('nav:userMenu.login')}</Button>
+                  <Button variant="primary" size="sm" onClick={() => navigate('/register')}>{t('nav:userMenu.register')}</Button>
                 </div>
               )}
 
@@ -112,7 +114,7 @@ export const MainLayout: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-stone-400 dark:text-stone-500">
-              © {new Date().getFullYear()} Atlas. 保留所有权利.
+              {t('nav:main.copyright', { year: new Date().getFullYear() })}
             </p>
           </div>
         </div>

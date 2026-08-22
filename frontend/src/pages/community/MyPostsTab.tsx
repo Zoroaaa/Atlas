@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import {
   FileText,
@@ -15,21 +16,22 @@ import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/components/ui/Toast';
 
-const STATUS_CONFIG = {
-  all: { label: '全部', value: '' },
-  active: { label: '已发布', value: 'active' },
-  pending: { label: '审核中', value: 'pending' },
-  rejected: { label: '已拒绝', value: 'rejected' },
+const STATUS_CONFIG: Record<string, { labelKey: string; value: string }> = {
+  all: { labelKey: 'statusAll', value: '' },
+  active: { labelKey: 'statusActive', value: 'active' },
+  pending: { labelKey: 'statusPending', value: 'pending' },
+  rejected: { labelKey: 'statusRejected', value: 'rejected' },
 };
 
-const STATUS_BADGE = {
-  active: { label: '已发布', variant: 'success' as const },
-  pending: { label: '审核中', variant: 'warning' as const },
-  rejected: { label: '已拒绝', variant: 'error' as const },
-  hidden: { label: '已隐藏', variant: 'default' as const },
+const STATUS_BADGE: Record<string, { labelKey: string; variant: 'success' | 'warning' | 'error' | 'default' }> = {
+  active: { labelKey: 'statusActive', variant: 'success' },
+  pending: { labelKey: 'statusPending', variant: 'warning' },
+  rejected: { labelKey: 'statusRejected', variant: 'error' },
+  hidden: { labelKey: 'statusHidden', variant: 'default' },
 };
 
 export const MyPostsTab: React.FC = () => {
+  const { t } = useTranslation(['communityPages']);
   const toast = useToast();
   const { isAuthenticated } = useAuthStore();
   const {
@@ -80,24 +82,24 @@ export const MyPostsTab: React.FC = () => {
         caption: editForm.caption,
         tags: editForm.tags,
       });
-      toast.success('更新成功');
+      toast.success(t('communityPages:myPosts.updateSuccess'));
       setEditModal({ open: false, post: null });
       handleRefresh();
     } catch (error) {
       console.error('更新失败:', error);
-      toast.error('更新失败，请重试');
+      toast.error(t('communityPages:myPosts.updateFailed'));
     }
   };
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('确定要删除这个帖子吗？此操作不可恢复。')) return;
+    if (!confirm(t('communityPages:myPosts.deleteConfirm'))) return;
     try {
       await deletePost(postId);
-      toast.success('已删除');
+      toast.success(t('communityPages:myPosts.deleted'));
       handleRefresh();
     } catch (error) {
       console.error('删除失败:', error);
-      toast.error('删除失败，请重试');
+      toast.error(t('communityPages:myPosts.deleteFailed'));
     }
   };
 
@@ -105,8 +107,8 @@ export const MyPostsTab: React.FC = () => {
     return (
       <EmptyState
         icon={<FileText className="w-10 h-10" />}
-        title="请先登录"
-        description="登录后可查看和管理你发布的帖子"
+        title={t('communityPages:myPosts.loginRequiredTitle')}
+        description={t('communityPages:myPosts.loginRequiredDescription')}
       />
     );
   }
@@ -117,18 +119,18 @@ export const MyPostsTab: React.FC = () => {
       {userStats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: '发布帖子', value: userStats.postsCount, icon: FileText, color: 'text-amber-700 bg-amber-50 dark:bg-amber-900/20' },
-            { label: '获得点赞', value: userStats.likesReceived, icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
-            { label: '被收藏', value: userStats.favoritesReceived, icon: Bookmark, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
-            { label: '收到评论', value: userStats.commentsCount, icon: MessageSquare, color: 'text-rose-700 bg-rose-50 dark:bg-rose-900/20' },
+            { labelKey: 'communityPages:myPosts.statPostsCount', value: userStats.postsCount, icon: FileText, color: 'text-amber-700 bg-amber-50 dark:bg-amber-900/20' },
+            { labelKey: 'communityPages:myPosts.statLikesReceived', value: userStats.likesReceived, icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
+            { labelKey: 'communityPages:myPosts.statFavoritesReceived', value: userStats.favoritesReceived, icon: Bookmark, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
+            { labelKey: 'communityPages:myPosts.statCommentsCount', value: userStats.commentsCount, icon: MessageSquare, color: 'text-rose-700 bg-rose-50 dark:bg-rose-900/20' },
           ].map(item => (
-            <Card key={item.label} padding="md">
+            <Card key={item.labelKey} padding="md">
               <div className="flex items-center gap-3">
                 <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center', item.color)}>
                   <item.icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">{item.label}</p>
+                  <p className="text-xs text-stone-400">{t(item.labelKey)}</p>
                   <p className="text-lg font-bold text-stone-900 dark:text-stone-100">{item.value}</p>
                 </div>
               </div>
@@ -151,12 +153,12 @@ export const MyPostsTab: React.FC = () => {
                   : 'bg-stone-100 dark:bg-stone-800 text-stone-600 hover:bg-stone-200 dark:hover:bg-stone-700'
               )}
             >
-              {config.label}
+              {t(`communityPages:myPosts.${config.labelKey}`)}
             </button>
           ))}
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh}>
-          <RefreshCw className="w-4 h-4 mr-1" />刷新
+          <RefreshCw className="w-4 h-4 mr-1" />{t('communityPages:myPosts.refresh')}
         </Button>
       </div>
 
@@ -166,8 +168,10 @@ export const MyPostsTab: React.FC = () => {
       ) : myPosts.length === 0 ? (
         <EmptyState
           icon={<FileText className="w-10 h-10" />}
-          title="还没有帖子"
-          description={statusFilter ? `${STATUS_CONFIG[statusFilter as keyof typeof STATUS_CONFIG]?.label}的帖子为空` : '分享你的发现，让更多人看到'}
+          title={t('communityPages:myPosts.emptyTitle')}
+          description={statusFilter
+            ? t('communityPages:myPosts.emptyWithFilter', { label: t(`communityPages:myPosts.${STATUS_CONFIG[statusFilter as keyof typeof STATUS_CONFIG]?.labelKey || 'statusAll'}`) })
+            : t('communityPages:myPosts.emptyDefault')}
         />
       ) : (
         <div className="space-y-3">
@@ -195,7 +199,9 @@ export const MyPostsTab: React.FC = () => {
                           variant={STATUS_BADGE[post.status]?.variant || 'default'}
                           size="sm"
                         >
-                          {STATUS_BADGE[post.status]?.label || post.status}
+                          {STATUS_BADGE[post.status]
+                            ? t(`communityPages:myPosts.${STATUS_BADGE[post.status].labelKey}`)
+                            : post.status}
                         </Badge>
                         <span className="text-xs text-stone-400 uppercase">{post.postType}</span>
                       </div>
@@ -207,7 +213,7 @@ export const MyPostsTab: React.FC = () => {
                         <button
                           onClick={() => openEdit(post)}
                           className="p-1.5 rounded-lg text-stone-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-                          title="编辑"
+                          title={t('communityPages:myPosts.edit')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -215,7 +221,7 @@ export const MyPostsTab: React.FC = () => {
                       <button
                         onClick={() => handleDelete(post.id)}
                         className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                        title="删除"
+                        title={t('communityPages:myPosts.delete')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -249,14 +255,14 @@ export const MyPostsTab: React.FC = () => {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
-            >上一页</Button>
+            >{t('communityPages:myPosts.prevPage')}</Button>
             <span className="mx-3 px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600">{page}</span>
             <Button
               variant="outline"
               size="sm"
               disabled={myPosts.length < 20}
               onClick={() => setPage(p => p + 1)}
-            >下一页</Button>
+            >{t('communityPages:myPosts.nextPage')}</Button>
           </div>
         </div>
       )}
@@ -265,24 +271,24 @@ export const MyPostsTab: React.FC = () => {
       <Modal
         isOpen={editModal.open}
         onClose={() => setEditModal({ open: false, post: null })}
-        title="编辑帖子"
+        title={t('communityPages:myPosts.editTitle')}
         size="md"
       >
         {editModal.post && (
           <div className="space-y-4">
             <TextArea
-              label="推荐语"
+              label={t('communityPages:myPosts.captionLabel')}
               value={editForm.caption}
               onChange={(e) => setEditForm(f => ({ ...f, caption: e.target.value }))}
-              placeholder="修改推荐语..."
+              placeholder={t('communityPages:myPosts.captionPlaceholder')}
               rows={3}
               fullWidth
-              hint={`${editForm.caption.length}/200`}
+              hint={t('communityPages:myPosts.captionHint', { count: editForm.caption.length })}
             />
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setEditModal({ open: false, post: null })}>取消</Button>
-              <Button variant="primary" onClick={handleEditSave}>保存修改</Button>
+              <Button variant="outline" onClick={() => setEditModal({ open: false, post: null })}>{t('communityPages:myPosts.cancel')}</Button>
+              <Button variant="primary" onClick={handleEditSave}>{t('communityPages:myPosts.save')}</Button>
             </div>
           </div>
         )}

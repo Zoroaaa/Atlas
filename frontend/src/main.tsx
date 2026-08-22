@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ConfigProvider } from '@/contexts';
 import { installGlobalErrorListeners } from '@/components/ErrorBoundary';
+import i18next from '@/i18n';
+import '@/i18n';
 import './index.css';
 
 // 安装全局错误监听（window.onerror + unhandledrejection）
@@ -23,16 +25,16 @@ if ('serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/'
       });
-      
-      console.log('Service Worker 注册成功:', registration.scope);
-      
+
+      console.log(i18next.t('sw:registerSuccess', { scope: registration.scope }));
+
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // 新 SW 已安装完毕，通知用户刷新
-              if (confirm('发现新版本，是否立即更新？')) {
+              if (confirm(i18next.t('sw:updatePrompt'))) {
                 newWorker.postMessage({ type: 'SKIP_WAITING' });
               }
             }
@@ -40,7 +42,7 @@ if ('serviceWorker' in navigator) {
         }
       });
     } catch (error) {
-      console.error('Service Worker 注册失败:', error);
+      console.error(i18next.t('sw:registerFailed', { error: String(error) }));
     }
   });
   

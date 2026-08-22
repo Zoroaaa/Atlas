@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, ExternalLink, Heart, RefreshCw, ChevronLeft, ChevronRight, Download, User, Building2, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { FavoriteItem } from '@/types';
 import type { NovelItem } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
@@ -27,6 +28,7 @@ const formatColor = (fmt: string): string => {
 function NovelCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isProxyEnabled }: {
   item: NovelItem; isAuthenticated: boolean; isFavorited: boolean; onToggleFavorite: (item: NovelItem) => void; isProxyEnabled: boolean;
 }) {
+  const { t } = useTranslation(['search']);
   const [descExpanded, setDescExpanded] = useState(false);
   const link = isProxyEnabled ? convertToProxyUrl(item.detailUrl) : item.detailUrl;
   return (
@@ -68,12 +70,12 @@ function NovelCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
               )}
               {item.source === '奇书网' && (
                 <span className="inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  奇书网 · TXT直链
+                  {t('search:novel.sourceQishu')}
                 </span>
               )}
               {isProxyEnabled && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  <ShieldCheck className="w-3 h-3" />代理
+                  <ShieldCheck className="w-3 h-3" />{t('search:novel.proxyAccessible')}
                 </span>
               )}
             </div>
@@ -85,7 +87,7 @@ function NovelCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
             {isAuthenticated && (
               <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(item); }}
                 className={`p-1.5 rounded-lg transition-all ${isFavorited ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}
-                title={isFavorited ? '取消收藏' : '收藏'}>
+                title={isFavorited ? t('search:novel.unfavorite') : t('search:novel.favorite')}>
                 <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
               </button>
             )}
@@ -111,7 +113,7 @@ function NovelCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
             {item.description.length > 80 && (
               <button onClick={() => setDescExpanded(!descExpanded)}
                 className="text-[10px] text-emerald-500 hover:text-emerald-600 mt-0.5">
-                {descExpanded ? '收起' : '展开全部'}
+                {descExpanded ? t('search:novel.collapse') : t('search:novel.expandAll')}
               </button>
             )}
           </div>
@@ -128,7 +130,7 @@ function NovelCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
               : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700/60 dark:text-stone-300 dark:hover:bg-stone-700'
           }`}>
           <Download className="w-3 h-3" />
-          详情 / 下载
+          {t('search:novel.detailDownload')}
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>
@@ -149,6 +151,7 @@ interface NovelSearchResultPanelProps {
 export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   data, isAuthenticated = false, isProxyEnabled = false, favorites = [], onRefresh, onToggleFavorite, onLoginRequired,
 }) => {
+  const { t } = useTranslation(['search']);
   const [localPage, setLocalPage] = useState(1);
   const PAGE_SIZE = 10;
   const list = data.novels ?? [];
@@ -161,7 +164,7 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs text-stone-500">共 {data.total} 条结果 · 来源 知轩藏书 + 奇书网</span>
+        <span className="text-xs text-stone-500">{t('search:novel.totalResults', { count: data.total })}</span>
         <div className="flex items-center gap-2">
           <ShareToCommunityButton
             postData={{
@@ -178,7 +181,7 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
             size="small"
           />
           {onRefresh && (
-            <button onClick={onRefresh} className="p-1.5 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="刷新">
+            <button onClick={onRefresh} className="p-1.5 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title={t('search:novel.refresh')}>
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           )}
@@ -187,19 +190,19 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
 
       {zxcsError && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs">
-          知轩藏书抓取失败：{zxcsError}
+          {t('search:novel.zxcsError', { error: zxcsError })}
         </div>
       )}
       {xqsError && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs">
-          奇书网抓取失败：{xqsError}
+          {t('search:novel.qishuError', { error: xqsError })}
         </div>
       )}
 
       {list.length === 0 && !zxcsError && !xqsError ? (
         <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <BookOpen className="w-10 h-10 mb-2" />
-          <span className="text-sm">没有找到相关电子书</span>
+          <span className="text-sm">{t('search:novel.empty')}</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -216,12 +219,12 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
         <div className="flex items-center justify-center gap-2 pt-3 border-t border-stone-100 dark:border-stone-800">
           <button disabled={localPage <= 1} onClick={() => setLocalPage(p => p - 1)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200">
-            <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+            <ChevronLeft className="w-3.5 h-3.5" />{t('search:novel.prevPage')}
           </button>
           <span className="text-xs text-stone-500 px-2">{localPage} / {totalPages}</span>
           <button disabled={localPage >= totalPages} onClick={() => setLocalPage(p => p + 1)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200">
-            下一页 <ChevronRight className="w-3.5 h-3.5" />
+            {t('search:novel.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

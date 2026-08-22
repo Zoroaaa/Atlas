@@ -2,9 +2,10 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/services/api/queryClient';
-import { useAuthStore, useThemeStore } from '@/stores';
+import { useAuthStore, useThemeStore, useLanguageStore } from '@/stores';
 import { apiClient } from '@/services/api';
 import { analyticsApi } from '@/services/api';
+import i18next from '@/i18n';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AdminPanelLayout } from '@/components/layout/AdminPanelLayout';
@@ -102,6 +103,7 @@ const PageTracker: React.FC = () => {
 const App: React.FC = () => {
   const { setUser, setLoading, logout } = useAuthStore();
   const { resolvedTheme } = useThemeStore();
+  const language = useLanguageStore((s) => s.language);
   const { communityEnabled } = useFeatureFlags();
 
   useEffect(() => {
@@ -116,6 +118,13 @@ const App: React.FC = () => {
       root.classList.remove('dark');
     }
   }, [resolvedTheme]);
+
+  // 语言切换兜底同步：store 状态变化时同步到 i18next
+  useEffect(() => {
+    if (i18next.language !== language) {
+      void i18next.changeLanguage(language);
+    }
+  }, [language]);
 
   useEffect(() => {
     const initAuth = async () => {

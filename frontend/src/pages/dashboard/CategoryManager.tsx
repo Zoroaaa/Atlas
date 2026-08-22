@@ -16,9 +16,10 @@ import { Card, Button, Input, Badge, Modal, Loading, EmptyState, Dropdown } from
 import { sourceApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/stores';
-import type { 
-  MajorCategory, 
-  Category, 
+import { useTranslation } from 'react-i18next';
+import type {
+  MajorCategory,
+  Category,
   CreateMajorCategoryRequest,
   UpdateMajorCategoryRequest,
   CreateCategoryRequest,
@@ -27,6 +28,7 @@ import type {
 
 export const CategoryManager: React.FC = () => {
   const toast = useToast();
+  const { t } = useTranslation(['dashboard']);
   const { user } = useAuthStore();
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   
@@ -83,7 +85,7 @@ export const CategoryManager: React.FC = () => {
         setCategories(categoriesRes.data);
       }
     } catch (_error) {
-      toast.error('加载失败', '无法加载分类数据');
+      toast.error(t('dashboard:categories.loadFailedTitle'), t('dashboard:categories.loadFailedDesc'));
     } finally {
       setIsLoading(false);
     }
@@ -106,14 +108,14 @@ export const CategoryManager: React.FC = () => {
 
   const handleCreateMajorCategory = async () => {
     if (!majorCategoryForm.name) {
-      toast.error('请输入大类名称');
+      toast.error(t('dashboard:categories.majorNameRequired'));
       return;
     }
-    
+
     try {
       const response = await sourceApi.createMajorCategory(majorCategoryForm);
       if (response.success) {
-        toast.success('创建成功');
+        toast.success(t('dashboard:categories.createSuccess'));
         setMajorCategoryModal({ isOpen: false, mode: 'create', data: null });
         setMajorCategoryForm({
           name: '',
@@ -124,16 +126,16 @@ export const CategoryManager: React.FC = () => {
         loadData(true);
       }
     } catch (_error) {
-      toast.error('创建失败', '请稍后重试');
+      toast.error(t('dashboard:categories.createFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
   const handleUpdateMajorCategory = async () => {
     if (!majorCategoryModal.data || !majorCategoryForm.name) {
-      toast.error('请输入大类名称');
+      toast.error(t('dashboard:categories.majorNameRequired'));
       return;
     }
-    
+
     try {
       const updateData: UpdateMajorCategoryRequest = {
         name: majorCategoryForm.name,
@@ -141,38 +143,38 @@ export const CategoryManager: React.FC = () => {
         icon: majorCategoryForm.icon,
         color: majorCategoryForm.color,
       };
-      
+
       await sourceApi.updateMajorCategory(majorCategoryModal.data.id, updateData);
-      toast.success('更新成功');
+      toast.success(t('dashboard:categories.updateSuccess'));
       setMajorCategoryModal({ isOpen: false, mode: 'create', data: null });
       loadData(true);
     } catch (_error) {
-      toast.error('更新失败', '请稍后重试');
+      toast.error(t('dashboard:categories.updateFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
   const handleDeleteMajorCategory = async (id: string) => {
-    if (!confirm('确定要删除这个大类吗？其下所有分类和搜索源也会被删除。')) return;
-    
+    if (!confirm(t('dashboard:categories.majorDeleteConfirm'))) return;
+
     try {
       await sourceApi.deleteMajorCategory(id);
-      toast.success('删除成功');
+      toast.success(t('dashboard:categories.deleteSuccess'));
       loadData(true);
     } catch (_error) {
-      toast.error('删除失败', '请稍后重试');
+      toast.error(t('dashboard:categories.deleteFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
   const handleCreateCategory = async () => {
     if (!categoryForm.name || !categoryForm.majorCategoryId) {
-      toast.error('请填写必填字段');
+      toast.error(t('dashboard:categories.requiredFields'));
       return;
     }
-    
+
     try {
       const response = await sourceApi.createCategory(categoryForm);
       if (response.success) {
-        toast.success('创建成功');
+        toast.success(t('dashboard:categories.createSuccess'));
         const currentMajorCategoryId = categoryForm.majorCategoryId;
         setCategoryModal({ isOpen: false, mode: 'create', data: null, majorCategoryId: null });
         setCategoryForm({
@@ -193,16 +195,16 @@ export const CategoryManager: React.FC = () => {
         loadData(true);
       }
     } catch (_error) {
-      toast.error('创建失败', '请稍后重试');
+      toast.error(t('dashboard:categories.createFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
   const handleUpdateCategory = async () => {
     if (!categoryModal.data || !categoryForm.name) {
-      toast.error('请输入分类名称');
+      toast.error(t('dashboard:categories.categoryNameRequired'));
       return;
     }
-    
+
     try {
       const updateData: UpdateCategoryRequest = {
         name: categoryForm.name,
@@ -213,25 +215,25 @@ export const CategoryManager: React.FC = () => {
         defaultSiteType: categoryForm.defaultSiteType,
         searchPriority: categoryForm.searchPriority,
       };
-      
+
       await sourceApi.updateCategory(categoryModal.data.id, updateData);
-      toast.success('更新成功');
+      toast.success(t('dashboard:categories.updateSuccess'));
       setCategoryModal({ isOpen: false, mode: 'create', data: null, majorCategoryId: null });
       loadData(true);
     } catch (_error) {
-      toast.error('更新失败', '请稍后重试');
+      toast.error(t('dashboard:categories.updateFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('确定要删除这个分类吗？其下所有搜索源也会被删除。')) return;
-    
+    if (!confirm(t('dashboard:categories.categoryDeleteConfirm'))) return;
+
     try {
       await sourceApi.deleteCategory(id);
-      toast.success('删除成功');
+      toast.success(t('dashboard:categories.deleteSuccess'));
       loadData(true);
     } catch (_error) {
-      toast.error('删除失败', '请稍后重试');
+      toast.error(t('dashboard:categories.deleteFailedTitle'), t('dashboard:categories.retryLater'));
     }
   };
 
@@ -285,7 +287,7 @@ export const CategoryManager: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loading size="lg" text="加载分类..." />
+        <Loading size="lg" text={t('dashboard:categories.loading')} />
       </div>
     );
   }
@@ -299,10 +301,10 @@ export const CategoryManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">
-              分类管理
+              {t('dashboard:categories.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              管理搜索源的大类和分类
+              {t('dashboard:categories.subtitle')}
             </p>
           </div>
         </div>
@@ -319,13 +321,13 @@ export const CategoryManager: React.FC = () => {
             setMajorCategoryModal({ isOpen: true, mode: 'create', data: null });
           }}
         >
-          添加大类
+          {t('dashboard:categories.addMajor')}
         </Button>
       </div>
 
       <Card className="p-5 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
         <Input
-          placeholder="搜索分类..."
+          placeholder={t('dashboard:categories.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           leftIcon={<Search className="w-5 h-5" />}
@@ -337,16 +339,16 @@ export const CategoryManager: React.FC = () => {
         {filteredMajorCategories.map(majorCategory => {
           const subCategories = getCategoriesByMajor(majorCategory.id);
           const isExpanded = expandedMajor.has(majorCategory.id);
-          
+
           return (
             <Card key={majorCategory.id} className="overflow-hidden border-surface-200/50 dark:border-surface-700/50 shadow-lg hover:shadow-xl transition-shadow">
-              <div 
+              <div
                 className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                 onClick={() => toggleMajorCategory(majorCategory.id)}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <ChevronRight className={`w-4 h-4 shrink-0 text-surface-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
-                  <div 
+                  <div
                     className="w-9 h-9 sm:w-12 sm:h-12 shrink-0 rounded-xl flex items-center justify-center text-white shadow-md"
                     style={{ backgroundColor: majorCategory.color || '#d4a853' }}
                   >
@@ -361,7 +363,7 @@ export const CategoryManager: React.FC = () => {
                       {majorCategory.name}
                     </h3>
                     <p className="text-xs sm:text-sm text-surface-500 dark:text-surface-400">
-                      {subCategories.length} 个分类
+                      {t('dashboard:categories.categoriesCount', { count: subCategories.length })}
                     </p>
                   </div>
                 </div>
@@ -369,7 +371,7 @@ export const CategoryManager: React.FC = () => {
                   {majorCategory.isSystem && (
                     <Badge variant="accent" className="hidden sm:flex items-center gap-1">
                       <Shield className="w-3 h-3" />
-                      系统
+                      {t('dashboard:categories.system')}
                     </Badge>
                   )}
                   <Dropdown
@@ -379,27 +381,27 @@ export const CategoryManager: React.FC = () => {
                       </Button>
                     }
                     items={[
-                      { label: '添加分类', onClick: () => openCreateCategoryModal(majorCategory.id) },
+                      { label: t('dashboard:categories.addCategory'), onClick: () => openCreateCategoryModal(majorCategory.id) },
                       ...(isAdmin || !majorCategory.isSystem ? [
-                        { label: '编辑', onClick: () => openEditMajorCategoryModal(majorCategory) },
-                        { label: '删除', onClick: () => handleDeleteMajorCategory(majorCategory.id), danger: true },
+                        { label: t('dashboard:categories.edit'), onClick: () => openEditMajorCategoryModal(majorCategory) },
+                        { label: t('dashboard:categories.delete'), onClick: () => handleDeleteMajorCategory(majorCategory.id), danger: true },
                       ] : []),
                     ]}
                   />
                 </div>
               </div>
-              
+
               {isExpanded && (
                 <div className="border-t border-surface-200 dark:border-surface-700">
                   {subCategories.length > 0 ? (
                     <div className="divide-y divide-surface-200 dark:divide-surface-700">
                       {subCategories.map(category => (
-                        <div 
+                        <div
                           key={category.id}
                           className="flex items-center gap-3 p-3 sm:p-4 sm:pl-16 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                         >
                           {/* Icon */}
-                          <div 
+                          <div
                             className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm"
                             style={{ backgroundColor: category.color || '#d4a853' }}
                           >
@@ -419,18 +421,21 @@ export const CategoryManager: React.FC = () => {
                               {category.isSystem && (
                                 <Badge variant="accent" className="hidden sm:flex items-center gap-1 text-xs shrink-0">
                                   <Shield className="w-2.5 h-2.5" />
-                                  系统
+                                  {t('dashboard:categories.system')}
                                 </Badge>
                               )}
                             </div>
                             {/* Badges on mobile go below name */}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <Badge variant={category.defaultSearchable ? 'success' : 'default'} className="text-xs">
-                                {category.defaultSearchable ? '可搜索' : '不可搜索'}
+                                {category.defaultSearchable ? t('dashboard:categories.searchable') : t('dashboard:categories.notSearchable')}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {category.defaultSiteType === 'search' ? '搜索' : 
-                                 category.defaultSiteType === 'browse' ? '浏览' : '参考'}
+                                {category.defaultSiteType === 'search'
+                                  ? t('dashboard:categories.siteTypeSearch')
+                                  : category.defaultSiteType === 'browse'
+                                    ? t('dashboard:categories.siteTypeBrowse')
+                                    : t('dashboard:categories.siteTypeReference')}
                               </Badge>
                               {category.description && (
                                 <span className="text-xs text-surface-500 dark:text-surface-400 truncate hidden sm:inline">
@@ -463,7 +468,7 @@ export const CategoryManager: React.FC = () => {
                               </>
                             )}
                             {category.isSystem && !isAdmin && (
-                              <span title="系统数据，仅管理员可编辑" className="p-1.5">
+                              <span title={t('dashboard:categories.systemDataLock')} className="p-1.5">
                                 <Lock className="w-4 h-4 text-surface-400" />
                               </span>
                             )}
@@ -475,7 +480,7 @@ export const CategoryManager: React.FC = () => {
                     <div className="p-8 text-center">
                       <FolderOpen className="w-10 h-10 mx-auto text-surface-300 dark:text-surface-600 mb-3" />
                       <p className="text-surface-500 dark:text-surface-400 mb-4">
-                        暂无分类
+                        {t('dashboard:categories.emptyCategoryTitle')}
                       </p>
                       <Button
                         variant="outline"
@@ -483,7 +488,7 @@ export const CategoryManager: React.FC = () => {
                         onClick={() => openCreateCategoryModal(majorCategory.id)}
                         leftIcon={<Plus className="w-4 h-4" />}
                       >
-                        添加分类
+                        {t('dashboard:categories.addCategory')}
                       </Button>
                     </div>
                   )}
@@ -492,15 +497,15 @@ export const CategoryManager: React.FC = () => {
             </Card>
           );
         })}
-        
+
         {filteredMajorCategories.length === 0 && (
           <EmptyState
             icon={<Tag className="w-12 h-12" />}
-            title="没有找到分类"
-            description="尝试调整搜索条件或添加新的大类"
+            title={t('dashboard:categories.emptyTitle')}
+            description={t('dashboard:categories.emptyDesc')}
             action={
               <Button variant="primary" onClick={() => setMajorCategoryModal({ isOpen: true, mode: 'create', data: null })}>
-                添加大类
+                {t('dashboard:categories.addMajor')}
               </Button>
             }
           />
@@ -510,42 +515,42 @@ export const CategoryManager: React.FC = () => {
       <Modal
         isOpen={majorCategoryModal.isOpen}
         onClose={() => setMajorCategoryModal({ isOpen: false, mode: 'create', data: null })}
-        title={majorCategoryModal.mode === 'edit' ? '编辑大类' : '添加大类'}
+        title={majorCategoryModal.mode === 'edit' ? t('dashboard:categories.majorModalEdit') : t('dashboard:categories.majorModalCreate')}
         size="md"
       >
         <div className="space-y-4">
           <Input
-            label="名称 *"
+            label={t('dashboard:categories.majorFormNameLabel')}
             value={majorCategoryForm.name}
             onChange={(e) => setMajorCategoryForm({ ...majorCategoryForm, name: e.target.value })}
-            placeholder="大类名称"
+            placeholder={t('dashboard:categories.majorFormNamePlaceholder')}
             fullWidth
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              描述
+              {t('dashboard:categories.majorFormDescriptionLabel')}
             </label>
             <textarea
               value={majorCategoryForm.description}
               onChange={(e) => setMajorCategoryForm({ ...majorCategoryForm, description: e.target.value })}
-              placeholder="大类描述"
+              placeholder={t('dashboard:categories.majorFormDescriptionPlaceholder')}
               rows={2}
               className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="图标"
+              label={t('dashboard:categories.majorFormIconLabel')}
               value={majorCategoryForm.icon}
               onChange={(e) => setMajorCategoryForm({ ...majorCategoryForm, icon: e.target.value })}
-              placeholder="emoji 或图标名"
+              placeholder={t('dashboard:categories.majorFormIconPlaceholder')}
               fullWidth
             />
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                颜色
+                {t('dashboard:categories.majorFormColorLabel')}
               </label>
               <input
                 type="color"
@@ -555,19 +560,19 @@ export const CategoryManager: React.FC = () => {
               />
             </div>
           </div>
-          
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
               onClick={() => setMajorCategoryModal({ isOpen: false, mode: 'create', data: null })}
             >
-              取消
+              {t('dashboard:categories.cancel')}
             </Button>
             <Button
               variant="primary"
               onClick={majorCategoryModal.mode === 'edit' ? handleUpdateMajorCategory : handleCreateMajorCategory}
             >
-              {majorCategoryModal.mode === 'edit' ? '保存' : '创建'}
+              {majorCategoryModal.mode === 'edit' ? t('dashboard:categories.save') : t('dashboard:categories.create')}
             </Button>
           </div>
         </div>
@@ -576,44 +581,44 @@ export const CategoryManager: React.FC = () => {
       <Modal
         isOpen={categoryModal.isOpen}
         onClose={() => setCategoryModal({ isOpen: false, mode: 'create', data: null, majorCategoryId: null })}
-        title={categoryModal.mode === 'edit' ? '编辑分类' : '添加分类'}
+        title={categoryModal.mode === 'edit' ? t('dashboard:categories.categoryModalEdit') : t('dashboard:categories.categoryModalCreate')}
         size="md"
       >
         {(() => {
           return (
         <div className="space-y-4">
           <Input
-            label="名称 *"
+            label={t('dashboard:categories.categoryFormNameLabel')}
             value={categoryForm.name}
             onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-            placeholder="分类名称"
+            placeholder={t('dashboard:categories.categoryFormNamePlaceholder')}
             fullWidth
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-              描述
+              {t('dashboard:categories.categoryFormDescriptionLabel')}
             </label>
             <textarea
               value={categoryForm.description}
               onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-              placeholder="分类描述"
+              placeholder={t('dashboard:categories.categoryFormDescriptionPlaceholder')}
               rows={2}
               className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="图标"
+              label={t('dashboard:categories.categoryFormIconLabel')}
               value={categoryForm.icon}
               onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
-              placeholder="emoji 或图标名"
+              placeholder={t('dashboard:categories.categoryFormIconPlaceholder')}
               fullWidth
             />
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                颜色
+                {t('dashboard:categories.categoryFormColorLabel')}
               </label>
               <input
                 type="color"
@@ -623,31 +628,31 @@ export const CategoryManager: React.FC = () => {
               />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                默认站点类型
+                {t('dashboard:categories.categoryFormSiteTypeLabel')}
               </label>
               <select
                 value={categoryForm.defaultSiteType}
                 onChange={(e) => setCategoryForm({ ...categoryForm, defaultSiteType: e.target.value as 'search' | 'browse' | 'reference' })}
                 className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100"
               >
-                <option value="search">搜索型</option>
-                <option value="browse">浏览型</option>
-                <option value="reference">参考型</option>
+                <option value="search">{t('dashboard:categories.categoryFormSiteTypeSearch')}</option>
+                <option value="browse">{t('dashboard:categories.categoryFormSiteTypeBrowse')}</option>
+                <option value="reference">{t('dashboard:categories.categoryFormSiteTypeReference')}</option>
               </select>
             </div>
             <Input
-              label="搜索优先级"
+              label={t('dashboard:categories.categoryFormPriorityLabel')}
               type="number"
               value={categoryForm.searchPriority}
               onChange={(e) => setCategoryForm({ ...categoryForm, searchPriority: parseInt(e.target.value) || 0 })}
               fullWidth
             />
           </div>
-          
+
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -655,21 +660,21 @@ export const CategoryManager: React.FC = () => {
               onChange={(e) => setCategoryForm({ ...categoryForm, defaultSearchable: e.target.checked })}
               className="rounded border-surface-300 dark:border-surface-600"
             />
-            <span className="text-sm text-surface-700 dark:text-surface-300">默认可搜索 *</span>
+            <span className="text-sm text-surface-700 dark:text-surface-300">{t('dashboard:categories.categoryFormDefaultSearchableLabel')}</span>
           </label>
-          
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
               onClick={() => setCategoryModal({ isOpen: false, mode: 'create', data: null, majorCategoryId: null })}
             >
-              取消
+              {t('dashboard:categories.cancel')}
             </Button>
             <Button
               variant="primary"
               onClick={categoryModal.mode === 'edit' ? handleUpdateCategory : handleCreateCategory}
             >
-              {categoryModal.mode === 'edit' ? '保存' : '创建'}
+              {categoryModal.mode === 'edit' ? t('dashboard:categories.save') : t('dashboard:categories.create')}
             </Button>
           </div>
         </div>

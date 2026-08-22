@@ -1,32 +1,62 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { useTranslation } from 'react-i18next';
+import i18next from '@/i18n';
+import { useLanguageStore } from '@/stores';
 
+/** 格式化时间戳为本地化日期字符串,跟随当前界面语言切换 locale */
 export const formatDate = (timestamp: number | null | undefined) => {
   if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleString('zh-CN');
+  const language = useLanguageStore.getState().language;
+  return new Date(timestamp).toLocaleString(language);
 };
 
+/** 格式化相对时间,使用 Intl.RelativeTimeFormat 跟随当前界面语言 */
 export const formatRelativeTime = (timestamp: number) => {
-  const diff = Date.now() - timestamp;
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(diff / 3600000);
-  const d = Math.floor(diff / 86400000);
-  if (m < 1) return '刚刚';
-  if (m < 60) return `${m}分钟前`;
-  if (h < 24) return `${h}小时前`;
-  return `${d}天前`;
+  const language = useLanguageStore.getState().language;
+  const diff = timestamp - Date.now();
+  const sec = Math.round(diff / 1000);
+  const min = Math.round(diff / 60000);
+  const hr = Math.round(diff / 3600000);
+  const day = Math.round(diff / 86400000);
+
+  const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+  if (Math.abs(day) >= 1) return rtf.format(day, 'day');
+  if (Math.abs(hr) >= 1) return rtf.format(hr, 'hour');
+  if (Math.abs(min) >= 1) return rtf.format(min, 'minute');
+  return rtf.format(sec, 'second');
 };
 
+/** 操作类型 -> i18n key 映射。消费端调用 t(actionLabels[actionType] || actionType) 解析。 */
 export const actionLabels: Record<string, string> = {
-  login: '登录成功', login_failed: '登录失败', logout: '登出',
-  search: '搜索', add_favorite: '添加收藏', remove_favorite: '取消收藏',
-  sync_favorites: '同步收藏', update_settings: '更新设置', change_password: '修改密码',
-  change_email: '修改邮箱', delete_account: '删除账户', clear_search_history: '清空历史',
-  share_source: '分享搜索源', review_source: '评价搜索源', report_source: '举报搜索源',
-  admin_update_user_status: '更新用户状态', admin_update_user_role: '更新用户角色',
-  admin_update_user_permissions: '更新用户权限', admin_terminate_session: '终止会话',
-  admin_cleanup: '清理数据', admin_handle_report: '处理举报',
+  login: 'admin:actions.login',
+  login_failed: 'admin:actions.login_failed',
+  logout: 'admin:actions.logout',
+  search: 'admin:actions.search',
+  add_favorite: 'admin:actions.add_favorite',
+  remove_favorite: 'admin:actions.remove_favorite',
+  sync_favorites: 'admin:actions.sync_favorites',
+  update_settings: 'admin:actions.update_settings',
+  change_password: 'admin:actions.change_password',
+  change_email: 'admin:actions.change_email',
+  delete_account: 'admin:actions.delete_account',
+  clear_search_history: 'admin:actions.clear_search_history',
+  share_source: 'admin:actions.share_source',
+  review_source: 'admin:actions.review_source',
+  report_source: 'admin:actions.report_source',
+  admin_update_user_status: 'admin:actions.admin_update_user_status',
+  admin_update_user_role: 'admin:actions.admin_update_user_role',
+  admin_update_user_permissions: 'admin:actions.admin_update_user_permissions',
+  admin_terminate_session: 'admin:actions.admin_terminate_session',
+  admin_cleanup: 'admin:actions.admin_cleanup',
+  admin_handle_report: 'admin:actions.admin_handle_report',
+};
+
+/** 解析操作类型为当前语言的标签文案。非组件环境调用,使用 i18next.t。 */
+export const resolveActionLabel = (actionType: string): string => {
+  const key = actionLabels[actionType];
+  return key ? i18next.t(key) : actionType;
 };
 
 export const actionColors: Record<string, string> = {
@@ -41,10 +71,11 @@ export const actionColors: Record<string, string> = {
 };
 
 export const Pagination: React.FC<{ page: number; totalPages: number; onPageChange: (p: number) => void }> = ({ page, totalPages, onPageChange }) => {
+  const { t } = useTranslation(['common']);
   if (totalPages <= 1) return null;
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200 dark:border-surface-700">
-      <div className="text-sm text-surface-500">第 {page} / {totalPages} 页</div>
+      <div className="text-sm text-surface-500">{t('common:pagination', { page, totalPages })}</div>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>
         <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}><ChevronRight className="w-4 h-4" /></Button>

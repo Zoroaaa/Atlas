@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import i18next from '@/i18n';
 
 export interface FeedbackSubmit {
   type: 'bug' | 'suggestion' | 'other';
@@ -62,7 +63,7 @@ export const feedbackApi = {
       '/feedback',
       data
     );
-    if (!res.success) throw new Error('提交失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.submitFailed'));
     return res.data;
   },
 
@@ -71,7 +72,7 @@ export const feedbackApi = {
     const res = await apiClient.get<{ success: boolean; data: PaginatedResult<FeedbackItem> }>(
       `/feedback/my?page=${page}&pageSize=${pageSize}`
     );
-    if (!res.success) throw new Error('获取失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.fetchFailed'));
     return res.data;
   },
 
@@ -96,7 +97,7 @@ export const feedbackApi = {
     const res = await apiClient.get<{ success: boolean; data: PaginatedResult<FeedbackItem> }>(
       `/feedback/admin/list?${q.toString()}`
     );
-    if (!res.success) throw new Error('获取失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.fetchFailed'));
     return res.data;
   },
 
@@ -105,7 +106,7 @@ export const feedbackApi = {
     const res = await apiClient.get<{ success: boolean; data: FeedbackStats }>(
       '/feedback/admin/stats'
     );
-    if (!res.success) throw new Error('获取统计失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.statsFailed'));
     return res.data;
   },
 
@@ -114,7 +115,7 @@ export const feedbackApi = {
     const res = await apiClient.get<{ success: boolean; data: FeedbackItem }>(
       `/feedback/admin/${id}`
     );
-    if (!res.success) throw new Error('获取详情失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.detailFailed'));
     return res.data;
   },
 
@@ -127,7 +128,7 @@ export const feedbackApi = {
       `/feedback/admin/${id}`,
       data
     );
-    if (!res.success) throw new Error('处理失败');
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.handleFailed'));
     return res.data;
   },
 };

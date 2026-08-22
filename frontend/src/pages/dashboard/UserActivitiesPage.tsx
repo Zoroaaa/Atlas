@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { clsx } from 'clsx';
 import {
   Activity,
@@ -14,6 +14,7 @@ import { userApi } from '@/services/api';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useTranslation } from 'react-i18next';
 
 interface Activity {
   id: string;
@@ -56,17 +57,18 @@ const actionColors: Record<string, { bg: string; text: string; icon: string }> =
   report_source: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', icon: '⚠' },
 };
 
-const actionFilterOptions = [
-  { value: '', label: '全部活动' },
-  { value: 'login', label: '登录' },
-  { value: 'login_failed', label: '登录失败' },
-  { value: 'search', label: '搜索' },
-  { value: 'add_favorite', label: '添加收藏' },
-  { value: 'remove_favorite', label: '取消收藏' },
-  { value: 'update_settings', label: '更新设置' },
+const actionFilterOptionKeys: Array<{ value: string; labelKey: string }> = [
+  { value: '', labelKey: 'dashboard:activities.filterAll' },
+  { value: 'login', labelKey: 'dashboard:activities.filterLogin' },
+  { value: 'login_failed', labelKey: 'dashboard:activities.filterLoginFailed' },
+  { value: 'search', labelKey: 'dashboard:activities.filterSearch' },
+  { value: 'add_favorite', labelKey: 'dashboard:activities.filterAddFavorite' },
+  { value: 'remove_favorite', labelKey: 'dashboard:activities.filterRemoveFavorite' },
+  { value: 'update_settings', labelKey: 'dashboard:activities.filterUpdateSettings' },
 ];
 
 export const UserActivitiesPage: React.FC = () => {
+  const { t } = useTranslation(['dashboard']);
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [stats, setStats] = useState<ActivityStats | null>(null);
@@ -74,6 +76,11 @@ export const UserActivitiesPage: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [actionFilter, setActionFilter] = useState('');
   const limit = 20;
+
+  const actionFilterOptions = useMemo(
+    () => actionFilterOptionKeys.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
+    [t]
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -147,15 +154,15 @@ export const UserActivitiesPage: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">我的活动记录</h1>
-          <p className="text-stone-500 dark:text-stone-400 mt-1">查看您最近的操作历史</p>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">{t('dashboard:activities.title')}</h1>
+          <p className="text-stone-500 dark:text-stone-400 mt-1">{t('dashboard:activities.subtitle')}</p>
         </div>
         <button
           onClick={fetchData}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
-          刷新
+          {t('dashboard:activities.refresh')}
         </button>
       </div>
 
@@ -163,19 +170,19 @@ export const UserActivitiesPage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">{stats.total}</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">总活动</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('dashboard:activities.statsTotal')}</p>
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.summary.logins}</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">本月登录</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('dashboard:activities.statsMonthlyLogins')}</p>
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.summary.thisWeekLogins}</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">本周登录</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('dashboard:activities.statsWeeklyLogins')}</p>
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.summary.failedLogins}</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">登录失败</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('dashboard:activities.statsFailedLogins')}</p>
           </Card>
         </div>
       )}
@@ -208,8 +215,8 @@ export const UserActivitiesPage: React.FC = () => {
         <Card className="p-8">
           <EmptyState
             icon={<Activity className="w-12 h-12" />}
-            title="暂无活动记录"
-            description="您还没有任何活动记录"
+            title={t('dashboard:activities.emptyTitle')}
+            description={t('dashboard:activities.emptyDesc')}
           />
         </Card>
       ) : (
@@ -282,7 +289,7 @@ export const UserActivitiesPage: React.FC = () => {
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-stone-500 dark:text-stone-400">
-                  共 {total} 条记录，第 {currentPage}/{totalPages} 页
+                  {t('dashboard:activities.pagination', { total, current: currentPage, totalPages })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button

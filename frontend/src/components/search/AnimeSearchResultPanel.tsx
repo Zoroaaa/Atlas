@@ -5,6 +5,8 @@ import {
   Tag, Heart, Users, Trophy, Film, ShieldCheck,
   LayoutGrid, List,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type {
   AnimeEnrichedData,
   BangumiSubject,
@@ -31,6 +33,7 @@ const fmt = {
 // ─── Nyaa 磁力卡片 ──────────────────────────────────────────────────
 
 function NyaaCard({ item }: { item: NyaaTorrent }) {
+  const { t } = useTranslation(['search']);
   return (
     <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
       {/* 左侧：标题 + 元信息 */}
@@ -38,7 +41,7 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
         <div className="flex items-center gap-1.5 min-w-0">
           {/* 可信标记 */}
           {item.trusted && (
-            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title="可信上传者" />
+            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title={t('search:anime.trustedUploader')} />
           )}
           {/* HD 标记 */}
           {item.title.toLowerCase().includes('1080') && (
@@ -55,7 +58,7 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
           <a
             href={item.magnet}
             className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-            title={`点击唤起 BT 客户端下载：${item.title}`}
+            title={t('search:anime.btDownloadHint', { title: item.title })}
           >
             {item.title}
           </a>
@@ -71,7 +74,7 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
       <div className="flex items-center gap-2">
         {/* 做种/下载 */}
         {item.hasSeedData === false ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400" title="DHT 网络，种子仍可获取">DHT</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400" title={t('search:anime.dhtHint')}>DHT</span>
         ) : (
           <span className={`text-xs font-medium ${fmt.seedColor(item.seeders)} tabular-nums`}>
             {item.seeders}<span className="text-stone-400 mx-0.5">/</span><span className="text-red-400">{item.leechers}</span>
@@ -79,7 +82,7 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
         )}
         {/* 操作按钮 */}
         <div className="flex items-center gap-0.5">
-          <CopyButton text={item.magnet} label="复制磁力链接" />
+          <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
         </div>
       </div>
     </div>
@@ -89,13 +92,14 @@ function NyaaCard({ item }: { item: NyaaTorrent }) {
 // ─── Mikan 磁力卡片 ──────────────────────────────────────────────────
 
 function MikanCard({ item }: { item: MikanItem }) {
+  const { t } = useTranslation(['search']);
   return (
     <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">Mikan</span>
           {item.group && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 rounded truncate max-w-[80px]" title={`字幕组：${item.group}`}>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 rounded truncate max-w-[80px]" title={t('search:anime.subgroup', { name: item.group })}>
               {item.group}
             </span>
           )}
@@ -103,7 +107,7 @@ function MikanCard({ item }: { item: MikanItem }) {
             <a
               href={item.magnet}
               className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-              title={`点击唤起 BT 客户端下载：${item.title}`}
+              title={t('search:anime.btDownloadHint', { title: item.title })}
             >
               {item.title}
             </a>
@@ -120,7 +124,7 @@ function MikanCard({ item }: { item: MikanItem }) {
       </div>
 
       <div className="flex items-center gap-2">
-        {item.magnet && <CopyButton text={item.magnet} label="复制磁力链接" />}
+        {item.magnet && <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />}
       </div>
     </div>
   );
@@ -129,6 +133,7 @@ function MikanCard({ item }: { item: MikanItem }) {
 // ─── showRSS 磁力卡片 ────────────────────────────────────────────────
 
 function ShowRssCard({ item }: { item: ShowRssItem }) {
+  const { t } = useTranslation(['search']);
   return (
     <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
       <div className="min-w-0">
@@ -138,7 +143,7 @@ function ShowRssCard({ item }: { item: ShowRssItem }) {
             <a
               href={item.magnet}
               className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-              title={`点击唤起 BT 客户端下载：${item.title}`}
+              title={t('search:anime.btDownloadHint', { title: item.title })}
             >
               {item.title}
             </a>
@@ -151,7 +156,7 @@ function ShowRssCard({ item }: { item: ShowRssItem }) {
       </div>
 
       <div className="flex items-center gap-2">
-        {item.magnet && <CopyButton text={item.magnet} label="复制磁力链接" />}
+        {item.magnet && <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />}
       </div>
     </div>
   );
@@ -173,9 +178,9 @@ const statusColor = (s?: string) => {
   }
 };
 
-const typeLabel = (t?: string | number) => {
-  const m: Record<string | number, string> = { 2:'TV',6:'剧场版',4:'Web',3:'音乐','tv':'TV','movie':'剧场版','ova':'OVA','web':'Web','music':'音乐' };
-  return t != null ? (m[t] ?? String(t)) : '';
+const typeLabel = (t: TFunction, tf?: string | number) => {
+  const m: Record<string | number, string> = { 2:'TV',6:t('search:anime.type.movie'),4:'Web',3:t('search:anime.type.music'),'tv':'TV','movie':t('search:anime.type.movie'),'ova':'OVA','web':'Web','music':t('search:anime.type.music') };
+  return tf != null ? (m[tf] ?? String(tf)) : '';
 };
 
 // ─── Bangumi 卡片（详细元数据展示） ─────────────────────────────────
@@ -186,7 +191,9 @@ const BangumiCard: React.FC<{
   isFavorited: boolean;
   onToggleFavorite: (subject: BangumiSubject) => void;
   isProxyEnabled: boolean;
-}> = ({ subject, isAuthenticated, isFavorited, onToggleFavorite, isProxyEnabled }) => (
+}> = ({ subject, isAuthenticated, isFavorited, onToggleFavorite, isProxyEnabled }) => {
+  const { t } = useTranslation(['search']);
+  return (
   <div
     className="group flex gap-4 p-4 rounded-xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-amber-500/50 hover:bg-stone-50 dark:hover:bg-stone-800/70 transition-all"
   >
@@ -210,7 +217,7 @@ const BangumiCard: React.FC<{
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
             {subject.type && (
               <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${typeColor(subject.type)}`}>
-                {typeLabel(subject.type)}
+                {typeLabel(t, subject.type)}
               </span>
             )}
             {subject.status && (
@@ -225,7 +232,7 @@ const BangumiCard: React.FC<{
             )}
             {isProxyEnabled && (
               <span className="shrink-0 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                <ShieldCheck className="w-3 h-3" />代理
+                <ShieldCheck className="w-3 h-3" />{t('search:anime.proxy')}
               </span>
             )}
           </div>
@@ -246,7 +253,7 @@ const BangumiCard: React.FC<{
                   ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
                   : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
               }`}
-              title={isFavorited ? '取消收藏' : '收藏'}
+              title={isFavorited ? t('search:anime.unfavorite') : t('search:anime.favorite')}
             >
               <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
             </button>
@@ -283,13 +290,13 @@ const BangumiCard: React.FC<{
           {subject.collection && (
             <>
               {subject.collection.collect > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px]" title="收藏人数">
+                <span className="flex items-center gap-0.5 text-[10px]" title={t('search:anime.collectCount')}>
                   <Heart className="w-3 h-3 text-red-400" />
                   {(subject.collection.collect / 1000).toFixed(1)}k
                 </span>
               )}
               {subject.collection.doing > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px]" title="在看人数">
+                <span className="flex items-center gap-0.5 text-[10px]" title={t('search:anime.watchingCount')}>
                   <Users className="w-3 h-3 text-amber-400" />
                   {subject.collection.doing}
                 </span>
@@ -299,7 +306,7 @@ const BangumiCard: React.FC<{
 
           {subject.eps > 0 && (
             <span className="flex items-center gap-1">
-              <Tv className="w-3 h-3" />{subject.eps} 集
+              <Tv className="w-3 h-3" />{t('search:anime.epsCount', { count: subject.eps })}
             </span>
           )}
           {subject.airDate && (
@@ -336,7 +343,8 @@ const BangumiCard: React.FC<{
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // ─── main component ──────────────────────────────────────────────────────────
 
@@ -363,6 +371,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   onToggleFavorite,
   onLoginRequired,
 }) => {
+  const { t } = useTranslation(['search']);
   const [localPage, setLocalPage] = useState(1);
   // 各源独立分页 state
   const [atosPage, setAtosPage] = useState(1);
@@ -405,8 +414,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
         <div className="flex items-center gap-3">
           {hasResults && (
             <div className="flex items-center gap-1.5 text-xs text-stone-500">
-              <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-medium">多源聚合</span>
-              <span>共 {data.total} 条资源</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 font-medium">{t('search:anime.multiSource')}</span>
+              <span>{t('search:anime.totalResources', { count: data.total })}</span>
               {(nyaaList.length > 0) && (
                 <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300">Nyaa {nyaaList.length}</span>
               )}
@@ -422,7 +431,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             </div>
           )}
           {!hasResults && (
-            <span className="text-xs text-stone-500">磁力 {data.total} 条</span>
+            <span className="text-xs text-stone-500">{t('search:anime.magnetTotal', { count: data.total })}</span>
           )}
         </div>
         {onRefresh && (
@@ -449,7 +458,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
               onClick={onRefresh}
               className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
             >
-              <RefreshCw className="w-3 h-3" /> 刷新
+              <RefreshCw className="w-3 h-3" /> {t('search:anime.refresh')}
             </button>
           </div>
         )}
@@ -463,9 +472,9 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
                   : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
               }`}
-              title="按作品聚合展示"
+              title={t('search:anime.groupedViewTitle')}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />聚合
+              <LayoutGrid className="w-3.5 h-3.5" />{t('search:anime.grouped')}
             </button>
             <button
               onClick={() => setViewMode('sources')}
@@ -474,9 +483,9 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
                   : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
               }`}
-              title="按数据源分区展示"
+              title={t('search:anime.sourcesViewTitle')}
             >
-              <List className="w-3.5 h-3.5" />分源
+              <List className="w-3.5 h-3.5" />{t('search:anime.sourcesView')}
             </button>
           </div>
         )}
@@ -488,31 +497,31 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
           {hasBgmError && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
-              <span>Bangumi 请求失败：{data.errors.bangumi}</span>
+              <span>{t('search:anime.bangumiError', { error: data.errors.bangumi })}</span>
             </div>
           )}
           {data.errors?.nyaa && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
-              <span>Nyaa 请求失败：{data.errors.nyaa}</span>
+              <span>{t('search:anime.nyaaError', { error: data.errors.nyaa })}</span>
             </div>
           )}
           {data.errors?.mikan && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
-              <span>Mikan 请求失败：{data.errors.mikan}</span>
+              <span>{t('search:anime.mikanError', { error: data.errors.mikan })}</span>
             </div>
           )}
           {data.errors?.animetosho && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
-              <span>AnimeTosho 请求失败：{data.errors.animetosho}</span>
+              <span>{t('search:anime.animetoshoError', { error: data.errors.animetosho })}</span>
             </div>
           )}
           {data.errors?.showrss && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm dark:bg-orange-500/10 dark:border-orange-500/30 dark:text-orange-400">
               <Wifi className="w-4 h-4 flex-shrink-0" />
-              <span>showRSS 请求失败：{data.errors.showrss}</span>
+              <span>{t('search:anime.showrssError', { error: data.errors.showrss })}</span>
             </div>
           )}
         </div>
@@ -522,8 +531,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
       {!hasResults && bgmList.length === 0 && !hasBgmError && !hasNyaaError && !hasAtosError && !hasMikanError && !hasSrError && (
         <div className="text-center py-16">
           <Wifi className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">未找到相关结果</p>
-          <p className="text-xs text-stone-400 mt-1">尝试更换关键词</p>
+          <p className="text-sm text-stone-500">{t('search:anime.empty')}</p>
+          <p className="text-xs text-stone-400 mt-1">{t('search:anime.emptyHint')}</p>
         </div>
       )}
 
@@ -547,7 +556,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-amber-500" />
               <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                Bangumi 条目
+                {t('search:anime.bangumiEntry')}
               </h2>
               <a
                 href={`https://bgm.tv/search/${encodeURIComponent(data.keyword)}`}
@@ -555,7 +564,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                 rel="noopener noreferrer"
                 className="ml-auto text-xs text-amber-500 hover:text-amber-400 transition-colors"
               >
-                更多 →
+                {t('search:anime.more')}
               </a>
             </div>
             <div className="space-y-2">
@@ -574,7 +583,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
         ) : hasBgmError ? null : (
           <div className="rounded-xl border p-6 text-center bg-white dark:bg-stone-800/30 border-stone-200 dark:border-stone-700">
             <Star className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-            <p className="text-sm text-stone-500">未找到 Bangumi 条目</p>
+            <p className="text-sm text-stone-500">{t('search:anime.noBangumiEntry')}</p>
           </div>
         )}
 
@@ -584,8 +593,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
           {!hasResults && (
             <div className="text-center py-12 bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60">
               <Magnet className="w-8 h-8 text-stone-400 mx-auto mb-3" />
-              <p className="text-sm text-stone-500">未找到磁力资源</p>
-              <p className="text-xs text-stone-400 mt-1">尝试更换关键词或数据源</p>
+              <p className="text-sm text-stone-500">{t('search:anime.noMagnetResources')}</p>
+              <p className="text-xs text-stone-400 mt-1">{t('search:anime.noMagnetHint')}</p>
             </div>
           )}
 
@@ -597,10 +606,10 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                     <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400" />
                   </div>
-                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">Nyaa 资源</span>
-                  <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full">{nyaaList.length} 条</span>
+                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('search:anime.nyaaResources')}</span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full">{t('search:anime.countItems', { count: nyaaList.length })}</span>
                 </div>
-                <a href={`https://nyaa.si/?f=0&c=1_0&q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-amber-500 hover:text-amber-400 transition-colors">Nyaa 站内搜索 →</a>
+                <a href={`https://nyaa.si/?f=0&c=1_0&q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-amber-500 hover:text-amber-400 transition-colors">{t('search:anime.nyaaSearch')}</a>
               </div>
 
               {/* 内容区 */}
@@ -608,8 +617,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                 <div className="space-y-1.5">
                   {/* 表头 */}
                   <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-                    <span>标题 / 分类 / 大小 / 日期</span>
-                    <span className="text-right">状态 · 操作</span>
+                    <span>{t('search:anime.resourceHeader')}</span>
+                    <span className="text-right">{t('search:anime.statusActions')}</span>
                   </div>
 
                   {/* 资源列表 */}
@@ -629,11 +638,11 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                  hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                                  dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                     >
-                      <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                      <ChevronLeft className="w-3.5 h-3.5" /> {t('search:anime.prevPage')}
                     </button>
                     <span className="text-xs text-stone-500 px-2">
                       {localPage} / {totalPages}
-                      <span className="ml-1 text-stone-400">（共 {activeTorrents.length} 条）</span>
+                      <span className="ml-1 text-stone-400">{t('search:anime.totalCount', { count: activeTorrents.length })}</span>
                     </span>
                     <button
                       disabled={localPage >= totalPages}
@@ -642,7 +651,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                  hover:bg-stone-200 hover:text-stone-700 transition-all
                                  dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                     >
-                      下一页 <ChevronRight className="w-3.5 h-3.5" />
+                      {t('search:anime.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -658,16 +667,16 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
                     <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
                   </div>
-                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">AnimeTosho 资源</span>
-                  <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{atosList.length} 条</span>
+                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('search:anime.animetoshoResources')}</span>
+                  <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{t('search:anime.countItems', { count: atosList.length })}</span>
                 </div>
-                <a href={`https://feed.animetosho.org/json?filter=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-rose-500 hover:text-rose-400 transition-colors">AT 站内搜索 →</a>
+                <a href={`https://feed.animetosho.org/json?filter=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-rose-500 hover:text-rose-400 transition-colors">{t('search:anime.atSearch')}</a>
               </div>
               <div className="p-4 sm:p-5">
                 <div className="space-y-1.5">
                   <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-                    <span>标题 / 大小 / 日期</span>
-                    <span className="text-right">操作</span>
+                    <span>{t('search:anime.resourceHeader')}</span>
+                    <span className="text-right">{t('search:anime.actions')}</span>
                   </div>
                   {/* 计算分页 */}
                   {(() => {
@@ -688,11 +697,11 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                              <ChevronLeft className="w-3.5 h-3.5" /> {t('search:anime.prevPage')}
                             </button>
                             <span className="text-xs text-stone-500 px-2">
                               {atosPage} / {atosTotalPages}
-                              <span className="ml-1 text-stone-400">（共 {atosList.length} 条）</span>
+                              <span className="ml-1 text-stone-400">{t('search:anime.totalCount', { count: atosList.length })}</span>
                             </span>
                             <button
                               disabled={atosPage >= atosTotalPages}
@@ -701,7 +710,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                              {t('search:anime.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -722,10 +731,10 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                     <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 dark:text-emerald-400" />
                   </div>
                   <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">
-                    Mikan 资源
+                    {t('search:anime.mikanResources')}
                   </span>
                   <span className="px-2 py-0.5 text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
-                    {mikanList.length} 条
+                    {t('search:anime.countItems', { count: mikanList.length })}
                   </span>
                 </div>
                 <a
@@ -734,14 +743,14 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   rel="noopener noreferrer"
                   className="text-[10px] text-emerald-500 hover:text-emerald-400 transition-colors"
                 >
-                  Mikan 站内搜索 →
+                  {t('search:anime.mikanSearch')}
                 </a>
               </div>
               <div className="p-4 sm:p-5">
                 <div className="space-y-1.5">
                   <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-                    <span>标题 / 字幕组 / 大小 / 日期</span>
-                    <span className="text-right">操作</span>
+                    <span>{t('search:anime.resourceHeader')}</span>
+                    <span className="text-right">{t('search:anime.actions')}</span>
                   </div>
                   {/* 计算分页 */}
                   {(() => {
@@ -762,11 +771,11 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                              <ChevronLeft className="w-3.5 h-3.5" /> {t('search:anime.prevPage')}
                             </button>
                             <span className="text-xs text-stone-500 px-2">
                               {mikanPage} / {mikanTotalPages}
-                              <span className="ml-1 text-stone-400">（共 {mikanList.length} 条）</span>
+                              <span className="ml-1 text-stone-400">{t('search:anime.totalCount', { count: mikanList.length })}</span>
                             </span>
                             <button
                               disabled={mikanPage >= mikanTotalPages}
@@ -775,7 +784,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                              {t('search:anime.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -796,10 +805,10 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                     <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 dark:text-orange-400" />
                   </div>
                   <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">
-                    showRSS 资源
+                    {t('search:anime.showrssResources')}
                   </span>
                   <span className="px-2 py-0.5 text-xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full">
-                    {showrssList.length} 条
+                    {t('search:anime.countItems', { count: showrssList.length })}
                   </span>
                 </div>
                 <a
@@ -808,7 +817,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   rel="noopener noreferrer"
                   className="text-[10px] text-orange-500 hover:text-orange-400 transition-colors"
                 >
-                  showRSS 站内 →
+                  {t('search:anime.showrssSearch')}
                 </a>
               </div>
               <div className="p-4 sm:p-5">
@@ -832,11 +841,11 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+                              <ChevronLeft className="w-3.5 h-3.5" /> {t('search:anime.prevPage')}
                             </button>
                             <span className="text-xs text-stone-500 px-2">
                               {srPage} / {srTotalPages}
-                              <span className="ml-1 text-stone-400">（共 {showrssList.length} 条）</span>
+                              <span className="ml-1 text-stone-400">{t('search:anime.totalCount', { count: showrssList.length })}</span>
                             </span>
                             <button
                               disabled={srPage >= srTotalPages}
@@ -845,7 +854,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                                          hover:bg-stone-200 hover:text-stone-700 transition-all
                                          dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
                             >
-                              下一页 <ChevronRight className="w-3.5 h-3.5" />
+                              {t('search:anime.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -867,16 +876,16 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                            hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all
                            dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60"
               >
-                <ChevronLeft className="w-3.5 h-3.5" /> 上一批
+                <ChevronLeft className="w-3.5 h-3.5" /> {t('search:anime.prevBatch')}
               </button>
-              <span className="flex items-center px-3 text-xs text-stone-500">第 {data.page} 批</span>
+              <span className="flex items-center px-3 text-xs text-stone-500">{t('search:anime.batchNumber', { count: data.page })}</span>
               <button
                 onClick={() => onPageChange(data.page + 1)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-600
                            hover:bg-amber-200 transition-all
                            dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60"
               >
-                下一批 <ChevronRight className="w-3.5 h-3.5" />
+                {t('search:anime.nextBatch')} <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

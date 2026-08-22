@@ -2,8 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Shield, FileText } from 'lucide-react';
 import { useAppInfo } from '@/contexts';
+import { useTranslation } from 'react-i18next';
 
 export const TermsPage: React.FC = () => {
+  const { t } = useTranslation(['terms']);
   const appInfo = useAppInfo();
 
   return (
@@ -22,7 +24,7 @@ export const TermsPage: React.FC = () => {
             className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 transition-colors text-sm font-medium group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            返回首页
+            {t('terms:backHome')}
           </Link>
         </div>
 
@@ -34,7 +36,7 @@ export const TermsPage: React.FC = () => {
               <FileText className="w-5 h-5 text-amber-700 dark:text-amber-400" />
             </div>
             <h1 className="display-font text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
-              服务条款
+              {t('terms:title')}
             </h1>
           </div>
 
@@ -44,51 +46,51 @@ export const TermsPage: React.FC = () => {
           {/* Terms content */}
           <div className="space-y-6 text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed">
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">1. 欢迎使用 {appInfo.NAME}！</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.welcomeTitle', { appName: appInfo.NAME })}</h2>
               <p>
-                嘿，欢迎来到 {appInfo.NAME} 的 demo 站点！这是一个开源项目，我们希望你在这里玩得开心。
-                当你使用我们的服务时，就意味着你同意遵守这些简单的规则。
+                {t('terms:sections.welcomeP1', { appName: appInfo.NAME })}
+                {t('terms:sections.welcomeP2')}
               </p>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">2. 我们提供什么</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.whatWeProvideTitle')}</h2>
               <p>
-                我们是一个磁力搜索工具，帮助你快速找到想要的资源。
-                请注意，我们不存储或托管任何资源文件，只是提供搜索和链接服务。
+                {t('terms:sections.whatWeProvideP1')}
+                {t('terms:sections.whatWeProvideP2')}
               </p>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">3. 作为用户，你需要做到</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.userResponsibilityTitle')}</h2>
               <ul className="list-disc pl-5 space-y-2">
-                <li>遵守法律法规，不要搜索或获取非法内容</li>
-                <li>不要滥用我们的服务，比如批量请求或自动化操作</li>
-                <li>保护好自己的账号信息，对自己的行为负责</li>
+                <li>{t('terms:sections.userResponsibility1')}</li>
+                <li>{t('terms:sections.userResponsibility2')}</li>
+                <li>{t('terms:sections.userResponsibility3')}</li>
               </ul>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">4. 关于开源</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.openSourceTitle')}</h2>
               <p>
-                这个项目是开源的！你可以查看代码，提出建议，甚至贡献自己的力量。
-                但请记得尊重知识产权，不要未经授权就复制或修改后商用。
+                {t('terms:sections.openSourceP1')}
+                {t('terms:sections.openSourceP2')}
               </p>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">5. 服务可能会变化</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.changesTitle')}</h2>
               <p>
-                作为一个 demo 项目，我们可能会随时调整功能或界面。
-                如果你有好的建议，欢迎告诉我们！
+                {t('terms:sections.changesP1')}
+                {t('terms:sections.changesP2')}
               </p>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">6. 免责声明</h2>
+              <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100 mb-3">{t('terms:sections.disclaimerTitle')}</h2>
               <p>
-                由于这是一个 demo 项目，我们不对使用过程中产生的任何后果负责。
-                请谨慎使用，确保你获取的资源是合法的。
+                {t('terms:sections.disclaimerP1')}
+                {t('terms:sections.disclaimerP2')}
               </p>
             </div>
           </div>
@@ -98,13 +100,13 @@ export const TermsPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-stone-500 dark:text-stone-400 text-sm">
                 <Shield className="w-4 h-4" />
-                <span>© {new Date().getFullYear()} {appInfo.NAME} - 开源项目</span>
+                <span>{t('terms:footer', { year: new Date().getFullYear(), appName: appInfo.NAME })}</span>
               </div>
-              <Link 
-                to="/privacy" 
+              <Link
+                to="/privacy"
                 className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 text-sm font-medium transition-colors"
               >
-                查看隐私政策
+                {t('terms:viewPrivacy')}
               </Link>
             </div>
           </div>

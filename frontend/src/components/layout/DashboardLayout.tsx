@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
+import { useTranslation } from 'react-i18next';
 
 interface NavItem {
   id: string;
@@ -34,20 +35,26 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-const navGroups = ['个人中心', '资源管理', '设置', '管理员'];
+const navGroups = [
+  'nav:dashboard.groups.personal',
+  'nav:dashboard.groups.resources',
+  'nav:dashboard.groups.settings',
+  'nav:dashboard.groups.admin',
+];
 
 const navItems: NavItem[] = [
-  { id: 'overview',   label: '概览',       icon: <LayoutDashboard className="w-[18px] h-[18px]" />, path: '/dashboard',            group: '个人中心' },
-  { id: 'stats',      label: '数据统计',   icon: <BarChart2 className="w-[18px] h-[18px]" />,       path: '/dashboard/stats',      group: '个人中心' },
-  { id: 'favorites',  label: '我的收藏',   icon: <Heart className="w-[18px] h-[18px]" />,           path: '/dashboard/favorites',  group: '个人中心' },
-  { id: 'history',    label: '搜索历史',   icon: <History className="w-[18px] h-[18px]" />,         path: '/dashboard/history',    group: '个人中心' },
-  { id: 'activities', label: '活动记录',   icon: <Activity className="w-[18px] h-[18px]" />,        path: '/dashboard/activities', group: '个人中心' },
-  { id: 'sources',    label: '搜索源管理', icon: <Database className="w-[18px] h-[18px]" />,        path: '/dashboard/sources',    group: '资源管理' },
-  { id: 'settings',   label: '系统设置',   icon: <Settings className="w-[18px] h-[18px]" />,        path: '/dashboard/settings',   group: '设置' },
-  { id: 'categories', label: '分类管理',   icon: <FolderTree className="w-[18px] h-[18px]" />,      path: '/dashboard/categories', group: '管理员', adminOnly: true },
+  { id: 'overview',   label: 'nav:dashboard.items.overview',    icon: <LayoutDashboard className="w-[18px] h-[18px]" />, path: '/dashboard',            group: 'nav:dashboard.groups.personal' },
+  { id: 'stats',      label: 'nav:dashboard.items.stats',      icon: <BarChart2 className="w-[18px] h-[18px]" />,       path: '/dashboard/stats',      group: 'nav:dashboard.groups.personal' },
+  { id: 'favorites',  label: 'nav:dashboard.items.favorites',  icon: <Heart className="w-[18px] h-[18px]" />,           path: '/dashboard/favorites',  group: 'nav:dashboard.groups.personal' },
+  { id: 'history',    label: 'nav:dashboard.items.history',    icon: <History className="w-[18px] h-[18px]" />,         path: '/dashboard/history',    group: 'nav:dashboard.groups.personal' },
+  { id: 'activities', label: 'nav:dashboard.items.activities', icon: <Activity className="w-[18px] h-[18px]" />,        path: '/dashboard/activities', group: 'nav:dashboard.groups.personal' },
+  { id: 'sources',    label: 'nav:dashboard.items.sources',    icon: <Database className="w-[18px] h-[18px]" />,        path: '/dashboard/sources',    group: 'nav:dashboard.groups.resources' },
+  { id: 'settings',   label: 'nav:dashboard.items.settings',   icon: <Settings className="w-[18px] h-[18px]" />,        path: '/dashboard/settings',   group: 'nav:dashboard.groups.settings' },
+  { id: 'categories', label: 'nav:dashboard.items.categories', icon: <FolderTree className="w-[18px] h-[18px]" />,      path: '/dashboard/categories', group: 'nav:dashboard.groups.admin', adminOnly: true },
 ];
 
 export const DashboardLayout: React.FC = () => {
+  const { t } = useTranslation(['nav']);
   const { user, logout } = useAuthStore();
   const { resolvedTheme, toggleTheme, sidebarCollapsed, toggleSidebar } = useThemeStore();
   const { communityEnabled } = useFeatureFlags();
@@ -74,7 +81,7 @@ export const DashboardLayout: React.FC = () => {
     return groupItems.length > 0;
   });
 
-  const currentPageLabel = filteredNavItems.find((item) => isActive(item.path))?.label || '控制台';
+  const currentPageLabel = filteredNavItems.find((item) => isActive(item.path))?.label || 'nav:userMenu.dashboard';
 
   const handleNavClick = (path: string) => {
     navigate(path);
@@ -95,7 +102,7 @@ export const DashboardLayout: React.FC = () => {
               <LayoutDashboard className="w-4 h-4 text-white" />
             </div>
             <div>
-              <span className="font-bold text-base gradient-text display-font">控制台</span>
+              <span className="font-bold text-base gradient-text display-font">{t('nav:userMenu.dashboard')}</span>
               <p className="text-[10px] text-stone-500 dark:text-stone-400">Dashboard</p>
             </div>
           </div>
@@ -130,7 +137,7 @@ export const DashboardLayout: React.FC = () => {
             <div key={group} className="mb-5">
               {(!sidebarCollapsed || mobile) && (
                 <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400 dark:text-stone-600">
-                  {group}
+                  {t(group)}
                 </p>
               )}
               <ul className="space-y-0.5">
@@ -146,7 +153,7 @@ export const DashboardLayout: React.FC = () => {
                           <span className={clsx('flex-shrink-0', active ? 'text-amber-700 dark:text-amber-400' : 'text-stone-400')}>
                             {item.icon}
                           </span>
-                          <span className="font-medium text-sm">{item.label}</span>
+                          <span className="font-medium text-sm">{t(item.label)}</span>
                           {item.badge && (
                             <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
                               {item.badge}
@@ -158,14 +165,14 @@ export const DashboardLayout: React.FC = () => {
                   }
                   return (
                     <li key={item.id}>
-                      <Link to={item.path} title={sidebarCollapsed ? item.label : undefined}
+                      <Link to={item.path} title={sidebarCollapsed ? t(item.label) : undefined}
                         className={clsx('sidebar-nav-item group', active && 'active')}>
                         <span className={clsx('flex-shrink-0', active ? 'text-amber-700 dark:text-amber-400' : 'text-stone-400')}>
                           {item.icon}
                         </span>
                         {!sidebarCollapsed && (
                           <>
-                            <span className="font-medium text-sm">{item.label}</span>
+                            <span className="font-medium text-sm">{t(item.label)}</span>
                             {item.badge && (
                               <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
                                 {item.badge}
@@ -176,7 +183,7 @@ export const DashboardLayout: React.FC = () => {
                         {/* Tooltip for collapsed state */}
                         {sidebarCollapsed && (
                           <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                            {item.label}
+                            {t(item.label)}
                           </div>
                         )}
                       </Link>
@@ -208,7 +215,7 @@ export const DashboardLayout: React.FC = () => {
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-xl text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                title="退出登录"
+                title={t('nav:userMenu.logout')}
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -267,7 +274,7 @@ export const DashboardLayout: React.FC = () => {
                 <Menu className="w-5 h-5" />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
-                {currentPageLabel}
+                {t(currentPageLabel)}
               </h1>
             </div>
 
@@ -275,41 +282,41 @@ export const DashboardLayout: React.FC = () => {
               <Link to="/main"
                 className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-xl text-white btn-gradient transition-all">
                 <Search className="w-4 h-4" />
-                返回首页
+                {t('nav:backHome')}
               </Link>
               <Link to="/dashboard"
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 transition-all">
                 <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden lg:inline">控制台</span>
+                <span className="hidden lg:inline">{t('nav:userMenu.dashboard')}</span>
               </Link>
               {communityEnabled && (
                 <Link to="/community"
                   className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                   <Users className="w-4 h-4" />
-                  <span className="hidden lg:inline">社区</span>
+                  <span className="hidden lg:inline">{t('nav:userMenu.community')}</span>
                 </Link>
               )}
               {isAdmin && (
                 <Link to="/admin-panel"
                   className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700">
                   <Shield className="w-4 h-4" />
-                  <span className="hidden lg:inline">管理看板</span>
+                  <span className="hidden lg:inline">{t('nav:adminPanel.title')}</span>
                 </Link>
               )}
 
-              <Link to="/main" className="mobile-header-btn md:hidden" title="搜索">
+              <Link to="/main" className="mobile-header-btn md:hidden" title={t('nav:search')}>
                 <Search className="w-5 h-5" />
               </Link>
-              <Link to="/dashboard" className="mobile-header-btn md:hidden" title="控制台">
+              <Link to="/dashboard" className="mobile-header-btn md:hidden" title={t('nav:userMenu.dashboard')}>
                 <LayoutDashboard className="w-5 h-5" />
               </Link>
               {communityEnabled && (
-                <Link to="/community" className="mobile-header-btn md:hidden" title="社区">
+                <Link to="/community" className="mobile-header-btn md:hidden" title={t('nav:userMenu.community')}>
                   <Globe className="w-5 h-5" />
                 </Link>
               )}
               {isAdmin && (
-                <Link to="/admin-panel" className="mobile-header-btn md:hidden text-red-500 hover:text-red-600" title="管理看板">
+                <Link to="/admin-panel" className="mobile-header-btn md:hidden text-red-500 hover:text-red-600" title={t('nav:adminPanel.title')}>
                   <Shield className="w-5 h-5" />
                 </Link>
               )}

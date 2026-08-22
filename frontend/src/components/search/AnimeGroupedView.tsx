@@ -4,6 +4,8 @@ import {
   ChevronDown, ChevronRight, Heart, Users, Trophy,
   Film, Tag, ShieldCheck, Filter, ArrowUpDown,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type {
   AnimeEnrichedData,
   AnimeGroupedItem,
@@ -54,9 +56,9 @@ const statusColor = (s?: string) => {
   }
 };
 
-const typeLabel = (t?: string | number) => {
-  const m: Record<string | number, string> = { 2: 'TV', 6: '剧场版', 4: 'Web', 3: '音乐', tv: 'TV', movie: '剧场版', ova: 'OVA', web: 'Web', music: '音乐' };
-  return t != null ? (m[t] ?? String(t)) : '';
+const typeLabel = (t: TFunction, tf?: string | number) => {
+  const m: Record<string | number, string> = { 2: 'TV', 6: t('search:anime.type.movie'), 4: 'Web', 3: t('search:anime.type.music'), tv: 'TV', movie: t('search:anime.type.movie'), ova: 'OVA', web: 'Web', music: t('search:anime.type.music') };
+  return tf != null ? (m[tf] ?? String(tf)) : '';
 };
 
 // 提取清晰度
@@ -76,6 +78,7 @@ type FilterQuality = 'all' | '4K' | '1080p' | '720p';
 // ─── 统一资源卡片 ──────────────────────────────────────────────────
 
 function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
+  const { t } = useTranslation(['search']);
   const quality = extractQuality(item.title);
   return (
     <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
@@ -85,7 +88,7 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
             {item.sourceLabel}
           </span>
           {item.trusted && (
-            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title="可信上传者" />
+            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title={t('search:anime.trustedUploader')} />
           )}
           {quality && (
             <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${
@@ -95,14 +98,14 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
             }`}>{quality}</span>
           )}
           {item.group && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 rounded truncate max-w-[80px]" title={`字幕组：${item.group}`}>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 rounded truncate max-w-[80px]" title={t('search:anime.subgroup', { name: item.group })}>
               {item.group}
             </span>
           )}
           <a
             href={item.magnet}
             className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-            title={`点击唤起 BT 客户端下载：${item.title}`}
+            title={t('search:anime.btDownloadHint', { title: item.title })}
           >
             {item.title}
           </a>
@@ -118,11 +121,11 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
             {item.seeders}<span className="text-stone-400 mx-0.5">/</span><span className="text-red-400">{item.leechers}</span>
           </span>
         ) : item.source === 'mikan' ? (
-          <span className="text-[10px] text-stone-400">字幕组资源</span>
+          <span className="text-[10px] text-stone-400">{t('search:anime.subgroupResource')}</span>
         ) : (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">DHT</span>
         )}
-        <CopyButton text={item.magnet} label="复制磁力链接" />
+        <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
       </div>
     </div>
   );
@@ -145,6 +148,7 @@ function GroupedSubjectCard({
   isProxyEnabled: boolean;
   defaultExpanded: boolean;
 }) {
+  const { t } = useTranslation(['search']);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [sortBy, setSortBy] = useState<SortKey>('seeders');
   const [filterSource, setFilterSource] = useState<FilterSource>('all');
@@ -222,7 +226,7 @@ function GroupedSubjectCard({
               <div className="flex items-center gap-1.5 flex-wrap mb-1">
                 {subject.type && (
                   <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${typeColor(subject.type)}`}>
-                    {typeLabel(subject.type)}
+                    {typeLabel(t, subject.type)}
                   </span>
                 )}
                 {subject.status && (
@@ -237,7 +241,7 @@ function GroupedSubjectCard({
                 )}
                 {/* 资源数量徽章 */}
                 <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                  {resources.length} 资源
+                  {t('search:anime.resourceCount', { count: resources.length })}
                 </span>
               </div>
               <h3 className={`font-semibold text-sm leading-snug line-clamp-2 transition-colors ${
@@ -261,7 +265,7 @@ function GroupedSubjectCard({
                       ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
                       : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
                   }`}
-                  title={isFavorited ? '取消收藏' : '收藏'}
+                  title={isFavorited ? t('search:anime.unfavorite') : t('search:anime.favorite')}
                 >
                   <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
                 </span>
@@ -293,12 +297,12 @@ function GroupedSubjectCard({
               </span>
             )}
             {subject.collection?.doing && subject.collection.doing > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px]" title="在看人数">
+              <span className="flex items-center gap-0.5 text-[10px]" title={t('search:anime.watchingCount')}>
                 <Users className="w-3 h-3 text-amber-400" />{subject.collection.doing}
               </span>
             )}
             {subject.eps > 0 && (
-              <span className="flex items-center gap-1"><Tv className="w-3 h-3" />{subject.eps} 集</span>
+              <span className="flex items-center gap-1"><Tv className="w-3 h-3" />{t('search:anime.epsCount', { count: subject.eps })}</span>
             )}
             {subject.airDate && (
               <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{subject.airDate.slice(0, 7)}</span>
@@ -346,10 +350,10 @@ function GroupedSubjectCard({
           {/* 筛选排序栏 */}
           <div className="flex flex-wrap items-center gap-2 py-3">
             <div className="flex items-center gap-1 text-[10px] text-stone-400">
-              <Filter className="w-3 h-3" />来源
+              <Filter className="w-3 h-3" />{t('search:anime.source')}
             </div>
             <div className="flex items-center gap-1">
-              <FilterChip active={filterSource === 'all'} onClick={() => changeFilter(setFilterSource, 'all')}>全部</FilterChip>
+              <FilterChip active={filterSource === 'all'} onClick={() => changeFilter(setFilterSource, 'all')}>{t('search:anime.all')}</FilterChip>
               {Object.entries(sourceCounts).map(([src, count]) => (
                 <FilterChip key={src} active={filterSource === src} onClick={() => changeFilter(setFilterSource, src as FilterSource)}>
                   {src} ({count})
@@ -360,9 +364,9 @@ function GroupedSubjectCard({
             {/* 清晰度筛选 */}
             {Object.keys(qualityCounts).length > 0 && (
               <>
-                <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-2">清晰度</div>
+                <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-2">{t('search:anime.quality')}</div>
                 <div className="flex items-center gap-1">
-                  <FilterChip active={filterQuality === 'all'} onClick={() => changeFilter(setFilterQuality, 'all')}>全部</FilterChip>
+                  <FilterChip active={filterQuality === 'all'} onClick={() => changeFilter(setFilterQuality, 'all')}>{t('search:anime.all')}</FilterChip>
                   {Object.entries(qualityCounts).map(([q, count]) => (
                     <FilterChip key={q} active={filterQuality === q} onClick={() => changeFilter(setFilterQuality, q as FilterQuality)}>
                       {q} ({count})
@@ -374,20 +378,20 @@ function GroupedSubjectCard({
 
             {/* 排序 */}
             <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-auto">
-              <ArrowUpDown className="w-3 h-3" />排序
+              <ArrowUpDown className="w-3 h-3" />{t('search:anime.sort')}
             </div>
             <div className="flex items-center gap-1">
-              <FilterChip active={sortBy === 'seeders'} onClick={() => changeFilter(setSortBy, 'seeders')}>做种</FilterChip>
-              <FilterChip active={sortBy === 'date'} onClick={() => changeFilter(setSortBy, 'date')}>日期</FilterChip>
-              <FilterChip active={sortBy === 'size'} onClick={() => changeFilter(setSortBy, 'size')}>大小</FilterChip>
+              <FilterChip active={sortBy === 'seeders'} onClick={() => changeFilter(setSortBy, 'seeders')}>{t('search:anime.sortBySeeders')}</FilterChip>
+              <FilterChip active={sortBy === 'date'} onClick={() => changeFilter(setSortBy, 'date')}>{t('search:anime.sortByDate')}</FilterChip>
+              <FilterChip active={sortBy === 'size'} onClick={() => changeFilter(setSortBy, 'size')}>{t('search:anime.sortBySize')}</FilterChip>
             </div>
           </div>
 
           {/* 资源列表 */}
           <div className="space-y-1.5">
             <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-              <span>标题 / 大小 / 日期</span>
-              <span className="text-right">状态 · 操作</span>
+              <span>{t('search:anime.resourceHeader')}</span>
+              <span className="text-right">{t('search:anime.statusActions')}</span>
             </div>
             {pagedResources.map((item, i) => (
               <UnifiedResourceCard key={item.magnet || i} item={item} />
@@ -402,7 +406,7 @@ function GroupedSubjectCard({
                 onClick={() => setResPage(p => p - 1)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                上一页
+                {t('search:anime.prevPage')}
               </button>
               <span className="text-xs text-stone-500 px-2">
                 {resPage} / {resTotalPages}
@@ -412,7 +416,7 @@ function GroupedSubjectCard({
                 onClick={() => setResPage(p => p + 1)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
               >
-                下一页
+                {t('search:anime.nextPage')}
               </button>
             </div>
           )}
@@ -441,6 +445,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 // ─── 未归组资源折叠区 ──────────────────────────────────────────────
 
 function UngroupedResourcesSection({ resources }: { resources: AnimeUnifiedResource[] }) {
+  const { t } = useTranslation(['search']);
   const [expanded, setExpanded] = useState(false);
   if (resources.length === 0) return null;
 
@@ -454,16 +459,16 @@ function UngroupedResourcesSection({ resources }: { resources: AnimeUnifiedResou
           <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
             <Magnet className="w-3.5 h-3.5 text-stone-400" />
           </div>
-          <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">未匹配资源</span>
+          <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:anime.unmatchedResources')}</span>
           <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-            {resources.length} 条
+            {t('search:anime.countItems', { count: resources.length })}
           </span>
         </div>
         {expanded ? <ChevronDown className="w-4 h-4 text-stone-400" /> : <ChevronRight className="w-4 h-4 text-stone-400" />}
       </button>
       {expanded && (
         <div className="px-4 pb-4 border-t border-stone-100 dark:border-stone-800 pt-2">
-          <p className="text-[10px] text-stone-400 mb-2">以下资源未能匹配到具体作品，可能为合集、OST 或其他关联资源</p>
+          <p className="text-[10px] text-stone-400 mb-2">{t('search:anime.unmatchedHint')}</p>
           <div className="space-y-1.5">
             {resources.map((item, i) => (
               <UnifiedResourceCard key={item.magnet || i} item={item} />
@@ -492,6 +497,7 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
   favorites = [],
   onToggleFavorite,
 }) => {
+  const { t } = useTranslation(['search']);
   const grouped = data.grouped;
   if (!grouped) return null;
 
@@ -506,19 +512,19 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
       {/* 统计栏 */}
       <div className="flex items-center gap-2 text-xs text-stone-500">
         <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-medium">
-          作品聚合视图
+          {t('search:anime.groupedView')}
         </span>
-        <span>{withResources.length} 部作品有资源</span>
+        <span>{t('search:anime.worksWithResources', { count: withResources.length })}</span>
         {grouped.ungrouped.length > 0 && (
           <>
             <span>·</span>
-            <span>{grouped.ungrouped.length} 条未匹配资源</span>
+            <span>{t('search:anime.unmatchedResourcesCount', { count: grouped.ungrouped.length })}</span>
           </>
         )}
         {withoutResources.length > 0 && (
           <>
             <span>·</span>
-            <span>{withoutResources.length} 部作品暂无资源</span>
+            <span>{t('search:anime.worksWithoutResources', { count: withoutResources.length })}</span>
           </>
         )}
       </div>
@@ -551,9 +557,9 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
               <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
                 <Star className="w-3.5 h-3.5 text-stone-400" />
               </div>
-              <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">暂无资源的作品</span>
+              <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:anime.noResourceWorks')}</span>
               <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-                {withoutResources.length} 部
+                {t('search:anime.worksCount', { count: withoutResources.length })}
               </span>
             </div>
           </div>
@@ -586,7 +592,7 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
                   )}
                   {isProxyEnabled && (
                     <span className="inline-flex items-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 mt-1">
-                      <ShieldCheck className="w-2.5 h-2.5" />代理可访问
+                      <ShieldCheck className="w-2.5 h-2.5" />{t('search:anime.proxyAccessible')}
                     </span>
                   )}
                 </div>
@@ -600,8 +606,8 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
       {withResources.length === 0 && grouped.ungrouped.length === 0 && withoutResources.length === 0 && (
         <div className="text-center py-16">
           <Magnet className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">未找到相关结果</p>
-          <p className="text-xs text-stone-400 mt-1">尝试更换关键词</p>
+          <p className="text-sm text-stone-500">{t('search:anime.empty')}</p>
+          <p className="text-xs text-stone-400 mt-1">{t('search:anime.emptyHint')}</p>
         </div>
       )}
     </div>

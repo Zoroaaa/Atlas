@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, List, Grid, X, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { SearchResult, FavoriteItem, Category, MajorCategory } from '@/types';
@@ -36,6 +37,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
   onClose,
   onToggleFavorite,
 }) => {
+  const { t } = useTranslation(['search']);
   const isFavorite = (url: string) => favorites.some(f => f.url === url);
 
   const getCategoryBadge = (categoryId?: string) => {
@@ -48,7 +50,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
 
   const getCategoryLabel = (categoryId?: string) => {
     const category = categories.find(c => c.id === categoryId);
-    if (!category) return '搜索';
+    if (!category) return t('search:results.defaultCategoryLabel');
     return category.name;
   };
 
@@ -62,9 +64,9 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
 
   const getSiteTypeBadge = (siteType?: string) => {
     const map: Record<string, { label: string; cls: string }> = {
-      search: { label: '搜索', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
-      browse: { label: '浏览', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
-      reference: { label: '参考', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+      search: { label: t('search:results.siteTypeSearch'), cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+      browse: { label: t('search:results.siteTypeBrowse'), cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
+      reference: { label: t('search:results.siteTypeReference'), cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
     };
     return map[siteType || 'search'] || map.search;
   };
@@ -78,7 +80,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
             <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-600 dark:text-primary-400" />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">搜索结果</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:results.title')}</span>
           <span className="px-2 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full">
             {results.length}
           </span>
@@ -127,7 +129,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
                     ); })()}
                     {isProxyEnabled && (
                       <span className="hidden sm:flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md font-medium bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400">
-                        <ShieldCheck className="w-3 h-3" />代理
+                        <ShieldCheck className="w-3 h-3" />{t('search:results.proxy')}
                       </span>
                     )}
                   </div>
@@ -148,7 +150,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
                         ? 'text-error-500 bg-error-50 dark:bg-error-900/20'
                         : 'text-surface-400 hover:text-error-500 hover:bg-error-50 dark:hover:bg-error-900/20'
                     }`}
-                    title={isFavorite(result.url || '') ? '取消收藏' : '收藏'}
+                    title={isFavorite(result.url || '') ? t('search:results.unfavorite') : t('search:results.favorite')}
                   >
                     <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isFavorite(result.url || '') ? 'fill-current' : ''}`} />
                   </button>
@@ -162,7 +164,7 @@ export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
                         : 'bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 shadow-primary-500/25'
                     }`}
                   >
-                    <span className="hidden sm:inline">前往</span>
+                    <span className="hidden sm:inline">{t('search:results.go')}</span>
                     <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   </button>
                 )}

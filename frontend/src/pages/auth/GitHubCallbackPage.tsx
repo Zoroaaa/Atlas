@@ -6,21 +6,23 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Github } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { useNotification } from '@/hooks';
 
-const ERROR_MESSAGES: Record<string, string> = {
-  github_not_configured: 'GitHub 登录未配置，请联系管理员',
-  github_cancelled: '已取消 GitHub 授权',
-  github_invalid_params: 'OAuth 参数异常，请重试',
-  github_state_mismatch: '安全校验失败，请重新发起登录',
-  github_token_failed: '获取 GitHub 授权失败，请重试',
-  github_db_error: '用户数据处理失败，请重试',
-  github_server_error: '服务器内部错误，请稍后重试',
-  account_disabled: '该账号已被禁用',
+const ERROR_MESSAGE_KEYS: Record<string, string> = {
+  github_not_configured: 'auth:callback.github.notConfigured',
+  github_cancelled: 'auth:callback.github.cancelled',
+  github_invalid_params: 'auth:callback.invalidParams',
+  github_state_mismatch: 'auth:callback.stateMismatch',
+  github_token_failed: 'auth:callback.github.tokenFailed',
+  github_db_error: 'auth:callback.dbError',
+  github_server_error: 'auth:callback.serverError',
+  account_disabled: 'auth:callback.accountDisabled',
 };
 
 export const GitHubCallbackPage: React.FC = () => {
+  const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { setUser, setToken, persistToken } = useAuthStore();
@@ -42,14 +44,14 @@ export const GitHubCallbackPage: React.FC = () => {
     const errorCode = searchParams.get('error');
 
     if (errorCode) {
-      const msg = ERROR_MESSAGES[errorCode] || `GitHub 登录失败 (${errorCode})`;
-      notification.error('登录失败', msg);
+      const msg = t(ERROR_MESSAGE_KEYS[errorCode] || 'auth:callback.github.failedWithCode', { code: errorCode });
+      notification.error(t('auth:callback.loginFailedTitle'), msg);
       navigate('/login', { replace: true });
       return;
     }
 
     if (!token || !userRaw) {
-      notification.error('登录失败', '回调参数缺失，请重试');
+      notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.missingParams'));
       navigate('/login', { replace: true });
       return;
     }
@@ -59,13 +61,13 @@ export const GitHubCallbackPage: React.FC = () => {
       setToken(token);
       persistToken(token);
       setUser(user);
-      notification.success('登录成功', `欢迎回来，${user.username}！`);
+      notification.success(t('auth:callback.loginSuccessTitle'), t('auth:callback.welcomeBack', { username: user.username }));
       navigate('/main', { replace: true });
     } catch {
-      notification.error('登录失败', '用户数据解析失败，请重试');
+      notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.parseFailed'));
       navigate('/login', { replace: true });
     }
-  }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser]);
+  }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-[#0a0a0b]">
@@ -74,7 +76,7 @@ export const GitHubCallbackPage: React.FC = () => {
           <Github className="w-8 h-8 text-white" />
         </div>
         <p className="text-stone-600 dark:text-stone-400 text-sm font-medium">
-          正在处理 GitHub 登录…
+          {t('auth:callback.github.processing')}
         </p>
       </div>
     </div>

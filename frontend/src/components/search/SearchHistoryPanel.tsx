@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2, Square, CheckSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
 import { API_BASE_URL } from '@/constants';
 import type { SearchHistoryItem } from '@/types';
+import type { TFunction } from 'i18next';
 
 // ─── 图片代理（与搜索结果统一走后端 /api/jav/proxy-image）─────────
 
@@ -32,7 +34,7 @@ const CONTENT_H = HIST_PANEL_HEIGHT - HIST_HEADER_HEIGHT - 36;
 
 // ─── 按天分组工具函数 ─────────────────────────────────────────────
 
-function groupByDay(items: SearchHistoryItem[]): Map<string, SearchHistoryItem[]> {
+function groupByDay(items: SearchHistoryItem[], t: TFunction): Map<string, SearchHistoryItem[]> {
   const groups = new Map<string, SearchHistoryItem[]>();
   const todayStart = new Date(new Date().toLocaleDateString()).getTime();
   const yesterdayStart = todayStart - 86400000;
@@ -40,9 +42,9 @@ function groupByDay(items: SearchHistoryItem[]): Map<string, SearchHistoryItem[]
   items.forEach(item => {
     let label: string;
     if (item.createdAt >= todayStart) {
-      label = '今天';
+      label = t('search:history.today');
     } else if (item.createdAt >= yesterdayStart) {
-      label = '昨天';
+      label = t('search:history.yesterday');
     } else {
       const d = new Date(item.createdAt);
       label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -68,9 +70,10 @@ interface SearchHistoryPanelProps {
 export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
   history, isLoading, show, onToggle, onItemClick, onClear, onDeleteSelected,
 }) => {
+  const { t } = useTranslation(['search']);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const groupedHistory = useMemo(() => groupByDay(history), [history]);
+  const groupedHistory = useMemo(() => groupByDay(history, t), [history, t]);
 
   const toggleSelectAll = (_dayKey: string, items: SearchHistoryItem[]) => {
     const allSelected = items.every(item => selectedIds.has(item.id));
@@ -111,7 +114,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
             <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
           </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">搜索历史</span>
+          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:history.title')}</span>
           {history.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
               {history.length}
@@ -134,13 +137,13 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
             {/* 批量操作栏 */}
             {selectedIds.size > 0 && (
               <div className="flex items-center justify-between px-4 py-2 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-100 dark:border-rose-900/30">
-                <span className="text-xs text-rose-600 dark:text-rose-400">已选择 {selectedIds.size} 条</span>
+                <span className="text-xs text-rose-600 dark:text-rose-400">{t('search:history.selected', { count: selectedIds.size })}</span>
                 <div className="flex gap-2">
                   <button onClick={() => setSelectedIds(new Set())} className="text-xs text-surface-500 hover:text-surface-700">
-                    取消
+                    {t('search:history.cancel')}
                   </button>
                   <button onClick={handleDeleteSelected} className="text-xs text-rose-600 hover:text-rose-700 font-medium">
-                    删除选中
+                    {t('search:history.deleteSelected')}
                   </button>
                 </div>
               </div>
@@ -162,7 +165,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                       ) : (
                         <Square className="w-3 h-3" />
                       )}
-                      全选
+                      {t('search:history.selectAll')}
                     </button>
                   </div>
 
@@ -203,7 +206,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                                     </span>
                                     {item.resultsCount !== undefined && item.resultsCount > 0 && (
                                       <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-[10px] text-surface-500 shrink-0">
-                                        {item.resultsCount}条
+                                        {t('search:history.resultCount', { count: item.resultsCount })}
                                       </span>
                                     )}
                                   </div>
@@ -222,7 +225,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                                       )}
                                       {item.duration && (
                                         <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                          <Clock className="w-2 h-2" />{item.duration}分钟
+                                          <Clock className="w-2 h-2" />{t('search:history.durationMinutes', { count: item.duration })}
                                         </span>
                                       )}
                                       {item.releaseDate && (
@@ -268,7 +271,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                                   <div className="flex items-center gap-1 text-xs text-surface-400 shrink-0">
                                     {item.resultsCount !== undefined && item.resultsCount > 0 && (
                                       <span className="px-1.5 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs">
-                                        {item.resultsCount}条
+                                        {t('search:history.resultCount', { count: item.resultsCount })}
                                       </span>
                                     )}
                                   </div>
@@ -289,7 +292,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                                       {item.duration && (
                                         <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                                           <Clock className="w-2.5 h-2.5" />
-                                          {item.duration}分钟
+                                          {t('search:history.durationMinutes', { count: item.duration })}
                                         </span>
                                       )}
                                       {item.releaseDate && (
@@ -328,14 +331,14 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
             </div>
             <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-t border-surface-50 dark:border-surface-800/60 shrink-0">
               <button onClick={onClear} className="flex items-center gap-1.5 text-xs sm:text-sm text-error-500 hover:text-error-700 transition-colors">
-                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />清空历史
+                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />{t('search:history.clearHistory')}
               </button>
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center" style={{ height: CONTENT_H + 24 }}>
             <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-surface-300 dark:text-surface-600 mb-2" />
-            <p className="text-xs sm:text-sm text-surface-400">暂无搜索历史</p>
+            <p className="text-xs sm:text-sm text-surface-400">{t('search:history.empty')}</p>
           </div>
         )}
       </div>

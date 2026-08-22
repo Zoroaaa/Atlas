@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '@/stores';
 import type { ToastType, ToastPosition, Toast } from '@/types';
 
@@ -33,6 +34,7 @@ interface ToastItemProps {
 }
 
 const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
+  const { t } = useTranslation(['ui']);
   const [progress, setProgress] = useState(100);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -111,7 +113,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
             'transition-colors duration-200',
             'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
           )}
-          aria-label="关闭通知"
+          aria-label={t('ui:toast.closeLabel')}
         >
           <X className="w-4 h-4" />
         </button>
@@ -133,6 +135,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
 };
 
 export const ToastContainer: React.FC = () => {
+  const { t } = useTranslation(['ui']);
   const { toasts, removeToast, toastPosition } = useUIStore();
 
   if (toasts.length === 0) return null;
@@ -145,7 +148,7 @@ export const ToastContainer: React.FC = () => {
         PositionStyles[toastPosition]
       )}
       role="region"
-      aria-label="通知区域"
+      aria-label={t('ui:toast.regionLabel')}
       aria-live="polite"
     >
       {toasts.map((toast) => (

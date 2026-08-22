@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { BookOpen, ExternalLink, Heart, RefreshCw, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { FavoriteItem } from '@/types';
 import { getProxyImageUrl } from '@/utils/imageProxy';
-import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
+import { ShareToCommunityButton } from '@/components/community';
 
 interface MangaItem {
   id: string;
@@ -21,7 +23,15 @@ interface MangaEnrichedData {
   manga: MangaItem[];
 }
 
-const statusLabel = (s: string) => ({ ongoing: '连载中', completed: '已完结', hiatus: '暂停', cancelled: '已取消' }[s] || s);
+const statusLabel = (t: TFunction, s: string) => {
+  const m: Record<string, string> = {
+    ongoing: t('search:manga.status.ongoing'),
+    completed: t('search:manga.status.completed'),
+    hiatus: t('search:manga.status.hiatus'),
+    cancelled: t('search:manga.status.cancelled'),
+  };
+  return m[s] || s;
+};
 const statusColor = (s: string) => s === 'ongoing'
   ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
   : 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400';
@@ -29,6 +39,7 @@ const statusColor = (s: string) => s === 'ongoing'
 function MangaCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isProxyEnabled }: {
   item: MangaItem; isAuthenticated: boolean; isFavorited: boolean; onToggleFavorite: (item: MangaItem) => void; isProxyEnabled: boolean;
 }) {
+  const { t } = useTranslation(['search']);
   const mangaUrl = `https://mangadex.org/title/${item.id}`;
   return (
     <div className="group flex gap-4 p-4 rounded-xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-violet-500/50 hover:bg-stone-50 dark:hover:bg-stone-800/70 transition-all">
@@ -44,11 +55,11 @@ function MangaCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-1">
               <span className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded ${statusColor(item.status)}`}>
-                {statusLabel(item.status)}
+                {statusLabel(t, item.status)}
               </span>
               {isProxyEnabled && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  <ShieldCheck className="w-3 h-3" />代理
+                  <ShieldCheck className="w-3 h-3" />{t('search:manga.proxyAccessible')}
                 </span>
               )}
             </div>
@@ -60,7 +71,7 @@ function MangaCard({ item, isAuthenticated, isFavorited, onToggleFavorite, isPro
             {isAuthenticated && (
               <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(item); }}
                 className={`p-1.5 rounded-lg transition-all ${isFavorited ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}
-                title={isFavorited ? '取消收藏' : '收藏'}>
+                title={isFavorited ? t('search:manga.unfavorite') : t('search:manga.favorite')}>
                 <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
               </button>
             )}
@@ -100,6 +111,7 @@ interface MangaSearchResultPanelProps {
 export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
   data, isAuthenticated = false, isProxyEnabled = false, favorites = [], onRefresh, onPageChange, onToggleFavorite, onLoginRequired,
 }) => {
+  const { t } = useTranslation(['search']);
   const [localPage, setLocalPage] = useState(1);
   const PAGE_SIZE = 10;
   const list = data.manga ?? [];
@@ -111,7 +123,7 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-xs text-stone-500">共 {data.total} 条结果</span>
+        <span className="text-xs text-stone-500">{t('search:manga.totalResults', { count: data.total })}</span>
         <div className="flex items-center gap-2">
           <ShareToCommunityButton
             postData={{
@@ -128,7 +140,7 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
             size="small"
           />
           {onRefresh && (
-            <button onClick={onRefresh} className="p-1.5 rounded-lg text-stone-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors" title="刷新">
+            <button onClick={onRefresh} className="p-1.5 rounded-lg text-stone-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors" title={t('search:manga.refresh')}>
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           )}
@@ -137,14 +149,14 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
 
       {hasError && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs">
-          MangaDex 请求失败：{data.errors.mangadex}
+          {t('search:manga.mangadexError', { error: data.errors.mangadex })}
         </div>
       )}
 
       {list.length === 0 && !hasError ? (
         <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <BookOpen className="w-10 h-10 mb-2" />
-          <span className="text-sm">没有找到相关漫画</span>
+          <span className="text-sm">{t('search:manga.empty')}</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -161,19 +173,19 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
         <div className="flex items-center justify-center gap-2 pt-3 border-t border-stone-100 dark:border-stone-800">
           <button disabled={localPage <= 1} onClick={() => setLocalPage(p => p - 1)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200">
-            <ChevronLeft className="w-3.5 h-3.5" /> 上一页
+            <ChevronLeft className="w-3.5 h-3.5" />{t('search:manga.prevPage')}
           </button>
           <span className="text-xs text-stone-500 px-2">{localPage} / {totalPages}</span>
           <button disabled={localPage >= totalPages} onClick={() => setLocalPage(p => p + 1)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200">
-            下一页 <ChevronRight className="w-3.5 h-3.5" />
+            {t('search:manga.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
       {onPageChange && list.length >= 20 && localPage >= totalPages && (
         <div className="flex justify-center gap-2">
           <button onClick={() => onPageChange(data.page + 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-violet-100 text-violet-600 hover:bg-violet-200 transition-all dark:bg-violet-900/40 dark:text-violet-300 dark:hover:bg-violet-900/60">
-            加载更多 <ChevronRight className="w-3.5 h-3.5" />
+            {t('search:manga.loadMore')}<ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

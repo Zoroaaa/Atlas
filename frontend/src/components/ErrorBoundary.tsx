@@ -13,6 +13,7 @@ import React, { Component, ErrorInfo } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { systemApi } from '@/services/api/system';
 import { useAuthStore } from '@/stores';
+import i18next from '@/i18n';
 
 // ──────────────────────────────────────────────
 // 上报工具：去重 + 节流
@@ -99,7 +100,7 @@ export function installGlobalErrorListeners(): void {
       const url = (target as HTMLImageElement).src || (target as HTMLScriptElement).src || (target as HTMLLinkElement).href || undefined;
       reportFrontendError({
         errorType: 'resource_error',
-        message: `资源加载失败: ${(event.target as Element).tagName}`,
+        message: i18next.t('errors:resourceLoadFailed', { tag: (event.target as Element).tagName }),
         url,
       });
       return;
@@ -182,17 +183,17 @@ export class ErrorBoundary extends Component<
 
           <div className="space-y-2">
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">
-              页面发生错误
+              {i18next.t('errors:boundary.title')}
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
-              错误已自动上报，您可以尝试刷新页面或返回首页
+              {i18next.t('errors:boundary.description')}
             </p>
           </div>
 
           {err && (
             <details className="text-left bg-white dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700 p-3">
               <summary className="text-xs font-medium text-stone-600 dark:text-stone-400 cursor-pointer">
-                错误详情
+                {i18next.t('errors:boundary.detailsLabel')}
               </summary>
               <pre className="mt-2 text-xs text-red-600 dark:text-red-400 whitespace-pre-wrap break-all font-mono">
                 {err.message}
@@ -207,14 +208,14 @@ export class ErrorBoundary extends Component<
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 transition-all"
             >
               <RefreshCw className="w-4 h-4" />
-              刷新页面
+              {i18next.t('errors:boundary.reload')}
             </button>
             <button
               onClick={this.handleHome}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-stone-700 dark:text-stone-200 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 transition-all"
             >
               <Home className="w-4 h-4" />
-              返回首页
+              {i18next.t('errors:boundary.goHome')}
             </button>
           </div>
         </div>
