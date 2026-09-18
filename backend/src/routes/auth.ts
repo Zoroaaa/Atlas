@@ -798,6 +798,17 @@ authRoutes.post('/request-email-change', async (c) => {
     return c.json(error('VALIDATION_ERROR', '请输入有效的新邮箱地址'), 400);
   }
 
+  if (newEmail.length > R.EMAIL.MAX_LENGTH) {
+    return c.json(error('VALIDATION_ERROR', `邮箱最多${R.EMAIL.MAX_LENGTH}个字符`), 400);
+  }
+
+  const normalizedNewEmail = emailVerificationUtils.normalizeEmail(newEmail);
+
+  // 邮箱域名白名单验证：与注册保持一致，只允许主流邮箱
+  if (!emailVerificationUtils.isTrustedEmailDomain(normalizedNewEmail)) {
+    return c.json(error('VALIDATION_ERROR', '请使用主流邮箱（如 Gmail、QQ邮箱、163邮箱等）'), 400);
+  }
+
   if (!currentPassword) {
     return c.json(error('VALIDATION_ERROR', '请输入当前密码'), 400);
   }
@@ -816,13 +827,13 @@ authRoutes.post('/request-email-change', async (c) => {
       return c.json(error('AUTH_ERROR', '当前密码错误'), 400);
     }
 
-    if (newEmail.toLowerCase() === user.email.toLowerCase()) {
+    if (normalizedNewEmail === user.email.toLowerCase()) {
       return c.json(error('VALIDATION_ERROR', '新邮箱不能与当前邮箱相同'), 400);
     }
 
     const existingUser = await c.env.DB.prepare(
       'SELECT id FROM users WHERE email = ? AND id != ?'
-    ).bind(newEmail, user.id).first();
+    ).bind(normalizedNewEmail, user.id).first();
 
     if (existingUser) {
       return c.json(error('VALIDATION_ERROR', '该邮箱已被其他用户使用'), 400);
@@ -848,17 +859,17 @@ authRoutes.post('/request-email-change', async (c) => {
     const changeRequestExpiryMs = R.EMAIL_CHANGE.REQUEST_EXPIRY_MS;
     const expiresAt = Date.now() + changeRequestExpiryMs;
     const expiresIn = Math.floor(changeRequestExpiryMs / 1000);
-    const newEmailHash = await hashPassword(newEmail);
+    const newEmailHash = await hashPassword(normalizedNewEmail);
 
     await c.env.DB.prepare(`
       INSERT INTO email_change_requests (id, user_id, old_email, new_email, new_email_hash, status, expires_at, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(requestId, user.id, user.email, newEmail, newEmailHash, 'pending', expiresAt, Date.now()).run();
+    `).bind(requestId, user.id, user.email, normalizedNewEmail, newEmailHash, 'pending', expiresAt, Date.now()).run();
 
     return c.json(success({
       requestId,
       oldEmail: emailVerificationUtils.maskEmail(user.email),
-      newEmail: emailVerificationUtils.maskEmail(newEmail),
+      newEmail: emailVerificationUtils.maskEmail(normalizedNewEmail),
       expiresIn
     }, '邮箱更改请求已创建，请验证新邮箱'));
   } catch (err) {
