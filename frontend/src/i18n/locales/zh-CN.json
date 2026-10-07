@@ -151,6 +151,7 @@
         "analytics": "数据分析",
         "observability": "系统观测",
         "trends": "趋势报表",
+        "activityRanking": "活跃排名",
         "dataStorage": "数据存储",
         "reports": "举报处理",
         "roles": "角色管理",
@@ -907,6 +908,50 @@
         "empty": "暂无数据",
         "anonymous": "匿名",
         "view": "查看"
+      }
+    },
+    "activityRanking": {
+      "loadFailed": "加载活跃排名失败",
+      "refresh": "刷新",
+      "loading": "加载中...",
+      "period": {
+        "today": "今天",
+        "week": "最近7天",
+        "month": "最近30天",
+        "all": "全部"
+      },
+      "metric": {
+        "overall": "综合排名",
+        "search": "搜索排名",
+        "favorite": "收藏排名"
+      },
+      "metricValue": {
+        "overall": "活跃分",
+        "search": "搜索次数",
+        "favorite": "收藏次数"
+      },
+      "topN": "Top {{count}}",
+      "card": {
+        "activeUsers": "活跃用户数",
+        "totalSearches": "搜索次数",
+        "totalFavorites": "收藏次数",
+        "totalLogins": "登录次数"
+      },
+      "podium": {
+        "rank": "第{{count}}名"
+      },
+      "statusInactive": "已禁用",
+      "scoreFormula": "活跃分 = 搜索×{{search}} + 收藏×{{favorite}} + 登录×{{login}} + 其他行为×{{other}}",
+      "periodNote": "当天按北京时间自然日计算，其余为滚动时间窗口",
+      "table": {
+        "colRank": "排名",
+        "colUser": "用户",
+        "colSearches": "搜索",
+        "colFavorites": "收藏",
+        "colLogins": "登录",
+        "colOthers": "其他",
+        "colLastActive": "最近活跃",
+        "empty": "该时间段内暂无用户活跃数据"
       }
     },
     "reports": {

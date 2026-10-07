@@ -13,8 +13,9 @@ import { FeedbackTab } from './FeedbackTab';
 import { AnnouncementTab } from './AnnouncementTab';
 import { ObservabilityTab } from './ObservabilityTab';
 import { DataStorageTab } from './DataStorageTab';
+import { ActivityRankingTab } from './ActivityRankingTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
+type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
@@ -26,6 +27,7 @@ export const AdminManager: React.FC = () => {
     if (p.includes('/analytics')) return 'analytics';
     if (p.includes('/observability')) return 'observability';
     if (p.includes('/trends')) return 'trends';
+    if (p.includes('/activity-ranking')) return 'activity-ranking';
     if (p.includes('/reports')) return 'reports';
     if (p.includes('/roles')) return 'roles';
     if (p.includes('/config')) return 'config';
@@ -47,6 +49,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'analytics' && <AnalyticsTab />}
       {activeTab === 'observability' && <ObservabilityTab />}
       {activeTab === 'trends' && <TrendsTab />}
+      {activeTab === 'activity-ranking' && <ActivityRankingTab />}
       {activeTab === 'reports' && <ReportsTab />}
       {activeTab === 'roles' && <RolesTab />}
       {activeTab === 'config' && <ConfigTab />}
