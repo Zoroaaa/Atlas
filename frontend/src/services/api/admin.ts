@@ -64,6 +64,42 @@ interface LoginStats {
   failedAttempts: Array<{ ip_address: string; count: number }>;
 }
 
+export type ActivityRankingPeriod = 'today' | 'week' | 'month' | 'all';
+export type ActivityRankingMetric = 'overall' | 'search' | 'favorite';
+
+export interface ActivityRankingEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  email: string;
+  roleDisplayName: string;
+  isActive: boolean;
+  searches: number;
+  favorites: number;
+  logins: number;
+  otherActions: number;
+  score: number;
+  lastActiveAt: number;
+}
+
+export interface ActivityRanking {
+  period: ActivityRankingPeriod;
+  startTime: number;
+  weights: { search: number; favorite: number; login: number; other: number };
+  summary: {
+    activeUsers: number;
+    totalSearches: number;
+    totalFavorites: number;
+    totalLogins: number;
+    totalOtherActions: number;
+  };
+  rankings: {
+    overall: ActivityRankingEntry[];
+    search: ActivityRankingEntry[];
+    favorite: ActivityRankingEntry[];
+  };
+}
+
 export const adminApi = {
   getRoles: async (): Promise<Role[]> => {
     const response = await apiClient.get<{ success: boolean; data: { roles: Role[] } }>('/admin/roles');
@@ -180,6 +216,18 @@ export const adminApi = {
 
     const response = await apiClient.get<{ success: boolean; data: { users: AdminUser[] } }>(`/admin/active-users?${queryParams.toString()}`);
     return response.data.users;
+  },
+
+  getActivityRanking: async (params: {
+    period?: ActivityRankingPeriod;
+    limit?: number;
+  } = {}): Promise<ActivityRanking> => {
+    const queryParams = new URLSearchParams();
+    if (params.period) queryParams.set('period', params.period);
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+
+    const response = await apiClient.get<{ success: boolean; data: ActivityRanking }>(`/admin/activity-ranking?${queryParams.toString()}`);
+    return response.data;
   },
 
   getLoginStats: async (days: number = 7): Promise<LoginStats> => {

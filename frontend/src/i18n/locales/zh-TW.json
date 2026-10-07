@@ -151,6 +151,7 @@
         "analytics": "資料分析",
         "observability": "系統觀測",
         "trends": "趨勢報表",
+        "activityRanking": "活躍排名",
         "dataStorage": "資料儲存",
         "reports": "檢舉處理",
         "roles": "角色管理",
@@ -907,6 +908,50 @@
         "empty": "暫無資料",
         "anonymous": "匿名",
         "view": "查看"
+      }
+    },
+    "activityRanking": {
+      "loadFailed": "載入活躍排名失敗",
+      "refresh": "重新整理",
+      "loading": "載入中...",
+      "period": {
+        "today": "今天",
+        "week": "最近7天",
+        "month": "最近30天",
+        "all": "全部"
+      },
+      "metric": {
+        "overall": "綜合排名",
+        "search": "搜尋排名",
+        "favorite": "收藏排名"
+      },
+      "metricValue": {
+        "overall": "活躍分",
+        "search": "搜尋次數",
+        "favorite": "收藏次數"
+      },
+      "topN": "Top {{count}}",
+      "card": {
+        "activeUsers": "活躍使用者數",
+        "totalSearches": "搜尋次數",
+        "totalFavorites": "收藏次數",
+        "totalLogins": "登入次數"
+      },
+      "podium": {
+        "rank": "第{{count}}名"
+      },
+      "statusInactive": "已停用",
+      "scoreFormula": "活躍分 = 搜尋×{{search}} + 收藏×{{favorite}} + 登入×{{login}} + 其他行為×{{other}}",
+      "periodNote": "當天按北京時間自然日計算，其餘為滾動時間視窗",
+      "table": {
+        "colRank": "排名",
+        "colUser": "使用者",
+        "colSearches": "搜尋",
+        "colFavorites": "收藏",
+        "colLogins": "登入",
+        "colOthers": "其他",
+        "colLastActive": "最近活躍",
+        "empty": "該時間段內暫無使用者活躍資料"
       }
     },
     "reports": {

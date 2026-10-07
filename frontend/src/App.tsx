@@ -227,6 +227,7 @@ const App: React.FC = () => {
           <Route path="analytics" element={<AdminManager />} />
           <Route path="observability" element={<AdminManager />} />
           <Route path="trends" element={<AdminManager />} />
+          <Route path="activity-ranking" element={<AdminManager />} />
           <Route path="reports" element={<AdminManager />} />
           <Route path="roles" element={<AdminManager />} />
           <Route path="config" element={<AdminManager />} />

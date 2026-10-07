@@ -5,6 +5,7 @@ export { SessionsTab } from './SessionsTab';
 export { ActionsTab } from './ActionsTab';
 export { AnalyticsTab } from './AnalyticsTab';
 export { TrendsTab } from './TrendsTab';
+export { ActivityRankingTab } from './ActivityRankingTab';
 export { ReportsTab } from './ReportsTab';
 export { RolesTab } from './RolesTab';
 export { CleanupTab } from './CleanupTab';

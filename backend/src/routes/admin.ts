@@ -416,6 +416,154 @@ adminRoutes.get('/active-users', async (c) => {
 });
 
 /**
+ * 用户活跃度排名
+ * GET /api/admin/activity-ranking?period=today|week|month|all&limit=20
+ *
+ * 数据口径：
+ * - 搜索数：user_search_history（每次搜索必写入，为权威来源）
+ * - 收藏/登录/其他行为：user_actions 行为日志（add_favorite / login / 其余有效行为）
+ * - 综合活跃分 = 搜索×2 + 收藏×3 + 登录×1 + 其他×1
+ * - "当天"按北京时间（UTC+8）自然日计算，其余为滚动窗口
+ * - 一次返回 综合/搜索/收藏 三个榜单，前端切换维度无需重复请求
+ */
+adminRoutes.get('/activity-ranking', async (c) => {
+  const { defaultPageSize, maxPageSize } = getPaginationConfig();
+  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || String(defaultPageSize)), 1), maxPageSize);
+  const period = c.req.query('period') || 'week';
+
+  if (!['today', 'week', 'month', 'all'].includes(period)) {
+    return c.json(error('VALIDATION_ERROR', '无效的时间范围'), 400);
+  }
+
+  // 综合活跃分权重（同步暴露给前端用于展示计算规则）
+  const SCORE_WEIGHTS = { search: 2, favorite: 3, login: 1, other: 1 };
+  // 行为日志中不计入"其他行为"的类型：
+  // search 仅存在于历史遗留数据（搜索统一走 user_search_history，避免重复计分）；
+  // 其余为登录态/账户维护类动作，不代表产品使用活跃度
+  const EXCLUDED_ACTIONS = "('login', 'login_failed', 'logout', 'register', 'token_refresh', 'add_favorite', 'remove_favorite', 'search')";
+
+  try {
+    const now = Date.now();
+    let startTime: number;
+    if (period === 'today') {
+      // 北京时间（UTC+8）当天 00:00 对应的 UTC 时间戳
+      const SH_OFFSET = 8 * CONFIG.Stats.HOUR_IN_MS;
+      startTime = Math.floor((now + SH_OFFSET) / CONFIG.Stats.DAY_IN_MS) * CONFIG.Stats.DAY_IN_MS - SH_OFFSET;
+    } else if (period === 'week') {
+      startTime = now - 7 * CONFIG.Stats.DAY_IN_MS;
+    } else if (period === 'month') {
+      startTime = now - 30 * CONFIG.Stats.DAY_IN_MS;
+    } else {
+      startTime = 0;
+    }
+
+    const rows = await c.env.DB.prepare(`
+      WITH search_counts AS (
+        SELECT user_id, COUNT(*) AS searches, MAX(created_at) AS last_search_at
+        FROM user_search_history
+        WHERE created_at >= ? AND user_id IS NOT NULL
+        GROUP BY user_id
+      ),
+      action_counts AS (
+        SELECT user_id,
+          SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) AS logins,
+          SUM(CASE WHEN action = 'add_favorite' THEN 1 ELSE 0 END) AS favorites,
+          SUM(CASE WHEN action NOT IN ${EXCLUDED_ACTIONS} THEN 1 ELSE 0 END) AS other_actions,
+          MAX(created_at) AS last_action_at
+        FROM user_actions
+        WHERE created_at >= ? AND user_id IS NOT NULL
+        GROUP BY user_id
+      )
+      SELECT u.id, u.username, u.email, u.is_active, u.last_login,
+             r.display_name AS role_display_name,
+             COALESCE(sc.searches, 0) AS searches,
+             COALESCE(ac.logins, 0) AS logins,
+             COALESCE(ac.favorites, 0) AS favorites,
+             COALESCE(ac.other_actions, 0) AS other_actions,
+             MAX(COALESCE(sc.last_search_at, 0), COALESCE(ac.last_action_at, 0)) AS last_active_at
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN search_counts sc ON sc.user_id = u.id
+      LEFT JOIN action_counts ac ON ac.user_id = u.id
+      WHERE COALESCE(sc.searches, 0) + COALESCE(ac.logins, 0) + COALESCE(ac.favorites, 0) + COALESCE(ac.other_actions, 0) > 0
+    `).bind(startTime, startTime).all<{
+      id: string;
+      username: string;
+      email: string;
+      is_active: number;
+      last_login: number | null;
+      role_display_name: string | null;
+      searches: number;
+      logins: number;
+      favorites: number;
+      other_actions: number;
+      last_active_at: number;
+    }>();
+
+    interface Entry {
+      rank: number;
+      userId: string;
+      username: string;
+      email: string;
+      roleDisplayName: string;
+      isActive: boolean;
+      searches: number;
+      favorites: number;
+      logins: number;
+      otherActions: number;
+      score: number;
+      lastActiveAt: number;
+    }
+
+    const entries: Entry[] = (rows.results || []).map((r) => ({
+      rank: 0,
+      userId: r.id,
+      username: r.username,
+      email: r.email,
+      roleDisplayName: r.role_display_name || '普通用户',
+      isActive: r.is_active === 1,
+      searches: r.searches || 0,
+      favorites: r.favorites || 0,
+      logins: r.logins || 0,
+      otherActions: r.other_actions || 0,
+      score:
+        (r.searches || 0) * SCORE_WEIGHTS.search +
+        (r.favorites || 0) * SCORE_WEIGHTS.favorite +
+        (r.logins || 0) * SCORE_WEIGHTS.login +
+        (r.other_actions || 0) * SCORE_WEIGHTS.other,
+      lastActiveAt: r.last_active_at || 0,
+    }));
+
+    const rankBy = (key: 'score' | 'searches' | 'favorites'): Entry[] =>
+      [...entries]
+        .sort((a, b) => (b[key] as number) - (a[key] as number) || a.username.localeCompare(b.username))
+        .slice(0, limit)
+        .map((e, i) => ({ ...e, rank: i + 1 }));
+
+    return c.json(success({
+      period,
+      startTime,
+      weights: SCORE_WEIGHTS,
+      summary: {
+        activeUsers: entries.length,
+        totalSearches: entries.reduce((s, e) => s + e.searches, 0),
+        totalFavorites: entries.reduce((s, e) => s + e.favorites, 0),
+        totalLogins: entries.reduce((s, e) => s + e.logins, 0),
+        totalOtherActions: entries.reduce((s, e) => s + e.otherActions, 0),
+      },
+      rankings: {
+        overall: rankBy('score'),
+        search: rankBy('searches'),
+        favorite: rankBy('favorites'),
+      },
+    }));
+  } catch (err) {
+    console.error('Get activity ranking error:', err);
+    return c.json(error('SERVER_ERROR', '获取活跃排名失败'), 500);
+  }
+});
+
+/**
  * 获取登录日志统计
  * GET /api/admin/login-stats
  */

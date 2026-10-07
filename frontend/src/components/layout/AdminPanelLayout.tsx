@@ -24,6 +24,7 @@ import {
   Megaphone,
   Bug,
   Database,
+  Trophy,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { id: 'analytics', label: 'nav:adminPanel.items.analytics', icon: <BarChart2 className="w-[18px] h-[18px]" />, path: '/admin-panel/analytics' },
   { id: 'observability', label: 'nav:adminPanel.items.observability', icon: <Bug className="w-[18px] h-[18px]" />, path: '/admin-panel/observability' },
   { id: 'trends', label: 'nav:adminPanel.items.trends', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
+  { id: 'activity-ranking', label: 'nav:adminPanel.items.activityRanking', icon: <Trophy className="w-[18px] h-[18px]" />, path: '/admin-panel/activity-ranking' },
   { id: 'data-storage', label: 'nav:adminPanel.items.dataStorage', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
   { id: 'reports', label: 'nav:adminPanel.items.reports', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
   { id: 'roles', label: 'nav:adminPanel.items.roles', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },

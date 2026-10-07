@@ -151,6 +151,7 @@
         "analytics": "Data Analytics",
         "observability": "System Observability",
         "trends": "Trends Report",
+        "activityRanking": "Activity Ranking",
         "dataStorage": "Data Storage",
         "reports": "Report Handling",
         "roles": "Role Management",
@@ -907,6 +908,50 @@
         "empty": "No data",
         "anonymous": "Anonymous",
         "view": "View"
+      }
+    },
+    "activityRanking": {
+      "loadFailed": "Failed to load activity ranking",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "period": {
+        "today": "Today",
+        "week": "Last 7 days",
+        "month": "Last 30 days",
+        "all": "All time"
+      },
+      "metric": {
+        "overall": "Overall",
+        "search": "Search",
+        "favorite": "Favorites"
+      },
+      "metricValue": {
+        "overall": "Activity score",
+        "search": "Searches",
+        "favorite": "Favorites"
+      },
+      "topN": "Top {{count}}",
+      "card": {
+        "activeUsers": "Active users",
+        "totalSearches": "Searches",
+        "totalFavorites": "Favorites",
+        "totalLogins": "Logins"
+      },
+      "podium": {
+        "rank": "No.{{count}}"
+      },
+      "statusInactive": "Disabled",
+      "scoreFormula": "Score = searches×{{search}} + favorites×{{favorite}} + logins×{{login}} + others×{{other}}",
+      "periodNote": "\"Today\" is based on Beijing time (UTC+8); other ranges are rolling windows",
+      "table": {
+        "colRank": "Rank",
+        "colUser": "User",
+        "colSearches": "Searches",
+        "colFavorites": "Favorites",
+        "colLogins": "Logins",
+        "colOthers": "Others",
+        "colLastActive": "Last active",
+        "empty": "No user activity in this period"
       }
     },
     "reports": {
