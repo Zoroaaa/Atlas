@@ -313,10 +313,9 @@ dataStorageRoutes.put('/records/:id/status', validateBody(schemas.admin.updateDa
 // ============================================================
 
 dataStorageRoutes.delete('/records/:id', async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
 
-  if (!(await checkIsSuperAdmin(c.env.DB, user.userId))) {
+  if (!(await checkIsSuperAdmin(c))) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -343,9 +342,7 @@ dataStorageRoutes.delete('/records/:id', async (c) => {
 // ============================================================
 
 dataStorageRoutes.post('/cleanup', async (c) => {
-  const user = c.get('user');
-
-  if (!(await checkIsSuperAdmin(c.env.DB, user.userId))) {
+  if (!(await checkIsSuperAdmin(c))) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 

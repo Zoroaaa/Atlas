@@ -355,7 +355,7 @@ sourceRoutes.get('/with-user-config/:userId', async (c) => {
   const requestedUserId = c.req.param('userId');
   const currentUser = c.get('user');
 
-  const isAdmin = await checkIsAdmin(c.env.DB, currentUser.userId);
+  const isAdmin = await checkIsAdmin(c);
   if (requestedUserId !== currentUser.userId && !isAdmin) {
     return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
   }
@@ -448,9 +448,8 @@ sourceRoutes.post('/:id/increment-usage', async (c) => {
 });
 
 sourceRoutes.post('/major-categories', validateBody(schemas.sources.createMajorCategory), async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -503,9 +502,8 @@ sourceRoutes.post('/major-categories', validateBody(schemas.sources.createMajorC
 });
 
 sourceRoutes.post('/categories', validateBody(schemas.sources.createCategory), async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -576,7 +574,6 @@ sourceRoutes.post('/categories', validateBody(schemas.sources.createCategory), a
 });
 
 sourceRoutes.put('/categories/:id', validateBody(schemas.sources.updateCategory), async (c) => {
-  const user = c.get('user');
   const categoryId = c.req.param('id');
 
   try {
@@ -588,7 +585,7 @@ sourceRoutes.put('/categories/:id', validateBody(schemas.sources.updateCategory)
       return c.json(error('NOT_FOUND', '分类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统分类仅管理员可修改'), 403);
     }
 
@@ -638,7 +635,6 @@ sourceRoutes.put('/categories/:id', validateBody(schemas.sources.updateCategory)
 });
 
 sourceRoutes.delete('/categories/:id', async (c) => {
-  const user = c.get('user');
   const categoryId = c.req.param('id');
 
   try {
@@ -650,7 +646,7 @@ sourceRoutes.delete('/categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '分类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统分类仅管理员可删除'), 403);
     }
 
@@ -748,9 +744,8 @@ sourceRoutes.post('/', validateBody(schemas.sources.createSource), async (c) => 
 });
 
 sourceRoutes.put('/major-categories/:id', validateBody(schemas.sources.updateMajorCategory), async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -765,7 +760,7 @@ sourceRoutes.put('/major-categories/:id', validateBody(schemas.sources.updateMaj
       return c.json(error('NOT_FOUND', '大类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统大类仅管理员可修改'), 403);
     }
 
@@ -841,9 +836,8 @@ sourceRoutes.put('/major-categories/:id', validateBody(schemas.sources.updateMaj
 });
 
 sourceRoutes.delete('/major-categories/:id', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -858,7 +852,7 @@ sourceRoutes.delete('/major-categories/:id', async (c) => {
       return c.json(error('NOT_FOUND', '大类不存在'), 404);
     }
 
-    if (existingCategory.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingCategory.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统大类仅管理员可删除'), 403);
     }
 
@@ -902,7 +896,6 @@ sourceRoutes.delete('/user-configs/:sourceId', async (c) => {
 });
 
 sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) => {
-  const user = c.get('user');
   const sourceId = c.req.param('id');
 
   try {
@@ -914,7 +907,7 @@ sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) =
       return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
-    if (existingSource.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingSource.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可修改'), 403);
     }
 
@@ -976,7 +969,6 @@ sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) =
 });
 
 sourceRoutes.delete('/:id', async (c) => {
-  const user = c.get('user');
   const sourceId = c.req.param('id');
 
   try {
@@ -988,7 +980,7 @@ sourceRoutes.delete('/:id', async (c) => {
       return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
-    if (existingSource.is_system && !await checkIsAdmin(c.env.DB, user.userId)) {
+    if (existingSource.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可删除'), 403);
     }
 

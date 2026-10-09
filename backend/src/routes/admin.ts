@@ -277,7 +277,7 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
   const adminUser = c.get('user') as JwtPayload;
 
   // 权限检查：只有超级管理员可以修改用户角色
-  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  const isSuperAdmin = await checkIsSuperAdmin(c);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户角色'), 403);
   }
@@ -651,7 +651,7 @@ adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus
     // 管理员(priority=50) 只能操作普通用户(priority=10)
     if (targetPriority >= adminPriority) {
       // 目标用户优先级 >= 当前管理员优先级，需要检查是否为超级管理员
-      const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+      const isSuperAdmin = await checkIsSuperAdmin(c);
       if (!isSuperAdmin) {
         return c.json(error('FORBIDDEN', '无法操作同级或更高级别的用户'), 403);
       }
@@ -700,7 +700,7 @@ adminRoutes.put('/users/:id/permissions', validateBody(schemas.admin.updateUserP
   const adminUser = c.get('user') as JwtPayload;
 
   // 权限检查：只有超级管理员可以修改用户权限
-  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  const isSuperAdmin = await checkIsSuperAdmin(c);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户权限'), 403);
   }
@@ -1066,7 +1066,7 @@ adminRoutes.post('/cleanup', async (c) => {
   const adminUser = c.get('user') as JwtPayload;
 
   // 权限检查：只有超级管理员可以执行数据清理
-  const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+  const isSuperAdmin = await checkIsSuperAdmin(c);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以执行数据清理'), 403);
   }
@@ -1277,7 +1277,7 @@ adminRoutes.delete('/sessions/:id', async (c) => {
 
     // 权限隔离：管理员只能终止优先级低于自己的用户的会话
     if (targetPriority >= adminPriority) {
-      const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
+      const isSuperAdmin = await checkIsSuperAdmin(c);
       if (!isSuperAdmin) {
         return c.json(error('FORBIDDEN', '无法终止同级或更高级别用户的会话'), 403);
       }

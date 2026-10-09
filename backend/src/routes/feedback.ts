@@ -150,7 +150,7 @@ const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload |
   if (!payload) return null;
 
   // 实时查询数据库确认管理员权限
-  const isAdmin = await checkIsAdmin(c.env.DB, payload.userId);
+  const isAdmin = await checkIsAdmin(c);
   if (!isAdmin) return null;
 
   return payload;

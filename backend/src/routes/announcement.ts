@@ -21,11 +21,12 @@ const adminAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return c.json(error('AUTH_ERROR', '认证失败'), 401);
 
-  // 实时查询数据库确认管理员权限
-  const isAdmin = await checkIsAdmin(c.env.DB, payload.userId);
+  c.set('user', payload);
+
+  // 实时查询数据库确认管理员权限（无 authMiddleware 链路，走回退查询）
+  const isAdmin = await checkIsAdmin(c);
   if (!isAdmin) return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
 
-  c.set('user', payload);
   await next();
 };
 

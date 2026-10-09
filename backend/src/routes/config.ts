@@ -158,9 +158,8 @@ function validateConfigValue(value: string, configType: string, validationRules?
 }
 
 configRoutes.get('/all', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -177,9 +176,8 @@ configRoutes.get('/all', async (c) => {
 });
 
 configRoutes.get('/groups', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -216,9 +214,8 @@ configRoutes.get('/groups', async (c) => {
 });
 
 configRoutes.get('/logs', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -267,7 +264,7 @@ configRoutes.get('/logs', async (c) => {
 configRoutes.get('/export', async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -299,9 +296,8 @@ configRoutes.get('/export', async (c) => {
 });
 
 configRoutes.get('/analytics/stats', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -356,9 +352,8 @@ configRoutes.get('/analytics/stats', async (c) => {
 });
 
 configRoutes.get('/email/logs', async (c) => {
-  const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -409,7 +404,7 @@ configRoutes.get('/email/logs', async (c) => {
 configRoutes.post('/import', validateBody(schemas.config.importConfig), async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsSuperAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -526,7 +521,7 @@ configRoutes.post('/analytics/events', validateBody(schemas.config.recordAnalyti
 configRoutes.put('/batch', validateBody(schemas.config.batchUpdateConfig), async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -594,7 +589,7 @@ configRoutes.put('/batch', validateBody(schemas.config.batchUpdateConfig), async
 configRoutes.post('/reset/:key', async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsSuperAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -656,7 +651,7 @@ configRoutes.get('/:key', async (c) => {
 configRoutes.put('/:key', validateBody(schemas.config.updateConfig), async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -721,7 +716,7 @@ configRoutes.put('/:key', validateBody(schemas.config.updateConfig), async (c) =
 configRoutes.delete('/:key', async (c) => {
   const user = c.get('user');
   
-  if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsSuperAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 

@@ -648,12 +648,11 @@ communityRoutes.delete('/posts/:id', async (c) => {
 
 /** 更新帖子状态（管理员） */
 communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePostStatus), async (c) => {
-  const user = c.get('user');
   const postId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.updatePostStatus>;
   const { status } = body;
 
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -679,12 +678,11 @@ communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePo
 
 /** 设置/取消推荐（管理员） */
 communityRoutes.put('/posts/:id/feature', validateBody(schemas.community.featurePost), async (c) => {
-  const user = c.get('user');
   const postId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.featurePost>;
   const { isFeatured } = body;
 
-  if (!await checkIsAdmin(c.env.DB, user.userId)) {
+  if (!await checkIsAdmin(c)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
@@ -895,7 +893,7 @@ communityRoutes.delete('/comments/:id', async (c) => {
       return c.json(error('NOT_FOUND', '评论不存在'), 404);
     }
 
-    const isAdmin = await checkIsAdmin(c.env.DB, user.userId);
+    const isAdmin = await checkIsAdmin(c);
     if (comment.user_id !== user.userId && !isAdmin) {
       return c.json(error('FORBIDDEN', '无权删除此评论'), 403);
     }
