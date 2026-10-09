@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Tag,
   Plus,
@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState, Dropdown } from '@/components/ui';
 import { sourceApi } from '@/services/api';
+import { useMajorCategories, useCategories, sourcesKeys } from '@/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
@@ -32,11 +34,19 @@ export const CategoryManager: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   
-  const [majorCategories, setMajorCategories] = useState<MajorCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const majorCategoriesQuery = useMajorCategories();
+  const categoriesQuery = useCategories();
+  const majorCategories = majorCategoriesQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+  const isLoading = majorCategoriesQuery.isLoading || categoriesQuery.isLoading;
   const [expandedMajor, setExpandedMajor] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+
+  const invalidateSourceMeta = () => {
+    queryClient.invalidateQueries({ queryKey: sourcesKeys.majorCategories });
+    queryClient.invalidateQueries({ queryKey: sourcesKeys.categories });
+  };
   
   const [majorCategoryModal, setMajorCategoryModal] = useState<{
     isOpen: boolean;
@@ -69,32 +79,14 @@ export const CategoryManager: React.FC = () => {
     searchPriority: 0,
   });
 
-  const loadData = useCallback(async (preserveExpandedState = false) => {
-    setIsLoading(true);
-    try {
-      const majorCategoriesRes = await sourceApi.getMajorCategories();
-      if (majorCategoriesRes.success && majorCategoriesRes.data) {
-        setMajorCategories(majorCategoriesRes.data);
-        if (!preserveExpandedState) {
-          setExpandedMajor(new Set(majorCategoriesRes.data.map(m => m.id)));
-        }
-      }
-
-      const categoriesRes = await sourceApi.getCategories();
-      if (categoriesRes.success && categoriesRes.data) {
-        setCategories(categoriesRes.data);
-      }
-    } catch (_error) {
-      toast.error(t('dashboard:categories.loadFailedTitle'), t('dashboard:categories.loadFailedDesc'));
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // 展开态初始化（数据到达后一次性设置）
+  const expandedInitializedRef = useRef(false);
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!expandedInitializedRef.current && majorCategories.length > 0) {
+      setExpandedMajor(new Set(majorCategories.map(m => m.id)));
+      expandedInitializedRef.current = true;
+    }
+  }, [majorCategories]);
 
   const toggleMajorCategory = (id: string) => {
     const newExpanded = new Set(expandedMajor);
@@ -123,7 +115,7 @@ export const CategoryManager: React.FC = () => {
           icon: '',
           color: '#d4a853',
         });
-        loadData(true);
+        invalidateSourceMeta();
       }
     } catch (_error) {
       toast.error(t('dashboard:categories.createFailedTitle'), t('dashboard:categories.retryLater'));
@@ -147,7 +139,7 @@ export const CategoryManager: React.FC = () => {
       await sourceApi.updateMajorCategory(majorCategoryModal.data.id, updateData);
       toast.success(t('dashboard:categories.updateSuccess'));
       setMajorCategoryModal({ isOpen: false, mode: 'create', data: null });
-      loadData(true);
+      invalidateSourceMeta();
     } catch (_error) {
       toast.error(t('dashboard:categories.updateFailedTitle'), t('dashboard:categories.retryLater'));
     }
@@ -159,7 +151,7 @@ export const CategoryManager: React.FC = () => {
     try {
       await sourceApi.deleteMajorCategory(id);
       toast.success(t('dashboard:categories.deleteSuccess'));
-      loadData(true);
+      invalidateSourceMeta();
     } catch (_error) {
       toast.error(t('dashboard:categories.deleteFailedTitle'), t('dashboard:categories.retryLater'));
     }
@@ -192,7 +184,7 @@ export const CategoryManager: React.FC = () => {
           newSet.add(currentMajorCategoryId);
           return newSet;
         });
-        loadData(true);
+        invalidateSourceMeta();
       }
     } catch (_error) {
       toast.error(t('dashboard:categories.createFailedTitle'), t('dashboard:categories.retryLater'));
@@ -219,7 +211,7 @@ export const CategoryManager: React.FC = () => {
       await sourceApi.updateCategory(categoryModal.data.id, updateData);
       toast.success(t('dashboard:categories.updateSuccess'));
       setCategoryModal({ isOpen: false, mode: 'create', data: null, majorCategoryId: null });
-      loadData(true);
+      invalidateSourceMeta();
     } catch (_error) {
       toast.error(t('dashboard:categories.updateFailedTitle'), t('dashboard:categories.retryLater'));
     }
@@ -231,7 +223,7 @@ export const CategoryManager: React.FC = () => {
     try {
       await sourceApi.deleteCategory(id);
       toast.success(t('dashboard:categories.deleteSuccess'));
-      loadData(true);
+      invalidateSourceMeta();
     } catch (_error) {
       toast.error(t('dashboard:categories.deleteFailedTitle'), t('dashboard:categories.retryLater'));
     }
