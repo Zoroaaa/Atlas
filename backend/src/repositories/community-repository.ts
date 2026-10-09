@@ -538,12 +538,12 @@ export async function queryCommunityStats(db: D1Database): Promise<{
     db.prepare('SELECT COALESCE(SUM(like_count), 0) as total FROM community_posts'),
     db.prepare('SELECT COALESCE(SUM(favorite_count), 0) as total FROM community_posts'),
     db.prepare(`
-          SELECT post_type as type, COUNT(*) as count
+          SELECT post_type, COUNT(*) as count
           FROM community_posts WHERE status = 'active'
           GROUP BY post_type ORDER BY count DESC
         `),
     db.prepare(`
-          SELECT id, post_type as type, title, created_at
+          SELECT id, post_type, title, created_at
           FROM community_posts WHERE status = 'active'
           ORDER BY created_at DESC LIMIT 10
         `),

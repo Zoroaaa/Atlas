@@ -263,7 +263,6 @@ adminRoutes.get('/users/:id', async (c) => {
       const action = result.success ? result.data : a as { action: string };
       return action.action === 'login';
     }).length || 0;
-    const searchCount = await countUserSearchHistory(c.env.DB, userId);
 
     return c.json(success({
       user: {
@@ -286,7 +285,7 @@ adminRoutes.get('/users/:id', async (c) => {
         historyCount: historyCount,
         activeSessions: sessions.length,
         totalLoginCount: loginCount,
-        totalSearchCount: searchCount,
+        totalSearchCount: historyCount,
       },
       recentSessions: sessions,
       recentActions: recentActions,
