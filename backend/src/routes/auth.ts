@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Env, User, EmailVerification, EmailChangeRequest } from '@/types';
+import { Env } from '@/types';
 import { success, error, generateId, hashPassword, hashToken, verifyPassword, generateToken, verifyToken, validateEmail, validateUsername, validatePassword, logUserAction, getClientIP, checkLockout, clearLockout, recordSecurityEvent } from '@/utils';
 import { recordFailedAttempt, recordPasswordResetLog, updatePasswordResetLog } from '@/utils/security';
 import { EmailVerificationService, emailVerificationUtils, ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
+import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserPassword, updateUserEmail, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
+import { findVerificationByCode, findLatestVerificationByEmailType, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
 
 const R = VALIDATION_RULES;
 
@@ -45,32 +47,8 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
       return c.json(error('LOCKED', `账户已锁定，请${remainingTime}分钟后再试`), 423);
     }
 
-    const ALLOWED_QUERY_FIELDS = ['username', 'email'] as const;
-    let queryField: 'username' | 'email' = 'username';
-    const queryValue = identifier;
-
-    if (identifier.includes('@')) {
-      queryField = 'email';
-    }
-
-    if (!ALLOWED_QUERY_FIELDS.includes(queryField)) {
-      return c.json(error('VALIDATION_ERROR', '无效的查询字段'), 400);
-    }
-
-    const userQueries = {
-      username: `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions 
-                  FROM users u 
-                  LEFT JOIN roles r ON u.role_id = r.id 
-                  WHERE u.username = ?`,
-      email: `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions 
-               FROM users u 
-               LEFT JOIN roles r ON u.role_id = r.id 
-               WHERE u.email = ?`
-    };
-
-    const user = await c.env.DB.prepare(userQueries[queryField])
-      .bind(queryValue)
-      .first<User & { role_name?: string; role_display_name?: string; role_permissions?: string }>();
+    const queryField: 'username' | 'email' = identifier.includes('@') ? 'email' : 'username';
+    const user = await findUserForLogin(c.env.DB, queryField, identifier);
 
     if (!user) {
       const lockoutResult = await recordFailedAttempt(c.env, 'login', identifier, undefined, undefined, clientIP, userAgent);
@@ -121,9 +99,7 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
     await clearLockout(c.env.DB, 'login', identifier);
 
     const now = Date.now();
-    await c.env.DB.prepare(
-      'UPDATE users SET last_login = ?, login_count = login_count + 1, updated_at = ? WHERE id = ?'
-    ).bind(now, now, user.id).run();
+    await recordLogin(c.env.DB, user.id, now);
 
     const userRole = user.role_name || 'user';
     const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
@@ -133,19 +109,7 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
     const sessionId = generateId();
     const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-    await c.env.DB.prepare(`
-      INSERT INTO user_sessions (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      sessionId,
-      user.id,
-      tokenHash,
-      expiresAt,
-      now,
-      now,
-      clientIP,
-      userAgent
-    ).run();
+    await insertSession(c.env.DB, { sessionId, userId: user.id, tokenHash, expiresAt, now, ipAddress: clientIP, userAgent });
 
     c.executionCtx.waitUntil(logUserAction(c.env, user.id, 'login', { method: 'password', ip: clientIP }, c));
 
@@ -221,21 +185,15 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
   }
 
   try {
-    const existingUser = await c.env.DB.prepare(
-      'SELECT id FROM users WHERE username = ? OR email = ?'
-    ).bind(username, normalizedEmail).first();
+    const exists = await existsUserByUsernameOrEmail(c.env.DB, username, normalizedEmail);
 
-    if (existingUser) {
+    if (exists) {
       return c.json(error('VALIDATION_ERROR', '用户名或邮箱已被注册'), 400);
     }
 
     let emailVerified = 0;
     if (verificationCode) {
-      const verification = await c.env.DB.prepare(`
-        SELECT * FROM email_verifications 
-        WHERE email = ? AND verification_code = ? AND verification_type = 'registration' AND expires_at > ?
-        ORDER BY created_at DESC LIMIT 1
-      `).bind(normalizedEmail, verificationCode, Date.now()).first<EmailVerification>();
+      const verification = await findVerificationByCode(c.env.DB, { email: normalizedEmail, code: verificationCode, type: 'registration', now: Date.now() });
 
       if (!verification) {
         return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
@@ -243,9 +201,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
 
       emailVerified = 1;
       
-      await c.env.DB.prepare(
-        'DELETE FROM email_verifications WHERE id = ?'
-      ).bind(verification.id).run();
+      await deleteVerificationById(c.env.DB, verification.id);
     }
 
     const userId = generateId();
@@ -259,37 +215,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     const sessionId = generateId();
     const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-    await c.env.DB.batch([
-      c.env.DB.prepare(`
-        INSERT INTO users (id, username, email, password_hash, created_at, updated_at, permissions, settings, is_active, login_count, email_verified)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        userId,
-        username,
-        normalizedEmail,
-        passwordHash,
-        now,
-        now,
-        JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]),
-        JSON.stringify({}),
-        1,
-        0,
-        emailVerified
-      ),
-      c.env.DB.prepare(`
-        INSERT INTO user_sessions (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        sessionId,
-        userId,
-        tokenHash,
-        expiresAt,
-        now,
-        now,
-        getClientIP(c),
-        c.req.header('User-Agent') || ''
-      ),
-    ]);
+    await createUserWithSession(c.env.DB, { userId, username, email: normalizedEmail, passwordHash, permissions: JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]), settings: JSON.stringify({}), emailVerified, sessionId, tokenHash, expiresAt, now, ipAddress: getClientIP(c), userAgent: c.req.header('User-Agent') || '' });
 
     await logUserAction(c.env, userId, 'register', { username, email: normalizedEmail }, c);
 
@@ -320,9 +246,7 @@ authRoutes.post('/logout', authMiddleware, async (c) => {
 
   try {
     const tokenHash = await hashToken(token);
-    await c.env.DB.prepare(
-      'DELETE FROM user_sessions WHERE user_id = ? AND token_hash = ?'
-    ).bind(payload.userId, tokenHash).run();
+    await deleteSessionByToken(c.env.DB, payload.userId, tokenHash);
 
     await logUserAction(c.env, payload.userId, 'logout', {}, c);
 
@@ -338,21 +262,14 @@ authRoutes.get('/me', authMiddleware, async (c) => {
   const token = c.get('authToken');
 
   try {
-    const user = await c.env.DB.prepare(
-      `SELECT u.*, r.name as role_name, r.display_name as role_display_name
-       FROM users u
-       LEFT JOIN roles r ON u.role_id = r.id
-       WHERE u.id = ?`
-    ).bind(payload.userId).first<User & { role_name?: string; role_display_name?: string }>();
+    const user = await findUserWithRoleById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
     }
 
     const tokenHash = await hashToken(token);
-    const session = await c.env.DB.prepare(
-      'SELECT * FROM user_sessions WHERE user_id = ? AND token_hash = ? AND expires_at > ?'
-    ).bind(user.id, tokenHash, Date.now()).first();
+    const session = await findActiveSessionByToken(c.env.DB, user.id, tokenHash, Date.now());
 
     if (!session) {
       return c.json(error('AUTH_ERROR', '会话已过期'), 401);
@@ -360,10 +277,7 @@ authRoutes.get('/me', authMiddleware, async (c) => {
 
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     if ((session.last_activity as number) < fiveMinutesAgo) {
-      c.executionCtx.waitUntil(
-        c.env.DB.prepare('UPDATE user_sessions SET last_activity = ? WHERE id = ?')
-          .bind(Date.now(), session.id).run()
-      );
+      c.executionCtx.waitUntil(touchSession(c.env.DB, session.id, Date.now()));
     }
 
     return c.json(success({
@@ -392,17 +306,13 @@ authRoutes.post('/verify-token', authMiddleware, async (c) => {
 
   try {
     const tokenHash = await hashToken(token);
-    const session = await c.env.DB.prepare(
-      'SELECT * FROM user_sessions WHERE user_id = ? AND token_hash = ? AND expires_at > ?'
-    ).bind(payload.userId, tokenHash, Date.now()).first();
+    const session = await findActiveSessionByToken(c.env.DB, payload.userId, tokenHash, Date.now());
 
     if (!session) {
       return c.json(error('AUTH_ERROR', '会话已过期'), 401);
     }
 
-    const user = await c.env.DB.prepare(
-      'SELECT id, username, email FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const user = await findUserBasicById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
@@ -432,9 +342,7 @@ authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), a
   const expiresIn = Math.floor(verificationCodeExpiry / 1000);
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT id, username, email FROM users WHERE email = ? AND is_active = 1'
-    ).bind(normalizedEmail).first<User>();
+    const user = await findActiveUserByEmail(c.env.DB, normalizedEmail);
 
     if (!user) {
       return c.json(success({ 
@@ -509,9 +417,7 @@ authRoutes.post('/reset-password', validateBody(schemas.auth.resetPassword), asy
   const userAgent = c.req.header('User-Agent') || '';
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE email = ? AND is_active = 1'
-    ).bind(normalizedEmail).first<User>();
+    const user = await findActiveUserByEmail(c.env.DB, normalizedEmail);
 
     if (!user) {
       return c.json(error('VALIDATION_ERROR', '用户不存在或已被禁用'), 400);
@@ -544,14 +450,7 @@ authRoutes.post('/reset-password', validateBody(schemas.auth.resetPassword), asy
     const passwordHash = await hashPassword(newPassword);
     const now = Date.now();
 
-    await c.env.DB.batch([
-      c.env.DB.prepare(`
-        UPDATE users SET password_hash = ?, last_password_change = ?, updated_at = ? WHERE id = ?
-      `).bind(passwordHash, now, now, user.id),
-      c.env.DB.prepare(`
-        DELETE FROM user_sessions WHERE user_id = ?
-      `).bind(user.id),
-    ]);
+    await resetPasswordAndRevokeSessions(c.env.DB, user.id, passwordHash, now);
 
     await updatePasswordResetLog(c.env.DB, resetLogId, {
       requestStatus: 'completed',
@@ -574,9 +473,7 @@ authRoutes.put('/change-password', authMiddleware, validateBody(schemas.auth.cha
   const { currentPassword, newPassword } = body;
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const user = await findUserById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
@@ -590,9 +487,7 @@ authRoutes.put('/change-password', authMiddleware, validateBody(schemas.auth.cha
     const passwordHash = await hashPassword(newPassword);
     const now = Date.now();
 
-    await c.env.DB.prepare(`
-      UPDATE users SET password_hash = ?, last_password_change = ?, updated_at = ? WHERE id = ?
-    `).bind(passwordHash, now, now, user.id).run();
+    await updateUserPassword(c.env.DB, user.id, passwordHash, now);
 
     await logUserAction(c.env, user.id, 'change_password', {}, c);
 
@@ -614,41 +509,26 @@ authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAc
   }
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const user = await findUserById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
     }
 
-    const verification = await c.env.DB.prepare(`
-      SELECT * FROM email_verifications
-      WHERE user_id = ? AND email = ? AND verification_code = ? AND verification_type = 'account_delete' AND expires_at > ?
-      ORDER BY created_at DESC LIMIT 1
-    `).bind(user.id, user.email, verificationCode, Date.now()).first<EmailVerification>();
+    const verification = await findVerificationByCode(c.env.DB, { email: user.email, code: verificationCode, type: 'account_delete', now: Date.now(), userId: user.id });
 
     if (!verification) {
       return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
     }
 
-    await c.env.DB.prepare('DELETE FROM email_verifications WHERE id = ?').bind(verification.id).run();
+    await deleteVerificationById(c.env.DB, verification.id);
 
     const isValid = await verifyPassword(password, user.password_hash);
     if (!isValid) {
       return c.json(error('AUTH_ERROR', '密码错误'), 400);
     }
 
-    await c.env.DB.batch([
-      c.env.DB.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM email_change_requests WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM password_reset_logs WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM user_sessions WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM user_favorites WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM user_search_history WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM user_search_source_configs WHERE user_id = ?').bind(user.id),
-      c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
-    ]);
+    await deleteAccountCascade(c.env.DB, user.id);
 
     return c.json(success(null, '账户已删除'));
   } catch (err) {
@@ -663,9 +543,7 @@ authRoutes.post('/refresh', authMiddleware, async (c) => {
 
   try {
     const oldTokenHash = await hashToken(oldToken);
-    const session = await c.env.DB.prepare(
-      'SELECT * FROM user_sessions WHERE user_id = ? AND token_hash = ? AND expires_at > ?'
-    ).bind(payload.userId, oldTokenHash, Date.now()).first();
+    const session = await findActiveSessionByToken(c.env.DB, payload.userId, oldTokenHash, Date.now());
 
     if (!session) {
       return c.json(error('AUTH_ERROR', '会话已过期'), 401);
@@ -676,11 +554,7 @@ authRoutes.post('/refresh', authMiddleware, async (c) => {
     const newTokenHash = await hashToken(newToken);
     const expiresAt = Date.now() + expiryDays * 24 * 60 * 60 * 1000;
 
-    await c.env.DB.prepare(`
-      UPDATE user_sessions
-      SET token_hash = ?, expires_at = ?, last_activity = ?
-      WHERE id = ?
-    `).bind(newTokenHash, expiresAt, Date.now(), session.id).run();
+    await rotateSessionToken(c.env.DB, session.id, newTokenHash, expiresAt, Date.now());
 
     await logUserAction(c.env, payload.userId, 'token_refresh', {}, c);
 
@@ -703,11 +577,9 @@ authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistr
   }
 
   try {
-    const existingUser = await c.env.DB.prepare(
-      'SELECT id FROM users WHERE email = ?'
-    ).bind(normalizedEmail).first();
+    const exists = await existsUserByEmail(c.env.DB, normalizedEmail);
 
-    if (existingUser) {
+    if (exists) {
       return c.json(error('VALIDATION_ERROR', '该邮箱已被注册'), 400);
     }
 
@@ -763,9 +635,7 @@ authRoutes.post('/request-email-change', validateBody(schemas.auth.requestEmailC
   }
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const user = await findUserById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
@@ -780,11 +650,9 @@ authRoutes.post('/request-email-change', validateBody(schemas.auth.requestEmailC
       return c.json(error('VALIDATION_ERROR', '新邮箱不能与当前邮箱相同'), 400);
     }
 
-    const existingUser = await c.env.DB.prepare(
-      'SELECT id FROM users WHERE email = ? AND id != ?'
-    ).bind(normalizedNewEmail, user.id).first();
+    const exists = await existsUserByEmailExcluding(c.env.DB, normalizedNewEmail, user.id);
 
-    if (existingUser) {
+    if (exists) {
       return c.json(error('VALIDATION_ERROR', '该邮箱已被其他用户使用'), 400);
     }
 
@@ -792,13 +660,10 @@ authRoutes.post('/request-email-change', validateBody(schemas.auth.requestEmailC
     const changePendingExpiryMinutes = R.EMAIL_CHANGE.PENDING_EXPIRY_MINUTES;
     await emailService.cancelExpiredPendingRequests(user.id, changePendingExpiryMinutes);
 
-    const activeRequest = await c.env.DB.prepare(`
-      SELECT id, created_at FROM email_change_requests 
-      WHERE user_id = ? AND status = 'pending' AND expires_at > ?
-    `).bind(user.id, Date.now()).first();
+    const activeRequest = await findActiveChangeRequestByUser(c.env.DB, { userId: user.id, now: Date.now() });
 
     if (activeRequest) {
-      const createdAt = (activeRequest as { created_at: number }).created_at;
+      const createdAt = activeRequest.created_at;
       const elapsedMinutes = Math.floor((Date.now() - createdAt) / 60000);
       const remainingMinutes = changePendingExpiryMinutes - elapsedMinutes;
       return c.json(error('VALIDATION_ERROR', `您已有进行中的邮箱更改请求，请等待${remainingMinutes > 0 ? remainingMinutes : 1}分钟后再试或手动取消`), 400);
@@ -810,10 +675,7 @@ authRoutes.post('/request-email-change', validateBody(schemas.auth.requestEmailC
     const expiresIn = Math.floor(changeRequestExpiryMs / 1000);
     const newEmailHash = await hashPassword(normalizedNewEmail);
 
-    await c.env.DB.prepare(`
-      INSERT INTO email_change_requests (id, user_id, old_email, new_email, new_email_hash, status, expires_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(requestId, user.id, user.email, normalizedNewEmail, newEmailHash, 'pending', expiresAt, Date.now()).run();
+    await insertChangeRequest(c.env.DB, { requestId, userId: user.id, oldEmail: user.email, newEmail: normalizedNewEmail, newEmailHash, expiresAt, now: Date.now() });
 
     return c.json(success({
       requestId,
@@ -834,10 +696,7 @@ authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailCh
   const { requestId, emailType } = body;
 
   try {
-    const changeRequest = await c.env.DB.prepare(`
-      SELECT * FROM email_change_requests 
-      WHERE id = ? AND user_id = ? AND status = 'pending' AND expires_at > ?
-    `).bind(requestId, payload.userId, Date.now()).first<EmailChangeRequest>();
+    const changeRequest = await findPendingChangeRequestById(c.env.DB, { requestId, userId: payload.userId, now: Date.now() });
 
     if (!changeRequest) {
       return c.json(error('NOT_FOUND', '邮箱更改请求不存在或已过期'), 404);
@@ -862,9 +721,7 @@ authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailCh
       { requestId, emailType, ipAddress }
     );
 
-    const user = await c.env.DB.prepare(
-      'SELECT username FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const username = await findUsernameById(c.env.DB, payload.userId);
 
     try {
       await emailService.sendVerificationEmail(
@@ -872,7 +729,7 @@ authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailCh
         verification.code,
         verificationType as 'email_change_old' | 'email_change_new',
         { 
-          username: user?.username || '用户',
+          username: username || '用户',
           oldEmail: changeRequest.old_email,
           newEmail: changeRequest.new_email
         }
@@ -900,10 +757,7 @@ authRoutes.post('/verify-email-change-code', validateBody(schemas.auth.verifyEma
   const { requestId, emailType, code } = body;
 
   try {
-    const changeRequest = await c.env.DB.prepare(`
-      SELECT * FROM email_change_requests 
-      WHERE id = ? AND user_id = ? AND status = 'pending' AND expires_at > ?
-    `).bind(requestId, payload.userId, Date.now()).first<EmailChangeRequest>();
+    const changeRequest = await findPendingChangeRequestById(c.env.DB, { requestId, userId: payload.userId, now: Date.now() });
 
     if (!changeRequest) {
       return c.json(error('NOT_FOUND', '邮箱更改请求不存在或已过期'), 404);
@@ -912,35 +766,23 @@ authRoutes.post('/verify-email-change-code', validateBody(schemas.auth.verifyEma
     const targetEmail = emailType === 'old' ? changeRequest.old_email : changeRequest.new_email;
     const verificationType = emailType === 'old' ? 'email_change_old' : 'email_change_new';
 
-    const verification = await c.env.DB.prepare(`
-      SELECT * FROM email_verifications 
-      WHERE email = ? AND verification_code = ? AND verification_type = ? AND expires_at > ?
-      ORDER BY created_at DESC LIMIT 1
-    `).bind(targetEmail, code, verificationType, Date.now()).first();
+    const verification = await findVerificationByCode(c.env.DB, { email: targetEmail, code, type: verificationType, now: Date.now() });
 
     if (!verification) {
       return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
     }
 
-    const updateField = emailType === 'old' ? 'old_email_verified' : 'new_email_verified';
-    await c.env.DB.prepare(`
-      UPDATE email_change_requests SET ${updateField} = 1, updated_at = ? WHERE id = ?
-    `).bind(Date.now(), requestId).run();
+    const updateField: 'old_email_verified' | 'new_email_verified' = emailType === 'old' ? 'old_email_verified' : 'new_email_verified';
+    await markChangeRequestVerified(c.env.DB, requestId, updateField, Date.now());
 
-    await c.env.DB.prepare('DELETE FROM email_verifications WHERE id = ?').bind(verification.id).run();
+    await deleteVerificationById(c.env.DB, verification.id);
 
-    const updatedRequest = await c.env.DB.prepare(
-      'SELECT * FROM email_change_requests WHERE id = ?'
-    ).bind(requestId).first();
+    const updatedRequest = await findChangeRequestById(c.env.DB, requestId);
 
     if (updatedRequest && updatedRequest.new_email_verified === 1) {
-      await c.env.DB.prepare(`
-        UPDATE users SET email = ?, updated_at = ? WHERE id = ?
-      `).bind(changeRequest.new_email, Date.now(), payload.userId).run();
+      await updateUserEmail(c.env.DB, payload.userId, changeRequest.new_email, Date.now());
 
-      await c.env.DB.prepare(`
-        UPDATE email_change_requests SET status = 'completed', updated_at = ? WHERE id = ?
-      `).bind(Date.now(), requestId).run();
+      await completeChangeRequest(c.env.DB, requestId, Date.now());
 
       await logUserAction(c.env, payload.userId, 'email_change', {
         oldEmail: changeRequest.old_email,
@@ -989,9 +831,7 @@ authRoutes.post('/send-account-delete-code', async (c) => {
   const payload = c.get('user');
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE id = ?'
-    ).bind(payload.userId).first<User>();
+    const user = await findUserById(c.env.DB, payload.userId);
 
     if (!user) {
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
@@ -1048,11 +888,7 @@ authRoutes.get('/verification-status', async (c) => {
   }
 
   try {
-    const verification = await c.env.DB.prepare(`
-      SELECT * FROM email_verifications 
-      WHERE email = ? AND verification_type = ? AND expires_at > ?
-      ORDER BY created_at DESC LIMIT 1
-    `).bind(email, verificationType, Date.now()).first<EmailVerification>();
+    const verification = await findLatestVerificationByEmailType(c.env.DB, { email, type: verificationType, now: Date.now() });
 
     if (!verification) {
       return c.json(success({
@@ -1081,22 +917,14 @@ authRoutes.get('/user-verification-status', async (c) => {
   const payload = c.get('user');
 
   try {
-    const verifications = await c.env.DB.prepare(`
-      SELECT * FROM email_verifications 
-      WHERE user_id = ? AND expires_at > ?
-      ORDER BY created_at DESC
-    `).bind(payload.userId, Date.now()).all();
+    const verifications = await listPendingVerificationsByUser(c.env.DB, payload.userId, Date.now());
 
-    const emailChangeRequest = await c.env.DB.prepare(`
-      SELECT * FROM email_change_requests 
-      WHERE user_id = ? AND status = 'pending' AND expires_at > ?
-      ORDER BY created_at DESC LIMIT 1
-    `).bind(payload.userId, Date.now()).first();
+    const emailChangeRequest = await findActiveChangeRequestByUser(c.env.DB, { userId: payload.userId, now: Date.now() });
 
     return c.json(success({
-      pendingVerifications: verifications.results || [],
+      pendingVerifications: verifications,
       emailChangeRequest,
-      hasAnyPendingVerifications: (verifications.results?.length > 0) || !!emailChangeRequest
+      hasAnyPendingVerifications: verifications.length > 0 || !!emailChangeRequest
     }));
   } catch (err) {
     console.error('Get user verification status error:', err);
@@ -1153,15 +981,7 @@ authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCo
       { ipAddress }
     );
 
-    let username = '用户';
-    if (userId) {
-      const user = await c.env.DB.prepare(
-        'SELECT username FROM users WHERE id = ?'
-      ).bind(userId).first<User>();
-      if (user) {
-        username = user.username;
-      }
-    }
+    const username = (userId ? await findUsernameById(c.env.DB, userId) : null) ?? '用户';
 
     try {
       await emailService.sendVerificationEmail(
