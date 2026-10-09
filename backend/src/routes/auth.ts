@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, User, EmailVerification, EmailChangeRequest } from '@/types';
 import { success, error, generateId, hashPassword, hashToken, verifyPassword, generateToken, verifyToken, validateEmail, validateUsername, validatePassword, logUserAction, getClientIP, checkLockout, clearLockout, recordSecurityEvent } from '@/utils';
 import { recordFailedAttempt, recordPasswordResetLog, updatePasswordResetLog } from '@/utils/security';
@@ -418,17 +419,9 @@ authRoutes.post('/verify-token', authMiddleware, async (c) => {
   }
 });
 
-authRoutes.post('/forgot-password', async (c) => {
-  const body = await c.req.json();
+authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), async (c) => {
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.forgotPassword>;
   const { email } = body;
-
-  if (!email) {
-    return c.json(error('VALIDATION_ERROR', '请输入邮箱地址'), 400);
-  }
-
-  if (!emailVerificationUtils.isValidEmail(email)) {
-    return c.json(error('VALIDATION_ERROR', '请输入有效的邮箱地址'), 400);
-  }
 
   const configService = new ConfigService(c.env);
   
@@ -505,23 +498,11 @@ authRoutes.post('/forgot-password', async (c) => {
   }
 });
 
-authRoutes.post('/reset-password', async (c) => {
-  const body = await c.req.json();
+authRoutes.post('/reset-password', validateBody(schemas.auth.resetPassword), async (c) => {
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.resetPassword>;
   const { email, code, verificationCode, newPassword } = body;
   
   const actualCode = code || verificationCode;
-
-  if (!email || !actualCode || !newPassword) {
-    return c.json(error('VALIDATION_ERROR', '请填写所有必填项'), 400);
-  }
-
-  if (!emailVerificationUtils.isValidEmail(email)) {
-    return c.json(error('VALIDATION_ERROR', '请输入有效的邮箱地址'), 400);
-  }
-
-  if (!validatePassword(newPassword)) {
-    return c.json(error('VALIDATION_ERROR', '密码至少需要6个字符'), 400);
-  }
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
   const ipAddress = getClientIP(c);
@@ -586,19 +567,11 @@ authRoutes.post('/reset-password', async (c) => {
   }
 });
 
-authRoutes.put('/change-password', authMiddleware, async (c) => {
+authRoutes.put('/change-password', authMiddleware, validateBody(schemas.auth.changePassword), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.changePassword>;
   const { currentPassword, newPassword } = body;
-
-  if (!currentPassword || !newPassword) {
-    return c.json(error('VALIDATION_ERROR', '请填写所有必填项'), 400);
-  }
-
-  if (!validatePassword(newPassword)) {
-    return c.json(error('VALIDATION_ERROR', `新密码至少需要${R.PASSWORD.MIN_LENGTH}个字符`), 400);
-  }
 
   try {
     const user = await c.env.DB.prepare(
@@ -630,22 +603,14 @@ authRoutes.put('/change-password', authMiddleware, async (c) => {
   }
 });
 
-authRoutes.delete('/account', authMiddleware, async (c) => {
+authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAccount), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.deleteAccount>;
   const { password, verificationCode, confirmText } = body;
-
-  if (!verificationCode) {
-    return c.json(error('VALIDATION_ERROR', '请输入验证码'), 400);
-  }
 
   if (confirmText !== '删除我的账户') {
     return c.json(error('VALIDATION_ERROR', '请输入正确的确认文字'), 400);
-  }
-
-  if (!password) {
-    return c.json(error('VALIDATION_ERROR', '请输入密码以确认身份'), 400);
   }
 
   try {
@@ -726,13 +691,9 @@ authRoutes.post('/refresh', authMiddleware, async (c) => {
   }
 });
 
-authRoutes.post('/send-registration-code', async (c) => {
-  const body = await c.req.json();
+authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistrationCode), async (c) => {
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendRegistrationCode>;
   const { email } = body;
-
-  if (!email || !emailVerificationUtils.isValidEmail(email)) {
-    return c.json(error('VALIDATION_ERROR', '请输入有效的邮箱地址'), 400);
-  }
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
 
@@ -788,29 +749,17 @@ authRoutes.post('/send-registration-code', async (c) => {
   }
 });
 
-authRoutes.post('/request-email-change', async (c) => {
+authRoutes.post('/request-email-change', validateBody(schemas.auth.requestEmailChange), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.requestEmailChange>;
   const { newEmail, currentPassword } = body;
-
-  if (!newEmail || !validateEmail(newEmail)) {
-    return c.json(error('VALIDATION_ERROR', '请输入有效的新邮箱地址'), 400);
-  }
-
-  if (newEmail.length > R.EMAIL.MAX_LENGTH) {
-    return c.json(error('VALIDATION_ERROR', `邮箱最多${R.EMAIL.MAX_LENGTH}个字符`), 400);
-  }
 
   const normalizedNewEmail = emailVerificationUtils.normalizeEmail(newEmail);
 
   // 邮箱域名白名单验证：与注册保持一致，只允许主流邮箱
   if (!emailVerificationUtils.isTrustedEmailDomain(normalizedNewEmail)) {
     return c.json(error('VALIDATION_ERROR', '请使用主流邮箱（如 Gmail、QQ邮箱、163邮箱等）'), 400);
-  }
-
-  if (!currentPassword) {
-    return c.json(error('VALIDATION_ERROR', '请输入当前密码'), 400);
   }
 
   try {
@@ -878,15 +827,11 @@ authRoutes.post('/request-email-change', async (c) => {
   }
 });
 
-authRoutes.post('/send-email-change-code', async (c) => {
+authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailChangeCode), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendEmailChangeCode>;
   const { requestId, emailType } = body;
-
-  if (!requestId || !emailType || !['old', 'new'].includes(emailType)) {
-    return c.json(error('VALIDATION_ERROR', '参数错误'), 400);
-  }
 
   try {
     const changeRequest = await c.env.DB.prepare(`
@@ -948,15 +893,11 @@ authRoutes.post('/send-email-change-code', async (c) => {
   }
 });
 
-authRoutes.post('/verify-email-change-code', async (c) => {
+authRoutes.post('/verify-email-change-code', validateBody(schemas.auth.verifyEmailChangeCode), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.verifyEmailChangeCode>;
   const { requestId, emailType, code } = body;
-
-  if (!requestId || !emailType || !code) {
-    return c.json(error('VALIDATION_ERROR', '参数不完整'), 400);
-  }
 
   try {
     const changeRequest = await c.env.DB.prepare(`
@@ -1022,15 +963,11 @@ authRoutes.post('/verify-email-change-code', async (c) => {
   }
 });
 
-authRoutes.post('/cancel-email-change-request', async (c) => {
+authRoutes.post('/cancel-email-change-request', validateBody(schemas.auth.cancelEmailChangeRequest), async (c) => {
   const payload = c.get('user');
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.cancelEmailChangeRequest>;
   const { requestId } = body;
-
-  if (!requestId) {
-    return c.json(error('VALIDATION_ERROR', '缺少请求ID'), 400);
-  }
 
   try {
     const emailService = new EmailVerificationService(c.env);
@@ -1167,17 +1104,9 @@ authRoutes.get('/user-verification-status', async (c) => {
   }
 });
 
-authRoutes.post('/smart-send-code', async (c) => {
-  const body = await c.req.json();
+authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCode), async (c) => {
+  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendVerificationCode>;
   const { email, verificationType, force = false } = body;
-
-  if (!email || !verificationType) {
-    return c.json(error('VALIDATION_ERROR', '缺少必要参数'), 400);
-  }
-
-  if (!emailVerificationUtils.isValidEmail(email)) {
-    return c.json(error('VALIDATION_ERROR', '邮箱格式不正确'), 400);
-  }
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
 

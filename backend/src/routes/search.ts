@@ -12,10 +12,12 @@
  * 日期：2024 / 2026 重构
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, SearchSource, JwtPayload } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { VALIDATION_RULES } from '@/constants';
+import { validateBody, schemas } from '@/validation';
 import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
 import { providerRegistry } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
@@ -222,7 +224,7 @@ async function saveEnrichedHistory(
  * POST /api/search
  * 需要认证，记录搜索历史
  */
-searchRoutes.post('/', async (c) => {
+searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
   const userPayload = c.get('user');
 
   // 搜索接口多级速率限制：每分钟5次/每小时20次/每天100次
@@ -236,7 +238,7 @@ searchRoutes.post('/', async (c) => {
     return c.json(error('RATE_LIMITED', rl.message || '搜索请求过于频繁，请稍后再试'), 429);
   }
 
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.search.search>;
   const { keyword, page = 1, pageSize = 20, majorCategoryId, javSubMode } = body;
 
   if (!keyword || !keyword.trim()) {

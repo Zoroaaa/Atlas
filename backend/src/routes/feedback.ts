@@ -9,6 +9,7 @@ import { success, error, verifyToken, generateId, logUserAction } from '@/utils'
 import { feedbackSchema } from '@/utils/validators';
 import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
+import { validateBody, schemas } from '@/validation';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
 
@@ -45,27 +46,15 @@ const STATUS_LABELS: Record<string, string> = {
 // -----------------------------------------------------------------------
 // POST /api/feedback  — 提交反馈
 // -----------------------------------------------------------------------
-feedbackRoutes.post('/', async (c) => {
+feedbackRoutes.post('/', validateBody(schemas.feedback.create), async (c) => {
   const user = c.get('user') as JwtPayload | undefined;
-  let body: { type?: string; title?: string; content?: string; priority?: string; email?: string; contactEmail?: string; screenshots?: string; pageUrl?: string };
-  try { body = await c.req.json(); } catch {
-    return c.json(error('VALIDATION_ERROR', '请求体格式错误'), 400);
-  }
+  const body = c.get('validatedBody') as z.infer<typeof schemas.feedback.create>;
 
   const { type, title, content, contactEmail, pageUrl } = body;
 
-  // 未登录用户必须填写联系邮箱
+  // 未登录用户必须填写联系邮箱（依赖登录态的联动校验，保留在业务层）
   if (!user && (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))) {
     return c.json(error('VALIDATION_ERROR', '请填写有效的联系邮箱'), 400);
-  }
-  if (!type || !['bug', 'suggestion', 'other'].includes(type)) {
-    return c.json(error('VALIDATION_ERROR', '请选择反馈类型'), 400);
-  }
-  if (!title || title.trim().length < 5 || title.trim().length > 100) {
-    return c.json(error('VALIDATION_ERROR', '标题长度应在 5~100 个字符之间'), 400);
-  }
-  if (!content || content.trim().length < 10 || content.trim().length > 2000) {
-    return c.json(error('VALIDATION_ERROR', '内容长度应在 10~2000 个字符之间'), 400);
   }
 
   try {
@@ -272,26 +261,14 @@ feedbackRoutes.get('/admin/:id', async (c) => {
 });
 
 // PUT /api/feedback/admin/:id  — 管理员处理反馈（支持回复并发送邮件）
-feedbackRoutes.put('/admin/:id', async (c) => {
+feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c) => {
   const adminUser = await getAdminUser(c);
   if (!adminUser) return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
 
   const feedbackId = c.req.param('id');
-  let body: { status?: string; priority?: string; adminReply?: string; adminNotes?: string; sendEmail?: boolean };
-  try { body = await c.req.json(); } catch {
-    return c.json(error('VALIDATION_ERROR', '请求体格式错误'), 400);
-  }
+  const body = c.get('validatedBody') as z.infer<typeof schemas.feedback.update>;
 
   const { status, priority, adminReply, adminNotes, sendEmail } = body;
-
-  const validStatuses = ['pending', 'processing', 'resolved', 'closed'];
-  const validPriorities = ['low', 'normal', 'high', 'urgent'];
-  if (status && !validStatuses.includes(status)) {
-    return c.json(error('VALIDATION_ERROR', '无效的状态值'), 400);
-  }
-  if (priority && !validPriorities.includes(priority)) {
-    return c.json(error('VALIDATION_ERROR', '无效的优先级'), 400);
-  }
 
   try {
     const item = await c.env.DB.prepare(`

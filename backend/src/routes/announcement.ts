@@ -3,13 +3,13 @@
  * 功能：管理员发布/编辑/删除公告，用户获取有效公告列表
  */
 import { Hono, Context, Next } from 'hono';
+import { z } from 'zod';
 import { Env, JwtPayload } from '@/types';
 import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
 import { checkIsAdmin } from '@/middleware/auth';
+import { validateBody, schemas } from '@/validation';
 
 export const announcementRoutes = new Hono<{ Bindings: Env }>();
-
-const VALID_TYPES = ['info', 'warning', 'success', 'error'];
 
 // -----------------------------------------------------------------------
 // 管理员鉴权中间件 - 实时从数据库查询权限
@@ -89,24 +89,11 @@ announcementRoutes.get('/admin/list', adminAuth, async (c) => {
 // -----------------------------------------------------------------------
 // POST /api/announcements/admin  — 管理员：发布公告
 // -----------------------------------------------------------------------
-announcementRoutes.post('/admin', adminAuth, async (c) => {
+announcementRoutes.post('/admin', adminAuth, validateBody(schemas.announcement.create), async (c) => {
   const adminUser = c.get('user') as JwtPayload;
-  let body: { title?: string; content?: string; type?: string; isPinned?: boolean; startTime?: number; endTime?: number };
-  try { body = await c.req.json(); } catch {
-    return c.json(error('VALIDATION_ERROR', '请求体格式错误'), 400);
-  }
 
+  const body = c.get('validatedBody') as z.infer<typeof schemas.announcement.create>;
   const { title, content, type, isPinned, startTime, endTime } = body;
-
-  if (!title || title.trim().length < 2 || title.trim().length > 200) {
-    return c.json(error('VALIDATION_ERROR', '标题长度应在 2~200 个字符之间'), 400);
-  }
-  if (!content || content.trim().length < 5 || content.trim().length > 5000) {
-    return c.json(error('VALIDATION_ERROR', '内容长度应在 5~5000 个字符之间'), 400);
-  }
-  if (type && !VALID_TYPES.includes(type)) {
-    return c.json(error('VALIDATION_ERROR', '无效的公告类型'), 400);
-  }
 
   try {
     const now = Date.now();
@@ -141,30 +128,16 @@ announcementRoutes.post('/admin', adminAuth, async (c) => {
 // -----------------------------------------------------------------------
 // PUT /api/announcements/admin/:id  — 管理员：编辑公告
 // -----------------------------------------------------------------------
-announcementRoutes.put('/admin/:id', adminAuth, async (c) => {
+announcementRoutes.put('/admin/:id', adminAuth, validateBody(schemas.announcement.update), async (c) => {
   const adminUser = c.get('user') as JwtPayload;
   const id = c.req.param('id');
 
-  let body: { title?: string; content?: string; type?: string; isPinned?: boolean | number; isActive?: boolean | number; startTime?: number | null; endTime?: number | null };
-  try { body = await c.req.json(); } catch {
-    return c.json(error('VALIDATION_ERROR', '请求体格式错误'), 400);
-  }
-
+  const body = c.get('validatedBody') as z.infer<typeof schemas.announcement.update>;
   const { title, content, type, isPinned, isActive, startTime, endTime } = body;
 
   // 校验存在性
   const existing = await c.env.DB.prepare('SELECT id FROM site_announcements WHERE id = ?').bind(id).first();
   if (!existing) return c.json(error('NOT_FOUND', '公告不存在'), 404);
-
-  if (title !== undefined && (title.length < 2 || title.length > 200)) {
-    return c.json(error('VALIDATION_ERROR', '标题长度应在 2~200 个字符之间'), 400);
-  }
-  if (content !== undefined && (content.length < 5 || content.length > 5000)) {
-    return c.json(error('VALIDATION_ERROR', '内容长度应在 5~5000 个字符之间'), 400);
-  }
-  if (type !== undefined && !VALID_TYPES.includes(type)) {
-    return c.json(error('VALIDATION_ERROR', '无效的公告类型'), 400);
-  }
 
   try {
     const now = Date.now();

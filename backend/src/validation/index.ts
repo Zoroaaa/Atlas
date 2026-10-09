@@ -6,9 +6,17 @@
  * 日期：2024
  */
 import { z } from 'zod';
-import type { Context } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import type { Env } from '@/types';
 import { VALIDATION_RULES, CONFIG } from '@/constants';
+
+// 校验中间件写入的上下文变量，供 handler 通过 c.get('validatedBody'/'validatedQuery') 读取
+declare module 'hono' {
+  interface ContextVariableMap {
+    validatedBody: unknown;
+    validatedQuery: unknown;
+  }
+}
 
 const R = VALIDATION_RULES;
 
@@ -28,6 +36,8 @@ export const schemas = {
       password: z.string()
         .min(R.PASSWORD.MIN_LENGTH, `密码至少${R.PASSWORD.MIN_LENGTH}个字符`)
         .max(R.PASSWORD.MAX_LENGTH, `密码最多${R.PASSWORD.MAX_LENGTH}个字符`),
+      // 注册验证码：强制邮箱验证后才能注册（必填，缺失即 400）
+      verificationCode: z.string({ error: '请输入邮箱验证码' }).length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
     }),
 
     forgotPassword: z.object({
@@ -36,7 +46,8 @@ export const schemas = {
 
     resetPassword: z.object({
       email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
-      code: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
+      verificationCode: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
+      code: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`).optional(),
       newPassword: z.string()
         .min(R.PASSWORD.MIN_LENGTH, `密码至少${R.PASSWORD.MIN_LENGTH}个字符`)
         .max(R.PASSWORD.MAX_LENGTH, `密码最多${R.PASSWORD.MAX_LENGTH}个字符`),
@@ -50,6 +61,8 @@ export const schemas = {
     }),
 
     deleteAccount: z.object({
+      verificationCode: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
+      confirmText: z.string().min(1, '请输入确认文字'),
       password: z.string().min(1, '请输入密码确认删除'),
     }),
 
@@ -69,6 +82,19 @@ export const schemas = {
       emailType: z.enum(['old', 'new']),
       code: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
     }),
+
+    sendRegistrationCode: z.object({
+      email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
+    }),
+
+    sendEmailChangeCode: z.object({
+      requestId: z.string().min(1, '请求ID不能为空'),
+      emailType: z.enum(['old', 'new']),
+    }),
+
+    cancelEmailChangeRequest: z.object({
+      requestId: z.string().min(1, '请求ID不能为空'),
+    }),
   },
 
   user: {
@@ -82,6 +108,15 @@ export const schemas = {
       url: z.string().url('请输入有效的URL').max(R.FAVORITES.URL_MAX_LENGTH, `URL最多${R.FAVORITES.URL_MAX_LENGTH}个字符`),
       icon: z.string().max(R.FAVORITES.ICON_MAX_LENGTH, `图标最多${R.FAVORITES.ICON_MAX_LENGTH}个字符`).optional().nullable(),
       keyword: z.string().max(R.KEYWORD.MAX_LENGTH, `关键词最多${R.KEYWORD.MAX_LENGTH}个字符`).optional(),
+      code: z.string().max(200).optional().nullable(),
+      cover: z.string().max(2000).optional().nullable(),
+      actors: z.string().max(2000).optional().nullable(),
+      duration: z.string().max(200).optional().nullable(),
+      tags: z.string().max(2000).optional().nullable(),
+      releaseDate: z.string().max(200).optional().nullable(),
+      publisher: z.string().max(500).optional().nullable(),
+      magnetLink: z.string().max(2000).optional().nullable(),
+      status: z.string().max(50).optional(),
     }),
 
     addSearchHistory: z.object({
@@ -90,6 +125,35 @@ export const schemas = {
         .max(R.KEYWORD.MAX_LENGTH, `关键词最多${R.KEYWORD.MAX_LENGTH}个字符`),
       source: z.string().max(100).optional(),
       resultsCount: z.number().int().min(0).optional(),
+      title: z.string().optional().nullable(),
+      subtitle: z.string().optional().nullable(),
+      code: z.string().optional().nullable(),
+      actors: z.string().optional().nullable(),
+      duration: z.string().optional().nullable(),
+      tags: z.string().optional().nullable(),
+      releaseDate: z.string().optional().nullable(),
+      publisher: z.string().optional().nullable(),
+      keyword: z.string().optional().nullable(),
+    }),
+
+    updateSearchHistory: z.object({
+      title: z.string().optional().nullable(),
+      subtitle: z.string().optional().nullable(),
+      code: z.string().optional().nullable(),
+      actors: z.string().optional().nullable(),
+      duration: z.string().optional().nullable(),
+      tags: z.string().optional().nullable(),
+      releaseDate: z.string().optional().nullable(),
+      publisher: z.string().optional().nullable(),
+      keyword: z.string().optional().nullable(),
+    }),
+
+    batchDeleteSearchHistory: z.object({
+      ids: z.array(z.string()).min(1, '请提供要删除的历史记录ID').max(100, '一次最多删除100条记录'),
+    }),
+
+    updateFavoriteStatus: z.object({
+      status: z.enum(['want', 'watched'], { message: '状态必须是 want 或 watched' }),
     }),
 
     updateSourceConfig: z.object({
@@ -107,9 +171,10 @@ export const schemas = {
       keyword: z.string()
         .min(R.KEYWORD.MIN_LENGTH, '搜索关键词不能为空')
         .max(R.KEYWORD.MAX_LENGTH, `关键词最多${R.KEYWORD.MAX_LENGTH}个字符`),
-      sourceIds: z.array(z.string()).max(R.SEARCH_SOURCES.MAX_COUNT, `最多选择${R.SEARCH_SOURCES.MAX_COUNT}个搜索源`).optional(),
-      page: z.number().int().min(1).max(1000).optional(),
-      pageSize: z.number().int().min(1).max(R.PAGINATION.MAX_PAGE_SIZE).optional(),
+      majorCategoryId: z.string().min(1).max(100).optional(),
+      javSubMode: z.enum(['code', 'actress', 'title']).optional(),
+      page: z.number().int().min(1).optional(),
+      pageSize: z.number().int().min(1).optional(),
     }),
   },
 
@@ -128,6 +193,7 @@ export const schemas = {
       description: z.string().max(R.MAJOR_CATEGORY.DESCRIPTION_MAX_LENGTH).optional().nullable(),
       icon: z.string().max(R.MAJOR_CATEGORY.ICON_MAX_LENGTH).optional(),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+      displayOrder: z.number().int().min(0).optional(),
       isActive: z.boolean().optional(),
     }),
 
@@ -141,7 +207,7 @@ export const schemas = {
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       defaultSearchable: z.boolean().optional(),
       defaultSiteType: z.enum(['search', 'browse', 'reference']).optional(),
-      searchPriority: z.number().int().min(1).max(10).optional(),
+      searchPriority: z.number().int().min(0).max(10).optional(),
     }),
 
     updateCategory: z.object({
@@ -151,7 +217,7 @@ export const schemas = {
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       defaultSearchable: z.boolean().optional(),
       defaultSiteType: z.enum(['search', 'browse', 'reference']).optional(),
-      searchPriority: z.number().int().min(1).max(10).optional(),
+      searchPriority: z.number().int().min(0).max(10).optional(),
     }),
 
     createSource: z.object({
@@ -164,10 +230,10 @@ export const schemas = {
         .min(1, 'URL模板不能为空')
         .max(R.SOURCE.URL_MAX_LENGTH)
         .regex(/^https?:\/\/.+/, 'URL模板格式不正确'),
-      homepageUrl: z.string().url('主页URL格式不正确').max(R.SOURCE.URL_MAX_LENGTH).optional().nullable(),
+      homepageUrl: z.union([z.string().url('主页URL格式不正确').max(R.SOURCE.URL_MAX_LENGTH), z.literal('')]).optional().nullable(),
       siteType: z.enum(['search', 'browse', 'reference']).optional(),
       searchable: z.boolean().optional(),
-      searchPriority: z.number().int().min(1).max(10).optional(),
+      searchPriority: z.number().int().min(0).max(10).optional(),
     }),
 
     updateSource: z.object({
@@ -177,10 +243,10 @@ export const schemas = {
       description: z.string().max(R.SOURCE.DESCRIPTION_MAX_LENGTH).optional().nullable(),
       icon: z.string().max(R.SOURCE.ICON_MAX_LENGTH).optional(),
       urlTemplate: z.string().regex(/^https?:\/\/.+/).max(R.SOURCE.URL_MAX_LENGTH).optional(),
-      homepageUrl: z.string().url().max(R.SOURCE.URL_MAX_LENGTH).optional().nullable(),
+      homepageUrl: z.union([z.string().url().max(R.SOURCE.URL_MAX_LENGTH), z.literal('')]).optional().nullable(),
       siteType: z.enum(['search', 'browse', 'reference']).optional(),
       searchable: z.boolean().optional(),
-      searchPriority: z.number().int().min(1).max(10).optional(),
+      searchPriority: z.number().int().min(0).max(10).optional(),
     }),
 
     batchUpdateUserConfigs: z.object({
@@ -210,6 +276,38 @@ export const schemas = {
       description: z.string().max(R.TAG.DESCRIPTION_MAX_LENGTH).optional().nullable(),
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       isActive: z.boolean().optional(),
+    }),
+
+    createPost: z.object({
+      postType: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'actress']),
+      title: z.string().min(1, '标题不能为空'),
+      coverImage: z.string().min(1, '封面图片不能为空'),
+      contentData: z.string().min(1, '内容数据不能为空'),
+      caption: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    }),
+
+    updatePost: z.object({
+      caption: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    }),
+
+    updatePostStatus: z.object({
+      status: z.enum(['active', 'pending', 'rejected', 'hidden']),
+    }),
+
+    featurePost: z.object({
+      isFeatured: z.boolean(),
+    }),
+
+    createComment: z.object({
+      postId: z.string().min(1, '帖子ID不能为空'),
+      content: z.string().min(1, '评论内容不能为空').max(1000, '评论内容最多1000个字符'),
+    }),
+
+    reportPost: z.object({
+      reason: z.string().min(1, '请提供举报原因').max(R.REPORT.REASON_MAX_LENGTH, `举报原因最多${R.REPORT.REASON_MAX_LENGTH}个字符`),
+      details: z.string().max(R.REPORT.DETAILS_MAX_LENGTH).optional(),
     }),
 
     createSharedSource: z.object({
@@ -254,6 +352,136 @@ export const schemas = {
       action: z.string().min(1, '行为类型不能为空').max(50),
       data: z.record(z.string(), z.unknown()).optional(),
     }),
+
+    reportError: z.object({
+      source: z.string().optional(),
+      errorType: z.string().optional(),
+      message: z.string().optional(),
+      stack: z.string().optional().nullable(),
+      url: z.string().optional().nullable(),
+      lineNumber: z.number().optional().nullable(),
+      columnNumber: z.number().optional().nullable(),
+      sessionId: z.string().optional().nullable(),
+      context: z.unknown().optional(),
+    }),
+
+    batchSourceStatus: z.object({
+      sourceIds: z.array(z.string().min(1))
+        .min(1, '请提供搜索源ID列表')
+        .max(R.SOURCE_CHECK.MAX_BATCH_CHECK, `单次最多检查${R.SOURCE_CHECK.MAX_BATCH_CHECK}个搜索源`),
+    }),
+  },
+
+  admin: {
+    updateUserRole: z.object({
+      roleId: z.string().min(1, '请指定角色'),
+    }),
+
+    updateUserStatus: z.object({
+      isActive: z.boolean(),
+      reason: z.string().max(500).optional(),
+    }),
+
+    updateUserPermissions: z.object({
+      permissions: z.array(z.string()),
+    }),
+
+    handleReport: z.object({
+      status: z.enum(['resolved', 'dismissed']),
+      action: z.string().max(100).optional(),
+      notes: z.string().max(2000).optional(),
+    }),
+
+    updateDataRecordStatus: z.object({
+      status: z.enum(['active', 'hidden']),
+    }),
+  },
+
+  config: {
+    importConfig: z.object({
+      configs: z.array(z.object({
+        key: z.string().min(1),
+        value: z.string(),
+        description: z.string().optional(),
+        configType: z.string().optional(),
+        configGroup: z.string().optional(),
+        isPublic: z.boolean().optional(),
+        isSensitive: z.boolean().optional(),
+      })),
+      overwrite: z.boolean().optional(),
+    }),
+
+    recordAnalyticsEvent: z.object({
+      userId: z.string().optional(),
+      sessionId: z.string().optional().nullable(),
+      eventType: z.string().min(1, '事件类型不能为空'),
+      eventData: z.unknown().optional(),
+      referer: z.string().optional().nullable(),
+    }),
+
+    batchUpdateConfig: z.object({
+      configs: z.array(z.object({
+        key: z.string().min(1),
+        value: z.string(),
+      })).min(1, '配置列表不能为空'),
+      changeReason: z.string().max(500).optional(),
+    }),
+
+    updateConfig: z.object({
+      value: z.string(),
+      description: z.string().optional().nullable(),
+      configType: z.string().optional().nullable(),
+      configGroup: z.string().optional().nullable(),
+      isPublic: z.boolean().optional().nullable(),
+      isSensitive: z.boolean().optional().nullable(),
+      changeReason: z.string().max(500).optional().nullable(),
+    }),
+  },
+
+  announcement: {
+    create: z.object({
+      title: z.string().trim().min(2, '标题长度应在 2~200 个字符之间').max(200, '标题长度应在 2~200 个字符之间'),
+      content: z.string().trim().min(5, '内容长度应在 5~5000 个字符之间').max(5000, '内容长度应在 5~5000 个字符之间'),
+      type: z.enum(['info', 'warning', 'success', 'error']).optional(),
+      isPinned: z.boolean().optional(),
+      startTime: z.number().optional().nullable(),
+      endTime: z.number().optional().nullable(),
+    }),
+
+    update: z.object({
+      title: z.string().min(2, '标题长度应在 2~200 个字符之间').max(200, '标题长度应在 2~200 个字符之间').optional(),
+      content: z.string().min(5, '内容长度应在 5~5000 个字符之间').max(5000, '内容长度应在 5~5000 个字符之间').optional(),
+      type: z.enum(['info', 'warning', 'success', 'error']).optional(),
+      isPinned: z.union([z.boolean(), z.number()]).optional(),
+      isActive: z.union([z.boolean(), z.number()]).optional(),
+      startTime: z.number().optional().nullable(),
+      endTime: z.number().optional().nullable(),
+    }),
+  },
+
+  feedback: {
+    create: z.object({
+      type: z.enum(['bug', 'suggestion', 'other'], { message: '请选择反馈类型' }),
+      title: z.string().trim()
+        .min(5, '标题长度应在 5~100 个字符之间')
+        .max(100, '标题长度应在 5~100 个字符之间'),
+      content: z.string().trim()
+        .min(10, '内容长度应在 10~2000 个字符之间')
+        .max(2000, '内容长度应在 10~2000 个字符之间'),
+      contactEmail: z.string().optional().nullable(),
+      pageUrl: z.string().optional().nullable(),
+      priority: z.string().optional(),
+      email: z.string().optional(),
+      screenshots: z.string().optional(),
+    }),
+
+    update: z.object({
+      status: z.enum(['pending', 'processing', 'resolved', 'closed']).optional(),
+      priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+      adminReply: z.string().optional(),
+      adminNotes: z.string().optional(),
+      sendEmail: z.boolean().optional(),
+    }),
   },
 
   pagination: z.object({
@@ -281,8 +509,8 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): ValidationRe
   }
 }
 
-export function validateBody<T>(schema: z.ZodSchema<T>) {
-  return async (c: Context<{ Bindings: Env; Variables: Record<string, unknown> }>, next: () => Promise<void>) => {
+export function validateBody<T>(schema: z.ZodSchema<T>): MiddlewareHandler {
+  return async (c, next) => {
     try {
       const body = await c.req.json();
       const result = schema.safeParse(body);

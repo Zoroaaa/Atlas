@@ -5,10 +5,12 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, SystemConfig, EmailSendLog, ConfigChangeLog, ConfigGroup } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin, checkIsSuperAdmin } from '@/middleware/auth';
 import { ConfigService } from '@/services';
+import { validateBody, schemas } from '@/validation';
 
 export const configRoutes = new Hono<{ Bindings: Env }>();
 
@@ -404,7 +406,7 @@ configRoutes.get('/email/logs', async (c) => {
   }
 });
 
-configRoutes.post('/import', async (c) => {
+configRoutes.post('/import', validateBody(schemas.config.importConfig), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsSuperAdmin(c.env.DB, user.userId)) {
@@ -412,12 +414,8 @@ configRoutes.post('/import', async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.config.importConfig>;
     const { configs, overwrite = false } = body;
-
-    if (!Array.isArray(configs)) {
-      return c.json(error('VALIDATION_ERROR', '配置数据格式错误'), 400);
-    }
 
     const now = Date.now();
     const ipAddress = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null;
@@ -426,11 +424,6 @@ configRoutes.post('/import', async (c) => {
 
     for (const config of configs) {
       const { key, value, description, configType, configGroup, isPublic, isSensitive } = config;
-
-      if (!key || value === undefined) {
-        results.push({ key: key || 'unknown', success: false, action: 'skipped', error: '缺少必要字段' });
-        continue;
-      }
 
       if (value === '******') {
         results.push({ key, success: false, action: 'skipped', error: '敏感配置需要手动设置' });
@@ -499,11 +492,11 @@ configRoutes.post('/import', async (c) => {
   }
 });
 
-configRoutes.post('/analytics/events', async (c) => {
+configRoutes.post('/analytics/events', validateBody(schemas.config.recordAnalyticsEvent), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.config.recordAnalyticsEvent>;
     const { sessionId, eventType, eventData, referer } = body;
 
     const id = generateId();
@@ -530,7 +523,7 @@ configRoutes.post('/analytics/events', async (c) => {
   }
 });
 
-configRoutes.put('/batch', async (c) => {
+configRoutes.put('/batch', validateBody(schemas.config.batchUpdateConfig), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
@@ -538,12 +531,8 @@ configRoutes.put('/batch', async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.config.batchUpdateConfig>;
     const { configs, changeReason } = body;
-
-    if (!Array.isArray(configs)) {
-      return c.json(error('VALIDATION_ERROR', '配置数据格式错误'), 400);
-    }
 
     const now = Date.now();
     const ipAddress = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null;
@@ -552,8 +541,6 @@ configRoutes.put('/batch', async (c) => {
 
     for (const config of configs) {
       const { key, value } = config;
-
-      if (!key) continue;
 
       try {
         const existing = await c.env.DB.prepare(
@@ -666,7 +653,7 @@ configRoutes.get('/:key', async (c) => {
   }
 });
 
-configRoutes.put('/:key', async (c) => {
+configRoutes.put('/:key', validateBody(schemas.config.updateConfig), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
@@ -674,10 +661,10 @@ configRoutes.put('/:key', async (c) => {
   }
 
   const key = c.req.param('key');
-  const body = await c.req.json();
-  const { value, description, configType, configGroup, isPublic, isSensitive, changeReason } = body;
 
   try {
+    const body = c.get('validatedBody') as z.infer<typeof schemas.config.updateConfig>;
+    const { value, description, configType, configGroup, isPublic, isSensitive, changeReason } = body;
     const existing = await c.env.DB.prepare(
       'SELECT * FROM system_config WHERE key = ?'
     ).bind(key).first<SystemConfig>();

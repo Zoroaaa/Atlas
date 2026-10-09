@@ -5,12 +5,14 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, User, CommunityReport, UserAction, JwtPayload, Role } from '@/types';
 import { success, error, logUserAction } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
+import { validateBody, schemas } from '@/validation';
 
 const R = VALIDATION_RULES;
 
@@ -268,9 +270,9 @@ adminRoutes.get('/users/:id', async (c) => {
  * - 只有超级管理员可以修改用户角色
  * - 管理员无权修改任何用户角色
  */
-adminRoutes.put('/users/:id/role', async (c) => {
+adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), async (c) => {
   const userId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.admin.updateUserRole>;
   const { roleId } = body;
   const adminUser = c.get('user') as JwtPayload;
 
@@ -278,10 +280,6 @@ adminRoutes.put('/users/:id/role', async (c) => {
   const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户角色'), 403);
-  }
-
-  if (!roleId) {
-    return c.json(error('VALIDATION_ERROR', '请指定角色'), 400);
   }
 
   try {
@@ -624,9 +622,9 @@ adminRoutes.get('/login-stats', async (c) => {
  * - 超级管理员：可以禁用/启用任意用户（包括其他超级管理员）
  * - 管理员：只能禁用/启用普通用户，不能操作管理员或超级管理员
  */
-adminRoutes.put('/users/:id/status', async (c) => {
+adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus), async (c) => {
   const userId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.admin.updateUserStatus>;
   const { isActive, reason } = body;
   const adminUser = c.get('user') as JwtPayload;
 
@@ -695,9 +693,9 @@ adminRoutes.put('/users/:id/status', async (c) => {
  * 
  * 权限规则：只有超级管理员可以修改用户权限
  */
-adminRoutes.put('/users/:id/permissions', async (c) => {
+adminRoutes.put('/users/:id/permissions', validateBody(schemas.admin.updateUserPermissions), async (c) => {
   const userId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.admin.updateUserPermissions>;
   const { permissions } = body;
   const adminUser = c.get('user') as JwtPayload;
 
@@ -705,10 +703,6 @@ adminRoutes.put('/users/:id/permissions', async (c) => {
   const isSuperAdmin = await checkIsSuperAdmin(c.env.DB, adminUser.userId);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户权限'), 403);
-  }
-
-  if (!Array.isArray(permissions)) {
-    return c.json(error('VALIDATION_ERROR', '权限必须是数组'), 400);
   }
 
   try {
@@ -781,15 +775,11 @@ adminRoutes.get('/reports', async (c) => {
  * 处理举报
  * PUT /api/admin/reports/:id
  */
-adminRoutes.put('/reports/:id', async (c) => {
+adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async (c) => {
   const reportId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.admin.handleReport>;
   const { status, action, notes } = body;
   const adminUser = c.get('user') as JwtPayload;
-
-  if (!['resolved', 'dismissed'].includes(status)) {
-    return c.json(error('VALIDATION_ERROR', '无效的状态'), 400);
-  }
 
   try {
     const report = await c.env.DB.prepare(

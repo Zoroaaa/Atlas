@@ -5,11 +5,13 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
 import { success, error, generateId, getClientIP } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { ConfigService } from '@/services';
 import { DB_CONFIG_KEYS } from '@/constants';
+import { validateBody, schemas } from '@/validation';
 
 export const systemRoutes = new Hono<{ Bindings: Env }>();
 
@@ -82,9 +84,9 @@ function generateErrorFingerprint(
   return `fp_${(hash >>> 0).toString(36)}`;
 }
 
-systemRoutes.post('/errors', async (c) => {
+systemRoutes.post('/errors', validateBody(schemas.system.reportError), async (c) => {
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.system.reportError>;
 
     // 简单字段白名单校验，防止 SQL 注入或脏数据
     const source = body.source === 'backend' ? 'backend' : 'frontend';
@@ -288,18 +290,10 @@ systemRoutes.get('/source-status-check', async (c) => {
   }
 });
 
-systemRoutes.post('/source-status-batch', async (c) => {
+systemRoutes.post('/source-status-batch', validateBody(schemas.system.batchSourceStatus), async (c) => {
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.system.batchSourceStatus>;
     const { sourceIds } = body;
-
-    if (!sourceIds || !Array.isArray(sourceIds) || sourceIds.length === 0) {
-      return c.json(error('VALIDATION_ERROR', '请提供搜索源ID列表'), 400);
-    }
-
-    if (sourceIds.length > 30) {
-      return c.json(error('VALIDATION_ERROR', '单次最多检查30个搜索源'), 400);
-    }
 
     const sources = await c.env.DB.prepare(
       `SELECT id, name, url_template, homepage_url FROM search_sources
@@ -367,16 +361,12 @@ systemRoutes.post('/source-status-batch', async (c) => {
   }
 });
 
-systemRoutes.post('/record-action', async (c) => {
+systemRoutes.post('/record-action', validateBody(schemas.system.recordAction), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.system.recordAction>;
     const { action, data } = body;
-
-    if (!action) {
-      return c.json(error('VALIDATION_ERROR', '请提供行为类型'), 400);
-    }
 
     const actionId = generateId();
     const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || c.req.header('CF-Connecting-IP') || null;

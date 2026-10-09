@@ -5,10 +5,12 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, SearchSource, SearchSourceCategory, MajorCategory, UserSearchSourceConfig } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { VALIDATION_RULES } from '@/constants';
+import { validateBody, schemas } from '@/validation';
 
 const R = VALIDATION_RULES;
 
@@ -445,7 +447,7 @@ sourceRoutes.post('/:id/increment-usage', async (c) => {
   }
 });
 
-sourceRoutes.post('/major-categories', async (c) => {
+sourceRoutes.post('/major-categories', validateBody(schemas.sources.createMajorCategory), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
@@ -453,15 +455,11 @@ sourceRoutes.post('/major-categories', async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.createMajorCategory>;
     const { name, description, icon, color } = body;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (name.trim().length === 0) {
       return c.json(error('VALIDATION_ERROR', '大类名称不能为空'), 400);
-    }
-
-    if (name.length > 30) {
-      return c.json(error('VALIDATION_ERROR', '大类名称不能超过30个字符'), 400);
     }
 
     const existingCategory = await c.env.DB.prepare(
@@ -504,7 +502,7 @@ sourceRoutes.post('/major-categories', async (c) => {
   }
 });
 
-sourceRoutes.post('/categories', async (c) => {
+sourceRoutes.post('/categories', validateBody(schemas.sources.createCategory), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
@@ -512,7 +510,7 @@ sourceRoutes.post('/categories', async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.createCategory>;
     const {
       majorCategoryId,
       name,
@@ -524,11 +522,7 @@ sourceRoutes.post('/categories', async (c) => {
       searchPriority
     } = body;
 
-    if (!majorCategoryId || typeof majorCategoryId !== 'string') {
-      return c.json(error('VALIDATION_ERROR', '大类ID不能为空'), 400);
-    }
-
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (name.trim().length === 0) {
       return c.json(error('VALIDATION_ERROR', '分类名称不能为空'), 400);
     }
 
@@ -558,7 +552,7 @@ sourceRoutes.post('/categories', async (c) => {
       color?.trim() || '#3b82f6',
       defaultSearchable !== false ? 1 : 0,
       defaultSiteType || 'search',
-      Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
+      Math.min(Math.max(searchPriority || 5, 1), 10),
       now,
       now
     ).run();
@@ -572,7 +566,7 @@ sourceRoutes.post('/categories', async (c) => {
       color: color?.trim() || '#3b82f6',
       defaultSearchable: defaultSearchable !== false,
       defaultSiteType: defaultSiteType || 'search',
-      searchPriority: Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
+      searchPriority: Math.min(Math.max(searchPriority || 5, 1), 10),
       isSystem: false,
     }, '分类创建成功'));
   } catch (err) {
@@ -581,7 +575,7 @@ sourceRoutes.post('/categories', async (c) => {
   }
 });
 
-sourceRoutes.put('/categories/:id', async (c) => {
+sourceRoutes.put('/categories/:id', validateBody(schemas.sources.updateCategory), async (c) => {
   const user = c.get('user');
   const categoryId = c.req.param('id');
 
@@ -598,7 +592,7 @@ sourceRoutes.put('/categories/:id', async (c) => {
       return c.json(error('FORBIDDEN', '系统分类仅管理员可修改'), 403);
     }
 
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.updateCategory> & Record<string, unknown>;
     const updates: string[] = [];
     const params: (string | number)[] = [];
 
@@ -608,17 +602,17 @@ sourceRoutes.put('/categories/:id', async (c) => {
     ];
 
     allowedFields.forEach(field => {
-      if (Object.prototype.hasOwnProperty.call(body, field)) {
-        if (field === 'searchPriority') {
-          updates.push('search_priority = ?');
-          params.push(Math.min(Math.max(parseInt(body[field]) || 5, 1), 10));
-        } else if (field === 'defaultSearchable') {
-          updates.push('default_searchable = ?');
-          params.push(body[field] ? 1 : 0);
-        } else if (typeof body[field] === 'string') {
-          updates.push(`${field === 'defaultSiteType' ? 'default_site_type' : field} = ?`);
-          params.push(body[field].trim());
-        }
+      if (!Object.prototype.hasOwnProperty.call(body, field)) return;
+      const value = body[field];
+      if (field === 'searchPriority') {
+        updates.push('search_priority = ?');
+        params.push(Math.min(Math.max(Number(value) || 5, 1), 10));
+      } else if (field === 'defaultSearchable') {
+        updates.push('default_searchable = ?');
+        params.push(value ? 1 : 0);
+      } else if (typeof value === 'string') {
+        updates.push(`${field === 'defaultSiteType' ? 'default_site_type' : field} = ?`);
+        params.push(value.trim());
       }
     });
 
@@ -679,11 +673,11 @@ sourceRoutes.delete('/categories/:id', async (c) => {
   }
 });
 
-sourceRoutes.post('/', async (c) => {
+sourceRoutes.post('/', validateBody(schemas.sources.createSource), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.createSource>;
     const {
       categoryId,
       name,
@@ -696,20 +690,8 @@ sourceRoutes.post('/', async (c) => {
       searchPriority
     } = body;
 
-    if (!categoryId || typeof categoryId !== 'string') {
-      return c.json(error('VALIDATION_ERROR', '分类ID不能为空'), 400);
-    }
-
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (name.trim().length === 0) {
       return c.json(error('VALIDATION_ERROR', '搜索源名称不能为空'), 400);
-    }
-
-    if (!urlTemplate || typeof urlTemplate !== 'string' || urlTemplate.trim().length === 0) {
-      return c.json(error('VALIDATION_ERROR', 'URL模板不能为空'), 400);
-    }
-
-    if (!/^https?:\/\/.+/.test(urlTemplate)) {
-      return c.json(error('VALIDATION_ERROR', 'URL模板格式不正确'), 400);
     }
 
     const category = await c.env.DB.prepare(
@@ -740,7 +722,7 @@ sourceRoutes.post('/', async (c) => {
       homepageUrl?.trim() || null,
       category.default_site_type || 'search',
       searchable !== false ? 1 : 0,
-      Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
+      Math.min(Math.max(searchPriority || 5, 1), 10),
       user.userId,
       now,
       now
@@ -757,7 +739,7 @@ sourceRoutes.post('/', async (c) => {
       homepageUrl: homepageUrl?.trim() || null,
       siteType: category.default_site_type || 'search',
       searchable: searchable !== false,
-      searchPriority: Math.min(Math.max(parseInt(searchPriority) || 5, 1), 10),
+      searchPriority: Math.min(Math.max(searchPriority || 5, 1), 10),
     }, '搜索源创建成功'));
   } catch (err) {
     console.error('Create source error:', err);
@@ -765,7 +747,7 @@ sourceRoutes.post('/', async (c) => {
   }
 });
 
-sourceRoutes.put('/major-categories/:id', async (c) => {
+sourceRoutes.put('/major-categories/:id', validateBody(schemas.sources.updateMajorCategory), async (c) => {
   const user = c.get('user');
   
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
@@ -787,7 +769,7 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
       return c.json(error('FORBIDDEN', '系统大类仅管理员可修改'), 403);
     }
 
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.updateMajorCategory>;
     const updates: string[] = [];
     const params: (string | number)[] = [];
 
@@ -819,14 +801,14 @@ sourceRoutes.put('/major-categories/:id', async (c) => {
       params.push(body.icon?.trim() || '🌟');
     }
 
-    if (body.color !== undefined && /^#[0-9a-fA-F]{6}$/.test(body.color)) {
+    if (body.color !== undefined) {
       updates.push('color = ?');
       params.push(body.color);
     }
 
     if (body.displayOrder !== undefined) {
       updates.push('display_order = ?');
-      params.push(Math.max(0, parseInt(body.displayOrder) || 0));
+      params.push(Math.max(0, body.displayOrder || 0));
     }
 
     if (body.isActive !== undefined) {
@@ -919,7 +901,7 @@ sourceRoutes.delete('/user-configs/:sourceId', async (c) => {
   }
 });
 
-sourceRoutes.put('/:id', async (c) => {
+sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) => {
   const user = c.get('user');
   const sourceId = c.req.param('id');
 
@@ -936,7 +918,7 @@ sourceRoutes.put('/:id', async (c) => {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可修改'), 403);
     }
 
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.updateSource> & Record<string, unknown>;
     const updates: string[] = [];
     const params: (string | number | null)[] = [];
 
@@ -954,21 +936,21 @@ sourceRoutes.put('/:id', async (c) => {
     };
 
     allowedFields.forEach(field => {
-      if (Object.prototype.hasOwnProperty.call(body, field)) {
-        const dbField = fieldMapping[field] || field;
-        if (field === 'searchPriority') {
-          updates.push(`${dbField} = ?`);
-          params.push(Math.min(Math.max(parseInt(body[field]) || 5, 1), 10));
-        } else if (field === 'searchable') {
-          updates.push(`${dbField} = ?`);
-          params.push(body[field] ? 1 : 0);
-        } else if (typeof body[field] === 'string') {
-          updates.push(`${dbField} = ?`);
-          params.push(body[field].trim());
-        } else if (body[field] === null) {
-          updates.push(`${dbField} = ?`);
-          params.push(null);
-        }
+      if (!Object.prototype.hasOwnProperty.call(body, field)) return;
+      const dbField = fieldMapping[field] || field;
+      const value = body[field];
+      if (field === 'searchPriority') {
+        updates.push(`${dbField} = ?`);
+        params.push(Math.min(Math.max(Number(value) || 5, 1), 10));
+      } else if (field === 'searchable') {
+        updates.push(`${dbField} = ?`);
+        params.push(value ? 1 : 0);
+      } else if (typeof value === 'string') {
+        updates.push(`${dbField} = ?`);
+        params.push(value.trim());
+      } else if (value === null) {
+        updates.push(`${dbField} = ?`);
+        params.push(null);
       }
     });
 
@@ -1025,29 +1007,17 @@ sourceRoutes.delete('/:id', async (c) => {
   }
 });
 
-sourceRoutes.post('/user-configs/batch', async (c) => {
+sourceRoutes.post('/user-configs/batch', validateBody(schemas.sources.batchUpdateUserConfigs), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.sources.batchUpdateUserConfigs>;
     const { configs } = body;
-
-    if (!Array.isArray(configs) || configs.length === 0) {
-      return c.json(error('VALIDATION_ERROR', '配置列表不能为空'), 400);
-    }
-
-    if (configs.length > R.USER_CONFIG.BATCH_UPDATE_MAX_COUNT) {
-      return c.json(error('VALIDATION_ERROR', `批量更新不能超过${R.USER_CONFIG.BATCH_UPDATE_MAX_COUNT}个配置`), 400);
-    }
 
     const now = Date.now();
     let updatedCount = 0;
 
     for (const config of configs) {
-      if (!config.sourceId || typeof config.sourceId !== 'string') {
-        continue;
-      }
-
       const existingConfig = await c.env.DB.prepare(
         'SELECT id FROM user_search_source_configs WHERE user_id = ? AND source_id = ?'
       ).bind(user.userId, config.sourceId).first();
@@ -1060,7 +1030,7 @@ sourceRoutes.post('/user-configs/batch', async (c) => {
           WHERE id = ?
         `).bind(
           config.isEnabled !== false ? 1 : 0,
-          config.customPriority ? Math.min(Math.max(parseInt(config.customPriority), 1), 10) : null,
+          config.customPriority ? Math.min(Math.max(config.customPriority, 1), 10) : null,
           config.customName?.trim() || null,
           config.customSubtitle?.trim() || null,
           config.customIcon?.trim() || null,
@@ -1080,7 +1050,7 @@ sourceRoutes.post('/user-configs/batch', async (c) => {
           user.userId,
           config.sourceId,
           config.isEnabled !== false ? 1 : 0,
-          config.customPriority ? Math.min(Math.max(parseInt(config.customPriority), 1), 10) : null,
+          config.customPriority ? Math.min(Math.max(config.customPriority, 1), 10) : null,
           config.customName?.trim() || null,
           config.customSubtitle?.trim() || null,
           config.customIcon?.trim() || null,

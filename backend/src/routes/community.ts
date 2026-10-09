@@ -4,17 +4,11 @@
  * 版本：3.0 - 从搜索源分享重构为资源分享
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env } from '@/types';
-import {
-  CreatePostRequest,
-  UpdatePostRequest,
-  CreateCommentRequest,
-  CreateTagRequest,
-  UpdateTagRequest,
-  ReportRequest,
-} from '@codeseek/shared';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
+import { validateBody, schemas } from '@/validation';
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
@@ -54,12 +48,12 @@ communityRoutes.get('/tags', async (c) => {
 });
 
 /** 创建标签 */
-communityRoutes.post('/tags', async (c) => {
+communityRoutes.post('/tags', validateBody(schemas.community.createTag), async (c) => {
   const user = c.get('user');
-  const body = await c.req.json() as CreateTagRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.createTag>;
   const { name, description, color } = body;
 
-  if (!name || name.trim().length === 0) {
+  if (name.trim().length === 0) {
     return c.json(error('VALIDATION_ERROR', '标签名称不能为空'), 400);
   }
 
@@ -124,9 +118,9 @@ communityRoutes.get('/tags/:id', async (c) => {
 });
 
 /** 更新标签 */
-communityRoutes.put('/tags/:id', async (c) => {
+communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), async (c) => {
   const tagId = c.req.param('id');
-  const body = await c.req.json() as UpdateTagRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.updateTag>;
   const { name, description, color, isActive } = body;
 
   try {
@@ -166,7 +160,7 @@ communityRoutes.put('/tags/:id', async (c) => {
       params.push(description?.trim() || null);
     }
 
-    if (color !== undefined && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    if (color !== undefined) {
       updates.push('tag_color = ?');
       params.push(color);
     }
@@ -530,22 +524,13 @@ communityRoutes.get('/posts/:id', async (c) => {
 });
 
 /** 创建帖子 */
-communityRoutes.post('/posts', async (c) => {
+communityRoutes.post('/posts', validateBody(schemas.community.createPost), async (c) => {
   const user = c.get('user');
-  const body = await c.req.json() as CreatePostRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.createPost>;
   const { postType, title, coverImage, contentData, caption, tags } = body;
 
-  if (!postType || !['jav', 'anime', 'movie', 'manga', 'novel', 'actress'].includes(postType)) {
-    return c.json(error('VALIDATION_ERROR', '无效的帖子类型'), 400);
-  }
-  if (!title || title.trim().length === 0) {
+  if (title.trim().length === 0) {
     return c.json(error('VALIDATION_ERROR', '标题不能为空'), 400);
-  }
-  if (!coverImage) {
-    return c.json(error('VALIDATION_ERROR', '封面图片不能为空'), 400);
-  }
-  if (!contentData) {
-    return c.json(error('VALIDATION_ERROR', '内容数据不能为空'), 400);
   }
 
   try {
@@ -585,10 +570,10 @@ communityRoutes.post('/posts', async (c) => {
 });
 
 /** 更新帖子（仅 caption 和 tags） */
-communityRoutes.put('/posts/:id', async (c) => {
+communityRoutes.put('/posts/:id', validateBody(schemas.community.updatePost), async (c) => {
   const user = c.get('user');
   const postId = c.req.param('id');
-  const body = await c.req.json() as UpdatePostRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.updatePost>;
 
   try {
     const post = await c.env.DB.prepare(
@@ -662,15 +647,11 @@ communityRoutes.delete('/posts/:id', async (c) => {
 });
 
 /** 更新帖子状态（管理员） */
-communityRoutes.put('/posts/:id/status', async (c) => {
+communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePostStatus), async (c) => {
   const user = c.get('user');
   const postId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.updatePostStatus>;
   const { status } = body;
-
-  if (!['active', 'pending', 'rejected', 'hidden'].includes(status)) {
-    return c.json(error('VALIDATION_ERROR', '无效的状态值'), 400);
-  }
 
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
@@ -697,15 +678,11 @@ communityRoutes.put('/posts/:id/status', async (c) => {
 });
 
 /** 设置/取消推荐（管理员） */
-communityRoutes.put('/posts/:id/feature', async (c) => {
+communityRoutes.put('/posts/:id/feature', validateBody(schemas.community.featurePost), async (c) => {
   const user = c.get('user');
   const postId = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.featurePost>;
   const { isFeatured } = body;
-
-  if (typeof isFeatured !== 'boolean') {
-    return c.json(error('VALIDATION_ERROR', 'isFeatured 必须为布尔值'), 400);
-  }
 
   if (!await checkIsAdmin(c.env.DB, user.userId)) {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
@@ -862,15 +839,12 @@ communityRoutes.get('/posts/:id/comments', async (c) => {
 });
 
 /** 发表评论 */
-communityRoutes.post('/comments', async (c) => {
+communityRoutes.post('/comments', validateBody(schemas.community.createComment), async (c) => {
   const user = c.get('user');
-  const body = await c.req.json() as CreateCommentRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.createComment>;
   const { postId, content } = body;
 
-  if (!postId) {
-    return c.json(error('VALIDATION_ERROR', '帖子ID不能为空'), 400);
-  }
-  if (!content || content.trim().length === 0) {
+  if (content.trim().length === 0) {
     return c.json(error('VALIDATION_ERROR', '评论内容不能为空'), 400);
   }
   if (content.trim().length > 1000) {
@@ -939,13 +913,13 @@ communityRoutes.delete('/comments/:id', async (c) => {
 // ============================================================
 
 /** 举报帖子 */
-communityRoutes.post('/posts/:id/report', async (c) => {
+communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportPost), async (c) => {
   const user = c.get('user');
   const postId = c.req.param('id');
-  const body = await c.req.json() as ReportRequest;
+  const body = c.get('validatedBody') as z.infer<typeof schemas.community.reportPost>;
   const { reason, details } = body;
 
-  if (!reason || reason.trim().length === 0) {
+  if (reason.trim().length === 0) {
     return c.json(error('VALIDATION_ERROR', '请提供举报原因'), 400);
   }
 
