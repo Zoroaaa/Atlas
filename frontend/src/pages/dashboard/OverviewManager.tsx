@@ -16,12 +16,13 @@ import {
   LogIn,
 } from 'lucide-react';
 import { Card, Badge, Loading, Button } from '@/components/ui';
-import { systemApi, userApi, sourceApi } from '@/services/api';
+import { systemApi, userApi } from '@/services/api';
+import { useFavoritesQuery, useSearchHistory, useSourcesWithUserConfig, favoritesKeys, searchHistoryKeys, sourcesKeys } from '@/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores';
 import { useNavigate } from 'react-router-dom';
 import { useFeatureFlags } from '@/contexts';
 import { useTranslation } from 'react-i18next';
-import type { FavoriteItem, SearchHistoryItem, SearchSource, UserSourceConfig } from '@/types';
 
 const getUserLevel = (total: number, t: (key: string) => string) => {
   if (total < 10)  return { label: t('dashboard:overview.userLevel.beginner'),   color: 'from-stone-400 to-stone-500',   icon: '🌱', next: 10,  prev: 0   };
@@ -104,9 +105,13 @@ export const OverviewManager: React.FC = () => {
   const { user } = useAuthStore();
   const { communityEnabled } = useFeatureFlags();
   
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
-  const [sources, setSources] = useState<Array<SearchSource & { userConfig?: UserSourceConfig | null }>>([]);
+  const queryClient = useQueryClient();
+  const favoritesQuery = useFavoritesQuery();
+  const historyQuery = useSearchHistory(50);
+  const sourcesQuery = useSourcesWithUserConfig();
+  const favorites = favoritesQuery.data ?? [];
+  const searchHistory = historyQuery.data ?? [];
+  const sources = sourcesQuery.data ?? [];
   const [userSearchStats, setUserSearchStats] = useState<{
     totalSearches: number;
     topSources: Array<{ source: string; count: number }>;
@@ -125,38 +130,21 @@ export const OverviewManager: React.FC = () => {
     target: string;
     createdAt: string;
   }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isLoading = isStatsLoading || favoritesQuery.isLoading || historyQuery.isLoading || sourcesQuery.isLoading;
 
-  const loadAllData = useCallback(async () => {
+  const loadStatsData = useCallback(async () => {
     try {
       const [
-        favoritesResponse,
-        historyResponse,
-        sourcesResponse,
         searchStatsResponse,
         activitiesResponse,
         activityStatsResponse
       ] = await Promise.all([
-        userApi.getFavorites(),
-        userApi.getSearchHistory(50),
-        sourceApi.getSourcesWithUserConfig(),
         userApi.getSearchStats(),
         systemApi.getUserActions({ userId: user?.id, limit: 10 }),
         userApi.getActivitiesStats()
       ]);
-      
-      if (favoritesResponse.success && favoritesResponse.data) {
-        setFavorites(favoritesResponse.data.favorites || []);
-      }
-      
-      if (historyResponse.success && historyResponse.data) {
-        setSearchHistory(historyResponse.data.history || []);
-      }
-      
-      if (sourcesResponse.success && sourcesResponse.data) {
-        setSources(sourcesResponse.data);
-      }
       
       if (searchStatsResponse.success && searchStatsResponse.data) {
         setUserSearchStats(searchStatsResponse.data);
@@ -184,16 +172,21 @@ export const OverviewManager: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      setIsLoading(true);
-      await loadAllData();
-      setIsLoading(false);
+      setIsStatsLoading(true);
+      await loadStatsData();
+      setIsStatsLoading(false);
     };
     init();
-  }, [loadAllData]);
+  }, [loadStatsData]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadAllData();
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: favoritesKeys.all }),
+      queryClient.invalidateQueries({ queryKey: searchHistoryKeys.all }),
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig }),
+      loadStatsData(),
+    ]);
     setIsRefreshing(false);
   };
 

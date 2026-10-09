@@ -15,9 +15,10 @@ import {
 } from 'lucide-react';
 import { Card, Loading, Badge, EmptyState, Button } from '@/components/ui';
 import { userApi } from '@/services/api';
+import { useFavoritesQuery, useSearchHistory, favoritesKeys, searchHistoryKeys } from '@/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { SearchHistoryItem, FavoriteItem } from '@/types';
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
@@ -262,29 +263,21 @@ export const StatsManager: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation(['dashboard']);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const historyQuery = useSearchHistory(500);
+  const favoritesQuery = useFavoritesQuery();
+  const history = historyQuery.data ?? [];
+  const favorites = favoritesQuery.data ?? [];
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [serverStats, setServerStats] = useState<{ totalSearches: number; topSources: Array<{ source: string; count: number }> } | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const isLoading = isStatsLoading || historyQuery.isLoading || favoritesQuery.isLoading;
 
-  const loadData = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     try {
-      const [histRes, favRes, statsRes] = await Promise.allSettled([
-        userApi.getSearchHistory(500),
-        userApi.getFavorites(),
-        userApi.getSearchStats(),
-      ]);
-
-      if (histRes.status === 'fulfilled' && histRes.value.success && histRes.value.data) {
-        setHistory(histRes.value.data.history || []);
-      }
-      if (favRes.status === 'fulfilled' && favRes.value.success && favRes.value.data) {
-        setFavorites(favRes.value.data.favorites || []);
-      }
-      if (statsRes.status === 'fulfilled' && statsRes.value.success && statsRes.value.data) {
-        setServerStats(statsRes.value.data);
+      const statsRes = await userApi.getSearchStats();
+      if (statsRes.success && statsRes.data) {
+        setServerStats(statsRes.data);
       }
     } catch (e) {
       console.error('Stats load error', e);
@@ -293,16 +286,20 @@ export const StatsManager: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      setIsLoading(true);
-      await loadData();
-      setIsLoading(false);
+      setIsStatsLoading(true);
+      await loadStats();
+      setIsStatsLoading(false);
     };
     init();
-  }, [loadData]);
+  }, [loadStats]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadData();
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: searchHistoryKeys.all }),
+      queryClient.invalidateQueries({ queryKey: favoritesKeys.all }),
+      loadStats(),
+    ]);
     setIsRefreshing(false);
   };
 
