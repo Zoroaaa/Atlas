@@ -4,7 +4,7 @@
  * 包装 manga-search.ts 的 searchManga 函数，实现 SearchProvider 接口。
  * 数据源：MangaDex（漫画元数据）
  */
-import { SearchProvider, SearchResultBase, SearchOptions } from '@/services/search-provider';
+import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment } from '@/services/search-provider';
 import { searchManga } from '@/services/manga-search';
 
 export class MangaProvider implements SearchProvider {
@@ -12,9 +12,30 @@ export class MangaProvider implements SearchProvider {
   readonly name = '漫画搜索';
   readonly supportedCategories = ['manga_sources'];
 
-  async search(keyword: string, page: number, _opts?: SearchOptions): Promise<SearchResultBase> {
+  async search(keyword: string, page: number, _ctx: SearchContext): Promise<SearchResultBase> {
     const result = await searchManga(keyword, page);
     return result as unknown as SearchResultBase;
+  }
+
+  buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
+    const fields: string[] = [];
+    const values: (string | number)[] = [];
+
+    // 漫画：提取首条 MangaDex 结果 → title + cover + code(manga:id) + tags
+    const manga = (result as {
+      manga?: Array<{ id: string; title: string; cover: string; status?: string; tags?: string[] }>;
+    }).manga;
+    const firstManga = manga?.[0];
+    if (firstManga) {
+      fields.push('title=?, cover=?, code=?');
+      values.push(firstManga.title, firstManga.cover, `manga:${firstManga.id}`);
+      if (firstManga.tags?.length) {
+        fields.push('tags=?');
+        values.push(firstManga.tags.join(','));
+      }
+    }
+
+    return fields.length > 0 ? { fields, values } : null;
   }
 
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {

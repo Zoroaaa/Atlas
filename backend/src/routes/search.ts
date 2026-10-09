@@ -2,29 +2,43 @@
  * 搜索模块路由
  * 功能：提供搜索、搜索历史、收藏、搜索建议等功能
  * 支持：
- *   - Provider 模式：通过 SearchProvider 接口分发到各搜索引擎（anime/movie/jav）
+ *   - Provider 模式：通过 SearchProvider 接口分发到各搜索引擎（anime/movie/jav/manga/novel）
  *   - 通用模式：返回匹配的搜索源 URL 列表（原有行为）
  *
- * 架构升级说明：
- *   原 if-else 分发逻辑已替换为 SearchProviderRegistry 查找。
- *   新增搜索类别只需：(1)实现 SearchProvider接口 (2)在 index.ts 注册
+ * 分层说明：
+ *   路由只做「认证 → 限流 → 找 Provider → 缓存 → 返回」；
+ *   源查询/历史读写下沉至 repositories/*，Provider 专属差异（子模式、多源注入、历史增强）
+ *   由各 Provider 内部承载。
+ *
  * 作者：CodeSeek Team
  * 日期：2024 / 2026 重构
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Env, SearchSource, JwtPayload } from '@/types';
+import { Env, JwtPayload } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { VALIDATION_RULES } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
-import { providerRegistry } from '@/services/search-provider';
+import { providerRegistry, type SearchProvider } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
-import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
-import { normalizeActressKeyword } from '@/services/actress-name-map';
-import type { JavItem } from '@/services/jav-utils';
 import { persistDataRecord } from '@/services/data-storage';
+import {
+  listSourcesByCategory,
+  listDefaultSources,
+  listEnabledSourceIds,
+  filterEnabledSources,
+  toSourceCards,
+} from '@/repositories/search-source-repository';
+import {
+  insertSearchHistory,
+  deleteSearchHistory,
+  updateSearchHistoryResultsCount,
+  enrichSearchHistory,
+  querySuggestionStats,
+  queryTrendingStats,
+} from '@/repositories/search-history-repository';
 
 const R = VALIDATION_RULES;
 
@@ -32,191 +46,21 @@ export const searchRoutes = new Hono<{ Bindings: Env }>();
 
 searchRoutes.use('*', authMiddleware);
 
-// ─── 搜索历史增强写入（方案 B）─────────────────────────────────────────
-
 /**
- * 根据聚合搜索结果，将丰富元数据补写到搜索历史记录
- * 利用 Bangumi ID/封面、TMDB ID/poster 等数据增强历史展示
+ * 将 Provider 从结果中提取的增强字段写入搜索历史
+ * 无增强内容时跳过更新（保持原有「无字段则不写」的行为）
  */
-async function saveEnrichedHistory(
+async function applyHistoryEnrichment(
   db: D1Database,
-  historyId: string | null,
+  provider: SearchProvider,
+  historyId: string,
   user: JwtPayload,
   result: Record<string, unknown>
 ): Promise<void> {
-  if (!historyId || !user) return;
-
-  const resultType = result.resultType as string;
-  const updateFields: string[] = [];
-  const updateValues: (string | number)[] = [];
-
-  switch (resultType) {
-    case 'anime': {
-      // 动漫：提取首条 Bangumi 元数据 → title + cover + code(bgm:id) + tags + studio(publisher)
-      const bgm = (result as { bgm?: Array<{ id: number; name: string; nameCN: string; cover: string; tags?: string[]; studio?: string; rating?: number }> }).bgm;
-      const firstBgm = bgm?.[0];
-      if (firstBgm) {
-        updateFields.push('title=?, cover=?, code=?');
-        updateValues.push(
-          firstBgm.nameCN || firstBgm.name,
-          firstBgm.cover,
-          `bgm:${firstBgm.id}`
-        );
-        if (firstBgm.tags?.length) {
-          updateFields.push('tags=?');
-          updateValues.push(firstBgm.tags.join(','));
-        }
-        if (firstBgm.studio) {
-          updateFields.push('publisher=?');
-          updateValues.push(firstBgm.studio);
-        }
-        if (firstBgm.rating != null) {
-          updateFields.push('subtitle=?');
-          updateValues.push(`${firstBgm.rating} 分`);
-        }
-      }
-      break;
-    }
-    case 'movie': {
-      // 影视：提取首条 TMDB 结果 → title + cover(poster) + code(tmdb:id) + release_date
-      const results = (result as { results?: Array<{ id: number; title: string; poster: string | null; release_date?: string; first_air_date?: string; vote_average?: number }> }).results;
-      const firstResult = results?.[0];
-      if (firstResult) {
-        updateFields.push('title=?, cover=?, code=?');
-        updateValues.push(
-          firstResult.title,
-          firstResult.poster || '',
-          `tmdb:${firstResult.id}`
-        );
-        const release = firstResult.release_date || firstResult.first_air_date;
-        if (release) {
-          updateFields.push('release_date=?');
-          updateValues.push(release);
-        }
-        if (firstResult.vote_average != null) {
-          updateFields.push('subtitle=?');
-          updateValues.push(`${firstResult.vote_average} 分`);
-        }
-      }
-      break;
-    }
-    case 'jav': {
-      // JAV 番号搜索：提取详情数据 → title + cover + code(番号) + actors + duration + release_date + publisher + tags
-      const detail = (result as { detail?: { code: string; title: string; cover?: string; actresses?: string[]; duration?: string; releaseDate?: string; publisher?: string; tags?: string[] } }).detail;
-      if (detail) {
-        updateFields.push('title=?, cover=?');
-        updateValues.push(detail.title, detail.cover || '');
-        if (detail.code) {
-          updateFields.push('code=?');
-          updateValues.push(detail.code);
-        }
-        if (detail.actresses?.length) {
-          updateFields.push('actors=?');
-          updateValues.push(detail.actresses.join(','));
-        }
-        if (detail.duration) {
-          updateFields.push('duration=?');
-          updateValues.push(detail.duration);
-        }
-        if (detail.releaseDate) {
-          updateFields.push('release_date=?');
-          updateValues.push(detail.releaseDate);
-        }
-        if (detail.publisher) {
-          updateFields.push('publisher=?');
-          updateValues.push(detail.publisher);
-        }
-        if (detail.tags?.length) {
-          updateFields.push('tags=?');
-          updateValues.push(detail.tags.join(','));
-        }
-      } else {
-        // JAV 女优搜索（无 detail，有 actresses）：提取首位女优 → title + cover + code(actress:id) + actors + tags
-        const actresses = (result as { actresses?: Array<{ id: string; name: string; cover?: string; ruby?: string; romaji?: string; tags?: string[] }> }).actresses;
-        const firstActress = actresses?.[0];
-        if (firstActress) {
-          updateFields.push('title=?, cover=?, code=?');
-          updateValues.push(
-            firstActress.name,
-            firstActress.cover || '',
-            `actress:${firstActress.id}`
-          );
-          updateFields.push('actors=?');
-          updateValues.push(firstActress.name);
-          const subtitle = [firstActress.ruby, firstActress.romaji].filter(Boolean).join(' / ');
-          if (subtitle) {
-            updateFields.push('subtitle=?');
-            updateValues.push(subtitle);
-          }
-          if (firstActress.tags?.length) {
-            updateFields.push('tags=?');
-            updateValues.push(firstActress.tags.join(','));
-          }
-        }
-      }
-      break;
-    }
-    case 'manga': {
-      // 漫画：提取首条 MangaDex 结果 → title + cover + code(manga:id) + tags
-      const manga = (result as { manga?: Array<{ id: string; title: string; cover: string; status?: string; tags?: string[] }> }).manga;
-      const firstManga = manga?.[0];
-      if (firstManga) {
-        updateFields.push('title=?, cover=?, code=?');
-        updateValues.push(
-          firstManga.title,
-          firstManga.cover,
-          `manga:${firstManga.id}`
-        );
-        if (firstManga.tags?.length) {
-          updateFields.push('tags=?');
-          updateValues.push(firstManga.tags.join(','));
-        }
-      }
-      break;
-    }
-    case 'novel': {
-      // 小说 NovelItem 置顶顺序：zxcs（知轩藏书） → 奇书网
-      // 跳转卡片源（Z-Library/Anna等）由 search_sources 表注入，不在此处理
-      const novels = (result as { novels?: Array<{ id: string; title: string; cover: string; author?: string; publisher?: string; format?: string; year?: string; category?: string; source?: string }> }).novels;
-      const firstNovel =
-        novels?.find(n => n.source === '知轩藏书')
-        || novels?.find(n => n.source === '奇书网')
-        || novels?.[0];
-      if (firstNovel) {
-        updateFields.push('title=?, cover=?, code=?');
-        updateValues.push(
-          firstNovel.title,
-          firstNovel.cover,
-          `md5:${firstNovel.id}`
-        );
-        if (firstNovel.author) {
-          updateFields.push('actors=?');
-          updateValues.push(firstNovel.author);
-        }
-        if (firstNovel.publisher) {
-          updateFields.push('publisher=?');
-          updateValues.push(firstNovel.publisher);
-        }
-        const tags = [firstNovel.format, firstNovel.year, firstNovel.category].filter(Boolean).join(',');
-        if (tags) {
-          updateFields.push('tags=?');
-          updateValues.push(tags);
-        }
-      }
-      break;
-    }
-  }
-
-  if (updateFields.length > 0) {
-    const total = (result as { total: number }).total ?? 0;
-    updateFields.push('results_count=?');
-    updateValues.push(total);
-    updateValues.push(historyId, user.userId);
-
-    await db.prepare(
-      `UPDATE user_search_history SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?`
-    ).bind(...updateValues).run();
-  }
+  const enrichment = provider.buildHistoryEnrichment?.(result);
+  if (!enrichment || enrichment.fields.length === 0) return;
+  const total = (result as { total?: number }).total ?? 0;
+  await enrichSearchHistory(db, historyId, user.userId, enrichment.fields, enrichment.values, total);
 }
 
 /**
@@ -255,23 +99,19 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
   try {
     if (userPayload) {
       historyId = generateId();
-      await c.env.DB.prepare(
-        `INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at, keyword)
-         VALUES (?, ?, ?, ?, 0, ?, ?)`
-      ).bind(historyId, userPayload.userId, trimmedKeyword, majorCategoryId || 'all', Date.now(), trimmedKeyword).run();
+      await insertSearchHistory(c.env.DB, {
+        id: historyId,
+        userId: userPayload.userId,
+        query: trimmedKeyword,
+        source: majorCategoryId || 'all',
+        keyword: trimmedKeyword,
+        createdAt: Date.now(),
+      });
     }
 
-    let userEnabledSources: Set<string> | null = null;
-    if (userPayload) {
-      const userConfigs = await c.env.DB.prepare(
-        `SELECT source_id FROM user_search_source_configs 
-         WHERE user_id = ? AND is_enabled = 1`
-      ).bind(userPayload.userId).all<{ source_id: string }>();
-
-      if (userConfigs.results && userConfigs.results.length > 0) {
-        userEnabledSources = new Set(userConfigs.results.map(c => c.source_id));
-      }
-    }
+    const enabledSources = userPayload
+      ? await listEnabledSourceIds(c.env.DB, userPayload.userId)
+      : null;
 
     // ── Provider 分发模式：通过 Registry 查找匹配的搜索引擎 ──
     if (majorCategoryId) {
@@ -282,9 +122,9 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
 
         // JAV / Novel 的响应体含「按用户过滤的搜索源列表」（用户启用项 + 用户私有源），
         // 属于用户态数据，必须按用户隔离缓存键，否则不同用户会互相串源列表。
-        const isUserScoped = provider.id === 'jav' || provider.id === 'novel';
-        // JAV 的 code/title/actress 三个子模式结果完全不同，必须纳入缓存键，否则互相串数据
-        const subModeKey = provider.id === 'jav' ? `&sub=${encodeURIComponent(javSubMode || 'code')}` : '';
+        const isUserScoped = provider.injectsUserSources === true;
+        // 子模式（如 JAV 的 code/title/actress）结果完全不同，必须纳入缓存键，否则互相串数据
+        const subModeKey = javSubMode ? `&sub=${encodeURIComponent(javSubMode)}` : '';
         const userKey = isUserScoped ? `&u=${encodeURIComponent(userPayload?.userId || 'anonymous')}` : '';
         const cacheKey = new Request(
           `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}`
@@ -304,7 +144,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
             try {
               const cachedData = (JSON.parse(cachedText) as { data?: Record<string, unknown> }).data;
               if (cachedData) {
-                await saveEnrichedHistory(c.env.DB, historyId, userPayload, cachedData);
+                await applyHistoryEnrichment(c.env.DB, provider, historyId, userPayload, cachedData);
               }
             } catch (histErr) {
               console.error('[search] cache-hit history enrich failed:', histErr);
@@ -322,135 +162,22 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
           // 注入 TMDB API Key（供 MovieProvider 的 suggestions/trending 使用）
           setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
 
-          // ── JAV 女优搜索子模式：调 minnano-av 抓取，但仍走 JAV Hybrid 多源逻辑 ──
-          // 不短路返回：女优卡片与多源跳转卡片并行展示
-          if (provider.id === 'jav' && javSubMode === 'actress') {
-            let actresses: ActressProfile[] = [];
-            let actressError: string | null = null;
-            try {
-              actresses = await fetchActresses(trimmedKeyword);
-            } catch (e) {
-              actressError = String(e);
-              console.error('[search] minnano actress search failed:', e);
-            }
-
-            // minnano 女优搜索成功返回数据后，补充抓取 JavBus 女优作品列表
-            // 关键词复用 normalizeActressKeyword 归一化结果（日文名），确保 JavBus 可命中
-            let actressWorks: JavItem[] = [];
-            if (actresses.length > 0) {
-              try {
-                actressWorks = await fetchActressWorks(trimmedKeyword);
-              } catch (e) {
-                console.error('[search] javbus actress works fetch failed:', e);
-              }
-            }
-
-            // 仍执行 JAV Hybrid：查用户启用的 jav 源，生成多源跳转 URL
-            const sources = await c.env.DB.prepare(`
-              SELECT s.* FROM search_sources s
-              INNER JOIN search_source_categories c ON s.category_id = c.id
-              WHERE s.is_active = 1 AND s.searchable = 1 AND c.major_category_id = ?
-              AND (s.is_system = 1 OR s.created_by = ?)
-              ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-            `).bind(majorCategoryId, userPayload?.userId || '').all<SearchSource>();
-
-            const filteredSources = userEnabledSources
-              ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
-              : (sources.results || []);
-
-            const multiSourceResults = filteredSources.map(source => ({
-              id: source.id,
-              name: source.name,
-              subtitle: source.subtitle,
-              icon: source.icon,
-              url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
-              siteType: source.site_type,
-              category: source.category_id,
-              description: source.description,
-            }));
-
-            const actressData: Record<string, unknown> = {
-              resultType: 'jav',
-              keyword: trimmedKeyword,
-              // 归一化后的日文名：供前端「minnano 站内搜索」链接使用（原文搜不到含假名女优）
-              normalizedKeyword: normalizeActressKeyword(trimmedKeyword),
-              page: limitPage,
-              total: multiSourceResults.length,
-              errors: { search: actressError },
-              actresses,
-              // JavBus 女优作品列表（仅当 minnano 女优搜索成功时才抓取）
-              actressWorks,
-              results: multiSourceResults,
-            };
-
-            // 更新搜索历史：复用 saveEnrichedHistory，女优子模式走 case 'jav' 的 actresses fallback
-            if (historyId && userPayload) {
-              try {
-                await saveEnrichedHistory(c.env.DB, historyId, userPayload, actressData);
-              } catch (e) { console.warn('Failed to update search history:', e); }
-            }
-
-            // 数据存储：异步落库有效结果（去重，不阻塞响应）
-            c.executionCtx.waitUntil(
-              persistDataRecord(c.env.DB, actressData).catch((e) => console.error('[data-storage] persist error:', e))
-            );
-
-            const responsePayload = { success: true, data: actressData };
-            const responseBody = JSON.stringify(responsePayload);
-            const newResponse = new Response(responseBody, {
-              headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': cacheControl,
-                'X-Cache': 'MISS',
-              },
-            });
-            c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
-            return newResponse;
-          }
-
-          const enrichedData = await provider.search(trimmedKeyword, limitPage, {
+          const enrichedData = (await provider.search(trimmedKeyword, limitPage, {
+            db: c.env.DB,
+            user: userPayload,
+            categoryId: majorCategoryId,
+            subMode: javSubMode,
+            enabledSources,
             apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
-          }) as unknown as Record<string, unknown>;
+          })) as unknown as Record<string, unknown>;
 
-          // ── JAV / Novel Hybrid：合并多源列表到 Provider 响应 ──
-          // JAV 需要同时返回 detail（JavDetailPanel）和 results（SearchResultsPanel）
-          // Novel 需要同时返回 novels（NovelSearchResultPanel）和 results（SearchResultsPanel）
-          if (provider.id === 'jav' || provider.id === 'novel') {
-            const sources = await c.env.DB.prepare(`
-              SELECT s.* FROM search_sources s
-              INNER JOIN search_source_categories c ON s.category_id = c.id
-              WHERE s.is_active = 1 AND s.searchable = 1 AND c.major_category_id = ?
-              AND (s.is_system = 1 OR s.created_by = ?)
-              ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-            `).bind(majorCategoryId, userPayload?.userId || '').all<SearchSource>();
-
-            const filteredSources = userEnabledSources
-              ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
-              : (sources.results || []);
-
-            enrichedData.results = filteredSources.map(source => ({
-              id: source.id,
-              name: source.name,
-              subtitle: source.subtitle,
-              icon: source.icon,
-              url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
-              siteType: source.site_type,
-              category: source.category_id,
-              description: source.description,
-            }));
-            // JAV 的 total 覆盖为源数量；Novel 保持 novels 数量（前端分页依赖）
-            if (provider.id === 'jav') {
-              enrichedData.total = filteredSources.length;
-            }
-          }
-
-          // 增强搜索历史记录（方案 B）
+          // 增强搜索历史记录（方案 B）：交由 Provider 从结果形态提取增强字段
           if (historyId && userPayload) {
             try {
-              await saveEnrichedHistory(c.env.DB, historyId, userPayload, enrichedData);
+              await applyHistoryEnrichment(c.env.DB, provider, historyId, userPayload, enrichedData);
             } catch (histErr) {
               // 历史记录失败不该影响搜索结果返回，只记日志
-              console.error(`[saveEnrichedHistory] ${provider.id} history save failed:`, histErr);
+              console.error(`[applyHistoryEnrichment] ${provider.id} history save failed:`, histErr);
             }
           }
 
@@ -476,8 +203,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
           // 搜索失败，删除已写入的历史记录
           if (historyId && userPayload) {
             try {
-              await c.env.DB.prepare('DELETE FROM user_search_history WHERE id = ? AND user_id = ?')
-                .bind(historyId, userPayload.userId).run();
+              await deleteSearchHistory(c.env.DB, historyId, userPayload.userId);
             } catch (delErr) {
               console.error('[search] Failed to delete history on error:', delErr);
             }
@@ -488,50 +214,21 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
     }
 
     // ── 通用模式：返回匹配的搜索源 URL 列表 ──
-    let query: string;
-    let params: (string | number)[];
+    const sources = majorCategoryId
+      ? await listSourcesByCategory(c.env.DB, {
+          categoryId: majorCategoryId,
+          userId: userPayload?.userId || '',
+          defaultOnly: true,
+        })
+      : await listDefaultSources(c.env.DB, userPayload?.userId || '');
 
-    if (majorCategoryId) {
-      query = `
-        SELECT s.* FROM search_sources s
-        INNER JOIN search_source_categories c ON s.category_id = c.id
-        WHERE s.is_active = 1 AND s.searchable = 1 AND c.default_searchable = 1 AND c.major_category_id = ?
-        AND (s.is_system = 1 OR s.created_by = ?)
-        ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-      `;
-      params = [majorCategoryId, userPayload?.userId || ''];
-    } else {
-      query = `
-        SELECT s.* FROM search_sources s
-        INNER JOIN search_source_categories c ON s.category_id = c.id
-        WHERE s.is_active = 1 AND s.searchable = 1 AND c.default_searchable = 1
-        AND (s.is_system = 1 OR s.created_by = ?)
-        ORDER BY c.search_priority ASC, s.search_priority ASC, s.display_order ASC
-      `;
-      params = [userPayload?.userId || ''];
-    }
-
-    const sources = await c.env.DB.prepare(query).bind(...params).all<SearchSource>();
-
-    const filteredSources = userEnabledSources
-      ? (sources.results || []).filter(s => userEnabledSources.has(s.id))
-      : (sources.results || []);
-
-    const searchResults = filteredSources.map(source => ({
-      id: source.id,
-      name: source.name,
-      subtitle: source.subtitle,
-      icon: source.icon,
-      url: source.url_template.replace('{keyword}', encodeURIComponent(trimmedKeyword)),
-      siteType: source.site_type,
-      category: source.category_id,
-      description: source.description,
-    }));
+    const searchResults = toSourceCards(
+      filterEnabledSources(sources, enabledSources),
+      trimmedKeyword
+    );
 
     if (historyId && userPayload) {
-      await c.env.DB.prepare(
-        `UPDATE user_search_history SET results_count = ? WHERE id = ? AND user_id = ?`
-      ).bind(searchResults.length, historyId, userPayload.userId).run();
+      await updateSearchHistoryResultsCount(c.env.DB, historyId, userPayload.userId, searchResults.length);
     }
 
     return c.json(success({
@@ -547,8 +244,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
     // 搜索失败，删除已写入的历史记录
     if (historyId && userPayload) {
       try {
-        await c.env.DB.prepare('DELETE FROM user_search_history WHERE id = ? AND user_id = ?')
-          .bind(historyId, userPayload.userId).run();
+        await deleteSearchHistory(c.env.DB, historyId, userPayload.userId);
       } catch (delErr) {
         console.error('[search] Failed to delete history on error:', delErr);
       }
@@ -644,18 +340,16 @@ searchRoutes.get('/suggestions', async (c) => {
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     // source 过滤：优先查具体 source，同时兼容 'all'
-    const suggestions = await c.env.DB.prepare(
-      `SELECT query as keyword, COUNT(*) as count
-       FROM user_search_history
-       WHERE created_at > ? AND query LIKE ? AND (source = ? OR source = 'all')
-       GROUP BY query
-       ORDER BY count DESC
-       LIMIT ?`
-    ).bind(thirtyDaysAgo, `${trimmedKeyword}%`, source || 'all', limit).all<{ keyword: string; count: number }>();
+    const suggestions = await querySuggestionStats(c.env.DB, {
+      since: thirtyDaysAgo,
+      prefix: `${trimmedKeyword}%`,
+      source: source || 'all',
+      limit,
+    });
 
     // CDN 缓存 60 秒，减少重复前缀的请求压力
     c.header('Cache-Control', 'public, max-age=60');
-    return c.json(success(suggestions.results || []));
+    return c.json(success(suggestions));
   } catch (err) {
     console.error('Get suggestions error:', err);
     return c.json(success([]));
@@ -744,16 +438,9 @@ searchRoutes.get('/trending', async (c) => {
   try {
     const since = Date.now() - hours * hourInMs;
 
-    const trending = await c.env.DB.prepare(
-      `SELECT query as keyword, COUNT(*) as count
-       FROM user_search_history
-       WHERE created_at > ?
-       GROUP BY query
-       ORDER BY count DESC
-       LIMIT ?`
-    ).bind(since, limit).all<{ keyword: string; count: number }>();
+    const trending = await queryTrendingStats(c.env.DB, { since, limit });
 
-    return c.json(success(trending.results || []));
+    return c.json(success(trending));
   } catch (err) {
     console.error('Get trending error:', err);
     return c.json(success([]));

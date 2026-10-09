@@ -4,7 +4,7 @@
  * 包装 movie-search.ts 的 searchMovie 函数，实现 SearchProvider 接口。
  * 数据源：TMDB（元数据）+ 豆瓣（fallback）+ TPB / EZTV（磁力）
  */
-import { SearchProvider, SearchResultBase, SearchOptions, SuggestionItem, TrendingItem } from '@/services/search-provider';
+import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchMovie } from '@/services/movie-search';
 
 /** 默认 TMDB API Key（由外部注入，留空时 suggestions/trending 会静默跳过） */
@@ -32,9 +32,35 @@ export class MovieProvider implements SearchProvider {
   readonly name = '影视搜索';
   readonly supportedCategories = ['movie_sources'];
 
-  async search(keyword: string, page: number, opts?: SearchOptions): Promise<SearchResultBase> {
-    const result = await searchMovie(keyword, page, opts?.apiKeys?.['TMDB_API_KEY']);
+  async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
+    const result = await searchMovie(keyword, page, ctx.apiKeys?.['TMDB_API_KEY']);
     return { ...result, resultType: 'movie' } as unknown as SearchResultBase;
+  }
+
+  buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
+    const fields: string[] = [];
+    const values: (string | number)[] = [];
+
+    // 影视：提取首条 TMDB 结果 → title + cover(poster) + code(tmdb:id) + release_date
+    const results = (result as {
+      results?: Array<{ id: number; title: string; poster: string | null; release_date?: string; first_air_date?: string; vote_average?: number }>;
+    }).results;
+    const firstResult = results?.[0];
+    if (firstResult) {
+      fields.push('title=?, cover=?, code=?');
+      values.push(firstResult.title, firstResult.poster || '', `tmdb:${firstResult.id}`);
+      const release = firstResult.release_date || firstResult.first_air_date;
+      if (release) {
+        fields.push('release_date=?');
+        values.push(release);
+      }
+      if (firstResult.vote_average != null) {
+        fields.push('subtitle=?');
+        values.push(`${firstResult.vote_average} 分`);
+      }
+    }
+
+    return fields.length > 0 ? { fields, values } : null;
   }
 
   async suggestions(keyword: string): Promise<SuggestionItem[]> {

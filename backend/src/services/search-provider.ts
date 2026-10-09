@@ -12,11 +12,35 @@
  *   3. 路由层通过 providerRegistry.getByCategory(categoryId) 获取 Provider 并调用
  */
 
-// ─── 统一搜索选项 ──────────────────────────────────────────────────────
+import type { JwtPayload } from '@/types';
 
-export interface SearchOptions {
+// ─── 统一搜索上下文 ────────────────────────────────────────────────────
+
+/**
+ * 搜索执行上下文：由路由注入，让 Provider 能自行完成「需访问数据/用户态」的逻辑
+ * （如 JAV/Novel 注入按用户过滤的多源跳转卡片、JAV 女优子模式）。
+ */
+export interface SearchContext {
+  /** 数据访问，供需要查询搜索源的 Provider 使用 */
+  db: D1Database;
+  /** 当前用户（未登录为 undefined） */
+  user?: JwtPayload;
+  /** 命中的 majorCategoryId */
+  categoryId: string;
+  /** 子模式（如 JAV 的 code/title/actress） */
+  subMode?: string;
+  /** 用户启用的搜索源 id 集合；null 表示未做任何配置（视为全部启用） */
+  enabledSources?: Set<string> | null;
   /** API Key 等外部依赖（如 TMDB_API_KEY） */
   apiKeys?: Record<string, string>;
+}
+
+/** 搜索历史增强字段：由 Provider 从自身结果形态提取，路由负责落库 */
+export interface HistoryEnrichment {
+  /** 形如 ['title=?', 'cover=?'] */
+  fields: string[];
+  /** 与 fields 顺序对应的绑定值 */
+  values: (string | number)[];
 }
 
 // ─── 统一搜索结果基类 ──────────────────────────────────────────────────
@@ -63,14 +87,26 @@ export interface SearchProvider {
   /** 支持的 majorCategoryId 列表 */
   supportedCategories: string[];
 
-  /** 执行搜索 */
-  search(keyword: string, page: number, opts?: SearchOptions): Promise<SearchResultBase>;
+  /**
+   * 结果是否注入「按用户过滤的搜索源卡片」（如 JAV/Novel 的多源跳转卡片）
+   * true 时该响应属用户态，路由需按用户隔离 HTTP 缓存
+   */
+  readonly injectsUserSources?: boolean;
+
+  /** 执行搜索（子模式、源注入等 Provider 专属逻辑均在其内部处理） */
+  search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase>;
 
   /** 搜索建议（可选） */
   suggestions?(keyword: string): Promise<SuggestionItem[]>;
 
   /** 热门趋势（可选） */
   trending?(): Promise<TrendingItem[]>;
+
+  /**
+   * 从搜索结果提取写入搜索历史的增强字段（可选）
+   * 返回 null 表示无可增强内容（路由将跳过历史更新）
+   */
+  buildHistoryEnrichment?(result: Record<string, unknown>): HistoryEnrichment | null;
 }
 
 // ─── Provider 注册中心 ──────────────────────────────────────────────────

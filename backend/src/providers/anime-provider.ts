@@ -4,7 +4,7 @@
  * 包装 anime-search.ts 的 searchAnime 函数，实现 SearchProvider 接口。
  * 数据源：Bangumi（元数据）+ Nyaa.si / Mikan / AnimeTosho / showRSS（磁力）
  */
-import { SearchProvider, SearchResultBase, SearchOptions, SuggestionItem, TrendingItem } from '@/services/search-provider';
+import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchAnime } from '@/services/anime-search';
 
 /** Bangumi 搜索/热门 API 返回的条目 */
@@ -22,9 +22,38 @@ export class AnimeProvider implements SearchProvider {
   readonly name = '动漫搜索';
   readonly supportedCategories = ['anime_sources'];
 
-  async search(keyword: string, page: number, _opts?: SearchOptions): Promise<SearchResultBase> {
+  async search(keyword: string, page: number, _ctx: SearchContext): Promise<SearchResultBase> {
     const result = await searchAnime(keyword, page);
     return { ...result, resultType: 'anime' } as unknown as SearchResultBase;
+  }
+
+  buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
+    const fields: string[] = [];
+    const values: (string | number)[] = [];
+
+    // 动漫：提取首条 Bangumi 元数据 → title + cover + code(bgm:id) + tags + studio(publisher)
+    const bgm = (result as {
+      bgm?: Array<{ id: number; name: string; nameCN: string; cover: string; tags?: string[]; studio?: string; rating?: number }>;
+    }).bgm;
+    const firstBgm = bgm?.[0];
+    if (firstBgm) {
+      fields.push('title=?, cover=?, code=?');
+      values.push(firstBgm.nameCN || firstBgm.name, firstBgm.cover, `bgm:${firstBgm.id}`);
+      if (firstBgm.tags?.length) {
+        fields.push('tags=?');
+        values.push(firstBgm.tags.join(','));
+      }
+      if (firstBgm.studio) {
+        fields.push('publisher=?');
+        values.push(firstBgm.studio);
+      }
+      if (firstBgm.rating != null) {
+        fields.push('subtitle=?');
+        values.push(`${firstBgm.rating} 分`);
+      }
+    }
+
+    return fields.length > 0 ? { fields, values } : null;
   }
 
   async suggestions(keyword: string): Promise<SuggestionItem[]> {
