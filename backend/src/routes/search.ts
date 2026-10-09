@@ -277,12 +277,38 @@ searchRoutes.post('/', async (c) => {
       if (provider) {
         // ── Cache Layer: 缓存热门搜索结果 ──
         const SEARCH_CACHE_TTL = 10 * 60; // 10 分钟
-        const cacheKey = new Request(`https://internal/search/${majorCategoryId}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}`);
+
+        // JAV / Novel 的响应体含「按用户过滤的搜索源列表」（用户启用项 + 用户私有源），
+        // 属于用户态数据，必须按用户隔离缓存键，否则不同用户会互相串源列表。
+        const isUserScoped = provider.id === 'jav' || provider.id === 'novel';
+        // JAV 的 code/title/actress 三个子模式结果完全不同，必须纳入缓存键，否则互相串数据
+        const subModeKey = provider.id === 'jav' ? `&sub=${encodeURIComponent(javSubMode || 'code')}` : '';
+        const userKey = isUserScoped ? `&u=${encodeURIComponent(userPayload?.userId || 'anonymous')}` : '';
+        const cacheKey = new Request(
+          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}`
+        );
+        // 用户态响应不得声明为 public：真实请求 URL /api/search 不含用户标识，
+        // 一旦被中间层按公共 URL 缓存就会跨用户泄露。
+        const cacheControl = isUserScoped
+          ? `private, max-age=${SEARCH_CACHE_TTL}`
+          : `public, max-age=${SEARCH_CACHE_TTL}`;
         const cache = caches.default;
 
         const cached = await cache.match(cacheKey);
         if (cached) {
-          return new Response(cached.body, {
+          // 缓存命中同样要补写搜索历史：否则命中缓存的用户历史 results_count 恒为 0、增强元数据缺失
+          const cachedText = await cached.text();
+          if (historyId && userPayload) {
+            try {
+              const cachedData = (JSON.parse(cachedText) as { data?: Record<string, unknown> }).data;
+              if (cachedData) {
+                await saveEnrichedHistory(c.env.DB, historyId, userPayload, cachedData);
+              }
+            } catch (histErr) {
+              console.error('[search] cache-hit history enrich failed:', histErr);
+            }
+          }
+          return new Response(cachedText, {
             headers: {
               ...Object.fromEntries(cached.headers),
               'X-Cache': 'HIT',
@@ -372,7 +398,7 @@ searchRoutes.post('/', async (c) => {
             const newResponse = new Response(responseBody, {
               headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': `public, max-age=${SEARCH_CACHE_TTL}`,
+                'Cache-Control': cacheControl,
                 'X-Cache': 'MISS',
               },
             });
@@ -436,7 +462,7 @@ searchRoutes.post('/', async (c) => {
           const newResponse = new Response(responseBody, {
             headers: {
               'Content-Type': 'application/json',
-              'Cache-Control': `public, max-age=${SEARCH_CACHE_TTL}`,
+              'Cache-Control': cacheControl,
               'X-Cache': 'MISS',
             },
           });
