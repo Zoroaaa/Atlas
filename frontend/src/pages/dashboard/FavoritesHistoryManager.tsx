@@ -22,9 +22,10 @@ import { getBackendBaseUrl } from '@/constants';
 import { ProxyImage } from '@/components/ui';
 import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
+import { useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus } from '@/hooks';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { FavoriteItem, SearchHistoryItem } from '@/types';
+import type { SearchHistoryItem } from '@/types';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -43,8 +44,10 @@ const getProxyImageUrl = (url: string): string => {
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
   const { t } = useTranslation(['dashboard']);
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: favorites = [], isLoading } = useFavoritesQuery();
+  const addFavoriteMutation = useAddFavorite();
+  const removeFavoriteMutation = useRemoveFavorite();
+  const updateStatusMutation = useUpdateFavoriteStatus();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -53,29 +56,9 @@ export const FavoritesManager: React.FC = () => {
   const [importModal, setImportModal] = useState(false);
   const [importData, setImportData] = useState('');
 
-  const loadFavorites = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await userApi.getFavorites();
-      if (response.success && response.data) {
-        setFavorites(response.data.favorites);
-      }
-    } catch (_error) {
-      toast.error(t('dashboard:favoritesHistory.favorites.loadFailedTitle'), t('dashboard:favoritesHistory.favorites.loadFailedDesc'));
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
-
   const handleRemoveFavorite = async (id: string) => {
     try {
-      await userApi.removeFavorite(id);
-      setFavorites(prev => prev.filter(f => f.id !== id));
+      await removeFavoriteMutation.mutateAsync(id);
       toast.success(t('dashboard:favoritesHistory.favorites.removeSuccess'));
     } catch (_error) {
       toast.error(t('dashboard:favoritesHistory.favorites.removeFailedTitle'), t('dashboard:favoritesHistory.favorites.retryLater'));
@@ -85,11 +68,8 @@ export const FavoritesManager: React.FC = () => {
   const handleUpdateStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'want' ? 'watched' : 'want';
     try {
-      const result = await userApi.updateFavoriteStatus(id, newStatus);
+      const result = await updateStatusMutation.mutateAsync({ id, status: newStatus });
       if (result.success) {
-        setFavorites(prev => prev.map(f => 
-          f.id === id ? { ...f, status: newStatus } : f
-        ));
         toast.success(t('dashboard:favoritesHistory.favorites.statusUpdateSuccess'));
       } else {
         toast.error(result.message || t('dashboard:favoritesHistory.favorites.statusUpdateFailed'));
@@ -108,8 +88,7 @@ export const FavoritesManager: React.FC = () => {
     if (!confirm(t('dashboard:favoritesHistory.favorites.batchDeleteConfirm', { count: selectedItems.size }))) return;
     
     try {
-      await Promise.all(Array.from(selectedItems).map(id => userApi.removeFavorite(id)));
-      setFavorites(prev => prev.filter(f => !selectedItems.has(f.id)));
+      await Promise.all(Array.from(selectedItems).map(id => removeFavoriteMutation.mutateAsync(id)));
       setSelectedItems(new Set());
       toast.success(t('dashboard:favoritesHistory.favorites.batchDeleteSuccess'));
     } catch (_error) {
@@ -146,14 +125,13 @@ export const FavoritesManager: React.FC = () => {
       for (const item of data) {
         if (!item.title || !item.url) continue;
         try {
-          const res = await userApi.addFavorite({ title: item.title, url: item.url, subtitle: item.subtitle, icon: item.icon, keyword: item.keyword });
+          const res = await addFavoriteMutation.mutateAsync({ title: item.title, url: item.url, subtitle: item.subtitle, icon: item.icon, keyword: item.keyword });
           if (res.success) successCount++;
         } catch (_e) { /* skip duplicates/errors */ }
       }
       toast.success(t('dashboard:favoritesHistory.favorites.importSuccess', { count: successCount }));
       setImportModal(false);
       setImportData('');
-      loadFavorites();
     } catch (_error) {
       toast.error(t('dashboard:favoritesHistory.favorites.importFailedTitle'), t('dashboard:favoritesHistory.favorites.importFailedDesc'));
     }

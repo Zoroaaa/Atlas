@@ -1,6 +1,5 @@
 export { useAuth } from './useAuth';
 export { useSearch } from './useSearch';
-export { useFavorites } from './useFavorites';
 export { useSearchSuggestions } from './useSearchSuggestions';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
@@ -8,7 +7,7 @@ export { useJavDetail } from './useJavDetail';
 export { useJavRankings, getCacheAge } from './useJavRankings';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
-export { useFavorites as useFavoritesQuery, useAddFavorite, useRemoveFavorite, favoritesKeys } from './useFavoritesQuery';
+export { useFavorites as useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys } from './useFavoritesQuery';
 export { useSearchHistory, useClearSearchHistory, searchHistoryKeys } from './useSearchHistoryQuery';
 export { useMajorCategories, useCategories, useSourcesWithUserConfig, sourcesKeys } from './useSourcesQuery';
 export { useSearchFlow } from './useSearchFlow';
