@@ -6,13 +6,111 @@
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Env, User, CommunityReport, UserAction, JwtPayload, Role } from '@/types';
+import { Env, JwtPayload } from '@/types';
 import { success, error, logUserAction } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
 import { validateBody, schemas } from '@/validation';
+import {
+  listRoles,
+  findRoleById,
+  getUserStats,
+  countActiveUsersSince,
+  listRoleUserDistribution,
+  countUsers,
+  listUsers,
+  findUserDetailById,
+  listUserRecentSessions,
+  countUserFavorites,
+  countUserSearchHistory,
+  listUserRecentActions,
+  findUserRoleRef,
+  updateUserRole,
+  deleteUserSessions,
+  findUserIdentity,
+  updateUserStatus,
+  updateUserPermissions,
+  findUserRolePriority,
+  findUserRoleAndPriority,
+  countUserLoginActions,
+  listUserLoginLogs,
+  listActiveUsers,
+  queryActivityRanking,
+  listLoginDailyStats,
+  listLoginTopIPs,
+  listLoginFailedAttempts,
+  countReportsByStatus,
+  listReportsByStatus,
+  findReportById,
+  updateReportHandling,
+  hidePost,
+  getSystemUserStats,
+  listRoleStats,
+  getSourceStats,
+  getSearchHistoryStats,
+  getCommunitySummaryStats,
+  listTopSearchKeywords,
+  listTopUsedSources,
+  countUserActions,
+  countUserActionsSince,
+  countDistinctUsersSince,
+  listActionsByType,
+  getLoginActionStats,
+  countActionLogs,
+  listActionLogs,
+  deletePasswordResetLogsBefore,
+  deleteUserActionsBefore,
+  deleteSecurityEventsBefore,
+  countAllSessions,
+  getActiveSessionStats,
+  countRecentlyActiveSessions,
+  countSessionsSince,
+  listDeviceDistribution,
+  countSessions,
+  listSessions,
+  findSessionWithUserAndRole,
+  deleteSessionById,
+  countAnalyticsEventsSince,
+  listAnalyticsEventsByType,
+  listAnalyticsDailyEvents,
+  countAnalyticsUniqueUsers,
+  countAnalyticsUniqueSessions,
+  listAnalyticsTopReferers,
+  listAnalyticsHourlyDistribution,
+  countAnalyticsEvents,
+  listAnalyticsEvents,
+  getDashboardUserStats,
+  getDashboardSessionStats,
+  getDashboardActionStats,
+  getDashboardAnalyticsStats,
+  getDashboardSourceStats,
+  getDashboardSearchStats,
+  getDashboardLoginStats,
+  getDashboardCommunityStats,
+  listDashboardRecentActions,
+  listUserRegistrationsByDay,
+  listDailyLoginStats,
+  listDailySearches,
+  listDailyActiveUsers,
+  listUserActionTypes,
+  listTopActiveUsers,
+  listHourlyActivity,
+  listWeeklyActivity,
+  getSystemErrorStats,
+  listSystemErrorsByType,
+  listTopSystemErrors,
+  listDailySystemErrors,
+  countSystemErrors,
+  listSystemErrors,
+  listUsernamesByIds,
+  findSystemErrorById,
+  findUsernameById,
+  listRelatedSystemErrors,
+  deleteSystemErrorsByFingerprint,
+  deleteSystemErrorById,
+} from '@/repositories/admin-repository';
 
 const R = VALIDATION_RULES;
 
@@ -35,12 +133,10 @@ adminRoutes.use('*', adminMiddleware);
  */
 adminRoutes.get('/roles', async (c) => {
   try {
-    const roles = await c.env.DB.prepare(
-      'SELECT * FROM roles ORDER BY priority DESC'
-    ).all<Role>();
+    const roles = await listRoles(c.env.DB);
 
     return c.json(success({
-      roles: (roles.results || []).map(r => ({
+      roles: roles.map(r => ({
         id: r.id,
         name: r.name,
         displayName: r.display_name,
@@ -69,31 +165,11 @@ adminRoutes.get('/users/stats', async (c) => {
     const oneWeekAgo = now - CONFIG.Stats.WEEK_IN_MS;
     const oneMonthAgo = now - CONFIG.Stats.MONTH_IN_MS;
 
-    const userStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive,
-        SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END) as verified,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_week,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_month
-      FROM users
-    `).bind(oneDayAgo, oneWeekAgo, oneMonthAgo).first();
+    const userStats = await getUserStats(c.env.DB, { oneDayAgo, oneWeekAgo, oneMonthAgo });
 
-    const activeUsersToday = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM user_sessions
-      WHERE last_activity > ?
-    `).bind(oneDayAgo).first<{ count: number }>();
+    const activeToday = await countActiveUsersSince(c.env.DB, oneDayAgo);
 
-    const roleDistribution = await c.env.DB.prepare(`
-      SELECT r.display_name, COUNT(u.id) as count
-      FROM roles r
-      LEFT JOIN users u ON r.id = u.role_id
-      GROUP BY r.id
-      ORDER BY count DESC
-    `).all<{ display_name: string; count: number }>();
+    const roleDistribution = await listRoleUserDistribution(c.env.DB);
 
     return c.json(success({
       total: userStats?.total || 0,
@@ -103,8 +179,8 @@ adminRoutes.get('/users/stats', async (c) => {
       newToday: userStats?.new_today || 0,
       newWeek: userStats?.new_week || 0,
       newMonth: userStats?.new_month || 0,
-      activeToday: activeUsersToday?.count || 0,
-      roleDistribution: roleDistribution.results || [],
+      activeToday: activeToday,
+      roleDistribution: roleDistribution,
     }));
   } catch (err) {
     console.error('Get users stats error:', err);
@@ -125,42 +201,18 @@ adminRoutes.get('/users', async (c) => {
   const roleId = c.req.query('roleId');
 
   try {
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
+    const total = await countUsers(c.env.DB, { search, status, roleId });
 
-    if (search) {
-      whereClause += ' AND (u.username LIKE ? OR u.email LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
-    }
-
-    if (status === 'active') {
-      whereClause += ' AND u.is_active = 1';
-    } else if (status === 'inactive') {
-      whereClause += ' AND u.is_active = 0';
-    }
-
-    if (roleId) {
-      whereClause += ' AND u.role_id = ?';
-      params.push(roleId);
-    }
-
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM users u ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const users = await c.env.DB.prepare(
-      `SELECT u.id, u.username, u.email, u.is_active, u.email_verified, u.login_count, 
-              u.created_at, u.last_login, u.permissions, u.role_id,
-              r.name as role_name, r.display_name as role_display_name
-       FROM users u
-       LEFT JOIN roles r ON u.role_id = r.id
-       ${whereClause}
-       ORDER BY u.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(...params, pageSize, (page - 1) * pageSize).all<User & { role_name?: string; role_display_name?: string }>();
+    const users = await listUsers(c.env.DB, {
+      search,
+      status,
+      roleId,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      users: (users.results || []).map(u => ({
+      users: users.map(u => ({
         id: u.id,
         username: u.username,
         email: u.email,
@@ -173,10 +225,10 @@ adminRoutes.get('/users', async (c) => {
         role: u.role_name || 'user',
         roleDisplayName: u.role_display_name || '普通用户',
       })),
-      total: countResult?.total || 0,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get users error:', err);
@@ -192,43 +244,26 @@ adminRoutes.get('/users/:id', async (c) => {
   const userId = c.req.param('id');
 
   try {
-    const user = await c.env.DB.prepare(
-      `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions
-       FROM users u
-       LEFT JOIN roles r ON u.role_id = r.id
-       WHERE u.id = ?`
-    ).bind(userId).first<User & { role_name?: string; role_display_name?: string; role_permissions?: string }>();
+    const user = await findUserDetailById(c.env.DB, userId);
 
     if (!user) {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
-    const sessions = await c.env.DB.prepare(
-      'SELECT id, ip_address, user_agent, created_at, last_activity, expires_at FROM user_sessions WHERE user_id = ? ORDER BY last_activity DESC LIMIT 10'
-    ).bind(userId).all();
+    const sessions = await listUserRecentSessions(c.env.DB, userId);
 
-    const favoritesCount = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_favorites WHERE user_id = ?'
-    ).bind(userId).first<{ count: number }>();
+    const favoritesCount = await countUserFavorites(c.env.DB, userId);
 
-    const historyCount = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_search_history WHERE user_id = ?'
-    ).bind(userId).first<{ count: number }>();
+    const historyCount = await countUserSearchHistory(c.env.DB, userId);
 
-    const recentActions = await c.env.DB.prepare(
-      `SELECT action, created_at FROM user_actions 
-       WHERE user_id = ? AND action IN ('login', 'login_failed', 'search', 'favorite')
-       ORDER BY created_at DESC LIMIT 20`
-    ).bind(userId).all();
+    const recentActions = await listUserRecentActions(c.env.DB, userId);
 
-    const loginCount = recentActions.results?.filter((a) => {
+    const loginCount = recentActions.filter((a) => {
       const result = adminActionSchema.safeParse(a);
       const action = result.success ? result.data : a as { action: string };
       return action.action === 'login';
     }).length || 0;
-    const searchCount = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_search_history WHERE user_id = ?'
-    ).bind(userId).first<{ count: number }>();
+    const searchCount = await countUserSearchHistory(c.env.DB, userId);
 
     return c.json(success({
       user: {
@@ -247,14 +282,14 @@ adminRoutes.get('/users/:id', async (c) => {
         rolePermissions: (() => { try { return JSON.parse(user.role_permissions || '[]'); } catch { return []; } })(),
       },
       stats: {
-        favoritesCount: favoritesCount?.count || 0,
-        historyCount: historyCount?.count || 0,
-        activeSessions: (sessions.results || []).length,
+        favoritesCount: favoritesCount,
+        historyCount: historyCount,
+        activeSessions: sessions.length,
         totalLoginCount: loginCount,
-        totalSearchCount: searchCount?.count || 0,
+        totalSearchCount: searchCount,
       },
-      recentSessions: sessions.results || [],
-      recentActions: recentActions.results || [],
+      recentSessions: sessions,
+      recentActions: recentActions,
     }));
   } catch (err) {
     console.error('Get user detail error:', err);
@@ -283,31 +318,23 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
   }
 
   try {
-    const role = await c.env.DB.prepare(
-      'SELECT * FROM roles WHERE id = ?'
-    ).bind(roleId).first<Role>();
+    const role = await findRoleById(c.env.DB, roleId);
 
     if (!role) {
       return c.json(error('NOT_FOUND', '角色不存在'), 404);
     }
 
-    const user = await c.env.DB.prepare(
-      'SELECT id, username, role_id FROM users WHERE id = ?'
-    ).bind(userId).first<User>();
+    const user = await findUserRoleRef(c.env.DB, userId);
 
     if (!user) {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
     // 更新角色
-    await c.env.DB.prepare(
-      'UPDATE users SET role_id = ?, updated_at = ? WHERE id = ?'
-    ).bind(roleId, Date.now(), userId).run();
+    await updateUserRole(c.env.DB, { userId, roleId, now: Date.now() });
 
     // 清除该用户所有session，强制重新登录获取新token
-    await c.env.DB.prepare(
-      'DELETE FROM user_sessions WHERE user_id = ?'
-    ).bind(userId).run();
+    await deleteUserSessions(c.env.DB, userId);
 
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_role', {
       targetUserId: userId,
@@ -334,20 +361,12 @@ adminRoutes.get('/users/:id/login-logs', async (c) => {
   const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
 
   try {
-    const countResult = await c.env.DB.prepare(
-      "SELECT COUNT(*) as total FROM user_actions WHERE user_id = ? AND action IN ('login', 'login_failed')"
-    ).bind(userId).first<{ total: number }>();
+    const total = await countUserLoginActions(c.env.DB, userId);
 
-    const logs = await c.env.DB.prepare(
-      `SELECT id, action, data, ip_address, user_agent, created_at 
-       FROM user_actions 
-       WHERE user_id = ? AND action IN ('login', 'login_failed')
-       ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`
-    ).bind(userId, pageSize, (page - 1) * pageSize).all();
+    const logs = await listUserLoginLogs(c.env.DB, { userId, limit: pageSize, offset: (page - 1) * pageSize });
 
     return c.json(success({
-      logs: (logs.results || []).map(l => {
+      logs: logs.map(l => {
         const data = l.data ? (() => { try { return JSON.parse(l.data as string); } catch { return {}; } })() : {};
         return {
           id: l.id,
@@ -359,10 +378,10 @@ adminRoutes.get('/users/:id/login-logs', async (c) => {
           failureReason: data.reason || null,
         };
       }),
-      total: countResult?.total || 0,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get login logs error:', err);
@@ -382,22 +401,10 @@ adminRoutes.get('/active-users', async (c) => {
   try {
     const startTime = Date.now() - days * CONFIG.Stats.DAY_IN_MS;
 
-    const users = await c.env.DB.prepare(`
-      SELECT u.id, u.username, u.email, u.role_id, u.login_count,
-             r.display_name as role_display_name,
-             COUNT(DISTINCT CASE WHEN a.action = 'login' THEN a.id END) as recent_logins,
-             COUNT(DISTINCT CASE WHEN a.action = 'search' THEN a.id END) as recent_searches
-       FROM users u
-       LEFT JOIN roles r ON u.role_id = r.id
-       LEFT JOIN user_actions a ON u.id = a.user_id AND a.created_at >= ?
-       WHERE u.is_active = 1
-       GROUP BY u.id
-       ORDER BY recent_logins DESC, u.login_count DESC
-       LIMIT ?
-    `).bind(startTime, limit).all();
+    const users = await listActiveUsers(c.env.DB, { startTime, limit });
 
     return c.json(success({
-      users: (users.results || []).map(u => ({
+      users: users.map(u => ({
         id: u.id,
         username: u.username,
         email: u.email,
@@ -435,10 +442,6 @@ adminRoutes.get('/activity-ranking', async (c) => {
 
   // 综合活跃分权重（同步暴露给前端用于展示计算规则）
   const SCORE_WEIGHTS = { search: 2, favorite: 3, login: 1, other: 1 };
-  // 行为日志中不计入"其他行为"的类型：
-  // search 仅存在于历史遗留数据（搜索统一走 user_search_history，避免重复计分）；
-  // 其余为登录态/账户维护类动作，不代表产品使用活跃度
-  const EXCLUDED_ACTIONS = "('login', 'login_failed', 'logout', 'register', 'token_refresh', 'add_favorite', 'remove_favorite', 'search')";
 
   try {
     const now = Date.now();
@@ -455,48 +458,7 @@ adminRoutes.get('/activity-ranking', async (c) => {
       startTime = 0;
     }
 
-    const rows = await c.env.DB.prepare(`
-      WITH search_counts AS (
-        SELECT user_id, COUNT(*) AS searches, MAX(created_at) AS last_search_at
-        FROM user_search_history
-        WHERE created_at >= ? AND user_id IS NOT NULL
-        GROUP BY user_id
-      ),
-      action_counts AS (
-        SELECT user_id,
-          SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) AS logins,
-          SUM(CASE WHEN action = 'add_favorite' THEN 1 ELSE 0 END) AS favorites,
-          SUM(CASE WHEN action NOT IN ${EXCLUDED_ACTIONS} THEN 1 ELSE 0 END) AS other_actions,
-          MAX(created_at) AS last_action_at
-        FROM user_actions
-        WHERE created_at >= ? AND user_id IS NOT NULL
-        GROUP BY user_id
-      )
-      SELECT u.id, u.username, u.email, u.is_active, u.last_login,
-             r.display_name AS role_display_name,
-             COALESCE(sc.searches, 0) AS searches,
-             COALESCE(ac.logins, 0) AS logins,
-             COALESCE(ac.favorites, 0) AS favorites,
-             COALESCE(ac.other_actions, 0) AS other_actions,
-             MAX(COALESCE(sc.last_search_at, 0), COALESCE(ac.last_action_at, 0)) AS last_active_at
-      FROM users u
-      LEFT JOIN roles r ON u.role_id = r.id
-      LEFT JOIN search_counts sc ON sc.user_id = u.id
-      LEFT JOIN action_counts ac ON ac.user_id = u.id
-      WHERE COALESCE(sc.searches, 0) + COALESCE(ac.logins, 0) + COALESCE(ac.favorites, 0) + COALESCE(ac.other_actions, 0) > 0
-    `).bind(startTime, startTime).all<{
-      id: string;
-      username: string;
-      email: string;
-      is_active: number;
-      last_login: number | null;
-      role_display_name: string | null;
-      searches: number;
-      logins: number;
-      favorites: number;
-      other_actions: number;
-      last_active_at: number;
-    }>();
+    const rows = await queryActivityRanking(c.env.DB, { startTime });
 
     interface Entry {
       rank: number;
@@ -513,7 +475,7 @@ adminRoutes.get('/activity-ranking', async (c) => {
       lastActiveAt: number;
     }
 
-    const entries: Entry[] = (rows.results || []).map((r) => ({
+    const entries: Entry[] = rows.map((r) => ({
       rank: 0,
       userId: r.id,
       username: r.username,
@@ -572,41 +534,16 @@ adminRoutes.get('/login-stats', async (c) => {
     const now = Date.now();
     const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
 
-    const dailyStats = await c.env.DB.prepare(`
-      SELECT 
-        date(created_at / 1000, 'unixepoch') as date,
-        COUNT(*) as total,
-        SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
-        SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed,
-        COUNT(DISTINCT user_id) as unique_users
-      FROM user_actions
-      WHERE created_at >= ? AND action IN ('login', 'login_failed')
-      GROUP BY date(created_at / 1000, 'unixepoch')
-      ORDER BY date DESC
-    `).bind(startTime).all();
+    const dailyStats = await listLoginDailyStats(c.env.DB, startTime);
 
-    const topIPs = await c.env.DB.prepare(`
-      SELECT ip_address, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at >= ? AND action = 'login' AND ip_address IS NOT NULL
-      GROUP BY ip_address
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(startTime).all();
+    const topIPs = await listLoginTopIPs(c.env.DB, startTime);
 
-    const failedAttempts = await c.env.DB.prepare(`
-      SELECT ip_address, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at >= ? AND action = 'login_failed' AND ip_address IS NOT NULL
-      GROUP BY ip_address
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(startTime).all();
+    const failedAttempts = await listLoginFailedAttempts(c.env.DB, startTime);
 
     return c.json(success({
-      dailyStats: dailyStats.results || [],
-      topIPs: topIPs.results || [],
-      failedAttempts: failedAttempts.results || [],
+      dailyStats: dailyStats,
+      topIPs: topIPs,
+      failedAttempts: failedAttempts,
     }));
   } catch (err) {
     console.error('Get login stats error:', err);
@@ -630,15 +567,11 @@ adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus
 
   try {
     // 获取当前管理员的角色级别
-    const adminRole = await c.env.DB.prepare(
-      'SELECT r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
-    ).bind(adminUser.userId).first<{ role_name: string; priority: number }>();
+    const adminRole = await findUserRolePriority(c.env.DB, adminUser.userId);
     const adminPriority = adminRole?.priority || 10;
 
     // 获取目标用户信息
-    const user = await c.env.DB.prepare(
-      'SELECT u.id, u.username, u.role_id, r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
-    ).bind(userId).first<User & { role_name: string; priority: number }>();
+    const user = await findUserRoleAndPriority(c.env.DB, userId);
 
     if (!user) {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
@@ -662,14 +595,10 @@ adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus
       return c.json(error('FORBIDDEN', '不能禁用自己'), 403);
     }
 
-    await c.env.DB.prepare(
-      'UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?'
-    ).bind(isActive ? 1 : 0, Date.now(), userId).run();
+    await updateUserStatus(c.env.DB, { userId, isActive, now: Date.now() });
 
     if (!isActive) {
-      await c.env.DB.prepare(
-        'DELETE FROM user_sessions WHERE user_id = ?'
-      ).bind(userId).run();
+      await deleteUserSessions(c.env.DB, userId);
     }
 
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_status', {
@@ -706,17 +635,13 @@ adminRoutes.put('/users/:id/permissions', validateBody(schemas.admin.updateUserP
   }
 
   try {
-    const user = await c.env.DB.prepare(
-      'SELECT id, username FROM users WHERE id = ?'
-    ).bind(userId).first<User>();
+    const user = await findUserIdentity(c.env.DB, userId);
 
     if (!user) {
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
-    await c.env.DB.prepare(
-      'UPDATE users SET permissions = ?, updated_at = ? WHERE id = ?'
-    ).bind(JSON.stringify(permissions), Date.now(), userId).run();
+    await updateUserPermissions(c.env.DB, { userId, permissions: JSON.stringify(permissions), now: Date.now() });
 
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_permissions', {
       targetUserId: userId,
@@ -742,28 +667,16 @@ adminRoutes.get('/reports', async (c) => {
   const status = c.req.query('status') || 'pending';
 
   try {
-    const countResult = await c.env.DB.prepare(
-      'SELECT COUNT(*) as total FROM community_reports WHERE status = ?'
-    ).bind(status).first<{ total: number }>();
+    const total = await countReportsByStatus(c.env.DB, status);
 
-    const reports = await c.env.DB.prepare(
-      `SELECT r.*,
-              p.title, p.post_type,
-              u.username as reporter_username
-       FROM community_reports r
-       LEFT JOIN community_posts p ON r.post_id = p.id
-       LEFT JOIN users u ON r.reporter_user_id = u.id
-       WHERE r.status = ?
-       ORDER BY r.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(status, pageSize, (page - 1) * pageSize).all();
+    const reports = await listReportsByStatus(c.env.DB, { status, limit: pageSize, offset: (page - 1) * pageSize });
 
     return c.json(success({
-      reports: reports.results || [],
-      total: countResult?.total || 0,
+      reports: reports,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get reports error:', err);
@@ -782,9 +695,7 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
   const adminUser = c.get('user') as JwtPayload;
 
   try {
-    const report = await c.env.DB.prepare(
-      'SELECT * FROM community_reports WHERE id = ?'
-    ).bind(reportId).first<CommunityReport>();
+    const report = await findReportById(c.env.DB, reportId);
 
     if (!report) {
       return c.json(error('NOT_FOUND', '举报不存在'), 404);
@@ -792,16 +703,17 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
 
     const now = Date.now();
 
-    await c.env.DB.prepare(`
-      UPDATE community_reports
-      SET status = ?, admin_user_id = ?, admin_action = ?, admin_notes = ?, resolved_at = ?, updated_at = ?
-      WHERE id = ?
-    `).bind(status, adminUser.userId, action || null, notes || null, now, now, reportId).run();
+    await updateReportHandling(c.env.DB, {
+      reportId,
+      status,
+      adminUserId: adminUser.userId,
+      action: action || null,
+      notes: notes || null,
+      now,
+    });
 
     if (status === 'resolved' && action === 'remove_source') {
-      await c.env.DB.prepare(
-        "UPDATE community_posts SET status = 'hidden', updated_at = ? WHERE id = ?"
-      ).bind(now, report.post_id).run();
+      await hidePost(c.env.DB, { postId: report.post_id, now });
     }
 
     await logUserAction(c.env, adminUser.userId, 'admin_handle_report', {
@@ -824,70 +736,21 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
  */
 adminRoutes.get('/stats', async (c) => {
   try {
-    const userStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END) as verified,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_this_week
-      FROM users
-    `).bind(Date.now() - CONFIG.Stats.WEEK_IN_MS).first();
+    const userStats = await getSystemUserStats(c.env.DB, Date.now() - CONFIG.Stats.WEEK_IN_MS);
 
-    const roleStats = await c.env.DB.prepare(`
-      SELECT r.id, r.name, r.display_name, COUNT(u.id) as user_count
-      FROM roles r
-      LEFT JOIN users u ON r.id = u.role_id
-      GROUP BY r.id
-      ORDER BY r.priority DESC
-    `).all();
+    const roleStats = await listRoleStats(c.env.DB);
 
-    const sourceStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END) as searchable,
-        SUM(usage_count) as total_usage
-      FROM search_sources
-    `).first();
+    const sourceStats = await getSourceStats(c.env.DB);
 
-    const searchStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(DISTINCT user_id) as unique_users,
-        COUNT(DISTINCT query) as unique_keywords
-      FROM user_search_history
-    `).first();
+    const searchStats = await getSearchHistoryStats(c.env.DB);
 
-    const communityStats = await c.env.DB.prepare(`
-      SELECT
-        (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
-        (SELECT COUNT(*) FROM community_tags WHERE tag_active = 1) as tags,
-        (SELECT COUNT(*) FROM community_comments) as reviews,
-        (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports
-    `).first();
+    const communityStats = await getCommunitySummaryStats(c.env.DB);
 
-    const dailyActiveUsers = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM user_sessions
-      WHERE last_activity > ?
-    `).bind(Date.now() - CONFIG.Stats.DAY_IN_MS).first<{ count: number }>();
+    const dailyActiveUsers = await countActiveUsersSince(c.env.DB, Date.now() - CONFIG.Stats.DAY_IN_MS);
 
-    const topSearchKeywords = await c.env.DB.prepare(`
-      SELECT query, COUNT(*) as count
-      FROM user_search_history
-      WHERE created_at > ?
-      GROUP BY query
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(Date.now() - CONFIG.Stats.WEEK_IN_MS).all();
+    const topSearchKeywords = await listTopSearchKeywords(c.env.DB, Date.now() - CONFIG.Stats.WEEK_IN_MS);
 
-    const topUsedSources = await c.env.DB.prepare(`
-      SELECT name, usage_count
-      FROM search_sources
-      WHERE is_active = 1
-      ORDER BY usage_count DESC
-      LIMIT 10
-    `).all();
+    const topUsedSources = await listTopUsedSources(c.env.DB);
 
     return c.json(success({
       users: {
@@ -895,9 +758,9 @@ adminRoutes.get('/stats', async (c) => {
         active: userStats?.active || 0,
         verified: userStats?.verified || 0,
         newThisWeek: userStats?.new_this_week || 0,
-        dailyActive: dailyActiveUsers?.count || 0,
+        dailyActive: dailyActiveUsers,
       },
-      roles: (roleStats.results || []).map(r => ({
+      roles: roleStats.map(r => ({
         id: r.id,
         name: r.name,
         displayName: r.display_name,
@@ -920,8 +783,8 @@ adminRoutes.get('/stats', async (c) => {
         reviews: communityStats?.reviews || 0,
         pendingReports: communityStats?.pending_reports || 0,
       },
-      topSearchKeywords: topSearchKeywords.results || [],
-      topUsedSources: topUsedSources.results || [],
+      topSearchKeywords: topSearchKeywords,
+      topUsedSources: topUsedSources,
     }));
   } catch (err) {
     console.error('Get admin stats error:', err);
@@ -939,45 +802,24 @@ adminRoutes.get('/logs/stats', async (c) => {
     const oneDayAgo = now - CONFIG.Stats.DAY_IN_MS;
     const oneWeekAgo = now - CONFIG.Stats.WEEK_IN_MS;
 
-    const totalStats = await c.env.DB.prepare(`
-      SELECT COUNT(*) as total FROM user_actions
-    `).first<{ total: number }>();
+    const total = await countUserActions(c.env.DB);
 
-    const todayStats = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM user_actions WHERE created_at > ?
-    `).bind(oneDayAgo).first<{ count: number }>();
+    const today = await countUserActionsSince(c.env.DB, oneDayAgo);
 
-    const weekStats = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM user_actions WHERE created_at > ?
-    `).bind(oneWeekAgo).first<{ count: number }>();
+    const week = await countUserActionsSince(c.env.DB, oneWeekAgo);
 
-    const uniqueUsersToday = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count FROM user_actions WHERE created_at > ? AND user_id IS NOT NULL
-    `).bind(oneDayAgo).first<{ count: number }>();
+    const uniqueUsersToday = await countDistinctUsersSince(c.env.DB, oneDayAgo);
 
-    const actionsByType = await c.env.DB.prepare(`
-      SELECT action, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at > ?
-      GROUP BY action
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(oneWeekAgo).all<{ action: string; count: number }>();
+    const actionsByType = await listActionsByType(c.env.DB, oneWeekAgo);
 
-    const loginStats = await c.env.DB.prepare(`
-      SELECT 
-        SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
-        SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed
-      FROM user_actions
-      WHERE action IN ('login', 'login_failed') AND created_at > ?
-    `).bind(oneDayAgo).first<{ success: number; failed: number }>();
+    const loginStats = await getLoginActionStats(c.env.DB, oneDayAgo);
 
     return c.json(success({
-      total: totalStats?.total || 0,
-      today: todayStats?.count || 0,
-      week: weekStats?.count || 0,
-      uniqueUsersToday: uniqueUsersToday?.count || 0,
-      actionsByType: actionsByType.results || [],
+      total,
+      today,
+      week,
+      uniqueUsersToday,
+      actionsByType: actionsByType,
       loginToday: {
         success: loginStats?.success || 0,
         failed: loginStats?.failed || 0,
@@ -1002,49 +844,22 @@ adminRoutes.get('/logs', async (c) => {
   const action = c.req.query('action');
 
   try {
-    const conditions: string[] = [];
-    const params: (string | number)[] = [];
+    const total = await countActionLogs(c.env.DB, { userId, username, action });
 
-    if (userId) {
-      conditions.push('a.user_id = ?');
-      params.push(userId);
-    }
-
-    if (username) {
-      conditions.push('u.username LIKE ?');
-      params.push(`%${username}%`);
-    }
-
-    if (action) {
-      const actions = action.split(',').map(a => a.trim()).filter(Boolean);
-      if (actions.length > 0) {
-        const placeholders = actions.map(() => '?').join(', ');
-        conditions.push(`a.action IN (${placeholders})`);
-        params.push(...actions);
-      }
-    }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM user_actions a LEFT JOIN users u ON a.user_id = u.id ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const logs = await c.env.DB.prepare(`
-      SELECT a.*, u.username
-      FROM user_actions a
-      LEFT JOIN users u ON a.user_id = u.id
-      ${whereClause}
-      ORDER BY a.created_at DESC
-      LIMIT ? OFFSET ?
-    `).bind(...params, pageSize, (page - 1) * pageSize).all<UserAction & { username: string | null }>();
+    const logs = await listActionLogs(c.env.DB, {
+      userId,
+      username,
+      action,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      logs: logs.results || [],
-      total: countResult?.total || 0,
+      logs: logs,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get logs error:', err);
@@ -1084,20 +899,11 @@ adminRoutes.post('/cleanup', async (c) => {
       oldSecurityEvents: 0,
     };
 
-    const oldPasswordResetLogs = await c.env.DB.prepare(
-      'DELETE FROM password_reset_logs WHERE created_at < ?'
-    ).bind(now - passwordResetRetentionDays * CONFIG.Stats.DAY_IN_MS).run();
-    results.oldPasswordResetLogs = oldPasswordResetLogs.meta.changes || 0;
+    results.oldPasswordResetLogs = await deletePasswordResetLogsBefore(c.env.DB, now - passwordResetRetentionDays * CONFIG.Stats.DAY_IN_MS);
 
-    const oldActions = await c.env.DB.prepare(
-      'DELETE FROM user_actions WHERE created_at < ?'
-    ).bind(now - userActionsRetentionDays * CONFIG.Stats.DAY_IN_MS).run();
-    results.oldActions = oldActions.meta.changes || 0;
+    results.oldActions = await deleteUserActionsBefore(c.env.DB, now - userActionsRetentionDays * CONFIG.Stats.DAY_IN_MS);
 
-    const oldSecurityEvents = await c.env.DB.prepare(
-      'DELETE FROM user_security_events WHERE created_at < ?'
-    ).bind(now - securityEventRetentionDays * CONFIG.Stats.DAY_IN_MS).run();
-    results.oldSecurityEvents = oldSecurityEvents.meta.changes || 0;
+    results.oldSecurityEvents = await deleteSecurityEventsBefore(c.env.DB, now - securityEventRetentionDays * CONFIG.Stats.DAY_IN_MS);
 
     await logUserAction(c.env, adminUser.userId, 'admin_cleanup', results, c);
 
@@ -1118,51 +924,23 @@ adminRoutes.get('/sessions/stats', async (c) => {
     const oneDayAgo = now - CONFIG.Stats.DAY_IN_MS;
     const oneHourAgo = now - CONFIG.Stats.HOUR_IN_MS;
 
-    const totalStats = await c.env.DB.prepare(`
-      SELECT COUNT(*) as total FROM user_sessions
-    `).first<{ total: number }>();
+    const total = await countAllSessions(c.env.DB);
 
-    const activeStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as active,
-        COUNT(DISTINCT user_id) as unique_users
-      FROM user_sessions
-      WHERE expires_at > ?
-    `).bind(now).first<{ active: number; unique_users: number }>();
+    const activeStats = await getActiveSessionStats(c.env.DB, now);
 
-    const recentActive = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_sessions
-      WHERE last_activity > ? AND expires_at > ?
-    `).bind(oneHourAgo, now).first<{ count: number }>();
+    const recentActive = await countRecentlyActiveSessions(c.env.DB, { oneHourAgo, now });
 
-    const todaySessions = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_sessions
-      WHERE created_at > ?
-    `).bind(oneDayAgo).first<{ count: number }>();
+    const todaySessions = await countSessionsSince(c.env.DB, oneDayAgo);
 
-    const topDevices = await c.env.DB.prepare(`
-      SELECT 
-        CASE 
-          WHEN user_agent LIKE '%Mobile%' THEN 'Mobile'
-          WHEN user_agent LIKE '%Tablet%' THEN 'Tablet'
-          ELSE 'Desktop'
-        END as device_type,
-        COUNT(*) as count
-      FROM user_sessions
-      WHERE expires_at > ?
-      GROUP BY device_type
-      ORDER BY count DESC
-    `).bind(now).all<{ device_type: string; count: number }>();
+    const topDevices = await listDeviceDistribution(c.env.DB, now);
 
     return c.json(success({
-      total: totalStats?.total || 0,
+      total,
       active: activeStats?.active || 0,
       uniqueUsers: activeStats?.unique_users || 0,
-      recentlyActive: recentActive?.count || 0,
-      todaySessions: todaySessions?.count || 0,
-      deviceDistribution: topDevices.results || [],
+      recentlyActive: recentActive,
+      todaySessions,
+      deviceDistribution: topDevices,
     }));
   } catch (err) {
     console.error('Get sessions stats error:', err);
@@ -1182,39 +960,22 @@ adminRoutes.get('/sessions', async (c) => {
   const status = c.req.query('status');
 
   try {
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
+    const filterNow = Date.now();
 
-    if (userId) {
-      whereClause += ' AND s.user_id = ?';
-      params.push(userId);
-    }
+    const total = await countSessions(c.env.DB, { userId, status, now: filterNow });
 
-    if (status === 'active') {
-      whereClause += ' AND s.expires_at > ?';
-      params.push(Date.now());
-    } else if (status === 'expired') {
-      whereClause += ' AND s.expires_at <= ?';
-      params.push(Date.now());
-    }
-
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM user_sessions s ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const sessions = await c.env.DB.prepare(`
-      SELECT s.*, u.username, u.email
-      FROM user_sessions s
-      LEFT JOIN users u ON s.user_id = u.id
-      ${whereClause}
-      ORDER BY s.last_activity DESC
-      LIMIT ? OFFSET ?
-    `).bind(...params, pageSize, (page - 1) * pageSize).all();
+    const sessions = await listSessions(c.env.DB, {
+      userId,
+      status,
+      now: filterNow,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     const now = Date.now();
 
     return c.json(success({
-      sessions: (sessions.results || []).map((s) => {
+      sessions: sessions.map((s) => {
         const result = adminSessionSchema.safeParse(s);
         const session = result.success ? result.data : s as { id: string; user_id: string; ip_address?: string; user_agent?: string; created_at: number; last_activity: number; expires_at: number };
         return {
@@ -1231,10 +992,10 @@ adminRoutes.get('/sessions', async (c) => {
           expiresInSeconds: Math.max(0, Math.floor((session.expires_at - now) / 1000)),
         };
       }),
-      total: countResult?.total || 0,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get sessions error:', err);
@@ -1256,22 +1017,14 @@ adminRoutes.delete('/sessions/:id', async (c) => {
 
   try {
     // 获取会话信息和用户角色
-    const session = await c.env.DB.prepare(`
-      SELECT s.*, u.username, r.name as role_name, r.priority
-      FROM user_sessions s
-      LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN roles r ON u.role_id = r.id
-      WHERE s.id = ?
-    `).bind(sessionId).first();
+    const session = await findSessionWithUserAndRole(c.env.DB, sessionId);
 
     if (!session) {
       return c.json(error('NOT_FOUND', '会话不存在'), 404);
     }
 
     // 获取当前管理员的角色级别
-    const adminRole = await c.env.DB.prepare(
-      'SELECT r.name as role_name, r.priority FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
-    ).bind(adminUser.userId).first<{ role_name: string; priority: number }>();
+    const adminRole = await findUserRolePriority(c.env.DB, adminUser.userId);
     const adminPriority = adminRole?.priority || 10;
     const targetPriority = (session as any).priority || 10;
 
@@ -1288,7 +1041,7 @@ adminRoutes.delete('/sessions/:id', async (c) => {
       return c.json(error('FORBIDDEN', '不能终止自己的会话'), 403);
     }
 
-    await c.env.DB.prepare('DELETE FROM user_sessions WHERE id = ?').bind(sessionId).run();
+    await deleteSessionById(c.env.DB, sessionId);
 
     await logUserAction(c.env, adminUser.userId, 'admin_terminate_session', {
       sessionId,
@@ -1315,63 +1068,28 @@ adminRoutes.get('/analytics/stats', async (c) => {
     const now = Date.now();
     const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
 
-    const totalEvents = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM analytics_events WHERE created_at > ?'
-    ).bind(startTime).first<{ count: number }>();
+    const totalEvents = await countAnalyticsEventsSince(c.env.DB, startTime);
 
-    const eventsByType = await c.env.DB.prepare(`
-      SELECT event_type, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ?
-      GROUP BY event_type
-      ORDER BY count DESC
-    `).bind(startTime).all();
+    const eventsByType = await listAnalyticsEventsByType(c.env.DB, startTime);
 
-    const dailyEvents = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailyEvents = await listAnalyticsDailyEvents(c.env.DB, startTime);
 
-    const uniqueUsers = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM analytics_events
-      WHERE created_at > ? AND user_id IS NOT NULL
-    `).bind(startTime).first<{ count: number }>();
+    const uniqueUsers = await countAnalyticsUniqueUsers(c.env.DB, startTime);
 
-    const uniqueSessions = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT session_id) as count
-      FROM analytics_events
-      WHERE created_at > ? AND session_id IS NOT NULL
-    `).bind(startTime).first<{ count: number }>();
+    const uniqueSessions = await countAnalyticsUniqueSessions(c.env.DB, startTime);
 
-    const topReferers = await c.env.DB.prepare(`
-      SELECT referer, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ? AND referer IS NOT NULL
-      GROUP BY referer
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(startTime).all();
+    const topReferers = await listAnalyticsTopReferers(c.env.DB, startTime);
 
-    const hourlyDistribution = await c.env.DB.prepare(`
-      SELECT strftime('%H', datetime(created_at / 1000, 'unixepoch')) as hour, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ?
-      GROUP BY hour
-      ORDER BY hour
-    `).bind(startTime).all();
+    const hourlyDistribution = await listAnalyticsHourlyDistribution(c.env.DB, startTime);
 
     return c.json(success({
-      totalEvents: totalEvents?.count || 0,
-      uniqueUsers: uniqueUsers?.count || 0,
-      uniqueSessions: uniqueSessions?.count || 0,
-      eventsByType: eventsByType.results || [],
-      dailyEvents: dailyEvents.results || [],
-      topReferers: topReferers.results || [],
-      hourlyDistribution: hourlyDistribution.results || [],
+      totalEvents,
+      uniqueUsers,
+      uniqueSessions,
+      eventsByType: eventsByType,
+      dailyEvents: dailyEvents,
+      topReferers: topReferers,
+      hourlyDistribution: hourlyDistribution,
       period: { days, startTime },
     }));
   } catch (err) {
@@ -1394,34 +1112,19 @@ adminRoutes.get('/analytics/events', async (c) => {
 
   try {
     const startTime = Date.now() - days * CONFIG.Stats.DAY_IN_MS;
-    let whereClause = 'WHERE e.created_at > ?';
-    const params: (string | number)[] = [startTime];
 
-    if (eventType) {
-      whereClause += ' AND e.event_type = ?';
-      params.push(eventType);
-    }
+    const total = await countAnalyticsEvents(c.env.DB, { startTime, eventType, userId });
 
-    if (userId) {
-      whereClause += ' AND e.user_id = ?';
-      params.push(userId);
-    }
-
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM analytics_events e ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const events = await c.env.DB.prepare(`
-      SELECT e.*, u.username
-      FROM analytics_events e
-      LEFT JOIN users u ON e.user_id = u.id
-      ${whereClause}
-      ORDER BY e.created_at DESC
-      LIMIT ? OFFSET ?
-    `).bind(...params, pageSize, (page - 1) * pageSize).all();
+    const events = await listAnalyticsEvents(c.env.DB, {
+      startTime,
+      eventType,
+      userId,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      events: (events.results || []).map((e) => {
+      events: events.map((e) => {
         const result = adminEventSchema.safeParse(e);
         const event = result.success ? result.data : e as { id: string; user_id?: string; event_type: string; data?: string; ip_address?: string; user_agent?: string; session_id?: string; referer?: string; created_at: number };
         return {
@@ -1437,10 +1140,10 @@ adminRoutes.get('/analytics/events', async (c) => {
           createdAt: event.created_at,
         };
       }),
-      total: countResult?.total || 0,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((countResult?.total || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get analytics events error:', err);
@@ -1459,88 +1162,25 @@ adminRoutes.get('/dashboard/overview', async (c) => {
     const oneWeekAgo = now - CONFIG.Stats.WEEK_IN_MS;
     const oneMonthAgo = now - CONFIG.Stats.MONTH_IN_MS;
 
-    const userStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_week,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_month
-      FROM users
-    `).bind(oneDayAgo, oneWeekAgo, oneMonthAgo).first();
+    const userStats = await getDashboardUserStats(c.env.DB, { oneDayAgo, oneWeekAgo, oneMonthAgo });
 
-    const sessionStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN expires_at > ? THEN 1 ELSE 0 END) as active,
-        COUNT(DISTINCT user_id) as unique_users
-      FROM user_sessions
-    `).bind(now).first();
+    const sessionStats = await getDashboardSessionStats(c.env.DB, now);
 
-    const actionStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(DISTINCT user_id) as unique_users,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
-      FROM user_actions
-    `).bind(oneDayAgo, oneWeekAgo).first();
+    const actionStats = await getDashboardActionStats(c.env.DB, { oneDayAgo, oneWeekAgo });
 
-    const analyticsStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(DISTINCT user_id) as unique_users,
-        COUNT(DISTINCT session_id) as unique_sessions,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
-      FROM analytics_events
-    `).bind(oneDayAgo, oneWeekAgo).first();
+    const analyticsStats = await getDashboardAnalyticsStats(c.env.DB, { oneDayAgo, oneWeekAgo });
 
-    const sourceStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(usage_count) as total_usage
-      FROM search_sources
-    `).first();
+    const sourceStats = await getDashboardSourceStats(c.env.DB);
 
-    const searchStats = await c.env.DB.prepare(`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(DISTINCT user_id) as unique_users,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
-      FROM user_search_history
-    `).bind(oneDayAgo, oneWeekAgo).first();
+    const searchStats = await getDashboardSearchStats(c.env.DB, { oneDayAgo, oneWeekAgo });
 
-    const loginStats = await c.env.DB.prepare(`
-      SELECT 
-        SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
-        SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed
-      FROM user_actions
-      WHERE action IN ('login', 'login_failed') AND created_at > ?
-    `).bind(oneDayAgo).first();
+    const loginStats = await getDashboardLoginStats(c.env.DB, oneDayAgo);
 
-    const communityStats = await c.env.DB.prepare(`
-      SELECT
-        (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
-        (SELECT COUNT(*) FROM community_comments) as reviews,
-        (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports
-    `).first();
+    const communityStats = await getDashboardCommunityStats(c.env.DB);
 
-    const recentActions = await c.env.DB.prepare(`
-      SELECT a.action, a.data, a.created_at, u.username
-      FROM user_actions a
-      LEFT JOIN users u ON a.user_id = u.id
-      ORDER BY a.created_at DESC
-      LIMIT 20
-    `).all();
+    const recentActions = await listDashboardRecentActions(c.env.DB);
 
-    const activeUsersToday = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM user_sessions
-      WHERE last_activity > ?
-    `).bind(oneDayAgo).first<{ count: number }>();
+    const activeUsersToday = await countActiveUsersSince(c.env.DB, oneDayAgo);
 
     return c.json(success({
       users: {
@@ -1549,7 +1189,7 @@ adminRoutes.get('/dashboard/overview', async (c) => {
         newToday: userStats?.new_today || 0,
         newWeek: userStats?.new_week || 0,
         newMonth: userStats?.new_month || 0,
-        activeToday: activeUsersToday?.count || 0,
+        activeToday: activeUsersToday,
       },
       sessions: {
         total: sessionStats?.total || 0,
@@ -1589,7 +1229,7 @@ adminRoutes.get('/dashboard/overview', async (c) => {
         reviews: communityStats?.reviews || 0,
         pendingReports: communityStats?.pending_reports || 0,
       },
-      recentActions: (recentActions.results || []).map((a) => {
+      recentActions: recentActions.map((a) => {
         try {
           const result = adminActionSchema.safeParse(a);
           const action = result.success ? result.data : a as { id: string; user_id?: string; action: string; data?: string; ip_address?: string; user_agent?: string; created_at: number };
@@ -1622,56 +1262,22 @@ adminRoutes.get('/dashboard/trends', async (c) => {
     const now = Date.now();
     const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
 
-    const userRegistrations = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM users
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const userRegistrations = await listUserRegistrationsByDay(c.env.DB, startTime);
 
-    const dailyLogins = await c.env.DB.prepare(`
-      SELECT 
-        date(created_at / 1000, 'unixepoch') as date,
-        COUNT(*) as total,
-        SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
-        SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed
-      FROM user_actions
-      WHERE created_at > ? AND action IN ('login', 'login_failed')
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailyLogins = await listDailyLoginStats(c.env.DB, startTime);
 
-    const dailySearches = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM user_search_history
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailySearches = await listDailySearches(c.env.DB, startTime);
 
-    const dailyAnalytics = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailyAnalytics = await listAnalyticsDailyEvents(c.env.DB, startTime);
 
-    const dailyActiveUsers = await c.env.DB.prepare(`
-      SELECT date(last_activity / 1000, 'unixepoch') as date, COUNT(DISTINCT user_id) as count
-      FROM user_sessions
-      WHERE last_activity > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailyActiveUsers = await listDailyActiveUsers(c.env.DB, startTime);
 
     return c.json(success({
-      userRegistrations: userRegistrations.results || [],
-      dailyLogins: dailyLogins.results || [],
-      dailySearches: dailySearches.results || [],
-      dailyAnalytics: dailyAnalytics.results || [],
-      dailyActiveUsers: dailyActiveUsers.results || [],
+      userRegistrations: userRegistrations,
+      dailyLogins: dailyLogins,
+      dailySearches: dailySearches,
+      dailyAnalytics: dailyAnalytics,
+      dailyActiveUsers: dailyActiveUsers,
       period: { days, startTime },
     }));
   } catch (err) {
@@ -1691,44 +1297,19 @@ adminRoutes.get('/dashboard/user-behavior', async (c) => {
     const now = Date.now();
     const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
 
-    const actionsByType = await c.env.DB.prepare(`
-      SELECT action, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at > ?
-      GROUP BY action
-      ORDER BY count DESC
-    `).bind(startTime).all();
+    const actionsByType = await listUserActionTypes(c.env.DB, startTime);
 
-    const topActiveUsers = await c.env.DB.prepare(`
-      SELECT u.id, u.username, u.email, COUNT(a.id) as action_count
-      FROM users u
-      LEFT JOIN user_actions a ON u.id = a.user_id AND a.created_at > ?
-      GROUP BY u.id
-      ORDER BY action_count DESC
-      LIMIT 20
-    `).bind(startTime).all();
+    const topActiveUsers = await listTopActiveUsers(c.env.DB, startTime);
 
-    const hourlyActivity = await c.env.DB.prepare(`
-      SELECT strftime('%H', datetime(created_at / 1000, 'unixepoch')) as hour, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at > ?
-      GROUP BY hour
-      ORDER BY hour
-    `).bind(startTime).all();
+    const hourlyActivity = await listHourlyActivity(c.env.DB, startTime);
 
-    const weeklyActivity = await c.env.DB.prepare(`
-      SELECT strftime('%w', datetime(created_at / 1000, 'unixepoch')) as weekday, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at > ?
-      GROUP BY weekday
-      ORDER BY weekday
-    `).bind(startTime).all();
+    const weeklyActivity = await listWeeklyActivity(c.env.DB, startTime);
 
     return c.json(success({
-      actionsByType: actionsByType.results || [],
-      topActiveUsers: topActiveUsers.results || [],
-      hourlyActivity: hourlyActivity.results || [],
-      weeklyActivity: weeklyActivity.results || [],
+      actionsByType: actionsByType,
+      topActiveUsers: topActiveUsers,
+      hourlyActivity: hourlyActivity,
+      weeklyActivity: weeklyActivity,
       period: { days, startTime },
     }));
   } catch (err) {
@@ -1752,54 +1333,20 @@ adminRoutes.get('/errors/stats', async (c) => {
     const now = Date.now();
     const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
 
-    const overall = await c.env.DB.prepare(`
-      SELECT
-        COUNT(*) as total,
-        SUM(CASE WHEN source = 'frontend' THEN 1 ELSE 0 END) as frontend,
-        SUM(CASE WHEN source = 'backend' THEN 1 ELSE 0 END) as backend,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week,
-        COUNT(DISTINCT fingerprint) as unique_fingerprints
-      FROM system_errors
-      WHERE created_at > ?
-    `).bind(now - CONFIG.Stats.DAY_IN_MS, now - CONFIG.Stats.WEEK_IN_MS, startTime).first();
+    const overall = await getSystemErrorStats(c.env.DB, {
+      oneDayAgo: now - CONFIG.Stats.DAY_IN_MS,
+      oneWeekAgo: now - CONFIG.Stats.WEEK_IN_MS,
+      startTime,
+    });
 
     // 按 error_type 聚合
-    const byType = await c.env.DB.prepare(`
-      SELECT error_type, COUNT(*) as count
-      FROM system_errors
-      WHERE created_at > ?
-      GROUP BY error_type
-      ORDER BY count DESC
-      LIMIT 20
-    `).bind(startTime).all();
+    const byType = await listSystemErrorsByType(c.env.DB, startTime);
 
     // 按 fingerprint 聚合 Top 错误
-    const topErrors = await c.env.DB.prepare(`
-      SELECT
-        fingerprint,
-        MIN(message) as message,
-        MIN(error_type) as error_type,
-        MIN(source) as source,
-        MIN(url) as url,
-        COUNT(*) as count,
-        MAX(created_at) as last_seen,
-        MIN(created_at) as first_seen
-      FROM system_errors
-      WHERE created_at > ?
-      GROUP BY fingerprint
-      ORDER BY count DESC
-      LIMIT 10
-    `).bind(startTime).all();
+    const topErrors = await listTopSystemErrors(c.env.DB, startTime);
 
     // 每日错误趋势
-    const dailyErrors = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM system_errors
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(startTime).all();
+    const dailyErrors = await listDailySystemErrors(c.env.DB, startTime);
 
     return c.json(success({
       total: overall?.total || 0,
@@ -1808,9 +1355,9 @@ adminRoutes.get('/errors/stats', async (c) => {
       today: overall?.today || 0,
       week: overall?.week || 0,
       uniqueErrors: overall?.unique_fingerprints || 0,
-      byType: byType.results || [],
-      topErrors: topErrors.results || [],
-      dailyErrors: dailyErrors.results || [],
+      byType: byType,
+      topErrors: topErrors,
+      dailyErrors: dailyErrors,
       period: { days, startTime },
     }));
   } catch (err) {
@@ -1835,77 +1382,44 @@ adminRoutes.get('/errors', async (c) => {
   const search = c.req.query('search');
 
   const offset = (page - 1) * pageSize;
-  const conditions: string[] = [];
-  const params: (string | number)[] = [];
-
-  if (source === 'frontend' || source === 'backend') {
-    conditions.push('source = ?');
-    params.push(source);
-  }
-  if (errorType) {
-    conditions.push('error_type = ?');
-    params.push(errorType);
-  }
-  if (fingerprint) {
-    conditions.push('fingerprint = ?');
-    params.push(fingerprint);
-  }
-  if (search) {
-    conditions.push('(message LIKE ? OR stack LIKE ? OR url LIKE ?)');
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   try {
-    const totalResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as count FROM system_errors ${whereClause}`
-    ).bind(...params).first<{ count: number }>();
+    const total = await countSystemErrors(c.env.DB, { source, errorType, fingerprint, search });
 
-    type ErrorRow = {
-      id: number; source: string; error_type: string; message: string;
-      stack: string | null; url: string | null; line_number: number | null;
-      column_number: number | null; user_id: string | null; session_id: string | null;
-      ip_address: string | null; user_agent: string | null; fingerprint: string;
-      created_at: string;
-    };
-
-    const items = await c.env.DB.prepare(
-      `SELECT id, source, error_type, message, stack, url, line_number, column_number,
-              user_id, session_id, ip_address, user_agent, fingerprint, created_at
-       FROM system_errors ${whereClause}
-       ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(...params, pageSize, offset).all<ErrorRow>();
+    const items = await listSystemErrors(c.env.DB, {
+      source,
+      errorType,
+      fingerprint,
+      search,
+      limit: pageSize,
+      offset,
+    });
 
     // 关联用户名（一次查询）
-    const userIds = [...new Set((items.results || [])
+    const userIds = [...new Set(items
       .map((e) => e.user_id)
       .filter((v): v is string => Boolean(v)))];
 
     const userMap: Record<string, string> = {};
     if (userIds.length > 0) {
-      const placeholders = userIds.map(() => '?').join(',');
-      const users = await c.env.DB.prepare(
-        `SELECT id, username FROM users WHERE id IN (${placeholders})`
-      ).bind(...userIds).all<{ id: string; username: string }>();
+      const users = await listUsernamesByIds(c.env.DB, userIds);
 
-      for (const u of (users.results || [])) {
+      for (const u of users) {
         userMap[u.id] = u.username;
       }
     }
 
-    const enriched = (items.results || []).map((e) => ({
+    const enriched = items.map((e) => ({
       ...e,
       username: e.user_id ? userMap[e.user_id] || null : null,
     }));
 
     return c.json(success({
       errors: enriched,
-      total: totalResult?.count || 0,
+      total,
       page,
       pageSize,
-      totalPages: Math.ceil((totalResult?.count || 0) / pageSize),
+      totalPages: Math.ceil(total / pageSize),
     }));
   } catch (err) {
     console.error('Get error list failed:', err);
@@ -1921,9 +1435,7 @@ adminRoutes.get('/errors/:id', async (c) => {
   const errorId = c.req.param('id');
 
   try {
-    const err = await c.env.DB.prepare(
-      'SELECT * FROM system_errors WHERE id = ?'
-    ).bind(errorId).first();
+    const err = await findSystemErrorById(c.env.DB, errorId);
 
     if (!err) {
       return c.json(error('NOT_FOUND', '错误记录不存在'), 404);
@@ -1931,24 +1443,17 @@ adminRoutes.get('/errors/:id', async (c) => {
 
     let username: string | null = null;
     if (err.user_id) {
-      const u = await c.env.DB.prepare(
-        'SELECT username FROM users WHERE id = ?'
-      ).bind(err.user_id).first<{ username: string }>();
-      username = u?.username || null;
+      username = await findUsernameById(c.env.DB, err.user_id);
     }
 
     // 同指纹的近期错误（用于看影响范围）
-    const relatedErrors = err.fingerprint
-      ? await c.env.DB.prepare(
-          `SELECT id, created_at, ip_address, user_agent FROM system_errors
-           WHERE fingerprint = ? AND id != ?
-           ORDER BY created_at DESC LIMIT 20`
-        ).bind(err.fingerprint, errorId).all()
-      : { results: [] };
+    const related = err.fingerprint
+      ? await listRelatedSystemErrors(c.env.DB, { fingerprint: err.fingerprint, excludeId: errorId })
+      : [];
 
     return c.json(success({
       error: { ...err, username },
-      related: relatedErrors.results || [],
+      related,
     }));
   } catch (err) {
     console.error('Get error detail failed:', err);
@@ -1967,13 +1472,11 @@ adminRoutes.delete('/errors/:id', async (c) => {
   try {
     if (byFingerprint) {
       // 按 fingerprint 批量删除（id 参数作为 fingerprint）
-      const result = await c.env.DB.prepare(
-        'DELETE FROM system_errors WHERE fingerprint = ?'
-      ).bind(errorId).run();
-      return c.json(success({ deleted: result.meta?.changes || 0 }));
+      const deleted = await deleteSystemErrorsByFingerprint(c.env.DB, errorId);
+      return c.json(success({ deleted }));
     }
 
-    await c.env.DB.prepare('DELETE FROM system_errors WHERE id = ?').bind(errorId).run();
+    await deleteSystemErrorById(c.env.DB, errorId);
     return c.json(success(null, '已删除'));
   } catch (err) {
     console.error('Delete error failed:', err);
