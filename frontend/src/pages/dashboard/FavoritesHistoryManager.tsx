@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Heart,
   Search,
@@ -20,9 +20,8 @@ import {
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState } from '@/components/ui';
 import { getBackendBaseUrl } from '@/constants';
 import { ProxyImage } from '@/components/ui';
-import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
-import { useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus } from '@/hooks';
+import { useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, useSearchHistory, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory } from '@/hooks';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SearchHistoryItem } from '@/types';
@@ -404,38 +403,20 @@ export const HistoryManager: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation(['dashboard']);
   
-  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: history = [], isLoading } = useSearchHistory(50);
+  const clearHistoryMutation = useClearSearchHistory();
+  const deleteItemMutation = useDeleteSearchHistoryItem();
+  const batchDeleteMutation = useBatchDeleteSearchHistory();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showKeywordCloud, setShowKeywordCloud] = useState(false);
 
-  const loadHistory = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await userApi.getSearchHistory();
-      if (response.success && response.data) {
-        setHistory(response.data.history);
-      }
-    } catch (_error) {
-      toast.error(t('dashboard:favoritesHistory.history.loadFailedTitle'), t('dashboard:favoritesHistory.history.loadFailedDesc'));
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
-
   const handleClearHistory = async () => {
     if (!confirm(t('dashboard:favoritesHistory.history.clearConfirm'))) return;
     
     try {
-      await userApi.clearSearchHistory();
-      setHistory([]);
+      await clearHistoryMutation.mutateAsync();
       toast.success(t('dashboard:favoritesHistory.history.clearSuccess'));
     } catch (_error) {
       toast.error(t('dashboard:favoritesHistory.history.clearFailedTitle'), t('dashboard:favoritesHistory.history.retryLater'));
@@ -444,8 +425,7 @@ export const HistoryManager: React.FC = () => {
 
   const handleDeleteItem = async (id: string) => {
     try {
-      await userApi.deleteSearchHistoryItem(id);
-      setHistory(prev => prev.filter(h => h.id !== id));
+      await deleteItemMutation.mutateAsync(id);
       toast.success(t('dashboard:favoritesHistory.history.deleteSuccess'));
     } catch (_error) {
       toast.error(t('dashboard:favoritesHistory.history.deleteFailedTitle'), t('dashboard:favoritesHistory.history.retryLater'));
@@ -459,8 +439,7 @@ export const HistoryManager: React.FC = () => {
     }
     
     try {
-      await Promise.all(Array.from(selectedItems).map(id => userApi.deleteSearchHistoryItem(id)));
-      setHistory(prev => prev.filter(h => !selectedItems.has(h.id)));
+      await batchDeleteMutation.mutateAsync(Array.from(selectedItems));
       setSelectedItems(new Set());
       toast.success(t('dashboard:favoritesHistory.history.batchDeleteSuccess'));
     } catch (_error) {
