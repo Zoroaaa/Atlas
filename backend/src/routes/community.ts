@@ -9,6 +9,47 @@ import { Env } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
+import {
+  listActiveTags,
+  findTagIdByName,
+  insertTag,
+  findTagById,
+  findDuplicateTagName,
+  updateTagFields,
+  countPostsByTagPattern,
+  deleteTag,
+  countUserPosts,
+  listUserPosts,
+  countFavoritePosts,
+  listFavoritePosts,
+  listPosts,
+  findPostWithUserById,
+  incrementPostViewCount,
+  findPostInteractionState,
+  insertPost,
+  findPostById,
+  updatePostFields,
+  findPostOwnerId,
+  postExists,
+  deletePost,
+  updatePostStatus,
+  updatePostFeatured,
+  findPostLike,
+  insertPostLike,
+  deletePostLikeById,
+  countPostComments,
+  listPostComments,
+  insertComment,
+  findCommentById,
+  deleteComment,
+  findPendingReport,
+  insertReport,
+  queryCommunityStats,
+  findUserCommunityStats,
+  listUserRecentPosts,
+  listMyPostBriefs,
+  queryNotificationEvents,
+} from '@/repositories/community-repository';
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
@@ -21,16 +62,10 @@ communityRoutes.use('*', authMiddleware);
 /** 获取所有活跃标签 */
 communityRoutes.get('/tags', async (c) => {
   try {
-    const tags = await c.env.DB.prepare(
-      `SELECT t.*,
-         (SELECT COUNT(*) FROM community_posts p WHERE p.status = 'active' AND p.tags LIKE '%' || t.tag_name || '%') as posts_count
-       FROM community_tags t
-       WHERE t.tag_active = 1
-       ORDER BY tag_name ASC`
-    ).all<Record<string, unknown>>();
+    const tags = await listActiveTags(c.env.DB);
 
     return c.json(success(
-      (tags.results || []).map(t => ({
+      tags.map(t => ({
         id: t.id,
         tagName: t.tag_name,
         tagDescription: t.tag_description,
@@ -58,9 +93,7 @@ communityRoutes.post('/tags', validateBody(schemas.community.createTag), async (
   }
 
   try {
-    const existing = await c.env.DB.prepare(
-      'SELECT id FROM community_tags WHERE tag_name = ?'
-    ).bind(name.trim()).first();
+    const existing = await findTagIdByName(c.env.DB, name.trim());
 
     if (existing) {
       return c.json(error('DUPLICATE_ERROR', '标签已存在'), 400);
@@ -69,10 +102,14 @@ communityRoutes.post('/tags', validateBody(schemas.community.createTag), async (
     const id = generateId();
     const now = Date.now();
 
-    await c.env.DB.prepare(
-      `INSERT INTO community_tags (id, tag_name, tag_description, tag_color, tag_active, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?)`
-    ).bind(id, name.trim(), description || null, color || '#3b82f6', user.userId, now, now).run();
+    await insertTag(c.env.DB, {
+      id,
+      name: name.trim(),
+      description: description || null,
+      color: color || '#3b82f6',
+      createdBy: user.userId,
+      now,
+    });
 
     return c.json(success({
       id,
@@ -94,9 +131,7 @@ communityRoutes.get('/tags/:id', async (c) => {
   const tagId = c.req.param('id');
 
   try {
-    const tag = await c.env.DB.prepare(
-      'SELECT * FROM community_tags WHERE id = ?'
-    ).bind(tagId).first<Record<string, unknown>>();
+    const tag = await findTagById(c.env.DB, tagId);
 
     if (!tag) {
       return c.json(error('NOT_FOUND', '标签不存在'), 404);
@@ -124,9 +159,7 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
   const { name, description, color, isActive } = body;
 
   try {
-    const existingTag = await c.env.DB.prepare(
-      'SELECT * FROM community_tags WHERE id = ?'
-    ).bind(tagId).first<Record<string, unknown>>();
+    const existingTag = await findTagById(c.env.DB, tagId);
 
     if (!existingTag) {
       return c.json(error('NOT_FOUND', '标签不存在'), 404);
@@ -138,9 +171,7 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
         return c.json(error('VALIDATION_ERROR', '标签名称长度必须在2-20个字符之间'), 400);
       }
 
-      const duplicateTag = await c.env.DB.prepare(
-        'SELECT id FROM community_tags WHERE LOWER(tag_name) = LOWER(?) AND id != ?'
-      ).bind(trimmedName, tagId).first();
+      const duplicateTag = await findDuplicateTagName(c.env.DB, { name: trimmedName, excludeId: tagId });
 
       if (duplicateTag) {
         return c.json(error('DUPLICATE_ERROR', '标签名称已存在'), 400);
@@ -178,9 +209,7 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
     params.push(Date.now());
     params.push(tagId);
 
-    await c.env.DB.prepare(
-      `UPDATE community_tags SET ${updates.join(', ')} WHERE id = ?`
-    ).bind(...params).run();
+    await updateTagFields(c.env.DB, { updates, params });
 
     return c.json(success({
       tagId,
@@ -198,9 +227,7 @@ communityRoutes.delete('/tags/:id', async (c) => {
   const tagId = c.req.param('id');
 
   try {
-    const existingTag = await c.env.DB.prepare(
-      'SELECT * FROM community_tags WHERE id = ?'
-    ).bind(tagId).first<Record<string, unknown>>();
+    const existingTag = await findTagById(c.env.DB, tagId);
 
     if (!existingTag) {
       return c.json(error('NOT_FOUND', '标签不存在'), 404);
@@ -211,15 +238,13 @@ communityRoutes.delete('/tags/:id', async (c) => {
     }
 
     // 检查是否有帖子使用该标签
-    const usageCheck = await c.env.DB.prepare(
-      "SELECT COUNT(*) as cnt FROM community_posts WHERE tags LIKE ?"
-    ).bind(`%"${existingTag.tag_name}"%`).first<{ cnt: number }>();
+    const usageCount = await countPostsByTagPattern(c.env.DB, `%"${existingTag.tag_name}"%`);
 
-    if (usageCheck && usageCheck.cnt > 0) {
+    if (usageCount > 0) {
       return c.json(error('VALIDATION_ERROR', '不能删除正在使用的标签'), 400);
     }
 
-    await c.env.DB.prepare('DELETE FROM community_tags WHERE id = ?').bind(tagId).run();
+    await deleteTag(c.env.DB, tagId);
 
     return c.json(success({ deletedId: tagId }, '标签删除成功'));
   } catch (err) {
@@ -240,26 +265,19 @@ communityRoutes.get('/posts/my-posts', async (c) => {
   const status = c.req.query('status');
 
   try {
-    let whereClause = 'WHERE user_id = ?';
-    const params: (string | number)[] = [user.userId];
+    const statusFilter = status && ['active', 'pending', 'rejected', 'hidden'].includes(status) ? status : null;
 
-    if (status && ['active', 'pending', 'rejected', 'hidden'].includes(status)) {
-      whereClause += ' AND status = ?';
-      params.push(status);
-    }
+    const total = await countUserPosts(c.env.DB, { userId: user.userId, status: statusFilter });
 
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM community_posts ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const total = countResult?.total || 0;
-
-    const posts = await c.env.DB.prepare(
-      `SELECT * FROM community_posts ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).bind(...params, pageSize, (page - 1) * pageSize).all<Record<string, unknown>>();
+    const rows = await listUserPosts(c.env.DB, {
+      userId: user.userId,
+      status: statusFilter,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      items: (posts.results || []).map(p => ({
+      items: rows.map(p => ({
         id: p.id,
         userId: p.user_id,
         postType: p.post_type,
@@ -296,27 +314,16 @@ communityRoutes.get('/posts/my-favorites', async (c) => {
   const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '20')));
 
   try {
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM community_likes l
-       JOIN community_posts p ON l.post_id = p.id
-       WHERE l.user_id = ? AND l.like_type = 'favorite' AND p.status = 'active'`
-    ).bind(user.userId).first<{ total: number }>();
+    const total = await countFavoritePosts(c.env.DB, user.userId);
 
-    const total = countResult?.total || 0;
-
-    const posts = await c.env.DB.prepare(
-      `SELECT p.*, u.username as userName
-       FROM community_likes l
-       JOIN community_posts p ON l.post_id = p.id
-       LEFT JOIN users u ON p.user_id = u.id
-       WHERE l.user_id = ? AND l.like_type = 'favorite' AND p.status = 'active'
-       ORDER BY l.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(user.userId, pageSize, (page - 1) * pageSize)
-     .all<Record<string, unknown> & { userName: string }>();
+    const rows = await listFavoritePosts(c.env.DB, {
+      userId: user.userId,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      items: (posts.results || []).map(p => ({
+      items: rows.map(p => ({
         id: p.id,
         userId: p.user_id,
         userName: p.userName,
@@ -364,74 +371,22 @@ communityRoutes.get('/posts', async (c) => {
   const status = c.req.query('status') || 'active';
 
   try {
-    const whereClauses: string[] = ['p.status = ?'];
-    const params: (string | number)[] = [status];
+    const { total, rows, likedPostIds, favoritedPostIds } = await listPosts(c.env.DB, {
+      userId: user.userId,
+      status,
+      postType,
+      tags,
+      search,
+      sort,
+      page,
+      pageSize,
+    });
 
-    if (postType && ['jav', 'anime', 'movie', 'manga', 'novel', 'actress'].includes(postType)) {
-      whereClauses.push('p.post_type = ?');
-      params.push(postType);
-    }
+    // 当前用户的点赞/收藏状态
+    const likedSet = new Set(likedPostIds);
+    const favoritedSet = new Set(favoritedPostIds);
 
-    if (search) {
-      whereClauses.push('(p.title LIKE ? OR p.caption LIKE ?)');
-      const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm);
-    }
-
-    if (tags) {
-      const tagList = tags.split(',').filter(t => t.trim());
-      if (tagList.length > 0) {
-        whereClauses.push(`(${tagList.map(() => 'p.tags LIKE ?').join(' OR ')})`);
-        tagList.forEach(tag => params.push(`%"${tag.trim()}"%`));
-      }
-    }
-
-    let orderBy = 'p.created_at DESC';
-    if (sort === 'hot') {
-      orderBy = 'p.like_count DESC, p.view_count DESC, p.created_at DESC';
-    }
-
-    const whereClause = whereClauses.join(' AND ');
-
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM community_posts p WHERE ${whereClause}`
-    ).bind(...params).first<{ total: number }>();
-
-    const total = countResult?.total || 0;
-
-    const posts = await c.env.DB.prepare(
-      `SELECT p.*, u.username as userName
-       FROM community_posts p
-       LEFT JOIN users u ON p.user_id = u.id
-       WHERE ${whereClause}
-       ORDER BY ${orderBy}
-       LIMIT ? OFFSET ?`
-    ).bind(...params, pageSize, (page - 1) * pageSize)
-     .all<Record<string, unknown> & { userName: string }>();
-
-    // 批量查询当前用户的点赞/收藏状态
-    const likedPostIds = new Set<string>();
-    const favoritedPostIds = new Set<string>();
-    if (posts.results && posts.results.length > 0) {
-      const postIds = posts.results.map(p => p.id);
-
-      const [likesResult, favoritesResult] = await c.env.DB.batch([
-        c.env.DB.prepare(
-          `SELECT post_id FROM community_likes WHERE user_id = ? AND like_type = 'like' AND post_id IN (${postIds.map(() => '?').join(',')})`
-        ).bind(user.userId, ...postIds),
-        c.env.DB.prepare(
-          `SELECT post_id FROM community_likes WHERE user_id = ? AND like_type = 'favorite' AND post_id IN (${postIds.map(() => '?').join(',')})`
-        ).bind(user.userId, ...postIds),
-      ]) as unknown as [
-        { results: Array<{ post_id: string }> },
-        { results: Array<{ post_id: string }> },
-      ];
-
-      (likesResult.results || []).forEach(l => likedPostIds.add(l.post_id));
-      (favoritesResult.results || []).forEach(f => favoritedPostIds.add(f.post_id));
-    }
-
-    const items = (posts.results || []).map(p => ({
+    const items = rows.map(p => ({
       id: p.id,
       userId: p.user_id,
       userName: p.userName,
@@ -450,8 +405,8 @@ communityRoutes.get('/posts', async (c) => {
       isFeatured: !!p.is_featured,
       createdAt: p.created_at,
       updatedAt: p.updated_at,
-      isLiked: likedPostIds.has(p.id as string),
-      isFavorited: favoritedPostIds.has(p.id as string),
+      isLiked: likedSet.has(p.id as string),
+      isFavorited: favoritedSet.has(p.id as string),
     }));
 
     return c.json(success({
@@ -473,27 +428,17 @@ communityRoutes.get('/posts/:id', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const post = await c.env.DB.prepare(
-      `SELECT p.*, u.username as userName
-       FROM community_posts p
-       LEFT JOIN users u ON p.user_id = u.id
-       WHERE p.id = ?`
-    ).bind(postId).first<Record<string, unknown> & { userName: string }>();
+    const post = await findPostWithUserById(c.env.DB, postId);
 
     if (!post) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
     // 增加浏览量
-    await c.env.DB.prepare(
-      'UPDATE community_posts SET view_count = view_count + 1 WHERE id = ?'
-    ).bind(postId).run();
+    await incrementPostViewCount(c.env.DB, postId);
 
     // 查询当前用户的点赞/收藏状态
-    const [likeRecord, favoriteRecord] = await c.env.DB.batch([
-      c.env.DB.prepare("SELECT id FROM community_likes WHERE post_id = ? AND user_id = ? AND like_type = 'like'").bind(postId, user.userId),
-      c.env.DB.prepare("SELECT id FROM community_likes WHERE post_id = ? AND user_id = ? AND like_type = 'favorite'").bind(postId, user.userId),
-    ]) as unknown as [{ results: Array<{ id: string }> }, { results: Array<{ id: string }> }];
+    const interaction = await findPostInteractionState(c.env.DB, { postId, userId: user.userId });
 
     return c.json(success({
       id: post.id,
@@ -514,8 +459,8 @@ communityRoutes.get('/posts/:id', async (c) => {
       isFeatured: !!post.is_featured,
       createdAt: post.created_at,
       updatedAt: post.updated_at,
-      isLiked: !!likeRecord.results?.length,
-      isFavorited: !!favoriteRecord.results?.length,
+      isLiked: interaction.liked,
+      isFavorited: interaction.favorited,
     }));
   } catch (err) {
     console.error('Get post detail error:', err);
@@ -536,12 +481,20 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
   try {
     const id = generateId();
     const now = Date.now();
+    const contentDataStr = typeof contentData === 'string' ? contentData : JSON.stringify(contentData);
 
     // 执行 INSERT（触发器 update_user_stats_after_post 自动更新用户统计）
-    await c.env.DB.prepare(
-      `INSERT INTO community_posts (id, user_id, post_type, title, cover_image, content_data, caption, tags, view_count, like_count, comment_count, favorite_count, share_count, status, is_featured, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 'active', 0, ?, ?)`
-    ).bind(id, user.userId, postType, title.trim(), coverImage, typeof contentData === 'string' ? contentData : JSON.stringify(contentData), caption?.trim() || '', JSON.stringify(tags || []), now, now).run();
+    await insertPost(c.env.DB, {
+      id,
+      userId: user.userId,
+      postType,
+      title: title.trim(),
+      coverImage,
+      contentData: contentDataStr,
+      caption: caption?.trim() || '',
+      tags: JSON.stringify(tags || []),
+      now,
+    });
 
     return c.json(success({
       id,
@@ -549,7 +502,7 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
       postType,
       title: title.trim(),
       coverImage,
-      contentData: typeof contentData === 'string' ? contentData : JSON.stringify(contentData),
+      contentData: contentDataStr,
       caption: caption?.trim() || '',
       tags: tags || [],
       status: 'active' as const,
@@ -576,9 +529,7 @@ communityRoutes.put('/posts/:id', validateBody(schemas.community.updatePost), as
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.updatePost>;
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT * FROM community_posts WHERE id = ?'
-    ).bind(postId).first<Record<string, unknown>>();
+    const post = await findPostById(c.env.DB, postId);
 
     if (!post) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
@@ -609,9 +560,7 @@ communityRoutes.put('/posts/:id', validateBody(schemas.community.updatePost), as
     params.push(Date.now());
     params.push(postId);
 
-    await c.env.DB.prepare(
-      `UPDATE community_posts SET ${updates.join(', ')} WHERE id = ?`
-    ).bind(...params).run();
+    await updatePostFields(c.env.DB, { updates, params });
 
     return c.json(success({ postId, updatedFields: Object.keys(body) }, '更新成功'));
   } catch (err) {
@@ -626,9 +575,7 @@ communityRoutes.delete('/posts/:id', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT user_id FROM community_posts WHERE id = ?'
-    ).bind(postId).first<{ user_id: string }>();
+    const post = await findPostOwnerId(c.env.DB, postId);
 
     if (!post) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
@@ -638,7 +585,7 @@ communityRoutes.delete('/posts/:id', async (c) => {
       return c.json(error('FORBIDDEN', '无权删除此帖子'), 403);
     }
 
-    await c.env.DB.prepare('DELETE FROM community_posts WHERE id = ?').bind(postId).run();
+    await deletePost(c.env.DB, postId);
     return c.json(success(null, '删除成功'));
   } catch (err) {
     console.error('Delete post error:', err);
@@ -657,17 +604,13 @@ communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePo
   }
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const exists = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!exists) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    await c.env.DB.prepare(
-      'UPDATE community_posts SET status = ?, updated_at = ? WHERE id = ?'
-    ).bind(status, Date.now(), postId).run();
+    await updatePostStatus(c.env.DB, { postId, status, now: Date.now() });
 
     return c.json(success({ postId, status }, '状态更新成功'));
   } catch (err) {
@@ -687,17 +630,13 @@ communityRoutes.put('/posts/:id/feature', validateBody(schemas.community.feature
   }
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const exists = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!exists) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    await c.env.DB.prepare(
-      'UPDATE community_posts SET is_featured = ?, updated_at = ? WHERE id = ?'
-    ).bind(isFeatured ? 1 : 0, Date.now(), postId).run();
+    await updatePostFeatured(c.env.DB, { postId, isFeatured, now: Date.now() });
 
     return c.json(success({ postId, isFeatured }, isFeatured ? '已设为推荐' : '已取消推荐'));
   } catch (err) {
@@ -716,28 +655,22 @@ communityRoutes.post('/posts/:id/like', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const exists = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!exists) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    const existing = await c.env.DB.prepare(
-      "SELECT id FROM community_likes WHERE post_id = ? AND user_id = ? AND like_type = 'like'"
-    ).bind(postId, user.userId).first();
+    const existing = await findPostLike(c.env.DB, { postId, userId: user.userId, likeType: 'like' });
 
     if (existing) {
       // 取消点赞 — 触发器自动减少计数
-      await c.env.DB.prepare('DELETE FROM community_likes WHERE id = ?').bind(existing.id).run();
+      await deletePostLikeById(c.env.DB, existing.id);
       return c.json(success({ liked: false }, '取消点赞'));
     } else {
       // 点赞 — 触发器自动增加计数
       const likeId = generateId();
-      await c.env.DB.prepare(
-        "INSERT INTO community_likes (id, post_id, user_id, like_type, created_at) VALUES (?, ?, ?, 'like', ?)"
-      ).bind(likeId, postId, user.userId, Date.now()).run();
+      await insertPostLike(c.env.DB, { id: likeId, postId, userId: user.userId, likeType: 'like', now: Date.now() });
       return c.json(success({ liked: true }, '点赞成功'));
     }
   } catch (err) {
@@ -752,26 +685,20 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const exists = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!exists) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    const existing = await c.env.DB.prepare(
-      "SELECT id FROM community_likes WHERE post_id = ? AND user_id = ? AND like_type = 'favorite'"
-    ).bind(postId, user.userId).first();
+    const existing = await findPostLike(c.env.DB, { postId, userId: user.userId, likeType: 'favorite' });
 
     if (existing) {
-      await c.env.DB.prepare('DELETE FROM community_likes WHERE id = ?').bind(existing.id).run();
+      await deletePostLikeById(c.env.DB, existing.id);
       return c.json(success({ favorited: false }, '取消收藏'));
     } else {
       const favId = generateId();
-      await c.env.DB.prepare(
-        "INSERT INTO community_likes (id, post_id, user_id, like_type, created_at) VALUES (?, ?, ?, 'favorite', ?)"
-      ).bind(favId, postId, user.userId, Date.now()).run();
+      await insertPostLike(c.env.DB, { id: favId, postId, userId: user.userId, likeType: 'favorite', now: Date.now() });
       return c.json(success({ favorited: true }, '收藏成功'));
     }
   } catch (err) {
@@ -791,32 +718,22 @@ communityRoutes.get('/posts/:id/comments', async (c) => {
   const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '20')));
 
   try {
-    const postExists = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const postExistsFlag = await postExists(c.env.DB, postId);
 
-    if (!postExists) {
+    if (!postExistsFlag) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    const countResult = await c.env.DB.prepare(
-      'SELECT COUNT(*) as total FROM community_comments WHERE post_id = ?'
-    ).bind(postId).first<{ total: number }>();
+    const total = await countPostComments(c.env.DB, postId);
 
-    const total = countResult?.total || 0;
-
-    const comments = await c.env.DB.prepare(
-      `SELECT c.*, u.username as userName
-       FROM community_comments c
-       LEFT JOIN users u ON c.user_id = u.id
-       WHERE c.post_id = ?
-       ORDER BY c.created_at DESC
-       LIMIT ? OFFSET ?`
-    ).bind(postId, pageSize, (page - 1) * pageSize)
-     .all<Record<string, unknown> & { userName: string }>();
+    const comments = await listPostComments(c.env.DB, {
+      postId,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
 
     return c.json(success({
-      items: (comments.results || []).map(cm => ({
+      items: comments.map(cm => ({
         id: cm.id,
         postId: cm.post_id,
         userId: cm.user_id,
@@ -850,20 +767,16 @@ communityRoutes.post('/comments', validateBody(schemas.community.createComment),
   }
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const postExistsFlag = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!postExistsFlag) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
     const id = generateId();
     const now = Date.now();
 
-    await c.env.DB.prepare(
-      'INSERT INTO community_comments (id, post_id, user_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(id, postId, user.userId, content.trim(), now, now).run();
+    await insertComment(c.env.DB, { id, postId, userId: user.userId, content: content.trim(), now });
 
     return c.json(success({
       id,
@@ -885,9 +798,7 @@ communityRoutes.delete('/comments/:id', async (c) => {
   const commentId = c.req.param('id');
 
   try {
-    const comment = await c.env.DB.prepare(
-      'SELECT * FROM community_comments WHERE id = ?'
-    ).bind(commentId).first<Record<string, unknown>>();
+    const comment = await findCommentById(c.env.DB, commentId);
 
     if (!comment) {
       return c.json(error('NOT_FOUND', '评论不存在'), 404);
@@ -898,7 +809,7 @@ communityRoutes.delete('/comments/:id', async (c) => {
       return c.json(error('FORBIDDEN', '无权删除此评论'), 403);
     }
 
-    await c.env.DB.prepare('DELETE FROM community_comments WHERE id = ?').bind(commentId).run();
+    await deleteComment(c.env.DB, commentId);
     return c.json(success(null, '删除成功'));
   } catch (err) {
     console.error('Delete comment error:', err);
@@ -922,18 +833,14 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
   }
 
   try {
-    const post = await c.env.DB.prepare(
-      'SELECT id FROM community_posts WHERE id = ?'
-    ).bind(postId).first();
+    const postExistsFlag = await postExists(c.env.DB, postId);
 
-    if (!post) {
+    if (!postExistsFlag) {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
     // 检查是否已举报过
-    const existingReport = await c.env.DB.prepare(
-      'SELECT id FROM community_reports WHERE post_id = ? AND reporter_user_id = ? AND status = ?'
-    ).bind(postId, user.userId, 'pending').first();
+    const existingReport = await findPendingReport(c.env.DB, { postId, userId: user.userId });
 
     if (existingReport) {
       return c.json(error('DUPLICATE_ERROR', '您已举报过该帖子，请等待处理结果'), 400);
@@ -942,10 +849,14 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
     const reportId = generateId();
     const now = Date.now();
 
-    await c.env.DB.prepare(
-      `INSERT INTO community_reports (id, post_id, reporter_user_id, report_reason, report_details, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`
-    ).bind(reportId, postId, user.userId, reason.trim(), details?.trim() || null, now, now).run();
+    await insertReport(c.env.DB, {
+      id: reportId,
+      postId,
+      userId: user.userId,
+      reason: reason.trim(),
+      details: details?.trim() || null,
+      now,
+    });
 
     return c.json(success({ reportId }, '举报已提交，感谢您的反馈'));
   } catch (err) {
@@ -961,32 +872,15 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
 /** 社区统计（实时查询，社区数据变化频繁不适合缓存） */
 communityRoutes.get('/stats', async (c) => {
   try {
-    const [totalPostsResult, totalUsersResult, totalCommentsResult, totalLikesResult, totalFavoritesResult, postsByTypeResult, recentActivityResult] =
-      await c.env.DB.batch([
-        c.env.DB.prepare("SELECT COUNT(*) as count FROM community_posts WHERE status = 'active'"),
-        c.env.DB.prepare('SELECT COUNT(DISTINCT user_id) as count FROM community_posts WHERE status = \'active\''),
-        c.env.DB.prepare('SELECT COUNT(*) as count FROM community_comments'),
-        c.env.DB.prepare('SELECT COALESCE(SUM(like_count), 0) as total FROM community_posts'),
-        c.env.DB.prepare('SELECT COALESCE(SUM(favorite_count), 0) as total FROM community_posts'),
-        c.env.DB.prepare(`
-          SELECT post_type as type, COUNT(*) as count
-          FROM community_posts WHERE status = 'active'
-          GROUP BY post_type ORDER BY count DESC
-        `),
-        c.env.DB.prepare(`
-          SELECT id, post_type as type, title, created_at
-          FROM community_posts WHERE status = 'active'
-          ORDER BY created_at DESC LIMIT 10
-        `),
-      ]) as unknown as [
-        { results: Array<{ count: number }> },
-        { results: Array<{ count: number }> },
-        { results: Array<{ count: number }> },
-        { results: Array<{ total: number }> },
-        { results: Array<{ total: number }> },
-        { results: Array<{ post_type: string; count: number }> },
-        { results: Array<{ id: string; post_type: string; title: string; created_at: number }> },
-      ];
+    const {
+      totalPostsResult,
+      totalUsersResult,
+      totalCommentsResult,
+      totalLikesResult,
+      totalFavoritesResult,
+      postsByTypeResult,
+      recentActivityResult,
+    } = await queryCommunityStats(c.env.DB);
 
     const totalPosts = totalPostsResult.results?.[0]?.count || 0;
     const totalUsers = totalUsersResult.results?.[0]?.count || 0;
@@ -1027,15 +921,9 @@ communityRoutes.get('/user-stats', async (c) => {
 
   try {
     // 直接读取触发器维护的统计表
-    const stats = await c.env.DB.prepare(
-      `SELECT * FROM community_user_stats WHERE user_id = ?`
-    ).bind(user.userId).first<Record<string, unknown>>();
+    const stats = await findUserCommunityStats(c.env.DB, user.userId);
 
-    const recentPosts = await c.env.DB.prepare(
-      `SELECT * FROM community_posts
-       WHERE user_id = ? AND status = 'active'
-       ORDER BY created_at DESC LIMIT 5`
-    ).bind(user.userId).all<Record<string, unknown>>();
+    const recentPosts = await listUserRecentPosts(c.env.DB, { userId: user.userId, limit: 5 });
 
     return c.json(success({
       postsCount: (stats?.posts_count as number) || 0,
@@ -1044,7 +932,7 @@ communityRoutes.get('/user-stats', async (c) => {
       commentsCount: (stats?.comments_count as number) || 0,
       reputationScore: (stats?.reputation_score as number) || 0,
       contributionLevel: (stats?.contribution_level as string) || 'beginner',
-      recentPosts: (recentPosts.results || []).map(p => ({
+      recentPosts: recentPosts.map(p => ({
         id: p.id,
         userId: p.user_id,
         postType: p.post_type,
@@ -1082,13 +970,11 @@ communityRoutes.get('/notifications', async (c) => {
 
   try {
     // 获取用户发布的所有帖子
-    const myPosts = await c.env.DB.prepare(
-      'SELECT id, title, cover_image FROM community_posts WHERE user_id = ?'
-    ).bind(user.userId).all<{ id: string; title: string; cover_image: string }>();
+    const myPosts = await listMyPostBriefs(c.env.DB, user.userId);
 
-    const myPostIds = (myPosts.results || []).map(p => p.id);
+    const myPostIds = myPosts.map(p => p.id);
     const postInfoMap: Record<string, { title: string; coverImage: string }> = {};
-    (myPosts.results || []).forEach(p => { postInfoMap[p.id] = { title: p.title, coverImage: p.cover_image }; });
+    myPosts.forEach(p => { postInfoMap[p.id] = { title: p.title, coverImage: p.cover_image }; });
 
     if (myPostIds.length === 0) {
       return c.json(success({
@@ -1100,43 +986,9 @@ communityRoutes.get('/notifications', async (c) => {
       }));
     }
 
-    const inClause = myPostIds.map(() => '?').join(',');
-
     // 并行查询各类事件
-    const [likesResult, commentsResult, favoritesResult, reportsResult] = await c.env.DB.batch([
-      c.env.DB.prepare(`
-        SELECT l.id, l.post_id, l.user_id as actor_id, u.username as actor_name, l.created_at
-        FROM community_likes l
-        LEFT JOIN users u ON l.user_id = u.id
-        WHERE l.post_id IN (${inClause}) AND l.like_type = 'like' AND l.user_id != ?
-        ORDER BY l.created_at DESC LIMIT 200
-      `).bind(...myPostIds, user.userId),
-      c.env.DB.prepare(`
-        SELECT c.id, c.post_id, c.user_id as actor_id, u.username as actor_name, c.content, c.created_at
-        FROM community_comments c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.post_id IN (${inClause}) AND c.user_id != ?
-        ORDER BY c.created_at DESC LIMIT 200
-      `).bind(...myPostIds, user.userId),
-      c.env.DB.prepare(`
-        SELECT f.id, f.post_id, f.user_id as actor_id, u.username as actor_name, f.created_at
-        FROM community_likes f
-        LEFT JOIN users u ON f.user_id = u.id
-        WHERE f.post_id IN (${inClause}) AND f.like_type = 'favorite' AND f.user_id != ?
-        ORDER BY f.created_at DESC LIMIT 200
-      `).bind(...myPostIds, user.userId),
-      c.env.DB.prepare(`
-        SELECT r.id, r.post_id, r.status, r.report_reason, r.updated_at as created_at
-        FROM community_reports r
-        WHERE r.post_id IN (${inClause}) AND r.status != 'pending'
-        ORDER BY r.updated_at DESC LIMIT 100
-      `).bind(...myPostIds),
-    ]) as unknown as [
-      { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> },
-      { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; content: string; created_at: number }> },
-      { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> },
-      { results: Array<{ id: string; post_id: string; status: string; report_reason: string; created_at: number }> },
-    ];
+    const { likesResult, commentsResult, favoritesResult, reportsResult } =
+      await queryNotificationEvents(c.env.DB, { postIds: myPostIds, userId: user.userId });
 
     const allNotifications = [
       ...(likesResult.results || []).map(n => ({
