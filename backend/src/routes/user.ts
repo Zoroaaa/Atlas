@@ -5,12 +5,14 @@
  * 日期：2024
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env, User, UserFavorite, UserSearchHistory } from '@/types';
 import { success, error, generateId, logUserAction } from '@/utils';
 import { authMiddleware } from '@/middleware/auth';
 import { userActivitySchema } from '@/utils/validators';
 import { CONFIG, VALIDATION_RULES } from '@/constants';
 import { checkRateLimitD1 } from '@/utils/rate-limit';
+import { validateBody, schemas } from '@/validation';
 
 const R = VALIDATION_RULES;
 
@@ -39,16 +41,12 @@ userRoutes.get('/settings', async (c) => {
   }
 });
 
-userRoutes.put('/settings', async (c) => {
+userRoutes.put('/settings', validateBody(schemas.user.updateSettings), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateSettings>;
     const { settings } = body;
-
-    if (!settings || typeof settings !== 'object') {
-      return c.json(error('VALIDATION_ERROR', '设置数据格式错误'), 400);
-    }
 
     await c.env.DB.prepare(
       'UPDATE users SET settings = ?, updated_at = ? WHERE id = ?'
@@ -100,7 +98,7 @@ userRoutes.get('/favorites', async (c) => {
   }
 });
 
-userRoutes.post('/favorites', async (c) => {
+userRoutes.post('/favorites', validateBody(schemas.user.addFavorite), async (c) => {
   const user = c.get('user');
 
   // 收藏接口速率限制：每用户每分钟最多 5 次
@@ -111,12 +109,8 @@ userRoutes.post('/favorites', async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.addFavorite>;
     const { title, subtitle, url, icon, keyword, code, cover, actors, duration, tags, releaseDate, publisher, magnetLink, status } = body;
-
-    if (!title || !url) {
-      return c.json(error('VALIDATION_ERROR', '标题和URL是必填项'), 400);
-    }
 
     const existing = await c.env.DB.prepare(
       'SELECT * FROM user_favorites WHERE user_id = ? AND url = ?'
@@ -230,17 +224,13 @@ userRoutes.delete('/favorites/:id', async (c) => {
   }
 });
 
-userRoutes.patch('/favorites/:id/status', async (c) => {
+userRoutes.patch('/favorites/:id/status', validateBody(schemas.user.updateFavoriteStatus), async (c) => {
   const user = c.get('user');
   const favoriteId = c.req.param('id');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateFavoriteStatus>;
     const { status } = body;
-
-    if (!status || (status !== 'want' && status !== 'watched')) {
-      return c.json(error('VALIDATION_ERROR', '状态必须是 want 或 watched'), 400);
-    }
 
     const existing = await c.env.DB.prepare(
       'SELECT * FROM user_favorites WHERE id = ? AND user_id = ?'
@@ -285,16 +275,12 @@ userRoutes.get('/search-history', async (c) => {
   }
 });
 
-userRoutes.post('/search-history', async (c) => {
+userRoutes.post('/search-history', validateBody(schemas.user.addSearchHistory), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.addSearchHistory>;
     const { query, source, resultsCount, title, subtitle, code, actors, duration, tags, releaseDate, publisher, keyword } = body;
-
-    if (!query) {
-      return c.json(error('VALIDATION_ERROR', '搜索关键词是必填项'), 400);
-    }
 
     const maxHistory = R.SEARCH_HISTORY.MAX_COUNT;
 
@@ -358,12 +344,12 @@ userRoutes.post('/search-history', async (c) => {
   }
 });
 
-userRoutes.put('/search-history/:id', async (c) => {
+userRoutes.put('/search-history/:id', validateBody(schemas.user.updateSearchHistory), async (c) => {
   const user = c.get('user');
   const historyId = c.req.param('id');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateSearchHistory>;
     const { title, subtitle, code, actors, duration, tags, releaseDate, publisher, keyword } = body;
 
     const existing = await c.env.DB.prepare(
@@ -443,20 +429,12 @@ userRoutes.delete('/search-history/:id', async (c) => {
 });
 
 // 批量删除搜索历史
-userRoutes.post('/search-history/batch-delete', async (c) => {
+userRoutes.post('/search-history/batch-delete', validateBody(schemas.user.batchDeleteSearchHistory), async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.batchDeleteSearchHistory>;
     const { ids } = body;
-
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return c.json(error('VALIDATION_ERROR', '请提供要删除的历史记录ID'), 400);
-    }
-
-    if (ids.length > 100) {
-      return c.json(error('VALIDATION_ERROR', '一次最多删除100条记录'), 400);
-    }
 
     const placeholders = ids.map(() => '?').join(',');
     const result = await c.env.DB.prepare(
@@ -545,12 +523,12 @@ userRoutes.get('/source-configs', async (c) => {
   }
 });
 
-userRoutes.put('/source-configs/:sourceId', async (c) => {
+userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSourceConfig), async (c) => {
   const user = c.get('user');
   const sourceId = c.req.param('sourceId');
 
   try {
-    const body = await c.req.json();
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateSourceConfig>;
     const { isEnabled, customPriority, customName, customSubtitle, customIcon, notes } = body;
 
     const existing = await c.env.DB.prepare(

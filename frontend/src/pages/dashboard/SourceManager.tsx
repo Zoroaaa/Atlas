@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database,
   Plus,
@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState, SourceIcon, Dropdown } from '@/components/ui';
 import { sourceApi } from '@/services/api';
-import { useNotification } from '@/hooks';
+import { useNotification, useSourcesWithUserConfig, useMajorCategories, useCategories, sourcesKeys } from '@/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -57,14 +58,20 @@ export const SourceManager: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   
-  const [sources, setSources] = useState<Array<SearchSource & { userConfig?: UserSourceConfig | null }>>([]);
-  const [majorCategories, setMajorCategories] = useState<MajorCategory[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
+  const sourcesQuery = useSourcesWithUserConfig();
+  const majorCategoriesQuery = useMajorCategories();
+  const categoriesQuery = useCategories();
+  const sources = sourcesQuery.data ?? [];
+  const majorCategories = majorCategoriesQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+
   const [stats, setStats] = useState<SourceStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedMajorCategories, setExpandedMajorCategories] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const isLoading = sourcesQuery.isLoading || majorCategoriesQuery.isLoading || categoriesQuery.isLoading || isStatsLoading;
   
   const [editModal, setEditModal] = useState<{ isOpen: boolean; source: SearchSource | null }>({
     isOpen: false,
@@ -92,26 +99,20 @@ export const SourceManager: React.FC = () => {
     error: string | null;
   }>>({});
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  // 展开态初始化（数据到达后一次性设置）
+  const expandedInitializedRef = useRef(false);
+  useEffect(() => {
+    if (!expandedInitializedRef.current && majorCategories.length > 0 && categories.length > 0) {
+      setExpandedMajorCategories(new Set(majorCategories.map(m => m.id)));
+      setExpandedCategories(new Set(categories.map(c => c.id)));
+      expandedInitializedRef.current = true;
+    }
+  }, [majorCategories, categories]);
+
+  // 源状态统计：无跨页双轨，保持局部 state
+  const loadStats = useCallback(async () => {
+    setIsStatsLoading(true);
     try {
-      const sourcesRes = await sourceApi.getSourcesWithUserConfig();
-      if (sourcesRes.success && sourcesRes.data) {
-        setSources(sourcesRes.data);
-      }
-
-      const majorCategoriesRes = await sourceApi.getMajorCategories();
-      if (majorCategoriesRes.success && majorCategoriesRes.data) {
-        setMajorCategories(majorCategoriesRes.data);
-        setExpandedMajorCategories(new Set(majorCategoriesRes.data.map(m => m.id)));
-      }
-
-      const categoriesRes = await sourceApi.getCategories();
-      if (categoriesRes.success && categoriesRes.data) {
-        setCategories(categoriesRes.data);
-        setExpandedCategories(new Set(categoriesRes.data.map(c => c.id)));
-      }
-
       const statsRes = await sourceApi.getSourceStats();
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);
@@ -119,14 +120,14 @@ export const SourceManager: React.FC = () => {
     } catch (_error) {
       notification.source.loadFailed();
     } finally {
-      setIsLoading(false);
+      setIsStatsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadStats();
+  }, [loadStats]);
 
   const getMajorCategoriesWithCategories = (): MajorCategoryWithCategories[] => {
     return majorCategories.map(mc => {
@@ -183,11 +184,7 @@ export const SourceManager: React.FC = () => {
       
       await sourceApi.batchUpdateUserSourceConfigs({ configs });
       
-      setSources(prev => prev.map(s => 
-        allSources.some(as => as.id === s.id)
-          ? { ...s, userConfig: { ...s.userConfig, isEnabled: enable } as UserSourceConfig }
-          : s
-      ));
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
       notification.source.batchEnabled(allSources.length);
     } catch (_error) {
@@ -209,11 +206,7 @@ export const SourceManager: React.FC = () => {
       
       await sourceApi.batchUpdateUserSourceConfigs({ configs });
       
-      setSources(prev => prev.map(s => 
-        configs.some(c => c.sourceId === s.id)
-          ? { ...s, userConfig: { ...s.userConfig, isEnabled: enable } as UserSourceConfig }
-          : s
-      ));
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
       notification.source.batchEnabled(cat.sources.length);
     } catch (_error) {
@@ -224,11 +217,7 @@ export const SourceManager: React.FC = () => {
   const handleToggleSource = async (sourceId: string, isEnabled: boolean) => {
     try {
       await sourceApi.updateUserSourceConfig(sourceId, { isEnabled });
-      setSources(prev => prev.map(s =>
-        s.id === sourceId
-          ? { ...s, userConfig: { ...s.userConfig, isEnabled } as UserSourceConfig }
-          : s
-      ));
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       notification.source.enabled(isEnabled ? t('dashboard:sources.sourceFallback') : undefined);
     } catch (_error) {
       notification.source.createFailed();
@@ -246,10 +235,7 @@ export const SourceManager: React.FC = () => {
       
       await sourceApi.batchUpdateUserSourceConfigs({ configs });
       
-      setSources(prev => prev.map(s => ({ 
-        ...s, 
-        userConfig: { ...s.userConfig, isEnabled: enable } as UserSourceConfig 
-      })));
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
       notification.source.batchEnabled(sources.length);
     } catch (_error) {
@@ -279,7 +265,7 @@ export const SourceManager: React.FC = () => {
           searchable: true,
           searchPriority: 0,
         });
-        loadData();
+        queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       }
     } catch (_error) {
         notification.source.createFailed();
@@ -305,7 +291,7 @@ export const SourceManager: React.FC = () => {
       await sourceApi.updateSource(editModal.source.id, updateData);
       notification.source.updated();
       setEditModal({ isOpen: false, source: null });
-      loadData();
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
     } catch (_error) {
       notification.source.updateFailed();
     }
@@ -317,7 +303,7 @@ export const SourceManager: React.FC = () => {
     try {
       await sourceApi.deleteSource(sourceId);
       notification.source.deleted();
-      loadData();
+      queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
     } catch (_error) {
       notification.source.deleteFailed();
     }

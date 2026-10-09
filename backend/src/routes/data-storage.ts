@@ -5,10 +5,12 @@
  * 挂载于 /api/admin/data-storage，复用 adminMiddleware 鉴权。
  */
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { Env } from '@/types';
 import { success, error } from '@/utils';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { CONFIG } from '@/constants';
+import { validateBody, schemas } from '@/validation';
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
 
@@ -280,16 +282,12 @@ dataStorageRoutes.get('/records/:id', async (c) => {
 // 5. 更新状态（显示/隐藏）
 // ============================================================
 
-dataStorageRoutes.put('/records/:id/status', async (c) => {
+dataStorageRoutes.put('/records/:id/status', validateBody(schemas.admin.updateDataRecordStatus), async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json();
-  const { status } = body;
-
-  if (!VALID_STATUSES.includes(status)) {
-    return c.json(error('VALIDATION_ERROR', '无效的状态值'), 400);
-  }
 
   try {
+    const body = c.get('validatedBody') as z.infer<typeof schemas.admin.updateDataRecordStatus>;
+    const { status } = body;
     const existing = await c.env.DB.prepare('SELECT id FROM data_records WHERE id = ?')
       .bind(id)
       .first();
@@ -315,10 +313,9 @@ dataStorageRoutes.put('/records/:id/status', async (c) => {
 // ============================================================
 
 dataStorageRoutes.delete('/records/:id', async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
 
-  if (!(await checkIsSuperAdmin(c.env.DB, user.userId))) {
+  if (!(await checkIsSuperAdmin(c))) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 
@@ -345,9 +342,7 @@ dataStorageRoutes.delete('/records/:id', async (c) => {
 // ============================================================
 
 dataStorageRoutes.post('/cleanup', async (c) => {
-  const user = c.get('user');
-
-  if (!(await checkIsSuperAdmin(c.env.DB, user.userId))) {
+  if (!(await checkIsSuperAdmin(c))) {
     return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
   }
 

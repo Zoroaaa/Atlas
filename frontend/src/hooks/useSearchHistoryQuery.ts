@@ -34,3 +34,25 @@ export function useClearSearchHistory() {
     },
   });
 }
+
+export function useDeleteSearchHistoryItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => userApi.deleteSearchHistoryItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: searchHistoryKeys.all });
+    },
+  });
+}
+
+export function useBatchDeleteSearchHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => userApi.batchDeleteSearchHistory(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: searchHistoryKeys.all });
+    },
+  });
+}
