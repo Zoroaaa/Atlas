@@ -1894,6 +1894,7 @@
       "notFound": "Code not found on JavBus",
       "notFoundHint": "The code format may be invalid or the resource has not been indexed yet",
       "fetchFailed": "Fetch failed, please try again later",
+      "retry": "Retry",
       "releaseDate": "Release date",
       "duration": "Duration",
       "director": "Director",

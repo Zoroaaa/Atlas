@@ -36,11 +36,16 @@ export function useJavDetail() {
     }
   }, [lastCode, status]);
 
+  /** 重试上次请求的番号详情（失败态专用；成功态由 fetch 内部去重拦截） */
+  const retry = useCallback(() => {
+    if (lastCode) fetch(lastCode);
+  }, [lastCode, fetch]);
+
   const reset = useCallback(() => {
     setDetail(null);
     setStatus('idle');
     setLastCode('');
   }, []);
 
-  return { detail, status, fetch, reset };
+  return { detail, status, lastCode, fetch, retry, reset };
 }

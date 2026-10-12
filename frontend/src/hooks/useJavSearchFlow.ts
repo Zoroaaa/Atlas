@@ -3,7 +3,7 @@ import { useJavDetail } from '@/hooks';
 import type { JavDetail } from '@/types/jav';
 
 export function useJavSearchFlow() {
-  const { detail: fetchedDetail, status: javDetailStatus, fetch: fetchJavDetail, reset: resetJavDetail } = useJavDetail();
+  const { detail: fetchedDetail, status: javDetailStatus, fetch: fetchJavDetail, retry: retryJavDetail, reset: resetJavDetail } = useJavDetail();
   const [javEnrichedDetail, setJavEnrichedDetail] = useState<JavDetail | null>(null);
 
   // 合并 detail：优先使用 enriched（搜索接口直接返回），fallback 到 fetched（二次请求）
@@ -20,6 +20,7 @@ export function useJavSearchFlow() {
     javDetailStatus: combinedStatus,
     javEnrichedDetail,
     fetchJavDetail,
+    retryJavDetail,
     resetJavDetail: resetAll,
     setJavEnrichedDetail,
   };

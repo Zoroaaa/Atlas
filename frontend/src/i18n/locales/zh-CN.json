@@ -1894,6 +1894,7 @@
       "notFound": "JavBus 上未找到该番号",
       "notFoundHint": "可能是番号格式有误或资源尚未收录",
       "fetchFailed": "获取失败，请稍后重试",
+      "retry": "重试",
       "releaseDate": "发行日期",
       "duration": "时长",
       "director": "导演",
