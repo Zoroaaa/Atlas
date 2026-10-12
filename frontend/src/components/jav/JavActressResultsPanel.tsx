@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import type { JavItem } from '@/types/jav';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { convertToProxyUrl } from '@/services/proxy';
 import { ShareToCommunityButton } from '@/components/community/ShareToCommunityButton';
 
 const PAGE_SIZE = 10;
@@ -33,14 +34,17 @@ interface ActressCardProps {
   item: ActressProfile;
   isFavorited: boolean;
   isAuthenticated: boolean;
+  isProxyEnabled: boolean;
   onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
 }
 
-function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onLoginRequired }: ActressCardProps) {
+function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onToggleFavorite, onLoginRequired }: ActressCardProps) {
   const { t } = useTranslation(['jav']);
   // 统一走后端 /api/jav/proxy-image 避开浏览器 ORB
   const imgSrc = item.cover ? getProxyImageUrl(item.cover) : undefined;
+  // 详情跳转遵守用户配置的网址跳转代理
+  const detailHref = isProxyEnabled ? convertToProxyUrl(item.detailUrl) : item.detailUrl;
 
   const metrics: string[] = [];
   if (item.height) metrics.push(`T${item.height}`);
@@ -67,7 +71,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
         <div className="flex items-baseline gap-2 flex-wrap">
           {item.detailUrl ? (
             <a
-              href={item.detailUrl}
+              href={detailHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-base font-bold text-stone-900 dark:text-stone-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
@@ -160,18 +164,22 @@ export interface JavActressResultsPanelProps {
   data: JavEnrichedData;
   favoritedCodes: Set<string>;
   isAuthenticated: boolean;
+  isProxyEnabled?: boolean;
   onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
   /** 点击作品卡片时触发，携带番号 — 调用方应切换到 code 子模式并搜索 */
   onWorkClick?: (code: string) => void;
 }
 
-export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, onToggleFavorite, onLoginRequired, onWorkClick }: JavActressResultsPanelProps) {
+export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, isProxyEnabled = false, onToggleFavorite, onLoginRequired, onWorkClick }: JavActressResultsPanelProps) {
   const { t } = useTranslation(['jav']);
   const [page, setPage] = useState(1);
   const actresses = data.actresses ?? [];
   const works = data.actressWorks ?? [];
   const errorMsg = data.errors?.search;
+
+  const actressSearchUrl = `https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;
+  const actressSearchHref = isProxyEnabled ? convertToProxyUrl(actressSearchUrl) : actressSearchUrl;
 
   const totalPages = Math.max(1, Math.ceil(actresses.length / PAGE_SIZE));
   const paged = actresses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -190,7 +198,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
             <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{t('jav:actressResults.actressCount', { count: actresses.length })}</span>
           </div>
           <a
-            href={`https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`}
+            href={actressSearchHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
@@ -208,6 +216,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
                 item={item}
                 isFavorited={favoritedCodes.has(`actress:${item.id}`)}
                 isAuthenticated={isAuthenticated}
+                isProxyEnabled={isProxyEnabled}
                 onToggleFavorite={onToggleFavorite}
                 onLoginRequired={onLoginRequired}
               />
@@ -265,6 +274,7 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
       <ActressWorksSection
         works={works}
         normalizedKeyword={data.normalizedKeyword ?? data.keyword}
+        isProxyEnabled={isProxyEnabled}
         onWorkClick={onWorkClick}
       />
     )}
@@ -277,13 +287,17 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
 function ActressWorksSection({
   works,
   normalizedKeyword,
+  isProxyEnabled,
   onWorkClick,
 }: {
   works: JavItem[];
   normalizedKeyword: string;
+  isProxyEnabled: boolean;
   onWorkClick?: (code: string) => void;
 }) {
   const { t } = useTranslation(['jav']);
+  const searchUrl = `https://www.javbus.com/search/${encodeURIComponent(normalizedKeyword)}`;
+  const searchHref = isProxyEnabled ? convertToProxyUrl(searchUrl) : searchUrl;
   return (
     <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
       {/* 头部 */}
@@ -296,7 +310,7 @@ function ActressWorksSection({
           <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{t('jav:actressResults.worksCount', { count: works.length })}</span>
         </div>
         <a
-          href={`https://www.javbus.com/search/${encodeURIComponent(normalizedKeyword)}`}
+          href={searchHref}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-400 transition-colors"
@@ -310,7 +324,7 @@ function ActressWorksSection({
       <div className="p-4 sm:p-5">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {works.map((work, i) => (
-            <WorkCard key={`${work.code}-${i}`} work={work} onClick={onWorkClick} />
+            <WorkCard key={`${work.code}-${i}`} work={work} onClick={onWorkClick} isProxyEnabled={isProxyEnabled} />
           ))}
         </div>
         {onWorkClick && (
@@ -323,7 +337,7 @@ function ActressWorksSection({
   );
 }
 
-function WorkCard({ work, onClick }: { work: JavItem; onClick?: (code: string) => void }) {
+function WorkCard({ work, onClick, isProxyEnabled = false }: { work: JavItem; onClick?: (code: string) => void; isProxyEnabled?: boolean }) {
   const imgSrc = work.cover ? getProxyImageUrl(work.cover) : undefined;
   const clickable = !!onClick;
 
@@ -371,9 +385,10 @@ function WorkCard({ work, onClick }: { work: JavItem; onClick?: (code: string) =
     );
   }
 
+  const detailUrl = `https://www.javbus.com/${work.code}`;
   return (
     <a
-      href={`https://www.javbus.com/${work.code}`}
+      href={isProxyEnabled ? convertToProxyUrl(detailUrl) : detailUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="block group"

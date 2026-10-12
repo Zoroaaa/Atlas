@@ -253,6 +253,7 @@ export const MainSearchPage: React.FC = () => {
                     data={javData}
                     favoritedCodes={favoritesManager.favoritedCodes}
                     isAuthenticated={isAuthenticated}
+                    isProxyEnabled={isProxyEnabled}
                     onToggleFavorite={favoritesManager.handleToggleFavoriteActress}
                     onLoginRequired={() => { navigate('/login'); }}
                     onWorkClick={handleActressWorkClick}
