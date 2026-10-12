@@ -70,11 +70,49 @@ export function parseGrid(html: string, source: string): JavItem[] {
 }
 
 /** 将 JavBus 相对 URL 转为绝对 URL（封面图等资源） */
-function normalizeJavbusUrl(url: string): string {
+export function normalizeJavbusUrl(url: string): string {
   if (url.startsWith('http')) return url;
   if (url.startsWith('//')) return `https:${url}`;
   if (url.startsWith('/')) return `https://www.javbus.com${url}`;
   return url;
+}
+
+// ─── JavBus 女优列表解析 ────────────────────────────────────────────────
+
+/** JavBus 女优列表项（/actresses 与 /searchstar/ 结构一致） */
+export interface ActressListEntry {
+  /** star slug，如 2xi */
+  key: string;
+  name: string;
+  cover?: string;
+}
+
+/**
+ * 解析 JavBus 女优列表（/actresses 页与 /searchstar/{keyword} 页共用同一 avatar-box 结构）
+ *
+ *   <a class="avatar-box text-center" href="https://www.javbus.com/star/2xi">
+ *     <div class="photo-frame"><img src="/pics/actress/2xi_a.jpg" title="葵つかさ"></div>
+ *     <div class="photo-info"><span>葵つかさ</span></div>
+ *   </a>
+ */
+export function parseActressList(html: string, limit = 50): ActressListEntry[] {
+  if (!html) return [];
+  const entries: ActressListEntry[] = [];
+  const re = /href="https?:\/\/www\.javbus\.com\/star\/([a-z0-9]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null && entries.length < limit) {
+    const key = m[1].trim();
+    const block = m[2];
+    // 优先从 img title 提取名字，其次从 span
+    const titleM = block.match(/title="([^"]+)"/i);
+    const spanM = block.match(/<span[^>]*>([^<]+)<\/span>/i);
+    const name = (titleM ? titleM[1] : spanM ? spanM[1] : '').trim();
+    if (!key || !name || name.length > 30) continue;
+    if (entries.find(e => e.key === key)) continue;
+    const imgM = block.match(/<img[^>]+src="([^"]+)"/i);
+    entries.push({ key, name, cover: imgM ? normalizeJavbusUrl(imgM[1]) : undefined });
+  }
+  return entries;
 }
 
 // ─── HTTP 请求常量 ──────────────────────────────────────────────────────

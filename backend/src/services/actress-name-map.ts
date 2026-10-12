@@ -1,7 +1,7 @@
 /**
- * 女优名归一化：把用户输入（简体中文俗称/繁体/日文）转成 minnano-av 可搜的日文名。
+ * 女优名归一化：把用户输入（简体中文俗称/繁体/日文）转成 JavBus 可搜的日文名。
  *
- * 背景：minnano-av 是日文站，索引为「日文新字体汉字 + 假名」，不做简繁/异体字归一化。
+ * 背景：JavBus 是日文站，索引为「日文新字体汉字 + 假名」，不做简繁/异体字归一化。
  * - 含假名的女优名（深田えいみ、椎名そら）—— 中文用户打不出假名，常用音译俗称
  *   （深田咏美、椎名空），字符层面无法对齐，必须靠映射表精确对应。
  * - 纯汉字女优名（波多野结衣、三上悠亚）—— 仅简繁/新字体差异，opencc 简→日新字体
@@ -95,7 +95,7 @@ const ACTRESS_NAME_MAP: Record<string, string> = {
   // ── opencc 转错修正：本庄鈴的「庄」日文姓氏用「庄」，opencc 误转「荘」──
   '本庄铃': '本庄鈴',
 
-  // ── 含假名：minnano 排行榜上有中文译名的女优 ──
+  // ── 含假名：有中文译名的女优 ──
   '筱田步美': '篠田あゆみ',
   '风间由美': '風間ゆみ',
   '小岛南': '小島みなみ',
@@ -128,7 +128,7 @@ function getS2jConverter(): (s: string) => string {
 const normalizeKey = (s: string): string => s.replace(/\s+/g, '').toLowerCase();
 
 /**
- * 归一化女优搜索关键词为 minnano-av 可搜索的日文名。
+ * 归一化女优搜索关键词为 JavBus 可搜索的日文名。
  * 映射表命中 → 日文原名；否则 opencc 简→日转换；异常时原文透传。
  */
 export function normalizeActressKeyword(input: string): string {
