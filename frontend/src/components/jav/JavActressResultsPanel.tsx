@@ -1,14 +1,14 @@
 /**
  * JavActressResultsPanel — JAV 女优搜索结果面板
  *
- * 当 javtab 处于 actress 子模式时渲染，展示 minnano-av.com 抓取的女优资料。
- * 数据来源：后端 routes/search.ts 在 javSubMode==='actress' 时短路调用 fetchActresses。
+ * 当 javtab 处于 actress 子模式时渲染，展示 JavBus 抓取的女优资料。
+ * 数据来源：后端 JavProvider.searchActress（javSubMode==='actress' 时走该分支）。
  *
  * 图片代理：统一走后端 /api/jav/proxy-image（getProxyImageUrl），
  * 而非前缀式 convertToProxyUrl —— 后者对图片会触发浏览器的 ORB。
  */
 import { useState } from 'react';
-import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Building2, Star, Link2, Ruler, Film, ExternalLink } from 'lucide-react';
+import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import type { JavItem } from '@/types/jav';
@@ -63,7 +63,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
 
       {/* 信息主体 */}
       <div className="min-w-0 flex-1 space-y-2">
-        {/* 名字区块：名字 + 假名 + 罗马音 */}
+        {/* 名字 */}
         <div className="flex items-baseline gap-2 flex-wrap">
           {item.detailUrl ? (
             <a
@@ -77,21 +77,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
           ) : (
             <span className="text-base font-bold text-stone-900 dark:text-stone-100">{item.name}</span>
           )}
-          {item.ruby && (
-            <span className="text-sm text-stone-500 dark:text-stone-400">{item.ruby}</span>
-          )}
-          {item.romaji && (
-            <span className="text-sm text-stone-500 dark:text-stone-400 italic">{item.romaji}</span>
-          )}
         </div>
-
-        {/* 别名：独立行，明显区分 */}
-        {item.alias && (
-          <div className="text-xs text-stone-500 dark:text-stone-400">
-            <span className="text-stone-400 dark:text-stone-500 mr-1">{t('jav:actressResults.alias')}</span>
-            <span className="font-medium">{item.alias}</span>
-          </div>
-        )}
 
         {/* 三围：醒目的彩色 chip */}
         {metrics.length > 0 && (
@@ -110,61 +96,18 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
         {/* 基本信息分组：grid 双列布局，每项 label:value 清晰 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
           {item.birthday && (
-            <InfoRow icon={Calendar} label={t('jav:actressResults.birthday')} value={item.birthday + (item.zodiac ? ` ${item.zodiac}` : '')} />
+            <InfoRow icon={Calendar} label={t('jav:actressResults.birthday')} value={item.birthday} />
+          )}
+          {item.age !== undefined && (
+            <InfoRow icon={Cake} label={t('jav:actressResults.age')} value={String(item.age)} />
           )}
           {item.prefecture && (
             <InfoRow icon={MapPin} label={t('jav:actressResults.prefecture')} value={item.prefecture} />
           )}
-          {item.activePeriod && (
-            <InfoRow icon={Star} label={t('jav:actressResults.activePeriod')} value={item.activePeriod} />
-          )}
-          {item.agency && (
-            <InfoRow icon={Building2} label={t('jav:actressResults.agency')} value={item.agency} />
-          )}
-          {item.debutWork && (
-            <InfoRow icon={Ruler} label={t('jav:actressResults.debutWork')} value={item.debutWork} />
+          {item.hobby && (
+            <InfoRow icon={Sparkles} label={t('jav:actressResults.hobby')} value={item.hobby} />
           )}
         </div>
-
-        {/* 标签：独立分组 */}
-        {item.tags && item.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {item.tags.slice(0, 10).map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 text-xs bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 rounded-md"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* 外链 */}
-        {(item.blogUrl || item.officialUrl) && (
-          <div className="flex gap-3 pt-1">
-            {item.blogUrl && (
-              <a
-                href={item.blogUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              >
-                <Link2 className="w-3 h-3" />{t('jav:actressResults.blog')}
-              </a>
-            )}
-            {item.officialUrl && (
-              <a
-                href={item.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              >
-                <Link2 className="w-3 h-3" />{t('jav:actressResults.officialSite')}
-              </a>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 收藏 + 分享 */}
@@ -189,25 +132,17 @@ function ActressCard({ item, isFavorited, isAuthenticated, onToggleFavorite, onL
             contentData: JSON.stringify({
               id: item.id,
               name: item.name,
-              ruby: item.ruby,
-              romaji: item.romaji,
-              alias: item.alias,
               birthday: item.birthday,
-              zodiac: item.zodiac,
+              age: item.age,
               height: item.height,
               bust: item.bust,
               cup: item.cup,
               waist: item.waist,
               hip: item.hip,
               prefecture: item.prefecture,
-              agency: item.agency,
-              activePeriod: item.activePeriod,
-              debutWork: item.debutWork,
-              blogUrl: item.blogUrl,
-              officialUrl: item.officialUrl,
+              hobby: item.hobby,
               detailUrl: item.detailUrl,
               cover: item.cover,
-              tags: item.tags,
             }),
           }}
           isAuthenticated={isAuthenticated}
@@ -238,94 +173,94 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
   const works = data.actressWorks ?? [];
   const errorMsg = data.errors?.search;
 
-  // 错误且无结果
-  if (errorMsg && actresses.length === 0) {
-    return (
-      <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 p-6">
-        <div className="flex items-center gap-2 text-pink-600 dark:text-pink-400">
-          <Wifi className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm">{t('jav:actressResults.searchFailed', { message: errorMsg })}</span>
-        </div>
-      </div>
-    );
-  }
-
-  // 空结果
-  if (actresses.length === 0) {
-    return null;
-  }
-
   const totalPages = Math.max(1, Math.ceil(actresses.length / PAGE_SIZE));
   const paged = actresses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <>
-    <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
-      {/* 头部 */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500 dark:text-pink-400" />
-          </div>
-          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.title')}</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{t('jav:actressResults.actressCount', { count: actresses.length })}</span>
-        </div>
-        <a
-          href={`https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
-        >
-          {t('jav:actressResults.minnanoSearch')}
-        </a>
-      </div>
-
-      {/* 列表 */}
-      <div className="p-4 sm:p-5">
-        <div className="space-y-2.5">
-          {paged.map((item) => (
-            <ActressCard
-              key={item.id}
-              item={item}
-              isFavorited={favoritedCodes.has(`actress:${item.id}`)}
-              isAuthenticated={isAuthenticated}
-              onToggleFavorite={onToggleFavorite}
-              onLoginRequired={onLoginRequired}
-            />
-          ))}
-
-          {/* 分页 */}
-          {actresses.length > PAGE_SIZE && (
-            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage(p => p - 1)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                           hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                           dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" /> {t('jav:actressResults.previousPage')}
-              </button>
-              <span className="text-xs text-stone-500 px-2">
-                {page} / {totalPages}
-                <span className="ml-1 text-stone-400">{t('jav:actressResults.totalCount', { count: actresses.length })}</span>
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                           hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                           dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-              >
-                {t('jav:actressResults.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+    {actresses.length > 0 ? (
+      <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
+        {/* 头部 */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500 dark:text-pink-400" />
             </div>
-          )}
+            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.title')}</span>
+            <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{t('jav:actressResults.actressCount', { count: actresses.length })}</span>
+          </div>
+          <a
+            href={`https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
+          >
+            {t('jav:actressResults.javbusActressSearch')}
+          </a>
+        </div>
+
+        {/* 列表 */}
+        <div className="p-4 sm:p-5">
+          <div className="space-y-2.5">
+            {paged.map((item) => (
+              <ActressCard
+                key={item.id}
+                item={item}
+                isFavorited={favoritedCodes.has(`actress:${item.id}`)}
+                isAuthenticated={isAuthenticated}
+                onToggleFavorite={onToggleFavorite}
+                onLoginRequired={onLoginRequired}
+              />
+            ))}
+
+            {/* 分页 */}
+            {actresses.length > PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" /> {t('jav:actressResults.previousPage')}
+                </button>
+                <span className="text-xs text-stone-500 px-2">
+                  {page} / {totalPages}
+                  <span className="ml-1 text-stone-400">{t('jav:actressResults.totalCount', { count: actresses.length })}</span>
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
+                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
+                >
+                  {t('jav:actressResults.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    ) : (
+      /* 无女优资料：资料源失败 / 未匹配，二者必须可见，不能静默留白 */
+      <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 p-6">
+        {errorMsg ? (
+          <div className="flex items-center gap-2 text-pink-600 dark:text-pink-400">
+            <Wifi className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">{t('jav:actressResults.searchFailed', { message: errorMsg })}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
+            <SearchX className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">{t('jav:actressResults.notFound')}</span>
+          </div>
+        )}
+      </div>
+    )}
 
-    {/* JavBus 作品列表 — 仅当有作品数据时渲染 */}
+    {/* JavBus 作品列表 — 仅当有作品数据时渲染（与女优资料抓取解耦） */}
     {works.length > 0 && (
       <ActressWorksSection
         works={works}

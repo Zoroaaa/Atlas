@@ -86,28 +86,33 @@ export interface ShowRssItem {
   magnet: string;
 }
 
-/** 女优资料（minnano-av.com 抓取） */
+/** 女优资料（JavBus star 页抓取） */
 export interface ActressProfile {
+  /** JavBus star slug（如 2xi） */
   id: string;
+  /** 显示名（日文名） */
   name: string;
-  ruby?: string;
-  romaji?: string;
-  alias?: string;
+  /** 生日（如 1990-08-14） */
   birthday?: string;
-  zodiac?: string;
+  /** 年龄 */
+  age?: number;
+  /** 身高 cm */
   height?: number;
+  /** 胸围 cm */
   bust?: number;
+  /** 罩杯 */
   cup?: string;
+  /** 腰围 cm */
   waist?: number;
+  /** 臀围 cm */
   hip?: number;
+  /** 出身地 */
   prefecture?: string;
-  agency?: string;
-  activePeriod?: string;
-  debutWork?: string;
-  blogUrl?: string;
-  officialUrl?: string;
-  tags?: string[];
+  /** 爱好 */
+  hobby?: string;
+  /** 头像图 URL */
   cover?: string;
+  /** 详情页 URL（JavBus star 页） */
   detailUrl: string;
 }
 
@@ -201,7 +206,7 @@ export interface MovieEnrichedData {
 export interface JavEnrichedData {
   resultType: 'jav';
   keyword: string;
-  /** 归一化后的日文名（actress 子模式）：供「minnano 站内搜索」链接使用 */
+  /** 归一化后的日文名（actress 子模式）：供「JavBus 女优搜索」链接使用 */
   normalizedKeyword?: string;
   page: number;
   total: number;
@@ -232,9 +237,9 @@ export interface JavEnrichedData {
     category: string;
     description?: string;
   }>;
-  /** 女优资料（actress 子模式，minnano-av 抓取） */
+  /** 女优资料（actress 子模式，JavBus star 页抓取） */
   actresses?: ActressProfile[];
-  /** 女优作品列表（actress 子模式，JavBus 搜索抓取，仅当 minnano 女优搜索成功时才返回） */
+  /** 女优作品列表（actress 子模式，JavBus 搜索抓取，与女优资料抓取解耦） */
   actressWorks?: import('./jav').JavItem[];
 }
 

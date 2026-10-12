@@ -248,7 +248,7 @@ export const MainSearchPage: React.FC = () => {
             if (activeTab === 'jav' && javSubMode === 'actress' && javData && resultType === 'jav') {
               return (
                 <div className="flex flex-col gap-3 sm:gap-4">
-                  {/* 女优资料卡片（minnano-av 抓取） */}
+                  {/* 女优资料卡片（JavBus 抓取） */}
                   <JavActressResultsPanel
                     data={javData}
                     favoritedCodes={favoritesManager.favoritedCodes}

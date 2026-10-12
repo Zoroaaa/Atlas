@@ -197,9 +197,8 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
           url: actress.detailUrl,
           code: actressCode,
           cover: actress.cover,
-          subtitle: [actress.ruby, actress.romaji].filter(Boolean).join(' / ') || undefined,
+          subtitle: actress.birthday,
           actors: actress.name,
-          tags: actress.tags?.join(', '),
           keyword: keyword.trim() || undefined,
         });
         if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
