@@ -351,6 +351,7 @@
       "dbError": "用户数据处理失败，请重试",
       "serverError": "服务器内部错误，请稍后重试",
       "accountDisabled": "该账号已被禁用",
+      "registerRateLimited": "注册过于频繁，请稍后再试",
       "github": {
         "notConfigured": "GitHub 登录未配置，请联系管理员",
         "cancelled": "已取消 GitHub 授权",

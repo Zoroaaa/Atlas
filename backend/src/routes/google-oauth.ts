@@ -19,6 +19,7 @@ import {
   recordSecurityEvent,
 } from '@/utils';
 import { CONFIG } from '@/constants';
+import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 
 export const googleOAuthRoutes = new Hono<{ Bindings: Env }>();
 
@@ -255,6 +256,21 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
     const now = Date.now();
 
     if (!user) {
+      // 注册风控：OAuth 自动注册与邮箱注册共用同一 IP 配额（IPv6 按 /64 聚合）。
+      // 命中限流跳转回调页展示错误提示（/login 不解析 error 参数，回调页可以）
+      const registerRl = await checkMultiLevelRateLimit(c.env.DB, registerRateLimitKey(clientIP), REGISTER_IP_LIMITS);
+      if (!registerRl.allowed) {
+        await recordSecurityEvent(c.env.DB, {
+          userId: null,
+          eventType: 'register',
+          eventStatus: 'blocked',
+          eventData: { reason: 'rate_limited', method: 'google', level: registerRl.level },
+          ipAddress: clientIP,
+          userAgent,
+        });
+        return c.redirect(`${frontendBase}/auth/google/callback?error=register_rate_limited`, 302);
+      }
+
       // 自动注册新用户
       const baseName = gUser.name || gUser.given_name || email.split('@')[0];
       const username = await resolveUsername(c.env.DB, baseName);

@@ -135,9 +135,11 @@ export const parseBody = async <T>(c: Context<{ Bindings: Env }>): Promise<T> =>
 };
 
 export const getClientIP = (c: Context): string => {
-  return c.req.header('x-forwarded-for') || 
+  // 优先取 CF-Connecting-IP：由 Cloudflare 边缘节点写入，客户端无法伪造；
+  // x-forwarded-for / x-real-ip 可能携带客户端自报值，仅作为非 Cloudflare 环境兜底
+  return c.req.header('CF-Connecting-IP') ||
+         c.req.header('x-forwarded-for') || 
          c.req.header('x-real-ip') || 
-         c.req.header('CF-Connecting-IP') ||
          'unknown';
 };
 

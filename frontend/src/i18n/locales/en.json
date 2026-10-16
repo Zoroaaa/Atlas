@@ -351,6 +351,7 @@
       "dbError": "User data processing failed, please retry",
       "serverError": "Internal server error, please try again later",
       "accountDisabled": "This account has been disabled",
+      "registerRateLimited": "Too many sign-ups from this network, please try again later",
       "github": {
         "notConfigured": "GitHub login is not configured, please contact the administrator",
         "cancelled": "GitHub authorization cancelled",

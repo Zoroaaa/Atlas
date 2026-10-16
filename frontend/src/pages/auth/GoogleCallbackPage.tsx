@@ -20,6 +20,7 @@ const ERROR_MESSAGE_KEYS: Record<string, string> = {
   google_db_error: 'auth:callback.dbError',
   google_server_error: 'auth:callback.serverError',
   account_disabled: 'auth:callback.accountDisabled',
+  register_rate_limited: 'auth:callback.registerRateLimited',
 };
 
 export const GoogleCallbackPage: React.FC = () => {

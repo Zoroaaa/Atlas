@@ -351,6 +351,7 @@
       "dbError": "使用者資料處理失敗，請重試",
       "serverError": "伺服器內部錯誤，請稍後重試",
       "accountDisabled": "該帳號已被停用",
+      "registerRateLimited": "註冊過於頻繁，請稍後再試",
       "github": {
         "notConfigured": "GitHub 登入未設定，請聯絡管理員",
         "cancelled": "已取消 GitHub 授權",
