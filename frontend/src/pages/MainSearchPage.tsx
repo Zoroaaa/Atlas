@@ -237,7 +237,7 @@ export const MainSearchPage: React.FC = () => {
         ) : (
         <>
           {activeTab === 'jav' && (
-            <JavDetailPanel detail={javFlow.javDetail} status={javFlow.javDetailStatus} onClose={() => javFlow.resetJavDetail()} onFavorite={favoritesManager.handleFavoriteJavDetail} isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false} isAuthenticated={isAuthenticated} onLoginRequired={() => { navigate('/login'); }} />
+            <JavDetailPanel detail={javFlow.javDetail} status={javFlow.javDetailStatus} onClose={() => javFlow.resetJavDetail()} onRetry={javFlow.retryJavDetail} onFavorite={favoritesManager.handleFavoriteJavDetail} isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false} isAuthenticated={isAuthenticated} onLoginRequired={() => { navigate('/login'); }} />
           )}
           {(() => {
             const resultType = searchFlow.enrichedData?.resultType;
@@ -248,11 +248,12 @@ export const MainSearchPage: React.FC = () => {
             if (activeTab === 'jav' && javSubMode === 'actress' && javData && resultType === 'jav') {
               return (
                 <div className="flex flex-col gap-3 sm:gap-4">
-                  {/* 女优资料卡片（minnano-av 抓取） */}
+                  {/* 女优资料卡片（JavBus 抓取） */}
                   <JavActressResultsPanel
                     data={javData}
                     favoritedCodes={favoritesManager.favoritedCodes}
                     isAuthenticated={isAuthenticated}
+                    isProxyEnabled={isProxyEnabled}
                     onToggleFavorite={favoritesManager.handleToggleFavoriteActress}
                     onLoginRequired={() => { navigate('/login'); }}
                     onWorkClick={handleActressWorkClick}

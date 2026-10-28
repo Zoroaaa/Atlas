@@ -13,7 +13,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-interface MultiLevelLimit {
+export interface MultiLevelLimit {
   windowMs: number;
   maxRequests: number;
   label: string; // 错误提示文本
@@ -134,6 +134,51 @@ export async function checkMultiLevelRateLimit(
   }
 
   return { allowed: true };
+}
+
+// ──────────────────────────────────────────────
+// 注册风控（邮箱注册与 OAuth 自动注册共用）
+// ──────────────────────────────────────────────
+
+/**
+ * 注册风控多级限流配置：同一出口 IP 的注册请求上限（含失败重试）。
+ * 邮箱路径另有邮件发送限流兜底（默认 5/时、20/天），此处为接口级防线，
+ * 主要拦截批量注册与「账号是否已注册」枚举探测，并为失败重试预留余量。
+ */
+export const REGISTER_IP_LIMITS: MultiLevelLimit[] = [
+  { windowMs: 60_000, maxRequests: 5, label: '每分钟' },
+  { windowMs: 3_600_000, maxRequests: 10, label: '每小时' },
+  { windowMs: 86_400_000, maxRequests: 20, label: '每天' },
+];
+
+/**
+ * 构造注册限流键：邮箱注册与 OAuth 自动注册共用同一配额（按出口 IP 汇总计数）
+ */
+export function registerRateLimitKey(ip: string): string {
+  return `register:ip:${normalizeIpForRateLimit(ip)}`;
+}
+
+/**
+ * 将 IP 归一化为限流键粒度：
+ * - IPv4：保留完整地址
+ * - IPv6：按 /64 前缀聚合（单机地址位可随机变化，按全地址计数容易被绕过）
+ */
+export function normalizeIpForRateLimit(ip: string): string {
+  const value = (ip || '').trim().split('%')[0]; // 去除 zone id
+  if (!value) return 'unknown';
+  if (!value.includes(':')) return value; // IPv4
+
+  // IPv4-mapped IPv6（::ffff:1.2.3.4）按 IPv4 处理
+  const v4Mapped = value.match(/(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (value.startsWith('::ffff:') && v4Mapped) return v4Mapped[1];
+
+  // 展开 :: 缩写后取前 4 组作为 /64 前缀
+  const [head, tail = ''] = value.split('::');
+  const headGroups = head ? head.split(':') : [];
+  const tailGroups = tail ? tail.split(':') : [];
+  const missing = Math.max(8 - headGroups.length - tailGroups.length, 0);
+  const full = [...headGroups, ...Array(missing).fill('0'), ...tailGroups];
+  return full.slice(0, 4).join(':');
 }
 
 /**

@@ -4,7 +4,7 @@
  * JAV 搜索与动漫/影视本质不同，这里由 Provider 内部承载三条子路径：
  *   - code：以番号为精确匹配，走 JavBus 详情页解析 + 磁力提取（单条结果，无分页）
  *   - title：非番号格式 → 仅保留多源跳转卡片（在 JavBus 等站点按标题搜）
- *   - actress：minnano 女优资料 + JavBus 作品列表 + 多源跳转卡片
+ *   - actress：JavBus 女优资料 + 作品列表 + 多源跳转卡片
  * 另外 code/title/actress 三条路径都会注入「按用户过滤的多源跳转卡片」，
  * 并将 total 覆盖为源卡片数量（前端展示依赖）。
  *
@@ -59,7 +59,7 @@ export interface JavSearchResult extends SearchResultBase {
   detail?: JavDetailResult;
   /** 多源跳转卡片（code/title/actress 三条路径均有） */
   results?: SearchSourceCard[];
-  /** actress 子模式：minnano 女优资料 */
+  /** actress 子模式：JavBus 女优资料 */
   actresses?: ActressProfile[];
   /** actress 子模式：JavBus 女优作品列表 */
   actressWorks?: JavItem[];
@@ -151,7 +151,7 @@ export class JavProvider implements SearchProvider {
     }
   }
 
-  /** actress 子模式：minnano 女优资料 + JavBus 作品 + 多源跳转卡片 */
+  /** actress 子模式：JavBus 女优资料 + 作品 + 多源跳转卡片 */
   private async searchActress(
     keyword: string,
     page: number,
@@ -162,19 +162,17 @@ export class JavProvider implements SearchProvider {
     try {
       actresses = await fetchActresses(keyword);
     } catch (e) {
-      actressError = String(e);
-      console.error('[jav-provider] minnano actress search failed:', e);
+      actressError = e instanceof Error ? e.message : String(e);
+      console.error('[jav-provider] javbus actress search failed:', e);
     }
 
-    // minnano 女优搜索成功返回数据后，补充抓取 JavBus 女优作品列表
+    // 作品列表与女优资料抓取解耦：资料源失败时仍尽量展示 JavBus 作品
     // 关键词复用 normalizeActressKeyword 归一化结果（日文名），确保 JavBus 可命中
     let actressWorks: JavItem[] = [];
-    if (actresses.length > 0) {
-      try {
-        actressWorks = await fetchActressWorks(keyword);
-      } catch (e) {
-        console.error('[jav-provider] javbus actress works fetch failed:', e);
-      }
+    try {
+      actressWorks = await fetchActressWorks(keyword);
+    } catch (e) {
+      console.error('[jav-provider] javbus actress works fetch failed:', e);
     }
 
     const results = await this.buildSourceCards(keyword, ctx);
@@ -182,7 +180,7 @@ export class JavProvider implements SearchProvider {
     return {
       resultType: 'jav',
       keyword,
-      // 归一化后的日文名：供前端「minnano 站内搜索」链接使用（原文搜不到含假名女优）
+      // 归一化后的日文名：供前端「JavBus 女优搜索」链接使用（原文搜不到含假名女优）
       normalizedKeyword: normalizeActressKeyword(keyword),
       page,
       total: results.length,

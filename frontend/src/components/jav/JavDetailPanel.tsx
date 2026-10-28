@@ -3,7 +3,7 @@ import {
   Magnet, Film, Calendar, Clock, User, Building2,
   Tag, Star, ExternalLink, Copy, Check, Loader2,
   AlertCircle, Search, ChevronDown, ChevronUp, X,
-  Shield, Play, FileDown, Heart, ExternalLink as ExternalLinkIcon,
+  Shield, Play, FileDown, Heart, RefreshCw, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JavDetail, MagnetItem } from '@/types';
@@ -29,6 +29,7 @@ interface JavDetailPanelProps {
   detail: JavDetail | null;
   status: 'idle' | 'loading' | 'success' | 'error' | 'not_found';
   onClose: () => void;
+  onRetry?: () => void;
   onFavorite?: (detail: JavDetail) => void;
   isFavorited?: boolean;
   isAuthenticated?: boolean;
@@ -275,7 +276,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
-export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
+export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
   const { t } = useTranslation(['jav']);
   if (status === 'idle') return null;
 
@@ -381,6 +382,15 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <AlertCircle className="w-8 h-8 text-error-400" />
           <p className="text-sm text-surface-500">{t('jav:detail.fetchFailed')}</p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {t('jav:detail.retry')}
+            </button>
+          )}
         </div>
       )}
 

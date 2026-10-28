@@ -66,7 +66,7 @@ The project uses a modular documentation system, where each specialized document
 ### Core Advantages
 
 #### 1. Open-Source Search Engine with Aggregated Content
-- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v4.3 new, data source minnano-av.com)
+- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v4.3 new, data source JavBus)
 - **Anime Search**: Aggregates data from Bangumi, Mikan, and ShowRSS, including subtitles (nyaa source disabled due to deployment environment restrictions, v4.3 adjusted)
 - **Movie Search**: Aggregates metadata from TMDB, YTS, EZTV, and TPB, including seeds and magnets
 - **Comic Search**: Aggregates metadata from MangaDex and 13 other search sources
@@ -137,7 +137,7 @@ Resend → Modern email service with high deliverability and real-time tracking
 
 | Category | Data Source | Description |
 |----------|--------|------|
-| **JAV** | DMM/FANZA / JavBus / JavDB / **minnano-av (actress profiles, v4.3 new)** | Adult film metadata + magnet aggregation + actress profile search |
+| **JAV** | DMM/FANZA / JavBus / JavDB / **JavBus (actress profiles, v4.3 new)** | Adult film metadata + magnet aggregation + actress profile search |
 | **Anime** | Bangumi / Mikan / ShowRSS | Anime metadata + subtitle groups (nyaa source disabled due to deployment environment restrictions, v4.3 adjusted) |
 | **Movie** | TMDB / YTS / EZTV / TPB | Movie/TV series metadata and seed resources |
 | **Comic** | MangaDex / 13 search sources | Comic metadata and resource aggregation |
@@ -150,7 +150,7 @@ JAV search is refined into three submodes, with URL `sub` parameter persistence 
 | Submode | Description |
 |---------|------|
 | **code** (code search) | Default mode, precise metadata + magnet matching by code |
-| **actress** (actress search) | Data source minnano-av.com, parses actress profiles (name / kana / romaji / alias / birthday / zodiac / measurements / birthplace / agency / career period / tags / cover), and auto-supplements JavBus works list. Click a work card to jump to code search |
+| **actress** (actress search) | Data source JavBus actress search (/searchstar → /star; the former minnano-av source is now behind anti-bot protection), parses actress profiles (name / birthday / age / measurements / birthplace / hobbies / avatar), and auto-supplements JavBus works list. Click a work card to jump to code search |
 | **title** (title search) | Fuzzy match by title keyword |
 
 Actress search keywords auto-convert to Japanese (mapping table + opencc simplified-to-Japanese conversion fallback), supporting direct search with Chinese nicknames; actress cards support favorites and sharing to community.

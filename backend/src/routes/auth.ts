@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Env } from '@/types';
 import { success, error, generateId, hashPassword, hashToken, verifyPassword, generateToken, verifyToken, validateEmail, validateUsername, validatePassword, logUserAction, getClientIP, checkLockout, clearLockout, recordSecurityEvent } from '@/utils';
 import { recordFailedAttempt, recordPasswordResetLog, updatePasswordResetLog } from '@/utils/security';
+import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 import { EmailVerificationService, emailVerificationUtils, ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
@@ -154,7 +155,27 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     return c.json(error('FORBIDDEN', '注册功能已关闭'), 403);
   }
 
-  const body = c.get('validatedBody') as { username: string; email: string; password: string; verificationCode?: string };
+  const clientIP = getClientIP(c);
+  const userAgent = c.req.header('User-Agent') || '';
+
+  // 注册风控：按出口 IP 多级限流（与 OAuth 自动注册共用同一配额，IPv6 按 /64 聚合），
+  // 遏制同人多账号批量注册与账号存在性枚举探测
+  const registerRl = await checkMultiLevelRateLimit(c.env.DB, registerRateLimitKey(clientIP), REGISTER_IP_LIMITS);
+  if (!registerRl.allowed) {
+    c.executionCtx.waitUntil(
+      recordSecurityEvent(c.env.DB, {
+        userId: null,
+        eventType: 'register',
+        eventStatus: 'blocked',
+        eventData: { reason: 'rate_limited', level: registerRl.level },
+        ipAddress: clientIP,
+        userAgent,
+      })
+    );
+    return c.json(error('RATE_LIMITED', '注册操作过于频繁，请稍后再试'), 429);
+  }
+
+  const body = c.get('validatedBody') as { username: string; email: string; password: string; verificationCode: string };
   const { username, email, password, verificationCode } = body;
 
   if (!username || !email || !password) {
@@ -191,18 +212,16 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
       return c.json(error('VALIDATION_ERROR', '用户名或邮箱已被注册'), 400);
     }
 
-    let emailVerified = 0;
-    if (verificationCode) {
-      const verification = await findVerificationByCode(c.env.DB, { email: normalizedEmail, code: verificationCode, type: 'registration', now: Date.now() });
+    // 注册必须完成邮箱验证：验证码为必填项（schema 层强制），此处校验其有效性
+    const verification = await findVerificationByCode(c.env.DB, { email: normalizedEmail, code: verificationCode, type: 'registration', now: Date.now() });
 
-      if (!verification) {
-        return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
-      }
-
-      emailVerified = 1;
-      
-      await deleteVerificationById(c.env.DB, verification.id);
+    if (!verification) {
+      return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
     }
+
+    await deleteVerificationById(c.env.DB, verification.id);
+
+    const emailVerified = 1;
 
     const userId = generateId();
     const now = Date.now();
@@ -215,7 +234,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     const sessionId = generateId();
     const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-    await createUserWithSession(c.env.DB, { userId, username, email: normalizedEmail, passwordHash, permissions: JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]), settings: JSON.stringify({}), emailVerified, sessionId, tokenHash, expiresAt, now, ipAddress: getClientIP(c), userAgent: c.req.header('User-Agent') || '' });
+    await createUserWithSession(c.env.DB, { userId, username, email: normalizedEmail, passwordHash, permissions: JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]), settings: JSON.stringify({}), emailVerified, sessionId, tokenHash, expiresAt, now, ipAddress: clientIP, userAgent });
 
     await logUserAction(c.env, userId, 'register', { username, email: normalizedEmail }, c);
 

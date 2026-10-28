@@ -14,6 +14,7 @@ import {
   parseJavDetail,
   JAV_HEADERS,
   parseGrid,
+  parseActressList,
   isValidCode,
   type JavItem,
 } from '@/services/jav-utils';
@@ -46,7 +47,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'covers1.z-lib.sk',
   // 小说封面：奇书网（详情页封面，需 Referer 防盗链）
   'www.xqishuta.org',
-  // JAV 女优资料：minnano-av.com 封面图（需 Referer 防盗链）
+  // 历史遗留：v4.3 女优资料曾用 minnano-av.com，社区历史帖封面仍引用其图片 URL
   'www.minnano-av.com',
 ];
 
@@ -651,39 +652,10 @@ function base32ToHexPublic(base32: string): string {
 // 推荐女优列表 & 女优详情
 // =====================================================================
 
-interface ActressEntry {
-  key: string;   // star slug，如 qs6
-  name: string;  // 女优姓名
-}
-
 interface StarResponse {
   name: string;
   key: string;
   items: JavItem[];
-}
-
-/** 从 /actresses 页解析女优列表 */
-function parseActressList(html: string): ActressEntry[] {
-  if (!html) return [];
-  const entries: ActressEntry[] = [];
-  // <a class="avatar-box text-center" href="https://www.javbus.com/star/qs6">
-  //   ...<img src="/pics/actress/qs6_a.jpg" title="明里つむぎ">...<span>明里つむぎ</span>...
-  const re = /href="https?:\/\/www\.javbus\.com\/star\/([a-z0-9]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null && entries.length < 50) {
-    const key = m[1].trim();
-    const block = m[2];
-    // 优先从 img title 提取
-    const titleM = block.match(/title="([^"]+)"/i);
-    // 其次从 span 提取
-    const spanM = block.match(/<span[^>]*>([^<]+)<\/span>/i);
-    const name = (titleM ? titleM[1] : spanM ? spanM[1] : '').trim();
-    if (!key || !name || name.length > 30) continue;
-    // 去重
-    if (entries.find(e => e.key === key)) continue;
-    entries.push({ key, name });
-  }
-  return entries;
 }
 
 // GET /api/jav/actresses — 返回前50个女优
@@ -705,7 +677,7 @@ javRoutes.get('/actresses', async (c) => {
       return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
     }
 
-    const actresses = parseActressList(html);
+    const actresses = parseActressList(html).map(({ key, name }) => ({ key, name }));
     const response = JSON.stringify({ success: true, data: actresses.slice(0, 50) });
     const newResponse = new Response(response, {
       headers: {

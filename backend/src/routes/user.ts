@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, User, UserFavorite, UserSearchHistory } from '@/types';
 import { success, error, generateId, logUserAction } from '@/utils';
-import { authMiddleware } from '@/middleware/auth';
+import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { userActivitySchema } from '@/utils/validators';
 import { CONFIG, VALIDATION_RULES } from '@/constants';
 import { checkRateLimitD1 } from '@/utils/rate-limit';
@@ -103,7 +103,10 @@ userRoutes.post('/favorites', validateBody(schemas.user.addFavorite), async (c) 
 
   // 收藏接口速率限制：每用户每分钟最多 5 次
   const rateLimitKey = `favorite:${user.userId}`;
-  const rl = await checkRateLimitD1(c.env.DB, rateLimitKey, 60_000, 5);
+  // admin / super_admin 不受限流约束
+  const rl = (await checkIsAdmin(c))
+    ? { allowed: true }
+    : await checkRateLimitD1(c.env.DB, rateLimitKey, 60_000, 5);
   if (!rl.allowed) {
     return c.json(error('RATE_LIMITED', '收藏操作过于频繁，请稍后再试'), 429);
   }
