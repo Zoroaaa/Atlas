@@ -345,10 +345,17 @@ searchRoutes.get('/suggestions', async (c) => {
 
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
+    // JAV 番号 WAAA-624 / WAAA624 等价：匹配历史时额外忽略横杠
+    const sourceProvider = source && source !== 'all' ? providerRegistry.getByCategory(source) : undefined;
+    const compactPrefix = sourceProvider?.id === 'jav' && /^[A-Za-z]{2,8}-?\d{0,6}$/.test(trimmedKeyword)
+      ? `${trimmedKeyword.replace(/-/g, '')}%`
+      : undefined;
+
     // source 过滤：优先查具体 source，同时兼容 'all'
     const suggestions = await querySuggestionStats(c.env.DB, {
       since: thirtyDaysAgo,
       prefix: `${trimmedKeyword}%`,
+      compactPrefix,
       source: source || 'all',
       limit,
     });
