@@ -75,18 +75,24 @@ export async function enrichSearchHistory(
 /** 全局搜索历史的「建议」前缀统计（近 30 天，按来源过滤） */
 export async function querySuggestionStats(
   db: D1Database,
-  opts: { since: number; prefix: string; source: string; limit: number }
+  opts: { since: number; prefix: string; source: string; limit: number; compactPrefix?: string }
 ): Promise<{ keyword: string; count: number }[]> {
+  // JAV 番号 WAAA-624 / WAAA624 等价：额外用「去掉横杠」的形式匹配一次
+  const compactClause = opts.compactPrefix ? ` OR REPLACE(query, '-', '') LIKE ?` : '';
+  const values: (string | number)[] = [opts.since, opts.prefix];
+  if (opts.compactPrefix) values.push(opts.compactPrefix);
+  values.push(opts.source, opts.limit);
+
   const rows = await db
     .prepare(
       `SELECT query as keyword, COUNT(*) as count
        FROM user_search_history
-       WHERE created_at > ? AND query LIKE ? AND (source = ? OR source = 'all')
+       WHERE created_at > ? AND (query LIKE ?${compactClause}) AND (source = ? OR source = 'all')
        GROUP BY query
        ORDER BY count DESC
        LIMIT ?`
     )
-    .bind(opts.since, opts.prefix, opts.source, opts.limit)
+    .bind(...values)
     .all<{ keyword: string; count: number }>();
   return rows.results || [];
 }

@@ -207,18 +207,26 @@ export class JavProvider implements SearchProvider {
     try {
       const upperKeyword = keyword.toUpperCase().trim();
       if (!upperKeyword) return [];
+      // WAAA-624 与 WAAA624 视为同一番号，匹配时忽略横杠
+      const compactKeyword = upperKeyword.replace(/-/g, '');
+      if (!compactKeyword) return [];
 
       // 从 JavBus 首页提取匹配的番号
       const html = await getHtml('https://www.javbus.com/', 10000);
       if (!html) return [];
 
       const codes: string[] = [];
+      const seen = new Set<string>();
       const re = /<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+-\d+)<\/span>/gi;
       let m: RegExpExecArray | null;
       while ((m = re.exec(html)) !== null) {
         const c = normalizeCode(m[1]);
-        if (c.startsWith(upperKeyword) || c.includes(upperKeyword)) {
-          if (codes.length < 10 && !codes.includes(c)) codes.push(c);
+        const compact = c.replace(/-/g, '');
+        if (compact.startsWith(compactKeyword) || compact.includes(compactKeyword)) {
+          if (codes.length < 10 && !seen.has(compact)) {
+            seen.add(compact);
+            codes.push(c);
+          }
         }
       }
       return codes.map(c => ({ text: c }));
