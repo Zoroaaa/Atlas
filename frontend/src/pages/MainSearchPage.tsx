@@ -4,7 +4,7 @@ import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
 import { TAB_IDS, JAV_SUB_MODES } from '@/types/source';
-import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementBar, SearchSuggestionsDropdown, QuickActionsPanel } from '@/components/search';
+import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementBar, SearchSuggestionsDropdown, QuickActionsPanel, SearchQuotaBadge } from '@/components/search';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavDetailPanel, JavRankingsPanel, ActressesPanel, JavActressResultsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
@@ -64,6 +64,16 @@ export const MainSearchPage: React.FC = () => {
     typeof window !== 'undefined' && window.innerWidth >= 768 ? 'grid' : 'list'
   );
   const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // 搜索结束后刷新配额展示（isSearching 由 true 落回 false 视为一次搜索完成）
+  const [quotaRefreshKey, setQuotaRefreshKey] = useState(0);
+  const wasSearchingRef = useRef(false);
+  useEffect(() => {
+    if (wasSearchingRef.current && !searchFlow.isSearching) {
+      setQuotaRefreshKey((key) => key + 1);
+    }
+    wasSearchingRef.current = searchFlow.isSearching;
+  }, [searchFlow.isSearching]);
 
   // ── URL 初始化 + 浏览器前进/后退恢复搜索 ──
   useEffect(() => {
@@ -228,6 +238,9 @@ export const MainSearchPage: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* 搜索配额：常驻档位与用量，问号浮层说明晋升规则 */}
+          <SearchQuotaBadge refreshKey={quotaRefreshKey} />
 
         </div>
         )}

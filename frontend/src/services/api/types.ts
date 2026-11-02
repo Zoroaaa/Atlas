@@ -78,6 +78,47 @@ export type SearchSuggestionsResponse = ApiResponse<SearchSuggestion[]>;
 /** /search/trending 响应 */
 export type SearchTrendingResponse = ApiResponse<TrendingSearch[]>;
 
+/** 限流窗口单位 */
+export type SearchQuotaUnit = 'minute' | 'hour' | 'day';
+
+/** 当前档位某窗口的用量 */
+export interface SearchQuotaLimit {
+  unit: SearchQuotaUnit;
+  count: number;
+  max: number;
+  /** 窗口重置时间戳（毫秒），0 表示已重置 */
+  resetAt: number;
+}
+
+/** 某档位的规则与配额 */
+export interface SearchTierInfo {
+  tier: number;
+  label: string;
+  minAccountAgeDays: number;
+  minActiveDays: number;
+  minTotalSearches: number;
+  limits: Array<{ unit: SearchQuotaUnit; max: number }>;
+}
+
+/** 升级条件进度 */
+export interface SearchTierRequirement {
+  key: 'accountAgeDays' | 'activeDays' | 'totalSearches';
+  current: number;
+  target: number;
+}
+
+/** /search/quota 响应 */
+export interface SearchQuotaData {
+  unlimited: boolean;
+  tier: number | null;
+  label: string;
+  limits: SearchQuotaLimit[];
+  tiers: SearchTierInfo[];
+  next: { tier: number; requirements: SearchTierRequirement[] } | null;
+}
+
+export type SearchQuotaResponse = ApiResponse<SearchQuotaData>;
+
 // ─── 用户 / 收藏 / 历史 ────────────────────────────────────────────────
 
 export type FavoritesResponse = ApiResponse<{ favorites: FavoriteItem[] }>;

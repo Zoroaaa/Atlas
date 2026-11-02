@@ -10,3 +10,4 @@ export { MangaSearchResultPanel } from './MangaSearchResultPanel';
 export { NovelSearchResultPanel } from './NovelSearchResultPanel';
 export { AnnouncementBar } from './AnnouncementBar';
 export { SearchSuggestionsDropdown } from './SearchSuggestionsDropdown';
+export { SearchQuotaBadge } from './SearchQuotaBadge';

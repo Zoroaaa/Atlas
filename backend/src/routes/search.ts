@@ -21,7 +21,15 @@ import { authMiddleware } from '@/middleware';
 import { checkIsAdmin } from '@/middleware/auth';
 import { VALIDATION_RULES } from '@/constants';
 import { validateBody, schemas } from '@/validation';
-import { checkMultiLevelRateLimit, checkRateLimitD1 } from '@/utils/rate-limit';
+import { checkMultiLevelRateLimit, checkRateLimitD1, getMultiLevelRateLimitUsage } from '@/utils/rate-limit';
+import {
+  SEARCH_TIER_LIMITS,
+  SEARCH_TIER_RULES,
+  getSearchTierRule,
+  getEffectiveSearchTier,
+  getSearchTierStats,
+  getNextTierProgress,
+} from '@/services/search-tier';
 import { providerRegistry, type SearchProvider } from '@/services/search-provider';
 import { setTmdbApiKey } from '@/providers/movie-provider';
 import { persistDataRecord } from '@/services/data-storage';
@@ -72,17 +80,17 @@ async function applyHistoryEnrichment(
 searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
   const userPayload = c.get('user');
 
-  // 搜索接口多级速率限制：每分钟5次/每小时20次/每天100次
+  // 搜索接口多级速率限制：按用户档位取配额（分钟档仅作突发基线，档位差异体现在小时/天）
   const rateLimitKey = userPayload ? `search:${userPayload.userId}` : `search:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
   // admin / super_admin 不受限流约束（角色由 authMiddleware 写入上下文，零额外查询）
-  const rl = (await checkIsAdmin(c))
-    ? { allowed: true as const, message: undefined }
-    : await checkMultiLevelRateLimit(c.env.DB, rateLimitKey, [
-        { windowMs: 60_000, maxRequests: 5, label: '每分钟' },
-        { windowMs: 3_600_000, maxRequests: 20, label: '每小时' },
-        { windowMs: 86_400_000, maxRequests: 100, label: '每天' },
-      ]);
+  const isAdmin = await checkIsAdmin(c);
+  let rl: { allowed: boolean; retryAfter?: number; message?: string } = { allowed: true };
+  if (!isAdmin) {
+    const tier = userPayload ? await getEffectiveSearchTier(c.env.DB, userPayload.userId) : 1;
+    rl = await checkMultiLevelRateLimit(c.env.DB, rateLimitKey, SEARCH_TIER_LIMITS[tier] ?? SEARCH_TIER_LIMITS[1]);
+  }
   if (!rl.allowed) {
+    if (rl.retryAfter) c.header('Retry-After', String(rl.retryAfter));
     return c.json(error('RATE_LIMITED', rl.message || '搜索请求过于频繁，请稍后再试'), 429);
   }
 
@@ -255,6 +263,51 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
     }
     return c.json(error('SERVER_ERROR', '搜索失败'), 500);
   }
+});
+
+/**
+ * 搜索配额
+ * GET /api/search/quota
+ * 返回当前档位、各窗口用量、全部档位规则与下一档进度（供前端常驻展示与升级说明）
+ */
+searchRoutes.get('/quota', async (c) => {
+  const userPayload = c.get('user');
+  if (!userPayload) {
+    return c.json(error('UNAUTHORIZED', '未认证'), 401);
+  }
+
+  if (await checkIsAdmin(c)) {
+    return c.json(success({ unlimited: true, tier: null, label: '管理员', limits: [], tiers: [], next: null }));
+  }
+
+  const tier = await getEffectiveSearchTier(c.env.DB, userPayload.userId);
+  const tierLimits = SEARCH_TIER_LIMITS[tier] ?? SEARCH_TIER_LIMITS[1];
+  const usage = await getMultiLevelRateLimitUsage(c.env.DB, `search:${userPayload.userId}`, tierLimits);
+  const stats = await getSearchTierStats(c.env.DB, userPayload.userId);
+
+  return c.json(success({
+    unlimited: false,
+    tier,
+    label: getSearchTierRule(tier).label,
+    limits: usage.map((item, i) => ({
+      unit: tierLimits[i].unit,
+      count: item.count,
+      max: item.maxRequests,
+      resetAt: item.resetAt,
+    })),
+    tiers: SEARCH_TIER_RULES.map((rule) => ({
+      tier: rule.tier,
+      label: rule.label,
+      minAccountAgeDays: rule.minAccountAgeDays,
+      minActiveDays: rule.minActiveDays,
+      minTotalSearches: rule.minTotalSearches,
+      limits: (SEARCH_TIER_LIMITS[rule.tier] ?? SEARCH_TIER_LIMITS[1]).map((limit) => ({
+        unit: limit.unit,
+        max: limit.maxRequests,
+      })),
+    })),
+    next: stats ? getNextTierProgress(stats, tier) : null,
+  }));
 });
 
 /**

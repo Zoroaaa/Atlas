@@ -95,6 +95,9 @@ npx wrangler d1 execute $D1_ID --file=database/10_schema_system_errors.sql
 # ③ 数据存储 schema（v4.3 新增，搜索结果异步落库去重）
 npx wrangler d1 execute $D1_ID --file=database/11_schema_data_storage.sql
 
+# ③.5 存量库增量迁移（v4.4 新增，搜索限流档位；新装库已由 01 建列，跳过）
+npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
+
 # ④ 索引与触发器
 npx wrangler d1 execute $D1_ID --file=database/09_indexes_triggers.sql
 
