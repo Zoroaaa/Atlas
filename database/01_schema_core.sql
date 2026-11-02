@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0,              -- 登录次数统计
     email_verified INTEGER DEFAULT 0,           -- 0:未验证 1:已验证
     last_password_change INTEGER,               -- 最后密码修改时间
+    search_tier INTEGER DEFAULT 1,              -- 搜索限流档位（只升不降）
+    tier_updated_at INTEGER,                    -- 档位最近评估时间戳（毫秒）
     -- GitHub OAuth 扩展字段（原08_github_oauth.sql）
     github_id TEXT,                             -- GitHub用户ID
     github_username TEXT,                       -- GitHub用户名（用于展示）
