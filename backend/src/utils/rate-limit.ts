@@ -88,52 +88,106 @@ export async function checkMultiLevelRateLimit(
   identifier: string,
   limits: MultiLevelLimit[],
 ): Promise<{ allowed: boolean; retryAfter?: number; level?: number; message?: string }> {
+  if (limits.length === 0) return { allowed: true };
+
   const now = Date.now();
+  const levelKeys = limits.map((_, i) => `${identifier}:L${i}`);
 
-  for (let i = 0; i < limits.length; i++) {
-    const limit = limits[i];
-    const levelKey = `${identifier}:L${i}`;
-    const resetAt = now + limit.windowMs;
+  try {
+    // 一次性读取所有层级：命中 IN 查询，避免逐层往返
+    const placeholders = levelKeys.map(() => '?').join(',');
+    const { results } = await db
+      .prepare(`SELECT id, count, reset_at FROM rate_limits WHERE id IN (${placeholders})`)
+      .bind(...levelKeys)
+      .all<{ id: string; count: number; reset_at: number }>();
+    const existing = new Map((results || []).map((row) => [row.id, row]));
 
-    try {
-      const existing = await db
-        .prepare('SELECT count, reset_at FROM rate_limits WHERE id = ?')
-        .bind(levelKey)
-        .first<{ count: number; reset_at: number }>();
-
-      if (!existing || now > existing.reset_at) {
-        // 新窗口：创建新记录
-        await db
-          .prepare(
-            'INSERT OR REPLACE INTO rate_limits (id, count, reset_at, created_at) VALUES (?, 1, ?, ?)',
-          )
-          .bind(levelKey, resetAt, now)
-          .run();
-        continue;
-      }
-
-      if (existing.count >= limit.maxRequests) {
-        // 达到当前层级限流阈值
+    // 先全量判定：任一层超限则整体拒绝，且不消耗任何一层的计数
+    for (let i = 0; i < limits.length; i++) {
+      const row = existing.get(levelKeys[i]);
+      if (row && row.reset_at > now && row.count >= limits[i].maxRequests) {
         return {
           allowed: false,
-          retryAfter: Math.ceil((existing.reset_at - now) / 1000),
+          retryAfter: Math.ceil((row.reset_at - now) / 1000),
           level: i,
-          message: `${limit.label}请求次数已达上限，请稍后再试`,
+          message: `${limits[i].label}请求次数已达上限，请稍后再试`,
         };
       }
-
-      // 未达到阈值：递增计数
-      await db
-        .prepare('UPDATE rate_limits SET count = count + 1 WHERE id = ?')
-        .bind(levelKey)
-        .run();
-    } catch (error) {
-      console.error(`[RateLimit] Multi-level L${i} error:`, error);
-      // 单层级错误不影响其他层级检查
     }
+
+    // 全部通过后再统一落库：新窗口建记录，其余层递增
+    const writes = limits.map((limit, i) => {
+      const row = existing.get(levelKeys[i]);
+      if (!row || row.reset_at <= now) {
+        return db
+          .prepare('INSERT OR REPLACE INTO rate_limits (id, count, reset_at, created_at) VALUES (?, 1, ?, ?)')
+          .bind(levelKeys[i], now + limit.windowMs, now);
+      }
+      return db.prepare('UPDATE rate_limits SET count = count + 1 WHERE id = ?').bind(levelKeys[i]);
+    });
+    await db.batch(writes);
+
+    return { allowed: true };
+  } catch (error) {
+    // 数据库错误时不阻断请求，记录日志并放行
+    console.error('[RateLimit] Multi-level error:', error);
+    return { allowed: true };
+  }
+}
+
+export interface RateLimitUsage {
+  count: number;
+  maxRequests: number;
+  windowMs: number;
+  /** 当前窗口重置时间戳（毫秒）；0 表示窗口已过期或尚无记录 */
+  resetAt: number;
+  label: string;
+}
+
+/**
+ * 读取多级限流当前窗口用量（只读，不计数），用于配额展示。
+ */
+export async function getMultiLevelRateLimitUsage(
+  db: D1Database,
+  identifier: string,
+  limits: MultiLevelLimit[],
+): Promise<RateLimitUsage[]> {
+  const now = Date.now();
+  const levelKeys = limits.map((_, i) => `${identifier}:L${i}`);
+
+  let rows: Array<{ id: string; count: number; reset_at: number }> = [];
+  try {
+    const placeholders = levelKeys.map(() => '?').join(',');
+    const result = await db
+      .prepare(`SELECT id, count, reset_at FROM rate_limits WHERE id IN (${placeholders})`)
+      .bind(...levelKeys)
+      .all<{ id: string; count: number; reset_at: number }>();
+    rows = result.results || [];
+  } catch (error) {
+    console.error('[RateLimit] Usage query error:', error);
   }
 
-  return { allowed: true };
+  const rowMap = new Map(rows.map((row) => [row.id, row]));
+
+  return limits.map((limit, i) => {
+    const row = rowMap.get(levelKeys[i]);
+    if (!row || row.reset_at <= now) {
+      return {
+        count: 0,
+        maxRequests: limit.maxRequests,
+        windowMs: limit.windowMs,
+        resetAt: 0,
+        label: limit.label,
+      };
+    }
+    return {
+      count: row.count,
+      maxRequests: limit.maxRequests,
+      windowMs: limit.windowMs,
+      resetAt: row.reset_at,
+      label: limit.label,
+    };
+  });
 }
 
 // ──────────────────────────────────────────────
