@@ -27,8 +27,8 @@ export interface SearchTierRule {
 export const SEARCH_TIER_RULES: SearchTierRule[] = [
   { tier: 1, label: '基础', minAccountAgeDays: 0, minActiveDays: 0, minTotalSearches: 0 },
   { tier: 2, label: '活跃', minAccountAgeDays: 7, minActiveDays: 5, minTotalSearches: 0 },
-  { tier: 3, label: '常驻', minAccountAgeDays: 30, minActiveDays: 12, minTotalSearches: 0 },
-  { tier: 4, label: '核心', minAccountAgeDays: 90, minActiveDays: 20, minTotalSearches: 500 },
+  { tier: 3, label: '常驻', minAccountAgeDays: 30, minActiveDays: 5, minTotalSearches: 0 },
+  { tier: 4, label: '核心', minAccountAgeDays: 90, minActiveDays: 5, minTotalSearches: 500 },
 ];
 
 export interface SearchTierLimit extends MultiLevelLimit {
