@@ -2759,6 +2759,29 @@
     },
     "javFormatHint": "格式請按照【SONE-520】或【SONE520】搜尋",
     "actressNameHint": "提示：可直接輸入中文名（簡繁均可）或日文名，系統自動轉換為日文搜尋",
-    "actressShortenHint": "提示：請嘗試縮短字數，並優先使用【日文】搜尋"
+    "actressShortenHint": "提示：請嘗試縮短字數，並優先使用【日文】搜尋",
+    "quota": {
+      "label": "搜尋配額",
+      "unlimited": "管理員不限流",
+      "tier1": "基礎",
+      "tier2": "活躍",
+      "tier3": "常駐",
+      "tier4": "核心",
+      "tierTag": "{{name}} L{{tier}}",
+      "minuteUsage": "本分鐘 {{count}}/{{max}}",
+      "hourUsage": "本小時 {{count}}/{{max}}",
+      "dayUsage": "今天 {{count}}/{{max}}",
+      "upgradeTitle": "如何升級（只升不降）",
+      "baseRule": "註冊即可",
+      "ruleLine": "註冊滿 {{age}} 天 + 近30天活躍 {{active}} 天",
+      "ruleLineTotal": "註冊滿 {{age}} 天 + 近30天活躍 {{active}} 天 + 累計搜尋 {{total}} 次",
+      "limitSummary": "{{minute}}/分 · {{hour}}/時 · {{day}}/天",
+      "activeDayHint": "活躍天：當天有搜尋記錄即計 1 天",
+      "nextTier": "距下一檔：",
+      "maxTier": "已達最高檔位",
+      "reqAccountAge": "註冊",
+      "reqActiveDays": "活躍",
+      "reqTotalSearches": "累計搜尋"
+    }
   }
 }

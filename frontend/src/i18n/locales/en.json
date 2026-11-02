@@ -2759,6 +2759,29 @@
     },
     "javFormatHint": "Format: search as [SONE-520] or [SONE520]",
     "actressNameHint": "Tip: enter a Chinese (simplified or traditional) or Japanese name; the system will auto-convert it to Japanese for searching.",
-    "actressShortenHint": "Tip: try shorter keywords and prefer Japanese."
+    "actressShortenHint": "Tip: try shorter keywords and prefer Japanese.",
+    "quota": {
+      "label": "Search quota",
+      "unlimited": "Admins are not rate limited",
+      "tier1": "Basic",
+      "tier2": "Active",
+      "tier3": "Regular",
+      "tier4": "Core",
+      "tierTag": "{{name}} L{{tier}}",
+      "minuteUsage": "This minute {{count}}/{{max}}",
+      "hourUsage": "This hour {{count}}/{{max}}",
+      "dayUsage": "Today {{count}}/{{max}}",
+      "upgradeTitle": "How to level up (never downgrades)",
+      "baseRule": "Available after registration",
+      "ruleLine": "Account age ≥ {{age}} days + active {{active}} days in the last 30",
+      "ruleLineTotal": "Account age ≥ {{age}} days + active {{active}} days in the last 30 + {{total}} total searches",
+      "limitSummary": "{{minute}}/min · {{hour}}/hr · {{day}}/day",
+      "activeDayHint": "Active day = a day with at least one search",
+      "nextTier": "Next tier: ",
+      "maxTier": "Highest tier reached",
+      "reqAccountAge": "account age",
+      "reqActiveDays": "active days",
+      "reqTotalSearches": "total searches"
+    }
   }
 }

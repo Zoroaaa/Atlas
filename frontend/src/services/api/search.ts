@@ -10,6 +10,7 @@ import type {
   SearchEndpointResponse,
   SearchSuggestionsResponse,
   SearchTrendingResponse,
+  SearchQuotaResponse,
   FavoritesResponse,
   SearchHistoryResponse,
   SearchStatsResponse,
@@ -36,6 +37,10 @@ export const searchApi = {
 
   getTrending: async (limit = 20, hours = 24): Promise<SearchTrendingResponse> => {
     return apiClient.get(`/search/trending?limit=${limit}&hours=${hours}`);
+  },
+
+  getQuota: async (): Promise<SearchQuotaResponse> => {
+    return apiClient.get('/search/quota');
   },
 };
 
