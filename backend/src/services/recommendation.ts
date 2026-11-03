@@ -26,6 +26,11 @@ import {
   recordToRecommendationItem,
   valueKey,
 } from './recommendation-utils';
+import {
+  filterDiscriminatingTags,
+  getTagFrequency,
+  isIgnoredTagKey,
+} from './tag-frequency';
 
 // ─── 类型 ──────────────────────────────────────────────────────────────
 
@@ -120,7 +125,7 @@ export async function getUserProfile(
   db: D1Database,
   userId: string
 ): Promise<UserProfile> {
-  const cacheKey = `profile-v1/${userId}`;
+  const cacheKey = `profile-v2/${userId}`;
   const cached = await getCachedJson<UserProfile>(cacheKey);
   if (cached) return cached;
 
@@ -130,10 +135,11 @@ export async function getUserProfile(
 }
 
 async function buildUserProfile(db: D1Database, userId: string): Promise<UserProfile> {
-  const [favorites, history, javHistory] = await Promise.all([
+  const [favorites, history, javHistory, tagFrequency] = await Promise.all([
     getUserFavoriteRows(db, userId),
     getUserJavHistoryRows(db, userId),
     countUserJavHistory(db, userId),
+    getTagFrequency(db),
   ]);
 
   const actor = createCollector();
@@ -198,6 +204,13 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
       const existing = publisher.values.get(key);
       if (existing) existing.count += value.count * RECOMMEND.HISTORY_WEIGHT;
       else publisher.values.set(key, { display: value.display, count: value.count * RECOMMEND.HISTORY_WEIGHT });
+    }
+  }
+
+  // 大众/技术标签不参与推荐：直接剔除，而不是降权；剩余标签仍按命中数排序
+  for (const key of Array.from(tag.values.keys())) {
+    if (isIgnoredTagKey(key, tagFrequency)) {
+      tag.values.delete(key);
     }
   }
 
@@ -354,7 +367,9 @@ export async function recommendRelated(
   const dbActors = record ? parseValueList(record.actors) : [];
   const dbTags = record ? parseValueList(record.tags) : [];
   const actors = cleanSeedValues(dbActors.length > 0 ? dbActors : input.actors, 10);
-  const tags = cleanSeedValues(dbTags.length > 0 ? dbTags : input.tags, 20);
+  const rawTags = cleanSeedValues(dbTags.length > 0 ? dbTags : input.tags, 20);
+  const tagFrequency = rawTags.length > 0 ? await getTagFrequency(db) : null;
+  const tags = tagFrequency ? filterDiscriminatingTags(rawTags, tagFrequency) : rawTags;
   const publisher = (record?.publisher || input.publisher || '').trim().slice(0, 100);
   const actress = cleanSeedValues(input.actress ? [input.actress] : [], 1);
   if (actress.length > 0) {
@@ -378,7 +393,7 @@ export async function recommendRelated(
   if (code) excluded.add(code);
 
   const dims = seedWeights(cleanedActors, tags, publisher || undefined);
-  const cacheKey = `related-v1/${hashString(
+  const cacheKey = `related-v2/${hashString(
     JSON.stringify({ actors: cleanedActors, tags, publisher })
   )}`;
 

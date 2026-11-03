@@ -26,6 +26,10 @@ import {
   recordToRecommendationItem,
   valueKey,
 } from './recommendation-utils';
+import {
+  getTagFrequency,
+  isIgnoredTagKey,
+} from './tag-frequency';
 
 interface HotSignals {
   /** 番号 → 近 30 天互动去重用户数 */
@@ -50,7 +54,7 @@ interface UserSetValue {
   users: Set<string>;
 }
 
-const SIGNALS_CACHE_KEY = 'signals-v1';
+const SIGNALS_CACHE_KEY = 'signals-v2';
 
 // ─── 站内热度 ──────────────────────────────────────────────────────────
 
@@ -105,8 +109,13 @@ export async function getHotSignals(db: D1Database): Promise<HotSignals> {
   const actorCounts: Record<string, number> = {};
   for (const [key, value] of actorUsers) actorCounts[key] = value.users.size;
 
+  const tagFrequency = await getTagFrequency(db);
   const tagCounts: Record<string, number> = {};
-  for (const [key, value] of tagUsers) tagCounts[key] = value.users.size;
+  for (const [key, value] of tagUsers) {
+    if (!isIgnoredTagKey(key, tagFrequency)) {
+      tagCounts[key] = value.users.size;
+    }
+  }
 
   const topActors = Array.from(actorUsers.entries())
     .filter(([, value]) => value.users.size >= 2)
@@ -115,7 +124,7 @@ export async function getHotSignals(db: D1Database): Promise<HotSignals> {
     .map(([, value]) => value.display);
 
   const topTags = Array.from(tagUsers.entries())
-    .filter(([, value]) => value.users.size >= 2)
+    .filter(([key, value]) => value.users.size >= 2 && !isIgnoredTagKey(key, tagFrequency))
     .sort((a, b) => b[1].users.size - a[1].users.size)
     .slice(0, 10)
     .map(([, value]) => value.display);

@@ -229,6 +229,17 @@ export async function getRecentJavRecords(
   return rows.results || [];
 }
 
+/** 所有 active JAV 记录的标签原文（用于统计大众标签占比） */
+export async function getJavTagRows(db: D1Database): Promise<string[]> {
+  const rows = await db
+    .prepare(
+      `SELECT tags FROM data_records
+       WHERE record_type = 'jav' AND status = 'active' AND tags IS NOT NULL`
+    )
+    .all<{ tags: string }>();
+  return (rows.results || []).map((row) => row.tags);
+}
+
 /** 近 7 天导入的榜单行（热门列表第一优先级） */
 export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
   const rows = await db
