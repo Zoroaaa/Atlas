@@ -80,7 +80,8 @@ async function enrichOne(
       return 'failed';
     }
 
-    await enrichDataRecordFromDetail(db, { detail });
+    const preserveMetadata = parseState(record.content_data).origin === 'javdb-ranking';
+    await enrichDataRecordFromDetail(db, { detail }, { preserveMetadata });
     return 'completed';
   } catch (err) {
     console.error(`[ranking-enrichment] ${record.code} failed:`, err);

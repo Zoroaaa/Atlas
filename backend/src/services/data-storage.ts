@@ -620,7 +620,8 @@ export async function persistDataRecord(
  */
 export async function enrichDataRecordFromDetail(
   db: D1Database,
-  detail: { detail: JavDetail; magnets?: MagnetItem[] }
+  detail: { detail: JavDetail; magnets?: MagnetItem[] },
+  options?: { preserveMetadata?: boolean }
 ): Promise<void> {
   try {
     const d = detail.detail;
@@ -630,6 +631,13 @@ export async function enrichDataRecordFromDetail(
     const resolvedCover = resolveJavCover(d.cover);
     const dedupKey = `jav:${d.code}`;
     const now = Date.now();
+
+    // 保留已有真实标题/封面，只补缺失字段（榜单占位记录用）
+    const preserveExisting = options?.preserveMetadata === true;
+    const titleExpr = preserveExisting
+      ? "CASE WHEN title IS NULL OR title = '' OR title = code THEN ? ELSE title END"
+      : '?';
+    const coverExpr = preserveExisting ? 'COALESCE(cover, ?)' : 'COALESCE(?, cover)';
 
     // 查是否已存在
     const existing = await db
@@ -654,7 +662,7 @@ export async function enrichDataRecordFromDetail(
       await db
         .prepare(
           `UPDATE data_records
-             SET title = ?, cover = COALESCE(?, cover), actors = ?,
+             SET title = ${titleExpr}, cover = ${coverExpr}, actors = ?,
                  duration = COALESCE(?, duration), release_date = COALESCE(?, release_date),
                  publisher = COALESCE(?, publisher), tags = ?, content_data = ?,
                  detail_completed = 1, last_updated_at = ?

@@ -99,6 +99,9 @@ export async function importRankingSnapshot(
     .all<{ dedup_key: string }>();
   const existingCount = preExistingRows.results?.length || 0;
 
+  // 标记来源，补全时保留 JavDB 的标题/封面，只补演员/标签/发行商
+  const placeholderContent = JSON.stringify({ origin: 'javdb-ranking' });
+
   const insertStatements = items.map((item) =>
     db
       .prepare(
@@ -106,7 +109,7 @@ export async function importRankingSnapshot(
            (id, record_type, dedup_key, title, cover, code, actors, duration,
             release_date, publisher, tags, rating, content_data, detail_completed,
             status, source_count, first_seen_at, last_updated_at)
-         VALUES (?, 'jav', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '[]', ?, '{}', 0,
+         VALUES (?, 'jav', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '[]', ?, ?, 0,
                  'active', 0, ?, ?)`
       )
       .bind(
@@ -116,11 +119,25 @@ export async function importRankingSnapshot(
         item.cover,
         item.code,
         item.rating,
+        placeholderContent,
         now,
         now
       )
   );
   await runBatches(db, insertStatements);
+
+  // 兼容已导入但还没补全的旧占位记录
+  await db
+    .prepare(
+      `UPDATE data_records
+       SET content_data = ?
+       WHERE record_type = 'jav'
+         AND detail_completed = 0
+         AND dedup_key IN (${placeholders})
+         AND (content_data IS NULL OR content_data = '{}')`
+    )
+    .bind(placeholderContent, ...dedupKeys)
+    .run();
 
   const existingRows = await db
     .prepare(
