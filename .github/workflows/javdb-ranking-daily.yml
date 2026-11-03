@@ -1,0 +1,112 @@
+name: JavDB Monthly Ranking Import
+
+# 每天抓 JavDB 有码/无码月榜，转成 Atlas 导入 payload 后 POST 到 Worker。
+# 需要仓库 Secrets：ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET
+# schedule 只在默认分支生效；workflow_dispatch 可手动运行任意分支。
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: javdb-ranking-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install javdb-cli
+        run: |
+          go install github.com/FlanChanXwO/javdb-cli/cmd/javdb@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch monthly rankings
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          fetch() {
+            local type="$1"
+            local out="$2"
+            echo "=== ${type} ==="
+            if javdb rankings movies --type "$type" --period month --json > "$out" 2> "${out}.err"; then
+              echo "${type}: auto host ok"
+              return 0
+            fi
+            echo "${type}: auto host failed, retry mirror"
+            javdb rankings movies --type "$type" --period month --json --host mirror > "$out" 2>> "${out}.err"
+          }
+
+          if ! fetch censored censored.json; then
+            echo "censored ranking fetch failed"
+            tail -n 50 censored.json.err || true
+            exit 1
+          fi
+
+          if ! fetch uncensored uncensored.json; then
+            echo "uncensored ranking fetch failed; import cancelled list only"
+            echo '{"movies":[]}' > uncensored.json
+          fi
+
+          node -e "for (const f of ['censored.json','uncensored.json']) { const d=JSON.parse(require('fs').readFileSync(f,'utf8')); console.log(f, (d.movies||[]).length, 'movies'); }"
+
+      - name: Convert to Atlas payload
+        run: |
+          node scripts/rankings/javdb-to-atlas.mjs \
+            --input censored.json --section censored --output censored.payload.json
+          node scripts/rankings/javdb-to-atlas.mjs \
+            --input uncensored.json --section uncensored --output uncensored.payload.json
+
+      - name: Import to Worker
+        shell: bash
+        env:
+          IMPORT_URL: ${{ secrets.ATLAS_RANKING_IMPORT_URL }}
+          IMPORT_SECRET: ${{ secrets.RANKINGS_IMPORT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${IMPORT_URL:-}" ] || [ -z "${IMPORT_SECRET:-}" ]; then
+            echo "Missing ATLAS_RANKING_IMPORT_URL or RANKINGS_IMPORT_SECRET"
+            exit 1
+          fi
+
+          for file in censored.payload.json uncensored.payload.json; do
+            count=$(node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log((d.items||[]).length)" "$file")
+            if [ "$count" -eq 0 ]; then
+              echo "Skipping empty ${file}"
+              continue
+            fi
+
+            echo "Importing ${file} (${count} items)"
+            curl --fail-with-body -sS -X POST "$IMPORT_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Rankings-Secret: ${IMPORT_SECRET}" \
+              --data-binary @"${file}"
+            echo
+          done
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: javdb-ranking-import
+          path: |
+            censored.json
+            censored.json.err
+            uncensored.json
+            uncensored.json.err
+            censored.payload.json
+            uncensored.payload.json
+          if-no-files-found: warn
+          retention-days: 7

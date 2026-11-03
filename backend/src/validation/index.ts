@@ -504,7 +504,7 @@ export const schemas = {
       fetchedAt: z.number().int().optional(),
       items: z.array(z.object({
         code: z.string().min(1).max(40),
-        title: z.string().max(300).optional(),
+        title: z.string().max(1000).optional(),
         cover: z.string().max(500).optional(),
         rank: z.number().int().min(1).max(500).optional(),
         score: z.union([z.number(), z.string().max(20)]).optional(),

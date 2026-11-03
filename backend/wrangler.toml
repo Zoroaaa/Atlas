@@ -46,6 +46,7 @@ ENABLE_ACTION_LOGGING = "true"
 # 🔐 GITHUB_CLIENT_SECRET    (GitHub OAuth App Client Secret)
 # 🔐 GOOGLE_CLIENT_ID        (Google OAuth 2.0 Client ID, Google Cloud Console 创建)
 # 🔐 GOOGLE_CLIENT_SECRET    (Google OAuth 2.0 Client Secret)
+# 🔐 RANKINGS_IMPORT_SECRET  (GitHub Actions 调用 /api/internal/rankings/import)
 # =====================================================================
 
 # 数据库绑定
