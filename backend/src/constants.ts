@@ -184,3 +184,34 @@ export const DB_CONFIG_KEYS = {
   USER_ACTIONS_RETENTION_DAYS: 'user_actions_retention_days',
   SECURITY_EVENT_RETENTION_DAYS: 'security_event_retention_days',
 } as const;
+
+// ==================================================================
+// 推荐系统常量 — 代码级固定规则，改了需重新部署
+// ==================================================================
+
+export const RECOMMEND = {
+  DIM_WEIGHTS: {
+    actor: 0.5,
+    tag: 0.4,
+    publisher: 0.1,
+  },
+  FAVORITE_WEIGHT: 3,
+  HISTORY_WEIGHT: 1,
+  HISTORY_MIN_OCCURRENCES: 3,
+  NEW_USER_MAX_HISTORY: 3,
+  POPULARITY_WINDOW_DAYS: 30,
+  RELATED_LIMIT: 8,
+  FOR_YOU_LIMIT: 12,
+  HOT_LIMIT: 12,
+  CANDIDATE_LIMIT: 400,
+  MAX_ITEMS_PER_ACTOR: 2,
+  PROFILE_CACHE_TTL: 5 * 60,
+  SIGNALS_CACHE_TTL: 60 * 60,
+  RELATED_CACHE_TTL: 3 * 60 * 60,
+  RANKING_FRESH_DAYS: 7,
+  ENRICH_BATCH: 20,
+  ENRICH_CONCURRENCY: 4,
+  ENRICH_TIMEOUT_MS: 8000,
+  ENRICH_TIME_BUDGET_MS: 25000,
+  ENRICH_MAX_FAILURES: 3,
+} as const;

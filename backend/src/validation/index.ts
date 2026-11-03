@@ -484,6 +484,35 @@ export const schemas = {
     }),
   },
 
+  recommend: {
+    related: z.object({
+      code: z.string().max(40).optional(),
+      actress: z.string().max(100).optional(),
+      actors: z.array(z.string().max(100)).max(10).optional(),
+      tags: z.array(z.string().max(100)).max(20).optional(),
+      publisher: z.string().max(100).optional(),
+      excludeCodes: z.array(z.string().max(40)).max(30).optional(),
+      limit: z.number().int().min(1).max(12).optional(),
+    }),
+  },
+
+  rankings: {
+    import: z.object({
+      source: z.enum(['javdb']),
+      section: z.enum(['censored', 'uncensored']),
+      period: z.enum(['monthly']),
+      fetchedAt: z.number().int().optional(),
+      items: z.array(z.object({
+        code: z.string().min(1).max(40),
+        title: z.string().max(300).optional(),
+        cover: z.string().max(500).optional(),
+        rank: z.number().int().min(1).max(500).optional(),
+        score: z.union([z.number(), z.string().max(20)]).optional(),
+        url: z.string().max(500).optional(),
+      })).min(1).max(200),
+    }),
+  },
+
   pagination: z.object({
     page: z.string().regex(/^\d+$/).optional(),
     pageSize: z.string().regex(/^\d+$/).optional(),

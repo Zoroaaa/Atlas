@@ -1940,6 +1940,20 @@
       "cacheAgePrefix": "· Cached {{age}}",
       "reshuffleHint": "🔀 Refresh reshuffles"
     },
+    "recommend": {
+      "titleForYou": "For You",
+      "titlePopular": "Popular",
+      "titleRelated": "Related",
+      "basis": "Recommendations are based on your favorites and search history: favorites count most, so favorite the works you like; actors and tags searched repeatedly are also counted.",
+      "basisRelated": "Based on the actors, tags, and publisher of the current work, matched against the local library.",
+      "basisPopular": "Based on favorites and search activity across the site over the last 30 days.",
+      "reasonActor": "Same actor: {{value}}",
+      "reasonTag": "Same tag: {{value}}",
+      "reasonPublisher": "Same publisher: {{value}}",
+      "reasonPopular": "Trending recently",
+      "reasonRanking": "Monthly #{{rank}}",
+      "refresh": "Refresh recommendations"
+    },
     "actresses": {
       "noCodeData": "No works for this actress yet",
       "worksTitle": "Works by {{name}}",

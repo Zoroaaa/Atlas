@@ -3,10 +3,11 @@ import { Search, Loader2 } from 'lucide-react';
 import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
+import type { JavEnrichedData } from '@/types/search';
 import { TAB_IDS, JAV_SUB_MODES } from '@/types/source';
 import { SearchResultsPanel, SearchHistoryPanel, FavoritesPanel, SourcesSidebar, AnnouncementBar, SearchSuggestionsDropdown, QuickActionsPanel, SearchQuotaBadge } from '@/components/search';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
-import { JavDetailPanel, JavRankingsPanel, ActressesPanel, JavActressResultsPanel } from '@/components/jav';
+import { JavDetailPanel, JavRankingsPanel, ActressesPanel, JavActressResultsPanel, JavRecommendationsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
@@ -56,6 +57,28 @@ export const MainSearchPage: React.FC = () => {
 
   const favoritesManager = useFavoritesManager({ keyword: searchFlow.keyword });
   const historyManager = useSearchHistoryManager();
+
+  const javEnrichedData = searchFlow.enrichedData?.resultType === 'jav'
+    ? (searchFlow.enrichedData as JavEnrichedData)
+    : null;
+  const javRelatedSeed = javEnrichedData
+    ? javEnrichedData.detail
+      ? {
+          code: javEnrichedData.detail.code,
+          actors: javEnrichedData.detail.actresses,
+          tags: javEnrichedData.detail.tags,
+          publisher: javEnrichedData.detail.publisher || javEnrichedData.detail.maker,
+        }
+      : javSubMode === 'actress' && javEnrichedData.normalizedKeyword
+        ? { actress: javEnrichedData.normalizedKeyword }
+        : undefined
+    : undefined;
+  const javExcludeCodes = javEnrichedData
+    ? [
+        ...(javEnrichedData.detail ? [javEnrichedData.detail.code] : []),
+        ...((javEnrichedData.actressWorks || []).map((work) => work.code)),
+      ]
+    : [];
 
   // ── UI-only state ──
   const [showHistory, setShowHistory] = useState(true);
@@ -356,8 +379,24 @@ export const MainSearchPage: React.FC = () => {
               />
             );
           })()}
+          {activeTab === 'jav' && javRelatedSeed && (
+            <div className="mt-3 sm:mt-4">
+              <JavRecommendationsPanel
+                variant="related"
+                seed={javRelatedSeed}
+                excludeCodes={javExcludeCodes}
+                onCodeClick={searchFlow.handleCodeClick}
+              />
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
+              {activeTab === 'jav' && !searchFlow.enrichedData && !searchFlow.isSearching && (
+                <JavRecommendationsPanel
+                  variant="for-you"
+                  onCodeClick={searchFlow.handleCodeClick}
+                />
+              )}
               {activeTab === 'jav' && <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />}
               {activeTab === 'jav' && <ActressesPanel onCodeClick={searchFlow.handleCodeClick} />}
               {isAuthenticated && (

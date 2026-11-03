@@ -37,6 +37,60 @@ export interface Env {
   // TMDB API（影视搜索元数据）
   TMDB_API_KEY?: string;
 
+  // 榜单导入密钥（GitHub Actions 调用内部导入接口）
+  RANKINGS_IMPORT_SECRET?: string;
+}
+
+// =====================================================================
+// 推荐系统类型
+// =====================================================================
+
+export type RecommendReasonType = 'actor' | 'tag' | 'publisher' | 'popular' | 'ranking';
+
+export interface JavRecommendationItem {
+  code: string;
+  title: string;
+  cover?: string;
+  actors?: string[];
+  tags?: string[];
+  publisher?: string;
+  rating?: string;
+  /** 仅推荐列表返回；热门列表不返回 */
+  score?: number;
+  /** 仅热门列表返回 */
+  rank?: number;
+  reason: {
+    type: RecommendReasonType;
+    value?: string;
+  };
+}
+
+export interface JavRecommendationResponse {
+  mode: 'for-you' | 'popular' | 'related';
+  isNewUser: boolean;
+  items: JavRecommendationItem[];
+  basis?: {
+    actors: string[];
+    tags: string[];
+  };
+  generatedAt: number;
+}
+
+export interface RankingImportItem {
+  code: string;
+  title?: string;
+  cover?: string;
+  rank?: number;
+  score?: number | string;
+  url?: string;
+}
+
+export interface RankingImportPayload {
+  source: 'javdb';
+  section: 'censored' | 'uncensored';
+  period: 'monthly';
+  fetchedAt?: number;
+  items: RankingImportItem[];
 }
 
 export interface User {

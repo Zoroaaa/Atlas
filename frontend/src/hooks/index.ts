@@ -5,6 +5,7 @@ export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
 export { useJavDetail } from './useJavDetail';
 export { useJavRankings, getCacheAge } from './useJavRankings';
+export { useJavRecommendations } from './useJavRecommendations';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
 export { useFavorites as useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys } from './useFavoritesQuery';

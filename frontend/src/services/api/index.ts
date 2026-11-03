@@ -11,6 +11,7 @@ export { feedbackApi } from './feedback';
 export type { FeedbackSubmit, FeedbackItem, FeedbackStats, AdminHandleFeedback } from './feedback';
 export { announcementApi } from './announcement';
 export type { Announcement, AnnouncementForm } from './announcement';
+export { recommendApi } from './recommend';
 export type {
   ApiResponse,
   ApiOkResponse,
