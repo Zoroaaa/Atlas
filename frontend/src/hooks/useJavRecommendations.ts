@@ -54,7 +54,8 @@ export function useJavRecommendations({
       return response.data;
     },
     enabled: queryEnabled,
-    staleTime: 5 * 60 * 1000,
+    // 推荐位是随机分配的，不缓存结果，每次挂载/刷新都重新抽
+    staleTime: 0,
     retry: 1,
   });
 

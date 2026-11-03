@@ -18,7 +18,6 @@ import {
 import {
   cleanSeedValues,
   getCachedJson,
-  hashString,
   isJavWorkCode,
   normalizeJavCode,
   parseValueList,
@@ -27,10 +26,14 @@ import {
   valueKey,
 } from './recommendation-utils';
 import {
-  filterDiscriminatingTags,
-  getTagFrequency,
-  isIgnoredTagKey,
-} from './tag-frequency';
+  filterContentTags,
+  isTechnicalTagKey,
+} from './tag-filter';
+import {
+  allocateForYouItems,
+  allocateRelatedItems,
+  type ScoredItem,
+} from './recommendation-allocation';
 
 // ─── 类型 ──────────────────────────────────────────────────────────────
 
@@ -56,12 +59,6 @@ export interface UserProfile {
 
 interface DimensionCollector {
   values: Map<string, { display: string; count: number }>;
-}
-
-interface ScoredItem {
-  item: Omit<JavRecommendationItem, 'score' | 'reason'>;
-  score: number;
-  reason: JavRecommendationItem['reason'];
 }
 
 export interface RelatedInput {
@@ -125,7 +122,7 @@ export async function getUserProfile(
   db: D1Database,
   userId: string
 ): Promise<UserProfile> {
-  const cacheKey = `profile-v2/${userId}`;
+  const cacheKey = `profile-v3/${userId}`;
   const cached = await getCachedJson<UserProfile>(cacheKey);
   if (cached) return cached;
 
@@ -135,11 +132,10 @@ export async function getUserProfile(
 }
 
 async function buildUserProfile(db: D1Database, userId: string): Promise<UserProfile> {
-  const [favorites, history, javHistory, tagFrequency] = await Promise.all([
+  const [favorites, history, javHistory] = await Promise.all([
     getUserFavoriteRows(db, userId),
     getUserJavHistoryRows(db, userId),
     countUserJavHistory(db, userId),
-    getTagFrequency(db),
   ]);
 
   const actor = createCollector();
@@ -207,9 +203,9 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
     }
   }
 
-  // 大众/技术标签不参与推荐：直接剔除，而不是降权；剩余标签仍按命中数排序
+  // 只剔除技术/发行属性标签；大众标签保留，靠分配逻辑防止独占
   for (const key of Array.from(tag.values.keys())) {
-    if (isIgnoredTagKey(key, tagFrequency)) {
+    if (isTechnicalTagKey(key)) {
       tag.values.delete(key);
     }
   }
@@ -316,44 +312,6 @@ function scoreRow(
   };
 }
 
-function selectItems(
-  scored: ScoredItem[],
-  limit: number,
-  excluded: Set<string>
-): JavRecommendationItem[] {
-  const primaryCount = new Map<string, number>();
-  const picked: ScoredItem[] = [];
-  const deferred: ScoredItem[] = [];
-
-  for (const entry of scored) {
-    if (excluded.has(normalizeJavCode(entry.item.code))) continue;
-    const primary = entry.item.actors?.[0];
-    const key = primary ? valueKey(primary) : '';
-    const count = key ? primaryCount.get(key) || 0 : 0;
-    if (key && count >= RECOMMEND.MAX_ITEMS_PER_ACTOR) {
-      deferred.push(entry);
-      continue;
-    }
-    if (key) primaryCount.set(key, count + 1);
-    picked.push(entry);
-    if (picked.length >= limit) break;
-  }
-
-  if (picked.length < limit) {
-    for (const entry of deferred) {
-      if (picked.length >= limit) break;
-      if (excluded.has(normalizeJavCode(entry.item.code))) continue;
-      picked.push(entry);
-    }
-  }
-
-  return picked.map((entry) => ({
-    ...entry.item,
-    score: entry.score,
-    reason: entry.reason,
-  }));
-}
-
 // ─── 相关推荐 ──────────────────────────────────────────────────────────
 
 export async function recommendRelated(
@@ -368,8 +326,7 @@ export async function recommendRelated(
   const dbTags = record ? parseValueList(record.tags) : [];
   const actors = cleanSeedValues(dbActors.length > 0 ? dbActors : input.actors, 10);
   const rawTags = cleanSeedValues(dbTags.length > 0 ? dbTags : input.tags, 20);
-  const tagFrequency = rawTags.length > 0 ? await getTagFrequency(db) : null;
-  const tags = tagFrequency ? filterDiscriminatingTags(rawTags, tagFrequency) : rawTags;
+  const tags = filterContentTags(rawTags);
   const publisher = (record?.publisher || input.publisher || '').trim().slice(0, 100);
   const actress = cleanSeedValues(input.actress ? [input.actress] : [], 1);
   if (actress.length > 0) {
@@ -393,24 +350,15 @@ export async function recommendRelated(
   if (code) excluded.add(code);
 
   const dims = seedWeights(cleanedActors, tags, publisher || undefined);
-  const cacheKey = `related-v2/${hashString(
-    JSON.stringify({ actors: cleanedActors, tags, publisher })
-  )}`;
-
-  let scored = await getCachedJson<ScoredItem[]>(cacheKey);
-  if (!scored) {
-    const candidates = await findJavCandidatesBySeeds(
-      db,
-      { actors: cleanedActors, tags, publisher: publisher || undefined },
-      RECOMMEND.CANDIDATE_LIMIT
-    );
-    scored = candidates
-      .map((row) => scoreRow(row, dims))
-      .filter((entry): entry is ScoredItem => entry !== null)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 30);
-    await putCachedJson(cacheKey, scored, RECOMMEND.RELATED_CACHE_TTL);
-  }
+  const candidates = await findJavCandidatesBySeeds(
+    db,
+    { actors: cleanedActors, tags, publisher: publisher || undefined },
+    RECOMMEND.CANDIDATE_LIMIT
+  );
+  const scored = candidates
+    .map((row) => scoreRow(row, dims))
+    .filter((entry): entry is ScoredItem => entry !== null)
+    .sort((a, b) => b.score - a.score);
 
   const limit = Math.min(
     Math.max(1, input.limit || RECOMMEND.RELATED_LIMIT),
@@ -420,7 +368,7 @@ export async function recommendRelated(
   return {
     mode: 'related',
     isNewUser: false,
-    items: selectItems(scored, limit, excluded),
+    items: allocateRelatedItems(scored, cleanedActors, tags, excluded, limit),
     basis: { actors: cleanedActors.slice(0, 3), tags: tags.slice(0, 3) },
     generatedAt: Date.now(),
   };
@@ -456,7 +404,13 @@ export async function recommendForYou(
     .filter((entry): entry is ScoredItem => entry !== null)
     .sort((a, b) => b.score - a.score);
 
-  const items = selectItems(scored, RECOMMEND.FOR_YOU_LIMIT, excluded);
+  const items = allocateForYouItems(
+    scored,
+    profile.topTags,
+    profile.topActors,
+    excluded,
+    RECOMMEND.FOR_YOU_LIMIT
+  );
   if (items.length === 0) return null;
 
   return {

@@ -275,6 +275,16 @@ export const MainSearchPage: React.FC = () => {
           {activeTab === 'jav' && (
             <JavDetailPanel detail={javFlow.javDetail} status={javFlow.javDetailStatus} onClose={() => javFlow.resetJavDetail()} onRetry={javFlow.retryJavDetail} onFavorite={favoritesManager.handleFavoriteJavDetail} isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false} isAuthenticated={isAuthenticated} onLoginRequired={() => { navigate('/login'); }} />
           )}
+          {activeTab === 'jav' && javRelatedSeed && (
+            <div className="mb-3 sm:mb-4">
+              <JavRecommendationsPanel
+                variant="related"
+                seed={javRelatedSeed}
+                excludeCodes={javExcludeCodes}
+                onCodeClick={searchFlow.handleCodeClick}
+              />
+            </div>
+          )}
           {(() => {
             const resultType = searchFlow.enrichedData?.resultType;
             const Panel = getResultPanel(resultType);
@@ -379,16 +389,6 @@ export const MainSearchPage: React.FC = () => {
               />
             );
           })()}
-          {activeTab === 'jav' && javRelatedSeed && (
-            <div className="mt-3 sm:mt-4">
-              <JavRecommendationsPanel
-                variant="related"
-                seed={javRelatedSeed}
-                excludeCodes={javExcludeCodes}
-                onCodeClick={searchFlow.handleCodeClick}
-              />
-            </div>
-          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
               {activeTab === 'jav' && !searchFlow.enrichedData && !searchFlow.isSearching && (

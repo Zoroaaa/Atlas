@@ -83,15 +83,6 @@ export function cleanSeedValues(values: string[] | undefined, max: number): stri
   return dedupeValues(cleaned).slice(0, max);
 }
 
-/** 简单稳定哈希（缓存键用，不用于安全场景） */
-export function hashString(input: string): string {
-  let hash = 5381;
-  for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
-  }
-  return (hash >>> 0).toString(36);
-}
-
 /** Cache API 读 JSON（内部键，单地域缓存） */
 export async function getCachedJson<T>(key: string): Promise<T | null> {
   try {
