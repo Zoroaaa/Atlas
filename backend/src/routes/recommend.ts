@@ -24,6 +24,12 @@ import { recommendPopular } from '@/services/hot-list';
 
 export const recommendRoutes = new Hono<{ Bindings: Env }>();
 
+// 推荐每次请求重新随机，禁止浏览器/边缘缓存
+recommendRoutes.use('*', async (c, next) => {
+  c.header('Cache-Control', 'no-store');
+  await next();
+});
+
 recommendRoutes.use('*', authMiddleware);
 
 async function checkRecommendRateLimit(c: Context<{ Bindings: Env }>) {

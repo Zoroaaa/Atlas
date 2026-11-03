@@ -101,13 +101,19 @@ function fillFromScored(
   excluded: Set<string>,
   pickedCodes: Set<string>
 ): void {
-  for (const entry of scored) {
+  // 只在前 100 个高分候选里随机补位：既保留相关性，又不会每次补同一批
+  const pool = shuffle(scored.slice(0, Math.min(100, scored.length)));
+  for (const entry of pool) {
     if (picked.length >= target) break;
     const code = normalizeJavCode(entry.item.code);
     if (excluded.has(code) || pickedCodes.has(code)) continue;
     picked.push(entry);
     pickedCodes.add(code);
   }
+}
+
+function countReasonType(picked: ScoredItem[], type: 'actor' | 'tag'): number {
+  return picked.filter((entry) => entry.reason.type === type).length;
 }
 
 function toRecommendationItems(entries: ScoredItem[]): JavRecommendationItem[] {
@@ -119,7 +125,9 @@ function toRecommendationItems(entries: ScoredItem[]): JavRecommendationItem[] {
 }
 
 /**
- * 为你推荐：前 3 个标签占 6 个位置，前 2 个演员占 6 个位置。
+ * 为你推荐：前 5 个标签占 6 个位置，前 2 个演员占 6 个位置。
+ * top 2 演员不足 6 部时，从 top 3-10 演员继续补演员位；
+ * top 5 标签不足 6 部时，从 top 6-15 标签继续补标签位。
  * 每个标签/演员内部随机抽取，最终打乱顺序。
  */
 export function allocateForYouItems(
@@ -129,22 +137,42 @@ export function allocateForYouItems(
   excluded: Set<string>,
   limit: number
 ): JavRecommendationItem[] {
-  const tagBuckets = buildTagBuckets(topTags.slice(0, 3), scored);
-  const actorBuckets = buildActorBuckets(topActors.slice(0, 2), scored);
+  const tagPrimary = buildTagBuckets(topTags.slice(0, 5), scored);
+  const tagSecondary = buildTagBuckets(topTags.slice(5, 15), scored);
+  const actorPrimary = buildActorBuckets(topActors.slice(0, 2), scored);
+  const actorSecondary = buildActorBuckets(topActors.slice(2, 10), scored);
 
-  const tagQuota = tagBuckets.length > 0 ? Math.min(6, limit) : 0;
-  const actorQuota = actorBuckets.length > 0
-    ? (tagBuckets.length > 0 ? Math.min(6, limit - tagQuota) : limit)
+  const hasTags = tagPrimary.length > 0 || tagSecondary.length > 0;
+  const hasActors = actorPrimary.length > 0 || actorSecondary.length > 0;
+
+  const tagQuota = hasTags ? Math.min(6, limit) : 0;
+  const actorQuota = hasActors
+    ? (hasTags ? Math.min(6, limit - tagQuota) : limit)
     : 0;
 
   const picked: ScoredItem[] = [];
   const pickedCodes = new Set<string>();
 
   if (tagQuota > 0) {
-    picked.push(...allocateFromBuckets(tagBuckets, tagQuota, excluded, pickedCodes));
+    picked.push(...allocateFromBuckets(tagPrimary, tagQuota, excluded, pickedCodes));
   }
   if (actorQuota > 0) {
-    picked.push(...allocateFromBuckets(actorBuckets, actorQuota, excluded, pickedCodes));
+    picked.push(...allocateFromBuckets(actorPrimary, actorQuota, excluded, pickedCodes));
+  }
+
+  // 演员位不足时，先用其他演员补，避免全被标签补位占满
+  const actorCount = countReasonType(picked, 'actor');
+  if (actorQuota > actorCount && actorSecondary.length > 0) {
+    picked.push(
+      ...allocateFromBuckets(actorSecondary, actorQuota - actorCount, excluded, pickedCodes)
+    );
+  }
+
+  const tagCount = countReasonType(picked, 'tag');
+  if (tagQuota > tagCount && tagSecondary.length > 0) {
+    picked.push(
+      ...allocateFromBuckets(tagSecondary, tagQuota - tagCount, excluded, pickedCodes)
+    );
   }
 
   fillFromScored(picked, scored, limit, excluded, pickedCodes);

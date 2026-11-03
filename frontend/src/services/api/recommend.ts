@@ -13,10 +13,15 @@ interface RecommendApiResponse {
 
 export const recommendApi = {
   get: async (mode: 'for-you' | 'popular'): Promise<RecommendApiResponse> => {
-    return apiClient.get<RecommendApiResponse>(`/recommend/jav?mode=${mode}`);
+    return apiClient.get<RecommendApiResponse>(
+      `/recommend/jav?mode=${mode}&_t=${Date.now()}`
+    );
   },
 
   related: async (body: JavRelatedRequest): Promise<RecommendApiResponse> => {
-    return apiClient.post<RecommendApiResponse>('/recommend/jav/related', body);
+    return apiClient.post<RecommendApiResponse>(
+      `/recommend/jav/related?_t=${Date.now()}`,
+      body
+    );
   },
 };
