@@ -89,10 +89,31 @@ jobs:
             fi
 
             echo "Importing ${file} (${count} items)"
-            curl --fail-with-body -sS -X POST "$IMPORT_URL" \
+            http_code=$(curl -sS -o /tmp/atlas-import-response.txt -w "%{http_code}" \
+              -X POST "$IMPORT_URL" \
               -H "Content-Type: application/json" \
               -H "X-Rankings-Secret: ${IMPORT_SECRET}" \
-              --data-binary @"${file}"
+              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+              -H "Accept: application/json" \
+              -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
+              --data-binary @"${file}")
+
+            if [ "$http_code" -eq 403 ]; then
+              echo "HTTP 403 from Cloudflare edge (managed challenge), request did not reach the Worker."
+              echo "Use the workers.dev URL for ATLAS_RANKING_IMPORT_URL, or add a WAF skip rule for /api/internal/rankings/import."
+              head -c 300 /tmp/atlas-import-response.txt || true
+              echo
+              exit 1
+            fi
+
+            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+              echo "Import failed: HTTP ${http_code}"
+              head -c 500 /tmp/atlas-import-response.txt || true
+              echo
+              exit 1
+            fi
+
+            cat /tmp/atlas-import-response.txt
             echo
           done
 
