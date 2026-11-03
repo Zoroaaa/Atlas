@@ -122,7 +122,7 @@ export async function getUserProfile(
   db: D1Database,
   userId: string
 ): Promise<UserProfile> {
-  const cacheKey = `profile-v3/${userId}`;
+  const cacheKey = `profile-v4/${userId}`;
   const cached = await getCachedJson<UserProfile>(cacheKey);
   if (cached) return cached;
 

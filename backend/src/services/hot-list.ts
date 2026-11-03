@@ -51,7 +51,7 @@ interface UserSetValue {
   users: Set<string>;
 }
 
-const SIGNALS_CACHE_KEY = 'signals-v3';
+const SIGNALS_CACHE_KEY = 'signals-v4';
 
 // ─── 站内热度 ──────────────────────────────────────────────────────────
 
