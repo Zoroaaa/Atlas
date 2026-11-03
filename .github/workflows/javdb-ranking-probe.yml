@@ -1,0 +1,123 @@
+name: JavDB Ranking Probe
+
+# P3-0 探测：只验证 GitHub Actions 出口能否拿到 JavDB 月榜 JSON。
+# 手动运行；不写库、不调导入接口。成功后才继续 P3。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install javdb-cli
+        run: |
+          go install github.com/FlanChanXwO/javdb-cli/cmd/javdb@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Show version and ranking flags
+        run: |
+          javdb --version
+          javdb rankings movies --help
+
+      - name: Fetch monthly rankings
+        shell: bash
+        run: |
+          set -o pipefail
+
+          fetch() {
+            local type="$1"
+            local out="$2"
+            echo "=== ${type} ==="
+            if javdb rankings movies --type "$type" --period month --json > "$out" 2> "${out}.err"; then
+              echo "${type}: auto host ok"
+            else
+              echo "${type}: auto host failed, retry mirror"
+              javdb rankings movies --type "$type" --period month --json --host mirror > "$out" 2>> "${out}.err"
+            fi
+            echo "--- ${type} stderr (tail) ---"
+            tail -n 30 "${out}.err" || true
+            echo "--- ${type} stdout (head) ---"
+            head -c 2000 "$out" || true
+            echo
+          }
+
+          fetch censored censored.json
+          fetch uncensored uncensored.json
+
+      - name: Assert JSON contains rankable codes
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+
+          const files = ['censored.json', 'uncensored.json'];
+          const minCodes = { 'censored.json': 10, 'uncensored.json': 5 };
+          let failed = false;
+
+          for (const file of files) {
+            if (!fs.existsSync(file)) {
+              console.error(`${file}: missing`);
+              failed = true;
+              continue;
+            }
+
+            let data;
+            try {
+              data = JSON.parse(fs.readFileSync(file, 'utf8'));
+            } catch (err) {
+              console.error(`${file}: invalid JSON: ${err.message}`);
+              failed = true;
+              continue;
+            }
+
+            const codes = new Set();
+            const walk = (value) => {
+              if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (/^[A-Z]{2,8}-\d{2,6}$/i.test(trimmed)) codes.add(trimmed.toUpperCase());
+                return;
+              }
+              if (Array.isArray(value)) {
+                value.forEach(walk);
+                return;
+              }
+              if (value && typeof value === 'object') {
+                Object.values(value).forEach(walk);
+              }
+            };
+            walk(data);
+
+            console.log(`${file}: unique codes = ${codes.size}`);
+            if (codes.size < minCodes[file]) failed = true;
+          }
+
+          if (failed) {
+            console.error('PROBE FAILED: not enough standard codes or invalid output');
+            process.exit(1);
+          }
+          console.log('PROBE PASSED');
+          NODE
+
+      - name: Upload probe artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: javdb-ranking-probe
+          path: |
+            censored.json
+            censored.json.err
+            uncensored.json
+            uncensored.json.err
+          if-no-files-found: warn
+          retention-days: 7

@@ -1940,6 +1940,20 @@
       "cacheAgePrefix": "· 快取 {{age}}",
       "reshuffleHint": "🔀 重新整理將重新隨機"
     },
+    "recommend": {
+      "titleForYou": "為你推薦",
+      "titlePopular": "熱門推薦",
+      "titleRelated": "相關推薦",
+      "basis": "推薦依據你的收藏與搜尋紀錄生成：收藏是主要依據，喜歡的作品請點收藏；同一演員或標籤被反覆搜尋，也會計入。",
+      "basisRelated": "依據當前作品的演員、標籤、發行商匹配站內作品生成。",
+      "basisPopular": "依據站內近 30 天的收藏與搜尋熱度生成。",
+      "reasonActor": "同演員：{{value}}",
+      "reasonTag": "同標籤：{{value}}",
+      "reasonPublisher": "同發行商：{{value}}",
+      "reasonPopular": "近期熱門",
+      "reasonRanking": "月榜 #{{rank}}",
+      "refresh": "重新整理推薦"
+    },
     "actresses": {
       "noCodeData": "該女優暫無番號資料",
       "worksTitle": "{{name}} 的作品",

@@ -29,6 +29,8 @@ const ALLOWED_IMAGE_HOSTS = [
   'javbus.com',
   'pics.javbus.com',
   'img.javbus.com',
+  // JavDB 榜单封面 CDN（P3 导入的 cover_url）
+  'tp.spfcas.com',
   'lain.bgm.tv',
   'image.tmdb.org',
   'uploads.mangadex.org',
@@ -106,6 +108,7 @@ javRoutes.get('/proxy-image', async (c) => {
     'javbus.com': 'https://www.javbus.com/',
     'pics.javbus.com': 'https://www.javbus.com/',
     'img.javbus.com': 'https://www.javbus.com/',
+    'tp.spfcas.com': 'https://javdb.com/',
     'www.xqishuta.org': 'http://www.xqishuta.org/',
     'www.minnano-av.com': 'https://www.minnano-av.com/',
   };

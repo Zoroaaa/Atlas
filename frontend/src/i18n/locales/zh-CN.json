@@ -1940,6 +1940,20 @@
       "cacheAgePrefix": "· 缓存 {{age}}",
       "reshuffleHint": "🔀 刷新将重新随机"
     },
+    "recommend": {
+      "titleForYou": "为你推荐",
+      "titlePopular": "热门推荐",
+      "titleRelated": "相关推荐",
+      "basis": "推荐依据你的收藏与搜索记录生成：收藏是主要依据，喜欢的作品请点收藏；同一演员或标签被反复搜索，也会计入。",
+      "basisRelated": "依据当前作品的演员、标签、发行商匹配站内作品生成。",
+      "basisPopular": "依据站内近 30 天的收藏与搜索热度生成。",
+      "reasonActor": "同演员：{{value}}",
+      "reasonTag": "同标签：{{value}}",
+      "reasonPublisher": "同发行商：{{value}}",
+      "reasonPopular": "近期热门",
+      "reasonRanking": "月榜 #{{rank}}",
+      "refresh": "刷新推荐"
+    },
     "actresses": {
       "noCodeData": "该女优暂无番号数据",
       "worksTitle": "{{name}} 的作品",
