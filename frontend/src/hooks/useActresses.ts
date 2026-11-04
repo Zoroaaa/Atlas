@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/services/api';
 import i18next from '@/i18n';
-import type { ActressEntry } from '@/types/jav';
+import type { HotActressRanking } from '@/types/jav';
 import { ACTRESSES_CACHE_KEY, ACTRESSES_CACHE_TTL } from '@/types/jav';
 
 interface CacheEntry {
-  data: ActressEntry[];
+  data: HotActressRanking;
   cachedAt: number;
 }
 
-function readCache(): ActressEntry[] | null {
+function readCache(): HotActressRanking | null {
   try {
     const raw = localStorage.getItem(ACTRESSES_CACHE_KEY);
     if (!raw) return null;
@@ -18,13 +18,14 @@ function readCache(): ActressEntry[] | null {
       localStorage.removeItem(ACTRESSES_CACHE_KEY);
       return null;
     }
+    if (!Array.isArray(entry.data?.items)) return null;
     return entry.data;
   } catch {
     return null;
   }
 }
 
-function writeCache(data: ActressEntry[]): void {
+function writeCache(data: HotActressRanking): void {
   try {
     const entry: CacheEntry = { data, cachedAt: Date.now() };
     localStorage.setItem(ACTRESSES_CACHE_KEY, JSON.stringify(entry));
@@ -33,8 +34,16 @@ function writeCache(data: ActressEntry[]): void {
   }
 }
 
+function clearCache(): void {
+  try {
+    localStorage.removeItem(ACTRESSES_CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function useActresses() {
-  const [data, setData] = useState<ActressEntry[]>([]);
+  const [data, setData] = useState<HotActressRanking | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,13 +54,17 @@ export function useActresses() {
         setData(cached);
         return;
       }
+    } else {
+      clearCache();
     }
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const resp = await apiClient.get<{ success: boolean; data: ActressEntry[] }>('/jav/actresses');
+      const resp = await apiClient.get<{ success: boolean; data: HotActressRanking }>(
+        `/jav/actresses${force ? '?refresh=1' : ''}`
+      );
       if (resp.success && resp.data) {
         writeCache(resp.data);
         setData(resp.data);

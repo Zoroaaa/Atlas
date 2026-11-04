@@ -186,6 +186,46 @@ export const DB_CONFIG_KEYS = {
 } as const;
 
 // ==================================================================
+// JAV 榜单常量 — 周榜/月榜来源、面板限量、热门女优权重
+// ==================================================================
+
+export const JAV_RANKING = {
+  SOURCE: {
+    CENSORED_WEEKLY: {
+      name: 'JavDB:有码周榜',
+      section: 'censored' as const,
+      period: 'weekly' as const,
+      url: 'https://javdb.com/rankings/movies?period=week&type=censored',
+    },
+    UNCENSORED_WEEKLY: {
+      name: 'JavDB:无码周榜',
+      section: 'uncensored' as const,
+      period: 'weekly' as const,
+      url: 'https://javdb.com/rankings/movies?period=week&type=uncensored',
+    },
+    CENSORED_MONTHLY: {
+      name: 'JavDB:有码月榜',
+      section: 'censored' as const,
+      period: 'monthly' as const,
+      url: 'https://javdb.com/rankings/movies?period=month&type=censored',
+    },
+    UNCENSORED_MONTHLY: {
+      name: 'JavDB:无码月榜',
+      section: 'uncensored' as const,
+      period: 'monthly' as const,
+      url: 'https://javdb.com/rankings/movies?period=month&type=uncensored',
+    },
+  },
+  PANEL_LIMIT: 20,
+  CACHE_TTL_SECONDS: 30 * 60,
+  MIN_IMPORT_ITEMS: 5,
+  ACTRESS_LIMIT: 12,
+  ACTRESS_CACHE_TTL_SECONDS: 30 * 60,
+  ACTRESS_USER_WEIGHT: 3,
+  ACTRESS_WORK_WEIGHT: 2,
+} as const;
+
+// ==================================================================
 // 推荐系统常量 — 代码级固定规则，改了需重新部署
 // ==================================================================
 

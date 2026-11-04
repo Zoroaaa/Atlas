@@ -245,6 +245,8 @@ npm-debug.log*
 
 ### 2. 分支管理
 
+> 仓库默认分支为 `main`；历史分支 `v1` / `v2` / `v3` 已删除，请勿再向这些分支推送。
+
 ```bash
 # 创建新功能分支
 git checkout -b feature/new-feature

@@ -2,20 +2,10 @@ name: Deploy to Cloudflare Workers
 
 on:
   push:
-    branches: [ main, v3 ]
+    branches: [ main ]
     paths: ['backend/**']
   workflow_dispatch:
     inputs:
-      branch:
-        description: '选择要部署的分支'
-        required: true
-        default: 'v3'
-        type: choice
-        options:
-          - main
-          - v1
-          - v2
-          - v3
       environment:
         description: '部署环境'
         required: true
@@ -34,7 +24,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js 20

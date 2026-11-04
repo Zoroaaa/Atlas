@@ -15,6 +15,7 @@
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { isClassicJavCodePrefix, normalizeJavCode } from '@codeseek/shared/utils';
 import { Env, JwtPayload } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware } from '@/middleware';
@@ -400,8 +401,8 @@ searchRoutes.get('/suggestions', async (c) => {
 
     // JAV 番号 WAAA-624 / WAAA624 等价：匹配历史时额外忽略横杠
     const sourceProvider = source && source !== 'all' ? providerRegistry.getByCategory(source) : undefined;
-    const compactPrefix = sourceProvider?.id === 'jav' && /^[A-Za-z]{2,8}-?\d{0,6}$/.test(trimmedKeyword)
-      ? `${trimmedKeyword.replace(/-/g, '')}%`
+    const compactPrefix = sourceProvider?.id === 'jav' && isClassicJavCodePrefix(trimmedKeyword)
+      ? `${normalizeJavCode(trimmedKeyword).replace(/-/g, '')}%`
       : undefined;
 
     // source 过滤：优先查具体 source，同时兼容 'all'

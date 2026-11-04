@@ -500,7 +500,7 @@ export const schemas = {
     import: z.object({
       source: z.enum(['javdb']),
       section: z.enum(['censored', 'uncensored']),
-      period: z.enum(['monthly']),
+      period: z.enum(['weekly', 'monthly']),
       fetchedAt: z.number().int().optional(),
       items: z.array(z.object({
         code: z.string().min(1).max(40),

@@ -8,8 +8,8 @@ import { RECOMMEND } from '@/constants';
 import { enrichDataRecordFromDetail } from './data-storage';
 import {
   getHtml,
-  isValidCode,
-  normalizeCode,
+  isJavCodeLike,
+  normalizeJavCode,
   parseJavDetail,
 } from './jav-utils';
 
@@ -114,8 +114,8 @@ export async function enrichPendingJavRecords(
 
   const pending: PendingRecord[] = [];
   for (const row of rows.results || []) {
-    const code = normalizeCode(row.code || '');
-    if (!isValidCode(code)) continue;
+    const code = normalizeJavCode(row.code || '');
+    if (!isJavCodeLike(code)) continue;
 
     const state = parseState(row.content_data);
     if (Number(state.enrichAttempts) >= RECOMMEND.ENRICH_MAX_FAILURES) {

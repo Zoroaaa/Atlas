@@ -1,7 +1,8 @@
 import React from 'react';
-import { TrendingUp, List, Grid, X, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Globe, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
+import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, IconAction } from '@/components/workbench';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { SearchResult, FavoriteItem, Category, MajorCategory } from '@/types';
 
@@ -14,165 +15,115 @@ interface SearchResultItem extends SearchResult {
 
 interface SearchResultsPanelProps {
   results: SearchResultItem[];
-  viewMode: 'grid' | 'list';
   isAuthenticated: boolean;
   isProxyEnabled: boolean;
   favorites: FavoriteItem[];
   categories: Category[];
   majorCategories: MajorCategory[];
-  onViewModeChange: (mode: 'grid' | 'list') => void;
-  onClose: () => void;
   onToggleFavorite: (result: SearchResultItem) => void;
 }
 
+/** 多源直达：紧凑行列表，不再有列表/网格切换。 */
 export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
   results,
-  viewMode,
   isAuthenticated,
   isProxyEnabled,
   favorites,
   categories,
   majorCategories,
-  onViewModeChange,
-  onClose,
   onToggleFavorite,
 }) => {
   const { t } = useTranslation(['search']);
-  const isFavorite = (url: string) => favorites.some(f => f.url === url);
+  const isFavorite = (url: string) => favorites.some((favorite) => favorite.url === url);
 
-  const getCategoryBadge = (categoryId?: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-    const majorCategory = majorCategories.find(mc => mc.id === category.majorCategoryId);
-    if (majorCategory?.color) return 'bg-opacity-20 text-opacity-90';
-    return 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300';
+  const getCategory = (categoryId?: string) => {
+    const category = categories.find((item) => item.id === categoryId);
+    if (!category) return null;
+    const major = majorCategories.find((item) => item.id === category.majorCategoryId);
+    return { category, major };
   };
 
-  const getCategoryLabel = (categoryId?: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return t('search:results.defaultCategoryLabel');
-    return category.name;
-  };
-
-  const getCategoryStyle = (categoryId?: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return {};
-    const majorCategory = majorCategories.find(mc => mc.id === category.majorCategoryId);
-    if (majorCategory?.color) return { backgroundColor: `${majorCategory.color}20`, color: majorCategory.color };
-    return {};
-  };
-
-  const getSiteTypeBadge = (siteType?: string) => {
-    const map: Record<string, { label: string; cls: string }> = {
-      search: { label: t('search:results.siteTypeSearch'), cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
-      browse: { label: t('search:results.siteTypeBrowse'), cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
-      reference: { label: t('search:results.siteTypeReference'), cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  const getSiteTypeLabel = (siteType?: string) => {
+    const map: Record<string, string> = {
+      search: t('search:results.siteTypeSearch'),
+      browse: t('search:results.siteTypeBrowse'),
+      reference: t('search:results.siteTypeReference'),
     };
-    return map[siteType || 'search'] || map.search;
+    return map[siteType || 'search'] ?? map.search;
   };
 
   if (results.length === 0) return null;
 
   return (
-    <div className="bg-white dark:bg-surface-900/80 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 p-3 sm:p-5 mb-4 sm:mb-6 backdrop-blur-sm animate-fade-in">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-600 dark:text-primary-400" />
-          </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:results.title')}</span>
-          <span className="px-2 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full">
-            {results.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5 sm:gap-1">
-          <button
-            onClick={() => onViewModeChange('list')}
-            className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'}`}
-          >
-            <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-          <button
-            onClick={() => onViewModeChange('grid')}
-            className={`p-1.5 sm:p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'}`}
-          >
-            <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-lg text-surface-400 hover:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all ml-1"
-          >
-            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className={viewMode === 'grid' ? 'result-grid grid gap-2 sm:gap-3' : 'space-y-2'}>
-        {results.map((result, index) => (
-          <div key={index} className="result-card p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <SourceIcon icon={result.sourceIcon} name={result.sourceName} size="md" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <h3 className="font-semibold text-surface-900 dark:text-surface-100 text-xs sm:text-sm">{result.sourceName}</h3>
+    <PanelSection>
+      <PanelHeader
+        icon={<Globe className="h-4 w-4" />}
+        title={t('search:results.title')}
+        count={<CountBadge>{results.length}</CountBadge>}
+      />
+      <div className="divide-y divide-surface-100 px-2 pb-2 dark:divide-surface-800/70 sm:px-3 sm:pb-3">
+        {results.map((result, index) => {
+          const categoryInfo = getCategory(result.category);
+          return (
+            <ResourceRow
+              key={`${result.url}-${index}`}
+              leading={<SourceIcon icon={result.sourceIcon} name={result.sourceName} size="md" />}
+              title={<span className="font-semibold text-surface-900 dark:text-surface-100">{result.sourceName}</span>}
+              badges={
+                <>
+                  {categoryInfo ? (
                     <span
-                      className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md font-medium ${getCategoryBadge(result.category)}`}
-                      style={getCategoryStyle(result.category)}
+                      className="inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[10px] font-medium"
+                      style={{
+                        backgroundColor: categoryInfo.major?.color ? `${categoryInfo.major.color}20` : undefined,
+                        color: categoryInfo.major?.color,
+                      }}
                     >
-                      {getCategoryLabel(result.category)}
+                      {categoryInfo.category.name}
                     </span>
-                    {(() => { const badge = getSiteTypeBadge(result.siteType); return (
-                      <span className={`hidden sm:inline text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md font-medium ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    ); })()}
-                    {isProxyEnabled && (
-                      <span className="hidden sm:flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md font-medium bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400">
-                        <ShieldCheck className="w-3 h-3" />{t('search:results.proxy')}
-                      </span>
-                    )}
-                  </div>
-                  {result.subtitle && (
-                    <p className="text-[10px] sm:text-xs text-surface-500 dark:text-surface-400 mt-0.5 truncate">{result.subtitle}</p>
+                  ) : (
+                    <Chip tone="warning" size="xs">{t('search:results.defaultCategoryLabel')}</Chip>
                   )}
-                  {result.description && (
-                    <p className="text-[10px] sm:text-xs text-surface-400 dark:text-surface-500 mt-0.5 line-clamp-1">{result.description}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                {isAuthenticated && (
-                  <button
-                    onClick={() => onToggleFavorite(result)}
-                    className={`p-1.5 sm:p-2 rounded-lg transition-all ${
-                      isFavorite(result.url || '')
-                        ? 'text-error-500 bg-error-50 dark:bg-error-900/20'
-                        : 'text-surface-400 hover:text-error-500 hover:bg-error-50 dark:hover:bg-error-900/20'
-                    }`}
-                    title={isFavorite(result.url || '') ? t('search:results.unfavorite') : t('search:results.favorite')}
-                  >
-                    <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isFavorite(result.url || '') ? 'fill-current' : ''}`} />
-                  </button>
-                )}
-                {result.url && (
-                  <button
-                    onClick={() => window.open(isProxyEnabled ? convertToProxyUrl(result.url) : result.url, '_blank')}
-                    className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold text-white transition-all shadow-md ${
-                      isProxyEnabled
-                        ? 'bg-gradient-to-r from-success-500 to-teal-500 hover:from-success-600 hover:to-teal-600 shadow-success-500/25'
-                        : 'bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 shadow-primary-500/25'
-                    }`}
-                  >
-                    <span className="hidden sm:inline">{t('search:results.go')}</span>
-                    <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+                  <Chip tone="source" size="xs">{getSiteTypeLabel(result.siteType)}</Chip>
+                  {isProxyEnabled ? (
+                    <Chip tone="proxy" size="xs">
+                      <ShieldCheck className="h-2.5 w-2.5" />
+                      {t('search:results.proxy')}
+                    </Chip>
+                  ) : null}
+                </>
+              }
+              meta={[result.subtitle, result.description].filter(Boolean) as React.ReactNode[]}
+              trailing={
+                <>
+                  {isAuthenticated ? (
+                    <IconAction
+                      icon={<Heart className={`h-3.5 w-3.5 ${isFavorite(result.url || '') ? 'fill-current' : ''}`} />}
+                      label={isFavorite(result.url || '') ? t('search:results.unfavorite') : t('search:results.favorite')}
+                      tone={isFavorite(result.url || '') ? 'danger' : 'default'}
+                      onClick={() => onToggleFavorite(result)}
+                    />
+                  ) : null}
+                  {result.url ? (
+                    <button
+                      type="button"
+                      onClick={() => window.open(isProxyEnabled ? convertToProxyUrl(result.url) : result.url, '_blank')}
+                      className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold text-white ${
+                        isProxyEnabled
+                          ? 'bg-success-600 hover:bg-success-700'
+                          : 'bg-primary-500 hover:bg-primary-600'
+                      }`}
+                    >
+                      <span className="hidden sm:inline">{t('search:results.go')}</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                  ) : null}
+                </>
+              }
+            />
+          );
+        })}
       </div>
-    </div>
+    </PanelSection>
   );
 };

@@ -1,4 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  compactJavCode,
+  isClassicJavCode,
+  isJavCodeLike,
+  normalizeJavCode,
+} from '@codeseek/shared/utils';
 import { useSearchStore } from '@/stores';
 import { searchApi } from '@/services/api';
 import { useSearchConfig } from '@/contexts';
@@ -12,22 +18,12 @@ interface UseSearchSuggestionsOptions {
   source?: string;
 }
 
-/** JAV 番号格式：字母(2-8位) + 可选横杠 + 数字(2-6位)，如 URVRSP-589 / URVRSP589 */
-const JAV_CODE_RE = /^[A-Za-z]{2,8}-?\d{2,6}$/;
-
-/** 去掉横杠，使 WAAA-624 与 WAAA624 成为同一个 key */
-function compactJavCode(value: string): string {
-  return value.trim().toUpperCase().replace(/-/g, '');
-}
-
-function isJavCode(value: string): boolean {
-  return JAV_CODE_RE.test(value.trim());
-}
-
-/** 同一番号同时给出带横杠和不带横杠两种写法 */
+/** 同一番号同时给出带横杠和不带横杠两种写法（仅经典番号） */
 function expandJavCodeVariants(code: string): string[] {
-  const m = compactJavCode(code).match(/^([A-Z]+)(\d+)$/);
-  return m ? [`${m[1]}-${m[2]}`, `${m[1]}${m[2]}`] : [code.trim()];
+  if (!isJavCodeLike(code)) return [code.trim()];
+  const normalized = normalizeJavCode(code);
+  if (!isClassicJavCode(normalized)) return [normalized];
+  return [normalized, compactJavCode(normalized)];
 }
 
 export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) {
@@ -117,12 +113,12 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
       return searchHistory.slice(0, 5);
     }
     const lowerKeyword = keyword.trim().toLowerCase();
-    const compactKeyword = compactJavCode(keyword);
+    const compactKeyword = compactJavCode(keyword).replace(/[-_]/g, '');
     return searchHistory
       .filter(item => {
         // JAV 番号：忽略横杠参与匹配（WAAA-624 与 WAAA624 等价）
-        if (isJavSource && isJavCode(item.query)) {
-          return compactJavCode(item.query).includes(compactKeyword);
+        if (isJavSource && isJavCodeLike(item.query)) {
+          return compactJavCode(item.query).replace(/[-_]/g, '').includes(compactKeyword);
         }
         return item.query.toLowerCase().includes(lowerKeyword);
       })
@@ -133,9 +129,9 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
     const result: SearchSuggestionItem[] = [];
     const seen = new Set<string>();
     const normalizeKey = (value: string) =>
-      isJavSource && isJavCode(value) ? `jav:${compactJavCode(value)}` : value.trim().toLowerCase();
+      isJavSource && isJavCodeLike(value) ? `jav:${compactJavCode(value)}` : value.trim().toLowerCase();
     const expand = (value: string) =>
-      isJavSource && isJavCode(value) ? expandJavCodeVariants(value) : [value.trim()];
+      isJavSource && isJavCodeLike(value) ? expandJavCodeVariants(value) : [value.trim()];
 
     // 历史优先，其次 API 建议；同番号的两种写法去重后展示
     for (const h of getHistorySuggestions()) {

@@ -15,6 +15,8 @@ export interface JavRecommendationItem {
   reason: {
     type: RecommendReasonType;
     value?: string;
+    /** 榜单来源周期（仅 type='ranking'） */
+    period?: 'weekly' | 'monthly';
   };
 }
 

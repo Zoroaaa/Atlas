@@ -71,7 +71,7 @@ app.use('*', secureHeaders({
 app.get('/', (c) => {
   return c.json({
     name: 'CodeSeek API',
-    version: c.env.APP_VERSION || '4.3.0',
+    version: c.env.APP_VERSION || '1.5.0',
     status: 'running',
   });
 });

@@ -4,6 +4,7 @@ import { useSearchMutation, useSearchHistory, useSearchSuggestions, searchHistor
 import { userApi, analyticsApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { isJavCodeLike } from '@codeseek/shared/utils';
 import i18next from '@/i18n';
 import { SEARCH_TABS } from '@/config/tabs';
 import type { SearchTabType, JavSubMode } from '@/types/source';
@@ -12,11 +13,6 @@ import type { JavDetail } from '@/types/jav';
 import type { SearchEndpointResponse, SearchResponseItem } from '@/services/api/types';
 import type { SearchResult } from '@/types';
 import type { SearchSuggestionItem } from './useSearchSuggestions';
-
-/** JAV 番号格式：字母(2-8位) + 可选横杠 + 数字(2-6位)，如 URVRSP-589、BUFE-133 */
-export function isValidJavCode(code: string): boolean {
-  return /^[A-Za-z]{2,8}-?\d{2,6}$/.test(code.trim());
-}
 
 export interface SearchResultItem extends SearchResult {
   subtitle?: string;
@@ -58,6 +54,7 @@ export function useSearchFlow({
 
   // ── Local state (previously in searchStore) ──
   const [isSearching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [enrichedData, setEnrichedData] = useState<EnrichedSearchData | null>(null);
   const [enrichedPage, setEnrichedPage] = useState(1);
@@ -113,11 +110,8 @@ export function useSearchFlow({
       toast.warning(i18next.t('errors:hooks.search.keywordRequired'));
       return;
     }
-    // JAV 番号搜索格式校验：仅 code 模式生效
-    if (activeTab === 'jav' && effectiveSubMode === 'code' && !isValidJavCode(query)) {
-      toast.warning(i18next.t('errors:hooks.search.formatErrorTitle'), i18next.t('errors:hooks.search.formatErrorMessage'));
-      return;
-    }
+    // 番号模式不再硬拦截：识别不了的输入由后端按标题/多源搜索回退
+    setHasSearched(true);
     // 关闭搜索建议
     setShowSuggestions(false);
     // 通知外部（用于 URL 同步等）：携带 effectiveSubMode，避免外部闭包捕获旧 javSubMode
@@ -165,6 +159,17 @@ export function useSearchFlow({
 
             if (javData.detail) {
               setJavEnrichedDetail(javData.detail as JavDetail);
+            }
+            if (javData.fallback === 'title') {
+              toast.info(
+                i18next.t('errors:hooks.search.fallbackTitleTitle'),
+                i18next.t('errors:hooks.search.fallbackTitleMessage')
+              );
+            } else if (javData.fallback === 'sources-only') {
+              toast.info(
+                i18next.t('errors:hooks.search.fallbackSourcesTitle'),
+                i18next.t('errors:hooks.search.fallbackSourcesMessage')
+              );
             }
             if (javData.results) {
               const mapped: SearchResultItem[] = javData.results.map(r => ({
@@ -227,8 +232,8 @@ export function useSearchFlow({
             toast.info(i18next.t('errors:hooks.search.notFoundTitle'), i18next.t('errors:hooks.search.notFoundMessage'));
           }
         }
-        const trimmed = query.trim().toUpperCase();
-        if (activeTab === 'jav' && /^[A-Z]{2,8}-?\d{2,6}$/.test(trimmed)) {
+        const trimmed = query.trim();
+        if (activeTab === 'jav' && isJavCodeLike(trimmed)) {
           if (!javEnrichedDetail) {
             fetchJavDetail(trimmed);
           }
@@ -264,17 +269,19 @@ export function useSearchFlow({
   const resetResults = useCallback(() => {
     setSearchResults([]);
     setEnrichedData(null);
+    setHasSearched(false);
   }, []);
 
-  // JAV 输入格式校验：仅在 JAV tab + code 模式且输入非空时生效
-  const javFormatValid = activeTab === 'jav' && javSubMode === 'code' && keyword.trim().length > 0
-    ? isValidJavCode(keyword)
-    : true;
+  // JAV 输入提示：仅在 JAV tab + code 模式且输入非空、未识别为标准番号时显示
+  const javFormatHintVisible = activeTab === 'jav' && javSubMode === 'code' && keyword.trim().length > 0
+    ? !isJavCodeLike(keyword)
+    : false;
 
   return {
     keyword,
     setKeyword,
     isSearching,
+    hasSearched,
     searchResults,
     enrichedData,
     enrichedPage,
@@ -282,7 +289,7 @@ export function useSearchFlow({
     handleKeyDown,
     handleCodeClick,
     resetResults,
-    javFormatValid,
+    javFormatHintVisible,
     // Search suggestions
     suggestions,
     isLoadingSuggestions,

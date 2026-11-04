@@ -116,7 +116,7 @@ export interface AnimeSearchResult {
     animetosho: string | null;
     showrss: string | null;
   };
-  /** 作品级归组结果（v4.2 新增） */
+  /** 作品级归组结果（v1.3.0 新增） */
   grouped?: {
     groups: AnimeGroupedItem[];
     ungrouped: AnimeUnifiedResource[];

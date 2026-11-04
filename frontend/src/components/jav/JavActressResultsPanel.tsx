@@ -1,31 +1,34 @@
 /**
  * JavActressResultsPanel — JAV 女优搜索结果面板
  *
- * 当 javtab 处于 actress 子模式时渲染，展示 JavBus 抓取的女优资料。
- * 数据来源：后端 JavProvider.searchActress（javSubMode==='actress' 时走该分支）。
- *
- * 图片代理：统一走后端 /api/jav/proxy-image（getProxyImageUrl），
- * 而非前缀式 convertToProxyUrl —— 后者对图片会触发浏览器的 ORB。
+ * 女优资料与女优作品为两个连续区段，不再各自套独立卡片。
  */
 import { useState } from 'react';
-import { Heart, Users, ChevronLeft, ChevronRight, Wifi, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
+import { Heart, Users, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
-import type { JavItem } from '@/types/jav';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
 import { ShareToCommunityButton } from '@/components/community/ShareToCommunityButton';
+import {
+  PanelSection,
+  PanelHeader,
+  MediaCard,
+  Chip,
+  CountBadge,
+  Pagination,
+  EmptyBlock,
+  Notice,
+} from '@/components/workbench';
 
 const PAGE_SIZE = 10;
 
-// ─── 女优卡片 ────────────────────────────────────────────────────────────
-
 function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <Icon className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 shrink-0" />
-      <span className="text-stone-400 dark:text-stone-500 text-xs shrink-0">{label}</span>
-      <span className="text-stone-700 dark:text-stone-200 text-xs font-medium truncate">{value}</span>
+    <div className="flex min-w-0 items-center gap-1.5">
+      <Icon className="h-3.5 w-3.5 shrink-0 text-surface-400" />
+      <span className="type-micro shrink-0 text-surface-500">{label}</span>
+      <span className="type-micro min-w-0 truncate font-medium text-surface-700 dark:text-surface-200">{value}</span>
     </div>
   );
 }
@@ -41,9 +44,7 @@ interface ActressCardProps {
 
 function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onToggleFavorite, onLoginRequired }: ActressCardProps) {
   const { t } = useTranslation(['jav']);
-  // 统一走后端 /api/jav/proxy-image 避开浏览器 ORB
   const imgSrc = item.cover ? getProxyImageUrl(item.cover) : undefined;
-  // 详情跳转遵守用户配置的网址跳转代理
   const detailHref = isProxyEnabled ? convertToProxyUrl(item.detailUrl) : item.detailUrl;
 
   const metrics: string[] = [];
@@ -53,80 +54,64 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
   if (item.hip) metrics.push(`H${item.hip}`);
 
   return (
-    <div className="flex items-start gap-4 px-4 py-3.5 rounded-xl border border-stone-100 dark:border-stone-800 hover:border-pink-200 dark:hover:border-pink-900/50 hover:bg-pink-50/30 dark:hover:bg-pink-900/5 transition-all">
-      {/* 封面 */}
-      {imgSrc && (
+    <div className="flex items-start gap-3 border-b border-surface-100 py-3 last:border-b-0 dark:border-surface-800/70">
+      {imgSrc ? (
         <img
           src={imgSrc}
           alt={item.name}
           loading="lazy"
-          className="shrink-0 w-16 h-20 rounded-lg object-cover bg-stone-100 dark:bg-stone-800 ring-1 ring-stone-200/60 dark:ring-stone-700/60"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+          className="h-20 w-16 shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+          onError={(event) => {
+            (event.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+          }}
         />
-      )}
+      ) : null}
 
-      {/* 信息主体 */}
-      <div className="min-w-0 flex-1 space-y-2">
-        {/* 名字 */}
-        <div className="flex items-baseline gap-2 flex-wrap">
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-baseline gap-2">
           {item.detailUrl ? (
             <a
               href={detailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-base font-bold text-stone-900 dark:text-stone-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              className="truncate text-[15px] font-semibold text-surface-900 transition-colors hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-300"
             >
               {item.name}
             </a>
           ) : (
-            <span className="text-base font-bold text-stone-900 dark:text-stone-100">{item.name}</span>
+            <span className="truncate text-[15px] font-semibold text-surface-900 dark:text-surface-100">{item.name}</span>
           )}
         </div>
 
-        {/* 三围：醒目的彩色 chip */}
-        {metrics.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {metrics.map((m, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 rounded-md"
-              >
-                {m}
-              </span>
+        {metrics.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {metrics.map((metric, index) => (
+              <Chip key={`${metric}-${index}`} tone="accent" size="xs">{metric}</Chip>
             ))}
           </div>
-        )}
+        ) : null}
 
-        {/* 基本信息分组：grid 双列布局，每项 label:value 清晰 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1">
-          {item.birthday && (
-            <InfoRow icon={Calendar} label={t('jav:actressResults.birthday')} value={item.birthday} />
-          )}
-          {item.age !== undefined && (
-            <InfoRow icon={Cake} label={t('jav:actressResults.age')} value={String(item.age)} />
-          )}
-          {item.prefecture && (
-            <InfoRow icon={MapPin} label={t('jav:actressResults.prefecture')} value={item.prefecture} />
-          )}
-          {item.hobby && (
-            <InfoRow icon={Sparkles} label={t('jav:actressResults.hobby')} value={item.hobby} />
-          )}
+        <div className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+          {item.birthday ? <InfoRow icon={Calendar} label={t('jav:actressResults.birthday')} value={item.birthday} /> : null}
+          {item.age !== undefined ? <InfoRow icon={Cake} label={t('jav:actressResults.age')} value={String(item.age)} /> : null}
+          {item.prefecture ? <InfoRow icon={MapPin} label={t('jav:actressResults.prefecture')} value={item.prefecture} /> : null}
+          {item.hobby ? <InfoRow icon={Sparkles} label={t('jav:actressResults.hobby')} value={item.hobby} /> : null}
         </div>
       </div>
 
-      {/* 收藏 + 分享 */}
-      <div className="flex flex-col items-center gap-1.5 shrink-0">
+      <div className="flex shrink-0 flex-col items-center gap-1">
         <button
+          type="button"
           onClick={() => onToggleFavorite(item)}
           disabled={!isAuthenticated}
-          className={`p-1.5 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+          aria-label={isFavorited ? t('jav:actressResults.unfavorite') : t('jav:actressResults.favorite')}
+          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             isFavorited
-              ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-              : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+              ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+              : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
           }`}
-          title={isFavorited ? t('jav:actressResults.unfavorite') : t('jav:actressResults.favorite')}
         >
-          <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
+          <Heart className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
         </button>
         <ShareToCommunityButton
           postData={{
@@ -158,8 +143,6 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
   );
 }
 
-// ─── 主面板 ──────────────────────────────────────────────────────────────
-
 export interface JavActressResultsPanelProps {
   data: JavEnrichedData;
   favoritedCodes: Set<string>;
@@ -167,11 +150,18 @@ export interface JavActressResultsPanelProps {
   isProxyEnabled?: boolean;
   onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
-  /** 点击作品卡片时触发，携带番号 — 调用方应切换到 code 子模式并搜索 */
   onWorkClick?: (code: string) => void;
 }
 
-export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, isProxyEnabled = false, onToggleFavorite, onLoginRequired, onWorkClick }: JavActressResultsPanelProps) {
+export function JavActressResultsPanel({
+  data,
+  favoritedCodes,
+  isAuthenticated,
+  isProxyEnabled = false,
+  onToggleFavorite,
+  onLoginRequired,
+  onWorkClick,
+}: JavActressResultsPanelProps) {
   const { t } = useTranslation(['jav']);
   const [page, setPage] = useState(1);
   const actresses = data.actresses ?? [];
@@ -180,36 +170,33 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
 
   const actressSearchUrl = `https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;
   const actressSearchHref = isProxyEnabled ? convertToProxyUrl(actressSearchUrl) : actressSearchUrl;
+  const worksSearchUrl = `https://www.javbus.com/search/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;
+  const worksSearchHref = isProxyEnabled ? convertToProxyUrl(worksSearchUrl) : worksSearchUrl;
 
   const totalPages = Math.max(1, Math.ceil(actresses.length / PAGE_SIZE));
   const paged = actresses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <>
-    {actresses.length > 0 ? (
-      <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
-              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500 dark:text-pink-400" />
-            </div>
-            <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.title')}</span>
-            <span className="px-2 py-0.5 text-xs font-bold bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">{t('jav:actressResults.actressCount', { count: actresses.length })}</span>
-          </div>
-          <a
-            href={actressSearchHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-pink-500 hover:text-pink-400 transition-colors"
-          >
-            {t('jav:actressResults.javbusActressSearch')}
-          </a>
-        </div>
+      <PanelSection>
+        <PanelHeader
+          icon={<Users className="h-4 w-4 text-accent-500" />}
+          title={t('jav:actressResults.title')}
+          count={actresses.length > 0 ? <CountBadge>{t('jav:actressResults.actressCount', { count: actresses.length })}</CountBadge> : undefined}
+          actions={
+            <a
+              href={actressSearchHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="type-micro text-primary-500 hover:underline"
+            >
+              {t('jav:actressResults.javbusActressSearch')}
+            </a>
+          }
+        />
 
-        {/* 列表 */}
-        <div className="p-4 sm:p-5">
-          <div className="space-y-2.5">
+        {actresses.length > 0 ? (
+          <div className="px-4 pb-3 sm:px-5 sm:pb-4">
             {paged.map((item) => (
               <ActressCard
                 key={item.id}
@@ -221,180 +208,73 @@ export function JavActressResultsPanel({ data, favoritedCodes, isAuthenticated, 
                 onLoginRequired={onLoginRequired}
               />
             ))}
-
-            {/* 分页 */}
-            {actresses.length > PAGE_SIZE && (
-              <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" /> {t('jav:actressResults.previousPage')}
-                </button>
-                <span className="text-xs text-stone-500 px-2">
-                  {page} / {totalPages}
-                  <span className="ml-1 text-stone-400">{t('jav:actressResults.totalCount', { count: actresses.length })}</span>
-                </span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                >
-                  {t('jav:actressResults.nextPage')} <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+              prevLabel={t('jav:actressResults.previousPage')}
+              nextLabel={t('jav:actressResults.nextPage')}
+              totalLabel={t('jav:actressResults.totalCount', { count: actresses.length })}
+            />
+          </div>
+        ) : (
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+            {errorMsg ? (
+              <Notice tone="error">{t('jav:actressResults.searchFailed', { message: errorMsg })}</Notice>
+            ) : (
+              <EmptyBlock
+                icon={<SearchX className="h-7 w-7" />}
+                title={t('jav:actressResults.notFound')}
+                className="bg-transparent"
+              />
             )}
           </div>
-        </div>
-      </div>
-    ) : (
-      /* 无女优资料：资料源失败 / 未匹配，二者必须可见，不能静默留白 */
-      <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 p-6">
-        {errorMsg ? (
-          <div className="flex items-center gap-2 text-pink-600 dark:text-pink-400">
-            <Wifi className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">{t('jav:actressResults.searchFailed', { message: errorMsg })}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
-            <SearchX className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">{t('jav:actressResults.notFound')}</span>
-          </div>
         )}
-      </div>
-    )}
+      </PanelSection>
 
-    {/* JavBus 作品列表 — 仅当有作品数据时渲染（与女优资料抓取解耦） */}
-    {works.length > 0 && (
-      <ActressWorksSection
-        works={works}
-        normalizedKeyword={data.normalizedKeyword ?? data.keyword}
-        isProxyEnabled={isProxyEnabled}
-        onWorkClick={onWorkClick}
-      />
-    )}
-    </>
-  );
-}
-
-// ─── 女优作品区（JavBus 搜索结果） ───────────────────────────────────────
-
-function ActressWorksSection({
-  works,
-  normalizedKeyword,
-  isProxyEnabled,
-  onWorkClick,
-}: {
-  works: JavItem[];
-  normalizedKeyword: string;
-  isProxyEnabled: boolean;
-  onWorkClick?: (code: string) => void;
-}) {
-  const { t } = useTranslation(['jav']);
-  const searchUrl = `https://www.javbus.com/search/${encodeURIComponent(normalizedKeyword)}`;
-  const searchHref = isProxyEnabled ? convertToProxyUrl(searchUrl) : searchUrl;
-  return (
-    <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
-      {/* 头部 */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-            <Film className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
-          </div>
-          <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">{t('jav:actressResults.worksTitle')}</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">{t('jav:actressResults.worksCount', { count: works.length })}</span>
-        </div>
-        <a
-          href={searchHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-400 transition-colors"
-        >
-          {t('jav:actressResults.javbusSearch')}
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
-
-      {/* 作品网格 */}
-      <div className="p-4 sm:p-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {works.map((work, i) => (
-            <WorkCard key={`${work.code}-${i}`} work={work} onClick={onWorkClick} isProxyEnabled={isProxyEnabled} />
-          ))}
-        </div>
-        {onWorkClick && (
-          <p className="mt-3 text-[10px] text-stone-400 dark:text-stone-500 text-center">
-            {t('jav:actressResults.workClickHint')}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function WorkCard({ work, onClick, isProxyEnabled = false }: { work: JavItem; onClick?: (code: string) => void; isProxyEnabled?: boolean }) {
-  const imgSrc = work.cover ? getProxyImageUrl(work.cover) : undefined;
-  const clickable = !!onClick;
-
-  const inner = (
-    <>
-      {/* 封面 */}
-      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 ring-1 ring-stone-200/60 dark:ring-stone-700/60">
-        {imgSrc ? (
-          <img
-            src={imgSrc}
-            alt={work.code}
-            loading="lazy"
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
+      {works.length > 0 ? (
+        <PanelSection>
+          <PanelHeader
+            icon={<Film className="h-4 w-4 text-accent-500" />}
+            title={t('jav:actressResults.worksTitle')}
+            count={<CountBadge>{t('jav:actressResults.worksCount', { count: works.length })}</CountBadge>}
+            actions={
+              <a
+                href={worksSearchHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="type-micro inline-flex items-center gap-1 text-primary-500 hover:underline"
+              >
+                {t('jav:actressResults.javbusSearch')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            }
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Film className="w-8 h-8 text-stone-300 dark:text-stone-600" />
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {works.map((work, index) => (
+                <MediaCard
+                  key={`${work.code}-${index}`}
+                  orientation="tile"
+                  cover={work.cover ? getProxyImageUrl(work.cover) : undefined}
+                  coverFallback={<Film className="h-6 w-6" />}
+                  title={work.title}
+                  badges={
+                    <>
+                      <Chip tone="accent" size="xs">{work.code}</Chip>
+                      {work.date ? <Chip tone="neutral" size="xs">{work.date}</Chip> : null}
+                    </>
+                  }
+                  onSelect={onWorkClick ? () => onWorkClick(work.code) : undefined}
+                />
+              ))}
+            </div>
+            {onWorkClick ? (
+              <p className="type-micro mt-3 text-center text-surface-400">{t('jav:actressResults.workClickHint')}</p>
+            ) : null}
           </div>
-        )}
-        {/* 日期角标 */}
-        {work.date && (
-          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 text-[10px] font-medium bg-black/60 text-white rounded backdrop-blur-sm">
-            {work.date}
-          </span>
-        )}
-      </div>
-      {/* 番号 + 标题 */}
-      <div className="mt-1.5 space-y-0.5 min-w-0">
-        <p className="text-xs font-bold text-rose-600 dark:text-rose-400 truncate">{work.code}</p>
-        <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2 leading-tight">{work.title}</p>
-      </div>
+        </PanelSection>
+      ) : null}
     </>
-  );
-
-  if (clickable) {
-    return (
-      <button
-        onClick={() => onClick?.(work.code)}
-        className="text-left group active:scale-[0.97] transition-transform"
-        title={`${work.code} — ${work.title}`}
-      >
-        {inner}
-      </button>
-    );
-  }
-
-  const detailUrl = `https://www.javbus.com/${work.code}`;
-  return (
-    <a
-      href={isProxyEnabled ? convertToProxyUrl(detailUrl) : detailUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block group"
-      title={`${work.code} — ${work.title}`}
-    >
-      {inner}
-    </a>
   );
 }

@@ -2,8 +2,17 @@
  * JAV 搜索共享工具
  *
  * 从 jav.ts 路由和 jav-provider.ts 中提取的公共逻辑。
- * 两处都需要：normalizeCode / extractGidUc / parseMagnets / parseJavDetail
+ * 两处都需要：番号解析 / extractGidUc / parseMagnets / parseJavDetail
+ *
+ * 番号格式规则统一来自 @codeseek/shared/utils（前后端唯一事实来源）。
  */
+import {
+  isJavCodeLike,
+  javCodeLookupVariants,
+  normalizeJavCode,
+} from '@codeseek/shared/utils';
+
+export { isJavCodeLike, normalizeJavCode, javCodeLookupVariants };
 
 // ─── 类型 ──────────────────────────────────────────────────────────────
 
@@ -24,11 +33,6 @@ export interface JavItem {
   date?: string;
   actress?: string;
   source: string;
-}
-
-/** 番号格式校验：字母(2-8位) + 横杠 + 数字(2-6位) */
-export function isValidCode(code: string): boolean {
-  return /^[A-Z]{2,8}-\d{2,6}$/.test(code);
 }
 
 /**
@@ -52,11 +56,11 @@ export function parseGrid(html: string, source: string): JavItem[] {
 
     const codeM =
       block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([^<]+)<\/span>/i) ||
-      block.match(/<date[^>]*>([A-Za-z0-9]+-\d+)<\/date>/i) ||
-      block.match(/>([A-Z]{2,8}-\d{2,6})</);
+      block.match(/<date[^>]*>([A-Za-z0-9]+[-_][A-Za-z0-9]+)<\/date>/i) ||
+      block.match(/>([A-Z0-9]{2,10}[-_][A-Z0-9]{1,8})</);
     if (!codeM) continue;
-    const code = normalizeCode(codeM[1].trim());
-    if (!isValidCode(code)) continue;
+    const code = normalizeJavCode(codeM[1].trim());
+    if (!isJavCodeLike(code)) continue;
 
     const titleM = block.match(/title="([^"]+)"/i);
     const title = titleM ? titleM[1].trim() : code;
@@ -126,16 +130,6 @@ export const JAV_HEADERS = {
   'Referer': 'https://www.javbus.com/',
 };
 
-// ─── 番号标准化 ─────────────────────────────────────────────────────────
-
-/** 将输入统一为 XXX-123 格式 */
-export function normalizeCode(raw: string): string {
-  const s = raw.trim().toUpperCase().replace(/\s/g, '');
-  if (/^[A-Z]+-\d+$/.test(s)) return s;
-  const m = s.match(/^([A-Z]+)(\d+)$/);
-  return m ? `${m[1]}-${m[2]}` : s;
-}
-
 // ─── HTTP 辅助 ──────────────────────────────────────────────────────────
 
 /** get() 返回类型 */
@@ -167,6 +161,32 @@ export async function get(url: string, timeoutMs = 10000): Promise<GetResult> {
 export async function getHtml(url: string, timeoutMs = 10000): Promise<string> {
   const result = await get(url, timeoutMs);
   return result.ok ? result.html : '';
+}
+
+/**
+ * 按共享查询变体抓 JavBus 详情页。
+ * 首个变体 10 秒超时，后续每个最多 6 秒；最多 4 个变体，避免单次搜索拖太久。
+ */
+export async function fetchJavbusDetailHtml(
+  code: string,
+  timeoutMs = 10000
+): Promise<{ html: string; usedCode: string } | null> {
+  const variants = javCodeLookupVariants(code);
+  const candidates = variants.length > 0 ? variants : [normalizeJavCode(code)];
+
+  for (let index = 0; index < candidates.length; index++) {
+    const usedCode = candidates[index];
+    if (!usedCode) continue;
+    const html = await getHtml(
+      `https://www.javbus.com/${usedCode}`,
+      index === 0 ? timeoutMs : Math.min(6000, timeoutMs)
+    );
+    if (html && html.length >= 500) {
+      return { html, usedCode };
+    }
+  }
+
+  return null;
 }
 
 // ─── 页面解析 ────────────────────────────────────────────────────────────

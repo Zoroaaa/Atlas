@@ -241,6 +241,8 @@ export interface JavEnrichedData {
   actresses?: ActressProfile[];
   /** 女优作品列表（actress 子模式，JavBus 搜索抓取，与女优资料抓取解耦） */
   actressWorks?: import('./jav').JavItem[];
+  /** code 模式：未识别为番号（title）或识别但无 JavBus 详情（sources-only） */
+  fallback?: 'title' | 'sources-only';
 }
 
 export interface MangaEnrichedData {

@@ -1,5 +1,8 @@
 import React from 'react';
-import { AnimeSearchResultPanel, MovieSearchResultPanel, MangaSearchResultPanel, NovelSearchResultPanel } from '@/components/search';
+import { AnimeSearchResultPanel } from '@/components/search/AnimeSearchResultPanel';
+import { MovieSearchResultPanel } from '@/components/search/MovieSearchResultPanel';
+import { MangaSearchResultPanel } from '@/components/search/MangaSearchResultPanel';
+import { NovelSearchResultPanel } from '@/components/search/NovelSearchResultPanel';
 
 /**
  * 查表式结果渲染配置

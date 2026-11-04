@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
+import { PanelSection, PanelHeader, CountBadge } from '@/components/workbench';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { SearchSource, UserSourceConfig, MajorCategory, Category } from '@/types';
 
@@ -327,40 +328,39 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [layoutMode, toggleCollapsed, showMobileDrawer]);
 
-  // Panel 模式：保持原有折叠面板样式（向后兼容）
+  // Panel 模式：作为主工作台的一个区段
   if (layoutMode === 'panel') {
     return (
-      <div className="collapsible-section animate-fade-in" style={{ animationDelay: '200ms' }}>
-        <button onClick={onToggle} className="collapsible-header">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('search:sources.sidebar.managementTitle')}</span>
-            <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">
-              {allSources.length}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {show && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onBatchCheck(); }}
-                disabled={isBatchChecking}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-all disabled:opacity-50"
-              >
-                {isBatchChecking ? (
-                  <><RefreshCw className="w-3 h-3 animate-spin" />{t('search:sources.sidebar.checking')}</>
-                ) : (
-                  <><Activity className="w-3 h-3" />{t('search:sources.sidebar.batchCheck')}</>
-                )}
-              </button>
-            )}
-            {show ? <ChevronDown className="w-4 h-4 text-surface-400" /> : <ChevronRight className="w-4 h-4 text-surface-400" />}
-          </div>
-        </button>
-
-        {show && (
-          <div className="border-t border-surface-100 dark:border-surface-800 max-h-[400px] sm:max-h-[600px] overflow-y-auto scrollbar-thin">
+      <PanelSection>
+        <PanelHeader
+          icon={<Globe className="h-4 w-4" />}
+          title={t('search:sources.sidebar.managementTitle')}
+          count={<CountBadge>{allSources.length}</CountBadge>}
+          onToggle={onToggle}
+          expanded={show}
+          ariaControls="main-sources-tree"
+          actions={
+            <>
+              {show ? (
+                <button
+                  type="button"
+                  onClick={onBatchCheck}
+                  disabled={isBatchChecking}
+                  className="flex h-7 items-center gap-1 rounded-lg bg-primary-100 px-2 text-[11px] font-medium text-primary-700 transition-colors hover:bg-primary-200 disabled:opacity-50 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+                >
+                  {isBatchChecking ? (
+                    <><RefreshCw className="h-3 w-3 animate-spin" />{t('search:sources.sidebar.checking')}</>
+                  ) : (
+                    <><Activity className="h-3 w-3" />{t('search:sources.sidebar.batchCheck')}</>
+                  )}
+                </button>
+              ) : null}
+              {show ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
+            </>
+          }
+        />
+        {show ? (
+          <div id="main-sources-tree" className="max-h-[calc(100vh-260px)] overflow-y-auto px-3 pb-4 scrollbar-thin sm:px-4 sm:pb-5">
             <SourceTree
               majorCategoriesWithCategories={majorCategoriesWithCategories}
               expandedMajorCategories={expandedMajorCategories}
@@ -374,8 +374,8 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
               getSiteTypeLabel={getSiteTypeLabel}
             />
           </div>
-        )}
-      </div>
+        ) : null}
+      </PanelSection>
     );
   }
 

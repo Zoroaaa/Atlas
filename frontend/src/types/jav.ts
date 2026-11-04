@@ -7,45 +7,50 @@ export interface JavItem {
   source: string;
 }
 
-export interface GroupRanking {
-  name: string;   // 类别名 或 女优名
-  key: string;    // slug
-  items: JavItem[];
+// ── 榜单 ────────────────────────────────────────────────────────────────
+
+export type JavRankingPeriod = 'weekly' | 'monthly';
+export type JavRankingSection = 'censored' | 'uncensored';
+
+export interface JavRankingEntry {
+  code: string;
+  title: string;
+  cover?: string;
+  rank: number;
+  url?: string;
 }
 
-// 向后兼容旧命名
-export type GenreRanking = GroupRanking;
+export interface JavRankingSectionView {
+  censored: JavRankingEntry[];
+  uncensored: JavRankingEntry[];
+  updatedAt: number;
+}
 
 export interface JavRankings {
-  censored: JavItem[];        // 有码精选
-  uncensored: JavItem[];      // 无码精选
-  hd: JavItem[];              // 高清
-  subtitle: JavItem[];        // 字幕
-  genres: GroupRanking[];     // 随机10类别
-  actresses: GroupRanking[];  // 随机10女优
-  suggestions: string[];
-  fetchedAt: number;
-  sources: string[];
+  weekly: JavRankingSectionView;
+  monthly: JavRankingSectionView;
+  source: 'javdb';
 }
 
-// ── 女优列表 & 女优详情 ──────────────────────────────────────────────
+// ── 热门女优 ───────────────────────────────────────────────────────────
 
-export interface ActressEntry {
-  key: string;   // star slug，如 qs6
-  name: string;  // 女优姓名
+export interface HotActressItem {
+  name: string;
+  users: number;
+  works: number;
+  score: number;
 }
 
-export interface StarDetail {
-  name: string;  // 女优名
-  key: string;   // star slug
-  items: JavItem[];
+export interface HotActressRanking {
+  items: HotActressItem[];
+  updatedAt: number;
 }
 
-export const JAV_CACHE_KEY = 'jav_rankings_cache';
-export const JAV_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+export const JAV_CACHE_KEY = 'jav_rankings_cache_v2';
+export const JAV_CACHE_TTL = 30 * 60 * 1000;
 
-export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache';
-export const ACTRESSES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v2';
+export const ACTRESSES_CACHE_TTL = 30 * 60 * 1000;
 
 // ── 详情 & 磁力 ──────────────────────────────────────────────────────
 
