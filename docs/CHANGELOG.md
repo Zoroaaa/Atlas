@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 
 #### 核心新功能（二）：三语国际化（i18n）
 
-- **全量文案提取**：前端硬编码中文迁移到 i18n，覆盖 auth / home / layout / search / jav / feedback / community / dashboard / admin / ui 等 17 个命名空间、约 800+ key
+- **全量文案提取**：前端硬编码中文迁移到 i18n，覆盖 auth / home / layout / search / jav / feedback / community / dashboard / admin / ui 等 18 个命名空间、约 800+ key
 - **三语支持**：zh-CN、zh-TW、en 完整词条；首次访问按浏览器语言自动选择，用户手动选择持久化
 - **组件与接口**：新增 `LanguageSwitcher` 与 `languageStore`；非组件环境统一走 `i18next.t()`
 - **补齐遗漏**：搜索命名空间 65 个缺失 key、设置 / 公告 / 趋势 / 帖子详情等残余硬编码文案全部补齐
