@@ -13,6 +13,7 @@ import {
   copyToClipboard,
 } from '@/utils/magnet';
 import { ProxyImage, Modal } from '@/components/ui';
+import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, EmptyBlock, LoadingBlock } from '@/components/workbench';
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 
@@ -142,54 +143,42 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {/* 表头 */}
-      <div className="grid grid-cols-[1fr_80px_88px_116px] gap-2 px-2 py-1 text-[10px] font-semibold text-surface-400 uppercase tracking-wide border-b border-surface-100 dark:border-surface-800">
+      <div className="hidden grid-cols-[minmax(0,1fr)_120px] items-center gap-2 border-b border-surface-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-surface-400 dark:border-surface-800 sm:grid">
         <span>{t('jav:detail.magnetName')}</span>
-        <span className="text-right">{t('jav:detail.size')}</span>
-        <span className="text-right">{t('jav:detail.shareDate')}</span>
         <span className="text-right">{t('jav:detail.actions')}</span>
       </div>
 
       {displayed.map((m, i) => (
-        <div key={i} className="relative">
-          <div className="grid grid-cols-[1fr_80px_88px_116px] gap-2 items-center px-2 py-2 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-all group">
-            {/* 名称（点击唤起 BT 客户端） */}
-            <div className="flex items-center gap-1.5 min-w-0">
-              {m.isHD && (
-                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300 rounded">HD</span>
-              )}
-              <a
-                href={m.magnet}
-                className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-                title={m.name}
-              >
-                {m.name}
-              </a>
-            </div>
-
-            <span className="text-xs text-right text-surface-600 dark:text-surface-400 tabular-nums">{m.size}</span>
-            <span className="text-xs text-right text-surface-400 tabular-nums">{m.date}</span>
-
-            {/* 操作区 */}
-            <div className="flex justify-end items-center gap-0.5">
-              {/* 在线播放（WebTor） */}
+        <ResourceRow
+          key={`${m.magnet}-${i}`}
+          badges={m.isHD ? <Chip tone="source" size="xs">HD</Chip> : undefined}
+          title={
+            <a href={m.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={m.name}>
+              {m.name}
+            </a>
+          }
+          meta={[
+            m.size,
+            <span key="date" className="hidden sm:inline">{m.date}</span>,
+          ]}
+          trailing={
+            <>
               <button
+                type="button"
                 onClick={() => setPlayModal({ magnet: m.magnet, name: m.name })}
                 title={t('jav:detail.webtorPlay')}
-                className="p-1 rounded transition-all text-surface-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                aria-label={t('jav:detail.webtorPlay')}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 transition-colors hover:bg-success-50 hover:text-success-600 dark:hover:bg-success-900/20"
               >
-                <Play className="w-3.5 h-3.5" />
+                <Play className="h-3.5 w-3.5" />
               </button>
-
-              {/* 下载种子（真实 .torrent） */}
               <DownloadBtn magnet={m.magnet} name={m.name} />
-
-              {/* 复制磁力链接 */}
               <CopyBtn text={m.magnet} />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       ))}
 
       {magnets.length > 5 && (
@@ -281,213 +270,201 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
   if (status === 'idle') return null;
 
   return (
-    <div className="bg-white dark:bg-surface-900/90 rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-200/60 dark:border-surface-700/60 mb-4 sm:mb-6 overflow-hidden animate-fade-in">
-
-      {/* 顶部标题栏 */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-surface-100 dark:border-surface-800">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-            <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
-          </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">{t('jav:detail.magnetExtract')}</span>
-          {detail && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
-              {detail.code}
-            </span>
-          )}
-          {status === 'success' && detail && (
-            <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
-              {t('jav:detail.magnetsCount', { count: detail.magnets.length })}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {onFavorite && detail && status === 'success' && (
-            <>
+    <PanelSection>
+      <PanelHeader
+        icon={<Magnet className="h-4 w-4 text-accent-500" />}
+        title={t('jav:detail.magnetExtract')}
+        count={
+          detail ? (
+            <div className="flex items-center gap-1.5">
+              <Chip tone="accent">{detail.code}</Chip>
+              {status === 'success' ? (
+                <CountBadge>{t('jav:detail.magnetsCount', { count: detail.magnets.length })}</CountBadge>
+              ) : null}
+            </div>
+          ) : undefined
+        }
+        actions={
+          <>
+            {onFavorite && detail && status === 'success' ? (
               <button
+                type="button"
                 onClick={() => onFavorite(detail)}
-                className={`p-1.5 rounded-lg transition-all ${isFavorited ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' : 'text-surface-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}
-                title={isFavorited ? t('jav:detail.unfavorite') : t('jav:detail.favorite')}
+                aria-label={isFavorited ? t('jav:detail.unfavorite') : t('jav:detail.favorite')}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                  isFavorited
+                    ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+                    : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
+                }`}
               >
-                <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
+                <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
               </button>
-              {!isFavorited && (
-                <span className="text-xs font-medium text-rose-500 dark:text-rose-400 animate-pulse">
-                  {t('jav:detail.favoriteHint')}
-                </span>
-              )}
-            </>
-          )}
-          {detail && status === 'success' && (
-            <ShareToCommunityButton
-              postData={{
-                postType: 'jav',
-                title: detail.title || detail.code,
-                coverImage: detail.cover ? getProxyImageUrl(resolveUrl(detail.cover, detail.detailUrl)) : '',
-                contentData: JSON.stringify({
-                  code: detail.code,
-                  title: detail.title,
-                  cover: detail.cover,
-                  releaseDate: detail.releaseDate,
-                  duration: detail.duration,
-                  publisher: detail.publisher,
-                  director: detail.director,
-                  maker: detail.maker,
-                  series: detail.series,
-                  tags: detail.tags,
-                  actresses: detail.actresses,
-                  detailUrl: detail.detailUrl,
-                  magnets: detail.magnets?.map(m => ({
-                    title: m.name,
-                    magnet: m.magnet,
-                    size: m.size,
-                    date: m.date,
-                  })),
-                }),
-              }}
-              isAuthenticated={isAuthenticated}
-              onLoginRequired={onLoginRequired}
-              size="small"
-            />
-          )}
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-surface-400 hover:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 transition-all"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* 加载中 */}
-      {status === 'loading' && (
-        <div className="flex flex-col items-center justify-center py-12 gap-3 text-surface-400">
-          <Loader2 className="w-8 h-8 animate-spin text-rose-400" />
-          <p className="text-sm">{t('jav:detail.loadingDetail')}</p>
-          <p className="text-xs opacity-60">{t('jav:detail.loadingHint')}</p>
-        </div>
-      )}
-
-      {/* 未找到 */}
-      {status === 'not_found' && (
-        <div className="flex flex-col items-center justify-center py-12 gap-3 text-surface-400">
-          <Search className="w-8 h-8 opacity-40" />
-          <p className="text-sm">{t('jav:detail.notFound')}</p>
-          <p className="text-xs opacity-60">{t('jav:detail.notFoundHint')}</p>
-        </div>
-      )}
-
-      {/* 出错 */}
-      {status === 'error' && (
-        <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <AlertCircle className="w-8 h-8 text-error-400" />
-          <p className="text-sm text-surface-500">{t('jav:detail.fetchFailed')}</p>
-          {onRetry && (
+            ) : null}
+            {detail && status === 'success' ? (
+              <ShareToCommunityButton
+                postData={{
+                  postType: 'jav',
+                  title: detail.title || detail.code,
+                  coverImage: detail.cover ? getProxyImageUrl(resolveUrl(detail.cover, detail.detailUrl)) : '',
+                  contentData: JSON.stringify({
+                    code: detail.code,
+                    title: detail.title,
+                    cover: detail.cover,
+                    releaseDate: detail.releaseDate,
+                    duration: detail.duration,
+                    publisher: detail.publisher,
+                    director: detail.director,
+                    maker: detail.maker,
+                    series: detail.series,
+                    tags: detail.tags,
+                    actresses: detail.actresses,
+                    detailUrl: detail.detailUrl,
+                    magnets: detail.magnets?.map(m => ({
+                      title: m.name,
+                      magnet: m.magnet,
+                      size: m.size,
+                      date: m.date,
+                    })),
+                  }),
+                }}
+                isAuthenticated={isAuthenticated}
+                onLoginRequired={onLoginRequired}
+                size="small"
+              />
+            ) : null}
             <button
-              onClick={onRetry}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
+              type="button"
+              onClick={onClose}
+              aria-label={t('jav:detail.actions')}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:hover:bg-surface-800 dark:hover:text-surface-200"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              {t('jav:detail.retry')}
+              <X className="h-4 w-4" />
             </button>
-          )}
+          </>
+        }
+      />
+
+      {status === 'loading' ? (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <LoadingBlock rows={4} />
+          <p className="type-micro mt-1 text-center text-surface-500">{t('jav:detail.loadingHint')}</p>
         </div>
-      )}
+      ) : null}
 
-      {/* 成功 */}
-      {status === 'success' && detail && (
-        <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+      {status === 'not_found' ? (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <EmptyBlock
+            icon={<Search className="h-7 w-7" />}
+            title={t('jav:detail.notFound')}
+            hint={t('jav:detail.notFoundHint')}
+            className="bg-transparent"
+          />
+        </div>
+      ) : null}
 
-          {/* 封面 + 基本信息 */}
-          <div className="flex gap-4 sm:gap-5">
-            {detail.cover && (
+      {status === 'error' ? (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <EmptyBlock
+            icon={<AlertCircle className="h-7 w-7" />}
+            title={t('jav:detail.fetchFailed')}
+            action={
+              onRetry ? (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-500 px-3 text-[11px] font-medium text-white transition-colors hover:bg-primary-600"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {t('jav:detail.retry')}
+                </button>
+              ) : undefined
+            }
+            className="bg-transparent"
+          />
+        </div>
+      ) : null}
+
+      {status === 'success' && detail ? (
+        <div className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
+            {detail.cover ? (
               <ProxyImage
                 src={getProxyImageUrl(resolveUrl(detail.cover, detail.detailUrl))}
                 alt={detail.code}
-                className="w-40 sm:w-52 rounded-lg object-cover shadow-md hover:shadow-lg transition-shadow shrink-0"
+                className="h-[136px] w-[96px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:h-48 sm:w-[136px]"
               />
-            )}
-            <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
-              <h3 className="text-sm sm:text-base font-semibold text-surface-900 dark:text-surface-100 leading-snug line-clamp-3">
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <h3 className="line-clamp-3 text-[14px] font-semibold leading-snug text-surface-900 dark:text-surface-100">
                 {detail.title}
               </h3>
-              <div className="space-y-1">
-                <InfoRow icon={Calendar}  label={t('jav:detail.releaseDate')} value={detail.releaseDate} />
-                <InfoRow icon={Clock}     label={t('jav:detail.duration')}    value={detail.duration} />
-                <InfoRow icon={User}      label={t('jav:detail.director')}    value={detail.director} />
-                <InfoRow icon={Building2} label={t('jav:detail.maker')}      value={detail.maker} />
-                <InfoRow icon={Building2} label={t('jav:detail.publisher')}   value={detail.publisher} />
-                <InfoRow icon={Film}      label={t('jav:detail.series')}     value={detail.series} />
+              <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+                <InfoRow icon={Calendar} label={t('jav:detail.releaseDate')} value={detail.releaseDate} />
+                <InfoRow icon={Clock} label={t('jav:detail.duration')} value={detail.duration} />
+                <InfoRow icon={User} label={t('jav:detail.director')} value={detail.director} />
+                <InfoRow icon={Building2} label={t('jav:detail.maker')} value={detail.maker} />
+                <InfoRow icon={Building2} label={t('jav:detail.publisher')} value={detail.publisher} />
+                <InfoRow icon={Film} label={t('jav:detail.series')} value={detail.series} />
               </div>
               <a
                 href={detail.detailUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary-500 hover:underline mt-1"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary-500 hover:underline"
               >
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="h-3 w-3" />
                 {t('jav:detail.viewOnJavBus')}
               </a>
             </div>
           </div>
 
-          {/* 类别标签 */}
-          {detail.tags.length > 0 && (
+          {detail.tags.length > 0 ? (
             <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Tag className="w-3.5 h-3.5 text-surface-400" />
-                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">{t('jav:detail.tagsLabel')}</span>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-surface-400" />
+                <span className="type-micro font-medium text-surface-500">{t('jav:detail.tagsLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {detail.tags.map((t, i) => (
-                  <span key={i} className="px-2 py-0.5 text-xs bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 rounded-full border border-surface-200 dark:border-surface-700">
-                    {t}
-                  </span>
+                {detail.tags.map((tag, index) => (
+                  <Chip key={`${tag}-${index}`} tone="neutral" size="xs">{tag}</Chip>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* 演员 */}
-          {detail.actresses.length > 0 && (
+          {detail.actresses.length > 0 ? (
             <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Star className="w-3.5 h-3.5 text-surface-400" />
-                <span className="text-xs font-semibold text-surface-500 dark:text-surface-400">{t('jav:detail.actressesLabel')}</span>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 text-surface-400" />
+                <span className="type-micro font-medium text-surface-500">{t('jav:detail.actressesLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {detail.actresses.map((a, i) => (
-                  <span key={i} className="px-2.5 py-1 text-xs bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 rounded-full border border-rose-200 dark:border-rose-800 font-medium">
-                    {a}
-                  </span>
+                {detail.actresses.map((actress, index) => (
+                  <Chip key={`${actress}-${index}`} tone="accent" size="xs">{actress}</Chip>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* 磁力链接 */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="mb-1.5 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Magnet className="w-3.5 h-3.5 text-rose-500" />
-                <span className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                <Magnet className="h-3.5 w-3.5 text-accent-500" />
+                <span className="type-micro font-medium text-surface-600 dark:text-surface-300">
                   {t('jav:detail.magnetsHeader', { count: detail.magnets.length })}
                 </span>
               </div>
-              {detail.magnets.length > 0 && (
-                <div className="flex items-center gap-1 text-[10px] text-surface-400">
-                  <Shield className="w-3 h-3" />
+              {detail.magnets.length > 0 ? (
+                <div className="type-micro flex items-center gap-1 text-surface-400">
+                  <Shield className="h-3 w-3" />
                   {t('jav:detail.magnetFooterHint')}
                 </div>
-              )}
+              ) : null}
             </div>
-            <div className="bg-surface-50 dark:bg-surface-800/50 rounded-xl p-3">
-              <MagnetList magnets={detail.magnets} />
-            </div>
+            <MagnetList magnets={detail.magnets} />
           </div>
-
         </div>
-      )}
-    </div>
+      ) : null}
+    </PanelSection>
   );
 };

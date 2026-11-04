@@ -54,6 +54,7 @@ export function useSearchFlow({
 
   // ── Local state (previously in searchStore) ──
   const [isSearching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [enrichedData, setEnrichedData] = useState<EnrichedSearchData | null>(null);
   const [enrichedPage, setEnrichedPage] = useState(1);
@@ -110,6 +111,7 @@ export function useSearchFlow({
       return;
     }
     // 番号模式不再硬拦截：识别不了的输入由后端按标题/多源搜索回退
+    setHasSearched(true);
     // 关闭搜索建议
     setShowSuggestions(false);
     // 通知外部（用于 URL 同步等）：携带 effectiveSubMode，避免外部闭包捕获旧 javSubMode
@@ -267,6 +269,7 @@ export function useSearchFlow({
   const resetResults = useCallback(() => {
     setSearchResults([]);
     setEnrichedData(null);
+    setHasSearched(false);
   }, []);
 
   // JAV 输入提示：仅在 JAV tab + code 模式且输入非空、未识别为标准番号时显示
@@ -278,6 +281,7 @@ export function useSearchFlow({
     keyword,
     setKeyword,
     isSearching,
+    hasSearched,
     searchResults,
     enrichedData,
     enrichedPage,

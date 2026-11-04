@@ -8,24 +8,18 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useJavRankings } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { PanelSection, PanelHeader, Segmented, IconAction, EmptyBlock, CountBadge } from '@/components/workbench';
 import type { JavRankingEntry, JavRankingPeriod, JavRankingSection } from '@/types';
 
 interface JavRankingsPanelProps {
   onCodeClick: (code: string) => void;
 }
 
-const PANEL_HEIGHT = 500;
-const HEADER_HEIGHT = 64;
-const CONTENT_HEIGHT = PANEL_HEIGHT - HEADER_HEIGHT - 40 - 44 - 34;
-
-const RANK_COLORS = [
-  'text-amber-500',
-  'text-slate-400',
-  'text-amber-700',
-];
+const RANK_COLORS = ['text-primary-500', 'text-surface-400', 'text-primary-700'];
 
 const RankingRow: React.FC<{
   item: JavRankingEntry;
@@ -36,11 +30,12 @@ const RankingRow: React.FC<{
 
   return (
     <button
+      type="button"
       onClick={() => onClick(item.code)}
-      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-all hover:bg-surface-100 dark:hover:bg-surface-800/70"
+      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50"
       title={item.title}
     >
-      <span className={`w-5 shrink-0 text-center text-xs font-bold ${RANK_COLORS[item.rank - 1] ?? 'text-surface-400'}`}>
+      <span className={clsx('w-5 shrink-0 text-center text-[11px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
         {item.rank}
       </span>
       <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
@@ -53,18 +48,14 @@ const RankingRow: React.FC<{
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-surface-400">
+          <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-surface-400">
             {item.code.slice(0, 6)}
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-xs font-medium leading-snug text-surface-800 dark:text-surface-200">
-          {item.title}
-        </p>
-        <p className="mt-0.5 truncate text-[10px] font-semibold text-surface-400 dark:text-surface-500">
-          {item.code}
-        </p>
+        <p className="line-clamp-2 text-[12px] font-medium leading-snug text-surface-800 dark:text-surface-200">{item.title}</p>
+        <p className="type-micro mt-0.5 truncate font-semibold text-surface-500">{item.code}</p>
       </div>
     </button>
   );
@@ -83,130 +74,83 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
   const formatUpdatedAt = (value: number): string => {
     if (!value) return '—';
     const date = new Date(value);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hour = String(date.getHours()).padStart(2, '0');
-    const minute = String(date.getMinutes()).padStart(2, '0');
-    return `${month}-${day} ${hour}:${minute}`;
+    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
   return (
-    <div
-      className="collapsible-section animate-fade-in transition-all duration-300 overflow-hidden shrink-0"
-      style={{ height: expanded ? PANEL_HEIGHT : HEADER_HEIGHT }}
-    >
-      <button onClick={() => setExpanded(!expanded)} className="collapsible-header" style={{ height: HEADER_HEIGHT }}>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
-          </div>
-          <span className="font-semibold text-surface-900 dark:text-surface-100 text-sm sm:text-base">
-            {t('jav:rankings.title')}
-          </span>
-          {data && activeItems.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full">
-              {activeItems.length}
-            </span>
-          )}
-          <span className="hidden sm:inline text-[10px] text-surface-400 dark:text-surface-500">
-            {t('jav:rankings.sourceLabel')}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); refresh(); }}
-            disabled={isLoading}
-            className="p-1 sm:p-1.5 rounded-lg text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-40"
-            title={t('jav:rankings.refresh')}
-          >
-            <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-          {expanded
-            ? <ChevronDown className="w-4 h-4 text-surface-400" />
-            : <ChevronRight className="w-4 h-4 text-surface-400" />}
-        </div>
-      </button>
+    <PanelSection>
+      <PanelHeader
+        icon={<TrendingUp className="h-4 w-4" />}
+        title={t('jav:rankings.title')}
+        count={activeItems.length > 0 ? <CountBadge>{activeItems.length}</CountBadge> : undefined}
+        meta={`${t('jav:rankings.sourceLabel')} · ${t('jav:rankings.updatedAt', { time: formatUpdatedAt(updatedAt) })}`}
+        onToggle={() => setExpanded((value) => !value)}
+        expanded={expanded}
+        ariaControls="main-jav-rankings"
+        actions={
+          <>
+            <IconAction
+              icon={<RefreshCw className={clsx('h-3.5 w-3.5', isLoading && 'animate-spin')} />}
+              label={t('jav:rankings.refresh')}
+              onClick={refresh}
+              disabled={isLoading}
+            />
+            {expanded ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
+          </>
+        }
+      />
 
-      <div className="flex flex-col" style={{ height: PANEL_HEIGHT - HEADER_HEIGHT }}>
-        {/* 周期切换 */}
-        <div className="px-3 sm:px-4 pt-3 pb-2 shrink-0">
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-surface-100 dark:bg-surface-800 p-1">
-            {(['monthly', 'weekly'] as const).map((value) => (
-              <button
-                key={value}
-                onClick={() => setPeriod(value)}
-                className={`rounded-md py-1 text-xs font-medium transition-all ${
-                  period === value
-                    ? 'bg-white text-primary-600 shadow-sm dark:bg-surface-900 dark:text-primary-300'
-                    : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'
-                }`}
-              >
-                {value === 'monthly' ? t('jav:rankings.periodMonthly') : t('jav:rankings.periodWeekly')}
-              </button>
-            ))}
+      {expanded ? (
+        <div id="main-jav-rankings">
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-1 sm:px-5">
+            <Segmented
+              value={period}
+              onChange={setPeriod}
+              ariaLabel={t('jav:rankings.periodMonthly')}
+              options={[
+                { value: 'monthly', label: t('jav:rankings.periodMonthly') },
+                { value: 'weekly', label: t('jav:rankings.periodWeekly') },
+              ]}
+            />
+            <Segmented
+              value={section}
+              onChange={setSection}
+              ariaLabel={t('jav:rankings.tabCensored')}
+              options={[
+                { value: 'censored', label: t('jav:rankings.tabCensored') },
+                { value: 'uncensored', label: t('jav:rankings.tabUncensored') },
+              ]}
+            />
           </div>
-        </div>
 
-        {/* 类型切换 */}
-        <div className="px-3 sm:px-4 pb-2 border-b border-surface-100 dark:border-surface-800 shrink-0">
-          <div className="flex gap-1">
-            {(['censored', 'uncensored'] as const).map((value) => (
-              <button
-                key={value}
-                onClick={() => setSection(value)}
-                className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-all ${
-                  section === value
-                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300'
-                    : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
-                }`}
-              >
-                {value === 'censored' ? t('jav:rankings.tabCensored') : t('jav:rankings.tabUncensored')}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 列表 */}
-        <div className="p-2 sm:p-3 flex-1 min-h-0 overflow-hidden" style={{ height: CONTENT_HEIGHT }}>
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-surface-400">
-              <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
-              <p className="text-xs">{t('jav:rankings.loading')}</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2">
-              <AlertCircle className="w-6 h-6 text-error-400" />
-              <p className="text-xs text-error-500">{error}</p>
-              <button onClick={refresh} className="text-xs text-primary-500 underline">{t('jav:rankings.retry')}</button>
-            </div>
-          ) : activeItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-surface-400">
-              <Search className="w-8 h-8 mb-2 opacity-40" />
-              <p className="text-xs">
-                {period === 'weekly' ? t('jav:rankings.emptyWeekly') : t('jav:rankings.emptyMonthly')}
-              </p>
-            </div>
-          ) : (
-            <div className="h-full overflow-y-auto scrollbar-thin">
+          <div className="max-h-[420px] overflow-y-auto px-2 pb-3 scrollbar-thin sm:px-3">
+            {isLoading ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-2 text-surface-400">
+                <Loader2 className="h-5 w-5 animate-spin text-primary-500" />
+                <p className="type-micro">{t('jav:rankings.loading')}</p>
+              </div>
+            ) : error ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-2">
+                <AlertCircle className="h-5 w-5 text-error-400" />
+                <p className="type-micro text-error-500">{error}</p>
+                <button type="button" onClick={refresh} className="type-micro text-primary-500 underline">{t('jav:rankings.retry')}</button>
+              </div>
+            ) : activeItems.length === 0 ? (
+              <EmptyBlock
+                icon={<Search className="h-6 w-6" />}
+                title={period === 'weekly' ? t('jav:rankings.emptyWeekly') : t('jav:rankings.emptyMonthly')}
+                className="min-h-[120px] bg-transparent"
+              />
+            ) : (
               <div className="space-y-0.5">
                 {activeItems.map((item) => (
                   <RankingRow key={`${period}-${section}-${item.code}`} item={item} onClick={onCodeClick} />
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-
-        {/* 底部来源 */}
-        <div className="px-3 sm:px-4 py-2.5 border-t border-surface-50 dark:border-surface-800/60 shrink-0 flex items-center justify-between">
-          <p className="text-[10px] text-surface-400 dark:text-surface-500">
-            {t('jav:rankings.footerHint')}
-          </p>
-          <p className="text-[10px] text-surface-400 dark:text-surface-500">
-            {t('jav:rankings.updatedAt', { time: formatUpdatedAt(updatedAt) })}
-          </p>
-        </div>
-      </div>
-    </div>
+      ) : null}
+    </PanelSection>
   );
 };

@@ -82,7 +82,7 @@ export const SearchQuotaBadge: React.FC<SearchQuotaBadgeProps> = ({ refreshKey =
 
   if (data.unlimited) {
     return (
-      <div className="mt-2 ml-1 text-[11px] text-surface-500 dark:text-surface-400">
+      <div className="text-[11px] text-surface-500 dark:text-surface-400">
         {t('quota.unlimited')}
       </div>
     );
@@ -93,7 +93,7 @@ export const SearchQuotaBadge: React.FC<SearchQuotaBadgeProps> = ({ refreshKey =
   const nextTier = data.next;
 
   return (
-    <div ref={containerRef} className="relative mt-2 ml-1 flex items-center gap-1.5 text-[11px] text-surface-500 dark:text-surface-400">
+    <div ref={containerRef} className="relative flex items-center gap-1.5 text-[11px] text-surface-500 dark:text-surface-400">
       <button
         type="button"
         aria-label={t('quota.label')}
@@ -115,7 +115,7 @@ export const SearchQuotaBadge: React.FC<SearchQuotaBadgeProps> = ({ refreshKey =
       )}
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-[19rem] rounded-xl border border-surface-200/70 bg-white p-3 text-left shadow-xl shadow-surface-900/10 dark:border-surface-700/70 dark:bg-[#17171a]">
+        <div className="absolute left-0 top-full z-50 mt-2 w-[300px] rounded-xl border border-surface-200/70 bg-white p-3 text-left shadow-lg shadow-surface-900/10 dark:border-surface-700/70 dark:bg-[#17171a]">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-heading">{t('quota.label')}</span>
             <span className="text-[11px] text-surface-400">{t('quota.tierTag', { name: tierName(t, data.tier), tier: data.tier })}</span>

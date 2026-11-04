@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
-  AlertCircle, Wifi, RefreshCw,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  Wifi, RefreshCw, ChevronDown, ChevronUp,
   Heart, ShieldCheck, LayoutGrid, List,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -16,88 +15,79 @@ import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
+import {
+  PanelSection,
+  PanelHeader,
+  Toolbar,
+  MediaCard,
+  ResourceRow,
+  Chip,
+  CountBadge,
+  Pagination,
+  Notice,
+  EmptyBlock,
+  Segmented,
+  IconAction,
+} from '@/components/workbench';
 import { MovieGroupedView } from './MovieGroupedView';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 const ratingColor = (n: number) =>
-  n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-stone-400';
+  n >= 8 ? 'text-success-400' : n >= 6 ? 'text-warning-400' : 'text-surface-400';
 
-const mediaTypeLabel = (t: TFunction, m: 'movie' | 'tv') =>
-  m === 'movie' ? t('search:movie.type.movie') : t('search:movie.type.tv');
+const mediaTypeLabel = (t: TFunction, mediaType: 'movie' | 'tv') =>
+  mediaType === 'movie' ? t('search:movie.type.movie') : t('search:movie.type.tv');
 
-// ─── 资源卡片（单条资源） ────────────────────────────────────────────
+const extractQuality = (title: string): string => {
+  const lower = title.toLowerCase();
+  if (lower.includes('2160') || lower.includes('4k')) return '4K';
+  if (lower.includes('1080')) return '1080p';
+  if (lower.includes('720')) return '720p';
+  return '';
+};
 
 function ResourceCard({ item }: { item: ResourceItem }) {
   const { t } = useTranslation(['search']);
-  return (
-    <div className="grid grid-cols-[1fr_auto] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
-      {/* 左侧：标题 + 元信息 */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {/* 来源徽章 */}
-          {item.source === 'yts' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">YTS</span>
-          )}
-          {item.source === 'eztv' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 rounded">EZTV</span>
-          )}
-          {item.source === 'tpb' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-stone-100 text-stone-600 dark:bg-stone-800/60 dark:text-stone-400 rounded">TPB</span>
-          )}
-          {/* 资源类型标签 */}
-          {item.resourceType === 'drive' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">{t('search:movie.cloudDrive')}</span>
-          )}
-          {item.resourceType === 'direct' && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300 rounded">{t('search:movie.directLink')}</span>
-          )}
-          {/* 标题（点击唤起客户端或打开链接） */}
-          {item.resourceType === 'drive' && item.driveUrl ? (
-            <a
-              href={item.driveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-amber-600 dark:text-amber-400 hover:underline truncate"
-              title={item.title}
-            >
-              {item.title}
-            </a>
-          ) : item.magnet ? (
-            <a
-              href={item.magnet}
-              className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-              title={t('search:movie.btDownloadHint', { title: item.title })}
-            >
-              {item.title}
-            </a>
-          ) : (
-            <span className="text-xs text-stone-600 dark:text-stone-300 truncate">{item.title}</span>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-x-3 mt-1 text-[10px] text-stone-500">
-          {item.size && <span>{item.size}</span>}
-          {item.date && <span>{item.date}</span>}
-          <span className="text-stone-400">{item.sourceLabel}</span>
-        </div>
-      </div>
+  const quality = extractQuality(item.title);
 
-      {/* 右侧：操作按钮 */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        {item.resourceType === 'drive' && item.driveUrl ? (
+  return (
+    <ResourceRow
+      badges={
+        <>
+          {item.source === 'yts' ? <Chip tone="source" size="xs">YTS</Chip> : null}
+          {item.source === 'eztv' ? <Chip tone="source" size="xs">EZTV</Chip> : null}
+          {item.source === 'tpb' ? <Chip tone="source" size="xs">TPB</Chip> : null}
+          {quality ? <Chip tone={quality === '4K' ? 'warning' : 'source'} size="xs">{quality}</Chip> : null}
+          {item.resourceType === 'drive' ? <Chip tone="warning" size="xs">{t('search:movie.cloudDrive')}</Chip> : null}
+          {item.resourceType === 'direct' ? <Chip tone="success" size="xs">{t('search:movie.directLink')}</Chip> : null}
+        </>
+      }
+      title={
+        item.resourceType === 'drive' && item.driveUrl ? (
+          <a href={item.driveUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={item.title}>
+            {item.title}
+          </a>
+        ) : item.magnet ? (
+          <a href={item.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={t('search:movie.btDownloadHint', { title: item.title })}>
+            {item.title}
+          </a>
+        ) : (
+          <span className="block truncate text-[12px] text-surface-700 dark:text-surface-300" title={item.title}>{item.title}</span>
+        )
+      }
+      meta={[item.size, item.date, item.sourceLabel].filter(Boolean) as React.ReactNode[]}
+      trailing={
+        item.resourceType === 'drive' && item.driveUrl ? (
           <>
             <a
               href={item.driveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              title={t('search:movie.openDriveLink')}
-              className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+              aria-label={t('search:movie.openDriveLink')}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="h-3.5 w-3.5" />
             </a>
-            {item.driveCode && (
-              <CopyButton text={item.driveCode} label={t('search:movie.copyDriveCode', { code: item.driveCode })} />
-            )}
+            {item.driveCode ? <CopyButton text={item.driveCode} label={t('search:movie.copyDriveCode', { code: item.driveCode })} /> : null}
           </>
         ) : item.magnet ? (
           <>
@@ -105,116 +95,20 @@ function ResourceCard({ item }: { item: ResourceItem }) {
             <a
               href={item.magnet}
               title={t('search:movie.openMagnetHint')}
-              className="p-1 rounded text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+              aria-label={t('search:movie.openMagnetHint')}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
             >
-              <Magnet className="w-3.5 h-3.5" />
+              <Magnet className="h-3.5 w-3.5" />
             </a>
           </>
-        ) : null}
-      </div>
-    </div>
+        ) : undefined
+      }
+    />
   );
 }
 
-// ─── 影视卡片（左侧列表） ────────────────────────────────────────────
-
-const MovieCard: React.FC<{
-  item: TMDBResult;
-  onSelect: (item: TMDBResult) => void;
-  active: boolean;
-  isAuthenticated: boolean;
-  isFavorited: boolean;
-  onToggleFavorite: (item: TMDBResult) => void;
-}> = ({ item, onSelect, active, isAuthenticated, isFavorited, onToggleFavorite }) => {
-  const { t } = useTranslation(['search']);
-  return (
-  <div className={`group text-left w-full flex gap-3 p-3 rounded-xl border transition-all ${
-    active
-      ? 'border-amber-500/60 bg-amber-500/10'
-      : 'border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-amber-500/30 hover:bg-stone-50 dark:hover:bg-stone-800/70'
-  }`}>
-    <button onClick={() => onSelect(item)} className="flex gap-3 min-w-0 flex-1 text-left">
-    <div className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-stone-200 dark:bg-stone-700">
-      {item.poster ? (
-        <img
-          src={item.poster}
-          alt={item.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          {item.mediaType === 'movie' ? (
-            <Film className="w-5 h-5 text-stone-400" />
-          ) : (
-            <Tv2 className="w-5 h-5 text-stone-400" />
-          )}
-        </div>
-      )}
-    </div>
-
-    <div className="min-w-0 flex-1">
-      <p className={`font-medium text-sm leading-tight truncate ${
-        active ? 'text-amber-600 dark:text-amber-400' : 'text-stone-800 dark:text-stone-100 group-hover:text-amber-500'
-      }`}>
-        {item.title}
-      </p>
-      {item.originalTitle && item.originalTitle !== item.title && (
-        <p className="text-xs text-stone-500 truncate mt-0.5">{item.originalTitle}</p>
-      )}
-      <div className="flex flex-wrap gap-2 mt-1.5 text-xs text-stone-400">
-        {item.source === 'douban' ? (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">{t('search:movie.sourceDouban')}</span>
-        ) : (
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400">{t('search:movie.sourceTMDB')}</span>
-        )}
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-          item.mediaType === 'movie'
-            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
-            : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
-        }`}>
-          {mediaTypeLabel(t, item.mediaType)}
-        </span>
-        {item.year && (
-          <span className="flex items-center gap-0.5">
-            <Calendar className="w-3 h-3" />{item.year}
-          </span>
-        )}
-        {item.rating > 0 && (
-          <span className={`flex items-center gap-0.5 ${ratingColor(item.rating)}`}>
-            <Star className="w-3 h-3 fill-current" />{item.rating.toFixed(1)}
-          </span>
-        )}
-      </div>
-    </div>
-    </button>
-
-    {/* 收藏按钮 */}
-    <div className="flex-shrink-0 self-center">
-      {isAuthenticated && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite(item); }}
-          className={`p-1.5 rounded-lg transition-all ${
-            isFavorited
-              ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-              : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
-          }`}
-          title={isFavorited ? t('search:movie.unfavorite') : t('search:movie.favorite')}
-        >
-          <Heart className={`w-4 h-4 ${isFavorited ? 'fill-current' : ''}`} />
-        </button>
-      )}
-    </div>
-  </div>
-  );
-};
-
-// ─── main component ──────────────────────────────────────────────────────────
-
 interface MovieSearchResultPanelProps {
   data: MovieEnrichedData;
-  isDark?: boolean;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
   favorites?: FavoriteItem[];
@@ -226,7 +120,6 @@ interface MovieSearchResultPanelProps {
 
 export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   data,
-  isDark: _isDark = true,
   isAuthenticated = false,
   isProxyEnabled = false,
   favorites = [],
@@ -236,25 +129,21 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   onLoginRequired,
 }) => {
   const { t } = useTranslation(['search']);
-  const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(
-    data.results.length > 0 ? data.results[0] : null
-  );
+  const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(data.results.length > 0 ? data.results[0] : null);
   const [resourcePage, setResourcePage] = useState(1);
   const [showAllResources, setShowAllResources] = useState(false);
   const RES_PAGE_SIZE = 10;
 
-  // 视图模式：有 grouped 数据时默认聚合视图，否则分源视图
-  const hasGrouped = !!(data.grouped && (data.grouped.groups.some(g => g.resources.length > 0) || data.grouped.ungrouped.length > 0));
+  const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));
   const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
 
   const results = data.results ?? [];
   const resources = data.resources ?? [];
 
-  // Filter resources by selected item title (fuzzy)
   const filteredResources = selectedItem
-    ? resources.filter((r) =>
-        r.title.toLowerCase().includes(selectedItem.title.toLowerCase()) ||
-        r.title.toLowerCase().includes(selectedItem.originalTitle.toLowerCase()) ||
+    ? resources.filter((resource) =>
+        resource.title.toLowerCase().includes(selectedItem.title.toLowerCase()) ||
+        resource.title.toLowerCase().includes(selectedItem.originalTitle.toLowerCase()) ||
         resources.length <= 5
       )
     : resources;
@@ -263,430 +152,334 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const resTotalPages = Math.max(1, Math.ceil(displayResources.length / RES_PAGE_SIZE));
   const pagedResources = displayResources.slice((resourcePage - 1) * RES_PAGE_SIZE, resourcePage * RES_PAGE_SIZE);
 
-  // 切换影视时重置资源页码
   const handleSelectItem = (item: TMDBResult) => {
     setSelectedItem(item);
     setResourcePage(1);
   };
 
-  // 收藏状态判断（用 source + id + title 组合 key）
   const isMovieFavorited = (item: TMDBResult) => {
     const url = item.source === 'douban'
       ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
       : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
-    return favorites.some(f => f.url === url);
+    return favorites.some((favorite) => favorite.url === url);
   };
 
-  // 统计资源类型
-  const magnetCount = displayResources.filter(r => r.resourceType === 'magnet' || r.magnet).length;
-  const driveCount = displayResources.filter(r => r.resourceType === 'drive').length;
+  const magnetCount = displayResources.filter((resource) => resource.resourceType === 'magnet' || resource.magnet).length;
+  const driveCount = displayResources.filter((resource) => resource.resourceType === 'drive').length;
+
+  const getExternalUrl = (item: TMDBResult) => item.source === 'douban'
+    ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
+    : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+
+  const errorNotices = [
+    data.tmdbError ? { key: 'tmdb', text: t('search:movie.tmdbError', { error: data.tmdbError }) } : null,
+    data.doubanError ? { key: 'douban', text: t('search:movie.doubanError', { error: data.doubanError }) } : null,
+    data.tpbError ? { key: 'tpb', text: t('search:movie.tpbError', { error: data.tpbError }) } : null,
+    data.eztvError ? { key: 'eztv', text: t('search:movie.eztvError', { error: data.eztvError }) } : null,
+  ].filter(Boolean) as { key: string; text: string }[];
 
   return (
-    <div className="space-y-5">
-      {/* stats bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-xs text-stone-500">
-          <span>{t('search:movie.movieCount', { count: data.total })}</span>
-          <span>·</span>
-          <span>{t('search:movie.resourceTotalCount', { count: data.resourceTotal })}</span>
-          {magnetCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-              {t('search:movie.magnetCount', { count: magnetCount })}
-            </span>
-          )}
-          {driveCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-              {t('search:movie.driveCount', { count: driveCount })}
-            </span>
-          )}
-          {data.resourceSources && data.resourceSources.length > 0 && (
-            <span className="text-stone-400">
-              {t('search:movie.sourcesFrom', { sources: data.resourceSources.join(' / ') })}
-            </span>
-          )}
-        </div>
-        {onRefresh && (
-          <div className="flex items-center gap-2">
-            <ShareToCommunityButton
-              postData={{
-                postType: 'movie',
-                title: data.results[0]?.title || data.keyword,
-                coverImage: data.results[0]?.poster || data.results[0]?.backdrop || '',
-                contentData: JSON.stringify({
-                  keyword: data.keyword,
-                  results: data.results,
-                  resources: data.resources,
-                  resourceTotal: data.resourceTotal,
-                }),
-              }}
-              isAuthenticated={isAuthenticated}
-              onLoginRequired={onLoginRequired}
-              size="small"
-            />
-            <button
-              onClick={onRefresh}
-              className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />{t('search:movie.refresh')}
-            </button>
-          </div>
-        )}
-        {/* 视图切换：有 grouped 数据时显示 */}
-        {hasGrouped && (
-          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-stone-100 dark:bg-stone-800/60">
-            <button
-              onClick={() => setViewMode('grouped')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-all ${
-                viewMode === 'grouped'
-                  ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
-                  : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
-              }`}
-              title={t('search:movie.groupedViewTitle')}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />{t('search:movie.grouped')}
-            </button>
-            <button
-              onClick={() => setViewMode('sources')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-all ${
-                viewMode === 'sources'
-                  ? 'bg-white dark:bg-stone-700 text-amber-600 dark:text-amber-400 shadow-sm font-medium'
-                  : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'
-              }`}
-              title={t('search:movie.sourcesViewTitle')}
-            >
-              <List className="w-3.5 h-3.5" />{t('search:movie.sourcesView')}
-            </button>
-          </div>
-        )}
-      </div>
+    <div>
+      <PanelSection>
+        <Toolbar
+          left={
+            <>
+              <span className="type-meta">{t('search:movie.movieCount', { count: data.total })}</span>
+              <span className="type-micro text-surface-400">·</span>
+              <span className="type-meta">{t('search:movie.resourceTotalCount', { count: data.resourceTotal })}</span>
+              {magnetCount > 0 ? <Chip tone="source" size="xs">{t('search:movie.magnetCount', { count: magnetCount })}</Chip> : null}
+              {driveCount > 0 ? <Chip tone="warning" size="xs">{t('search:movie.driveCount', { count: driveCount })}</Chip> : null}
+              {data.resourceSources && data.resourceSources.length > 0 ? (
+                <span className="type-micro hidden text-surface-500 sm:inline">
+                  {t('search:movie.sourcesFrom', { sources: data.resourceSources.join(' / ') })}
+                </span>
+              ) : null}
+            </>
+          }
+          right={
+            <>
+              {onRefresh ? (
+                <>
+                  <ShareToCommunityButton
+                    postData={{
+                      postType: 'movie',
+                      title: data.results[0]?.title || data.keyword,
+                      coverImage: data.results[0]?.poster || data.results[0]?.backdrop || '',
+                      contentData: JSON.stringify({
+                        keyword: data.keyword,
+                        results: data.results,
+                        resources: data.resources,
+                        resourceTotal: data.resourceTotal,
+                      }),
+                    }}
+                    isAuthenticated={isAuthenticated}
+                    onLoginRequired={onLoginRequired}
+                    size="small"
+                  />
+                  <IconAction icon={<RefreshCw className="h-3.5 w-3.5" />} label={t('search:movie.refresh')} onClick={onRefresh} />
+                </>
+              ) : null}
+              {hasGrouped ? (
+                <Segmented
+                  value={viewMode}
+                  onChange={setViewMode}
+                  ariaLabel={t('search:movie.groupedViewTitle')}
+                  options={[
+                    { value: 'grouped', label: t('search:movie.grouped'), icon: <LayoutGrid className="h-3 w-3" /> },
+                    { value: 'sources', label: t('search:movie.sourcesView'), icon: <List className="h-3 w-3" /> },
+                  ]}
+                />
+              ) : null}
+            </>
+          }
+        />
+      </PanelSection>
 
-      {/* error warnings */}
-      {data.tmdbError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-400">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{t('search:movie.tmdbError', { error: data.tmdbError })}</span>
+      {errorNotices.length > 0 ? (
+        <div className="space-y-1.5 px-4 pb-3 pt-2 sm:px-5">
+          {errorNotices.slice(0, 3).map((notice) => (
+            <Notice key={notice.key} tone="warning">{notice.text}</Notice>
+          ))}
+          {errorNotices.length > 3 ? <Notice tone="warning">+{errorNotices.length - 3}</Notice> : null}
         </div>
-      )}
-      {data.doubanError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{t('search:movie.doubanError', { error: data.doubanError })}</span>
-        </div>
-      )}
-      {data.tpbError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{t('search:movie.tpbError', { error: data.tpbError })}</span>
-        </div>
-      )}
-      {data.eztvError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-700 text-sm dark:bg-cyan-500/10 dark:border-cyan-500/30 dark:text-cyan-400">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{t('search:movie.eztvError', { error: data.eztvError })}</span>
-        </div>
-      )}
+      ) : null}
 
-      {/* completely empty state */}
-      {results.length === 0 && resources.length === 0 && !data.tmdbError && !data.doubanError && !data.tpbError && !data.eztvError && (
-        <div className="text-center py-16">
-          <Wifi className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">{t('search:movie.empty')}</p>
-          <p className="text-xs text-stone-400 mt-1">{t('search:movie.emptyHint')}</p>
+      {results.length === 0 && resources.length === 0 && errorNotices.length === 0 ? (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <EmptyBlock
+            icon={<Wifi className="h-7 w-7" />}
+            title={t('search:movie.empty')}
+            hint={t('search:movie.emptyHint')}
+            className="bg-transparent"
+          />
         </div>
-      )}
+      ) : null}
 
-      {/* 聚合视图：按影视归组展示 */}
-      {viewMode === 'grouped' && hasGrouped && (
+      {viewMode === 'grouped' && hasGrouped ? (
         <MovieGroupedView
           data={data}
           isAuthenticated={isAuthenticated}
           favorites={favorites}
           onToggleFavorite={onToggleFavorite}
         />
-      )}
+      ) : null}
 
-      {/* 分源视图：原有的双栏布局 */}
-      {viewMode === 'sources' && (
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-        {/* left: results list */}
-        {results.length > 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-1 h-4 rounded-full bg-amber-500" />
-              <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                {t('search:movie.matchTitle')}
-              </h2>
-              <span className="ml-auto text-xs text-stone-400">{t('search:movie.countItems', { count: results.length })}</span>
+      {viewMode === 'sources' ? (
+        <>
+          <PanelSection>
+            <PanelHeader
+              icon={<Film className="h-4 w-4" />}
+              title={t('search:movie.matchTitle')}
+              count={results.length > 0 ? <CountBadge>{t('search:movie.countItems', { count: results.length })}</CountBadge> : undefined}
+              actions={<span className="type-micro text-surface-400">{t('search:movie.sourcesView')}</span>}
+            />
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+              {results.length > 0 ? (
+                <>
+                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                    {results.map((item) => (
+                      <div key={`${item.mediaType}-${item.id}`} className="w-[220px] shrink-0">
+                        <MediaCard
+                          cover={item.poster || undefined}
+                          coverFallback={item.mediaType === 'movie' ? <Film className="h-5 w-5" /> : <Tv2 className="h-5 w-5" />}
+                          coverSize="sm"
+                          title={item.title}
+                          originalTitle={item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : undefined}
+                          badges={
+                            <>
+                              <Chip tone={item.source === 'douban' ? 'success' : 'source'} size="xs">
+                                {item.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
+                              </Chip>
+                              <Chip tone={item.mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
+                                {mediaTypeLabel(t, item.mediaType)}
+                              </Chip>
+                            </>
+                          }
+                          meta={
+                            <>
+                              {item.year ? <span className="mr-2 inline-flex items-center gap-0.5"><Calendar className="h-2.5 w-2.5" />{item.year}</span> : null}
+                              {item.rating > 0 ? <span className={`inline-flex items-center gap-0.5 ${ratingColor(item.rating)}`}><Star className="h-2.5 w-2.5 fill-current" />{item.rating.toFixed(1)}</span> : null}
+                            </>
+                          }
+                          selected={selectedItem?.id === item.id && selectedItem?.mediaType === item.mediaType}
+                          onSelect={() => handleSelectItem(item)}
+                          actions={isAuthenticated ? (
+                            <button
+                              type="button"
+                              onClick={() => onToggleFavorite?.(item)}
+                              aria-label={isMovieFavorited(item) ? t('search:movie.unfavorite') : t('search:movie.favorite')}
+                              className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                                isMovieFavorited(item)
+                                  ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+                                  : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
+                              }`}
+                            >
+                              <Heart className={`h-3.5 w-3.5 ${isMovieFavorited(item) ? 'fill-current' : ''}`} />
+                            </button>
+                          ) : undefined}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {onPageChange && results.length >= 18 ? (
+                    <div className="mt-2 flex justify-center gap-2">
+                      <button
+                        type="button"
+                        disabled={data.page <= 1}
+                        onClick={() => onPageChange(data.page - 1)}
+                        className="inline-flex h-8 items-center rounded-lg px-3 text-[11px] text-surface-500 hover:bg-surface-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-surface-800"
+                      >
+                        {t('search:movie.prevPage')}
+                      </button>
+                      <span className="type-micro flex items-center px-2 text-surface-500">{t('search:movie.pageNumber', { page: data.page })}</span>
+                      <button
+                        type="button"
+                        onClick={() => onPageChange(data.page + 1)}
+                        className="inline-flex h-8 items-center rounded-lg px-3 text-[11px] text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
+                      >
+                        {t('search:movie.nextPage')}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : errorNotices.length === 0 ? (
+                <EmptyBlock icon={<Film className="h-7 w-7" />} title={t('search:movie.noMatchResults')} className="bg-transparent" />
+              ) : null}
             </div>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
-              {results.map((item) => (
-                <MovieCard
-                  key={`${item.mediaType}-${item.id}`}
-                  item={item}
-                  onSelect={handleSelectItem}
-                  active={
-                    selectedItem?.id === item.id &&
-                    selectedItem?.mediaType === item.mediaType
-                  }
-                  isAuthenticated={isAuthenticated}
-                  isFavorited={isMovieFavorited(item)}
-                  onToggleFavorite={(itm) => onToggleFavorite?.(itm)}
-                />
-              ))}
-            </div>
+          </PanelSection>
 
-            {/* pagination */}
-            {onPageChange && results.length >= 18 && (
-              <div className="flex justify-center gap-2 pt-2">
-                <button
-                  disabled={data.page <= 1}
-                  onClick={() => onPageChange(data.page - 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                             hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />{t('search:movie.prevPage')}
-                </button>
-                <span className="flex items-center px-3 text-xs text-stone-500">
-                  {t('search:movie.pageNumber', { page: data.page })}
-                </span>
-                <button
-                  onClick={() => onPageChange(data.page + 1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                             hover:bg-stone-200 hover:text-stone-700 transition-all
-                             dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                >
-                  {t('search:movie.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        ) : !data.tmdbError && !data.doubanError ? (
-          <div className="rounded-xl border p-6 text-center bg-white dark:bg-stone-800/30 border-stone-200 dark:border-stone-700">
-            <Film className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-            <p className="text-sm text-stone-500">{t('search:movie.noMatchResults')}</p>
-          </div>
-        ) : null}
-
-        {/* right: detail + resources */}
-        <div className="min-w-0 space-y-5">
-          {/* selected item detail（增强版元数据展示） */}
-          {selectedItem && (
-            <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
-              {/* 封面 + 基本信息 */}
-              <div className="flex gap-4 sm:gap-5 p-4 sm:p-5">
-                {selectedItem.poster || selectedItem.backdrop ? (
+          {selectedItem ? (
+            <PanelSection>
+              <PanelHeader
+                icon={<Star className="h-4 w-4" />}
+                title={t('search:movie.matchTitle')}
+                actions={
+                  <a
+                    href={isProxyEnabled ? convertToProxyUrl(getExternalUrl(selectedItem)) : getExternalUrl(selectedItem)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+                    aria-label={t('search:movie.matchTitle')}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                }
+              />
+              <div className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
+                {selectedItem.backdrop || selectedItem.poster ? (
                   <img
                     src={selectedItem.backdrop ?? selectedItem.poster!}
                     alt={selectedItem.title}
-                    className="hidden sm:block w-48 h-28 object-cover rounded-lg flex-shrink-0 bg-stone-200 dark:bg-stone-700 shadow-md"
                     loading="lazy"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
+                    className="hidden h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:block"
+                    onError={(event) => {
+                      (event.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-base sm:text-lg font-bold text-stone-900 dark:text-stone-100 leading-snug">
-                        {selectedItem.title}
-                      </h3>
-                      {selectedItem.originalTitle !== selectedItem.title && (
-                        <p className="text-sm text-stone-500 mt-0.5">{selectedItem.originalTitle}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {isAuthenticated && onToggleFavorite && (
-                        <>
-                          <button
-                            onClick={() => onToggleFavorite(selectedItem)}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              isMovieFavorited(selectedItem)
-                                ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-                                : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
-                            }`}
-                            title={isMovieFavorited(selectedItem) ? t('search:movie.unfavorite') : t('search:movie.favorite')}
-                          >
-                            <Heart className={`w-4 h-4 ${isMovieFavorited(selectedItem) ? 'fill-current' : ''}`} />
-                          </button>
-                          {!isMovieFavorited(selectedItem) && (
-                            <span className="text-xs font-medium text-rose-500 dark:text-rose-400 animate-pulse hidden sm:inline">
-                              {t('search:movie.favorite')}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {(() => {
-                        const externalUrl = selectedItem.source === 'douban'
-                          ? `https://movie.douban.com/subject/${Math.abs(selectedItem.id)}/`
-                          : `https://www.themoviedb.org/${selectedItem.mediaType}/${selectedItem.id}`;
-                        return (
-                          <>
-                            {isProxyEnabled && (
-                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                <ShieldCheck className="w-3 h-3" />{t('search:movie.proxyAccessible')}
-                              </span>
-                            )}
-                            <a
-                              href={isProxyEnabled ? convertToProxyUrl(externalUrl) : externalUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`flex items-center gap-1 text-xs p-1.5 rounded-lg transition-all flex-shrink-0 ${
-                                isProxyEnabled
-                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                  : 'text-stone-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                              }`}
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* 详细信息（InfoRow 风格） */}
-                  <div className="space-y-1.5 mt-3">
-                    <div className="flex flex-wrap gap-2 text-sm">
-                      {selectedItem.source === 'douban' ? (
-                        <span className="px-2 py-0.5 text-xs font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-full">
-                          {t('search:movie.sourceDouban')}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-xs font-bold bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 rounded-full">
-                          {t('search:movie.sourceTMDB')}
-                        </span>
-                      )}
-                      <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                        selectedItem.mediaType === 'movie'
-                          ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
-                          : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
-                      }`}>
-                        {mediaTypeLabel(t, selectedItem.mediaType)}
+                  <h3 className="text-[14px] font-semibold leading-snug text-surface-900 dark:text-surface-100">{selectedItem.title}</h3>
+                  {selectedItem.originalTitle !== selectedItem.title ? (
+                    <p className="type-micro mt-0.5 text-surface-500">{selectedItem.originalTitle}</p>
+                  ) : null}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Chip tone={selectedItem.source === 'douban' ? 'success' : 'source'} size="xs">
+                      {selectedItem.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
+                    </Chip>
+                    <Chip tone={selectedItem.mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
+                      {mediaTypeLabel(t, selectedItem.mediaType)}
+                    </Chip>
+                    {selectedItem.year ? <Chip tone="neutral" size="xs">{selectedItem.year}</Chip> : null}
+                    {selectedItem.rating > 0 ? (
+                      <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${ratingColor(selectedItem.rating)}`}>
+                        <Star className="h-3 w-3 fill-current" />{selectedItem.rating.toFixed(1)}
                       </span>
-                      {selectedItem.year && (
-                        <span className="flex items-center gap-1 text-xs text-stone-500">
-                          <Calendar className="w-3 h-3" />{selectedItem.year}
-                        </span>
-                      )}
-                      {selectedItem.rating > 0 && (
-                        <span className={`flex items-center gap-1 text-sm font-semibold ${ratingColor(selectedItem.rating)}`}>
-                          <Star className="w-3.5 h-3.5 fill-current" />{selectedItem.rating.toFixed(1)}
-                          <span className="text-xs text-stone-400 font-normal">{t('search:movie.voteCount', { count: selectedItem.voteCount })}</span>
-                        </span>
-                      )}
-                    </div>
-                    {selectedItem.overview && (
-                      <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-3 mt-2">
-                        {selectedItem.overview}
-                      </p>
-                    )}
+                    ) : null}
+                    {isProxyEnabled ? (
+                      <Chip tone="proxy" size="xs">
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        {t('search:movie.proxyAccessible')}
+                      </Chip>
+                    ) : null}
+                    {isAuthenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => onToggleFavorite?.(selectedItem)}
+                        aria-label={isMovieFavorited(selectedItem) ? t('search:movie.unfavorite') : t('search:movie.favorite')}
+                        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                          isMovieFavorited(selectedItem)
+                            ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+                            : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
+                        }`}
+                      >
+                        <Heart className={`h-3.5 w-3.5 ${isMovieFavorited(selectedItem) ? 'fill-current' : ''}`} />
+                      </button>
+                    ) : null}
                   </div>
+                  {selectedItem.overview ? (
+                    <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-surface-600 dark:text-surface-300">{selectedItem.overview}</p>
+                  ) : null}
                 </div>
               </div>
-            </div>
-          )}
+            </PanelSection>
+          ) : null}
 
-          {/* resource links（增强版资源列表） */}
-          <div className="bg-white dark:bg-stone-900/90 rounded-2xl shadow-lg shadow-stone-900/5 border border-stone-200/60 dark:border-stone-700/60 overflow-hidden">
-            {/* 标题栏 */}
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-stone-800">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-                  <Magnet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 dark:text-rose-400" />
-                </div>
-                <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm sm:text-base">
-                  {t('search:movie.downloadResources')}
-                </span>
-                {displayResources.length > 0 && (
-                  <span className="px-2 py-0.5 text-xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full">
-                    {t('search:movie.countItems', { count: displayResources.length })}
-                  </span>
-                )}
-              </div>
-              {displayResources.length > 0 && (
-                <div className="flex items-center gap-1 text-[10px] text-stone-400">
-                  <Magnet className="w-3 h-3" />
-                  {t('search:movie.resourceHint')}
-                </div>
-              )}
-            </div>
-
-            {/* 内容区 */}
-            <div className="p-4 sm:p-5">
+          <PanelSection>
+            <PanelHeader
+              icon={<Magnet className="h-4 w-4 text-accent-500" />}
+              title={t('search:movie.downloadResources')}
+              count={displayResources.length > 0 ? <CountBadge>{t('search:movie.countItems', { count: displayResources.length })}</CountBadge> : undefined}
+              meta={t('search:movie.resourceHint')}
+            />
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
               {displayResources.length === 0 ? (
-                <div className="text-center py-8">
-                  <Magnet className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-                  <p className="text-sm text-stone-500">{t('search:movie.noResources')}</p>
-                  <p className="text-xs text-stone-400 mt-2">
-                    {t('search:movie.searchExternal')}
-                    <a href={`https://yts.mx/movies?query_term=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">YTS</a>·
-                    <a href={`https://1337x.to/search/${encodeURIComponent(data.keyword)}/1/`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">1337x</a>·
-                    <a href={`https://www.lightbt.top/search?q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline mx-1">LightBT</a>
-                  </p>
-                </div>
+                <EmptyBlock
+                  icon={<Magnet className="h-7 w-7" />}
+                  title={t('search:movie.noResources')}
+                  hint={
+                    <>
+                      {t('search:movie.searchExternal')}
+                      <a href={`https://yts.mx/movies?query_term=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="mx-1 text-primary-500 hover:underline">YTS</a>·
+                      <a href={`https://1337x.to/search/${encodeURIComponent(data.keyword)}/1/`} target="_blank" rel="noopener noreferrer" className="mx-1 text-primary-500 hover:underline">1337x</a>·
+                      <a href={`https://www.lightbt.top/search?q=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="mx-1 text-primary-500 hover:underline">LightBT</a>
+                    </>
+                  }
+                  className="bg-transparent"
+                />
               ) : (
                 <>
-                  <div className="space-y-1.5">
-                    {/* 表头 */}
-                    <div className="grid grid-cols-[1fr_80px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-                      <span>{t('search:movie.resourceHeader')}</span>
-                      <span className="text-right">{t('search:movie.actions')}</span>
-                    </div>
-
-                    {/* 资源列表 */}
-                    {(showAllResources ? pagedResources : pagedResources.slice(0, 5)).map((item, i) => (
-                      <ResourceCard key={item.magnet + item.title + i} item={item} />
+                  <div className="divide-y divide-surface-100 dark:divide-surface-800/70">
+                    {(showAllResources ? pagedResources : pagedResources.slice(0, 5)).map((item, index) => (
+                      <ResourceCard key={item.magnet + item.title + index} item={item} />
                     ))}
-
-                    {/* 展开/收起 */}
-                    {pagedResources.length > 5 && (
-                      <button
-                        onClick={() => setShowAllResources(!showAllResources)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-stone-400 hover:text-primary-500 hover:bg-stone-50 dark:hover:bg-stone-800/40 rounded-lg transition-all"
-                      >
-                        {showAllResources
-                          ? <><ChevronUp className="w-3.5 h-3.5" />{t('search:movie.collapse')}</>
-                          : <><ChevronDown className="w-3.5 h-3.5" />{t('search:movie.expandAll', { count: pagedResources.length })}</>}
-                      </button>
-                    )}
                   </div>
-
-                  {/* 分页 */}
-                  {displayResources.length > RES_PAGE_SIZE && (
-                    <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
-                      <button
-                        disabled={resourcePage <= 1}
-                        onClick={() => setResourcePage(p => p - 1)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                                   hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all
-                                   dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />{t('search:movie.prevPage')}
-                      </button>
-                      <span className="text-xs text-stone-500 px-2">
-                        {resourcePage} / {resTotalPages}
-                        <span className="ml-1 text-stone-400">{t('search:movie.totalCount', { count: displayResources.length })}</span>
-                      </span>
-                      <button
-                        disabled={resourcePage >= resTotalPages}
-                        onClick={() => setResourcePage(p => p + 1)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500
-                                   hover:bg-stone-200 hover:text-stone-700 transition-all
-                                   dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-                      >
-                        {t('search:movie.nextPage')}<ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {pagedResources.length > 5 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllResources((value) => !value)}
+                      className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] text-surface-500 transition-colors hover:bg-surface-50 hover:text-primary-500 dark:hover:bg-surface-800/40"
+                    >
+                      {showAllResources ? (
+                        <><ChevronUp className="h-3.5 w-3.5" />{t('search:movie.collapse')}</>
+                      ) : (
+                        <><ChevronDown className="h-3.5 w-3.5" />{t('search:movie.expandAll', { count: pagedResources.length })}</>
+                      )}
+                    </button>
+                  ) : null}
+                  <Pagination
+                    page={resourcePage}
+                    totalPages={resTotalPages}
+                    onChange={setResourcePage}
+                    prevLabel={t('search:movie.prevPage')}
+                    nextLabel={t('search:movie.nextPage')}
+                    totalLabel={t('search:movie.totalCount', { count: displayResources.length })}
+                  />
                 </>
               )}
             </div>
-          </div>
-        </div>
-      </div>
-      )}
+          </PanelSection>
+        </>
+      ) : null}
     </div>
   );
 };

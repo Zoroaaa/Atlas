@@ -2748,7 +2748,8 @@
       "proxy": "代理",
       "favorite": "收藏",
       "unfavorite": "取消收藏",
-      "go": "前往"
+      "go": "前往",
+      "backToDiscovery": "返回發現"
     },
     "suggestions": {
       "loading": "搜尋建議中...",

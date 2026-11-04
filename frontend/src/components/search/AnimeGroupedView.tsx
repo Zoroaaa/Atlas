@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Star, Calendar, Tv, ExternalLink, Magnet,
-  ChevronDown, ChevronRight, Heart, Users, Trophy,
-  Film, Tag, ShieldCheck, Filter, ArrowUpDown,
+  ChevronDown, ChevronRight, Heart, Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -16,44 +15,27 @@ import type { FavoriteItem } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
+import {
+  GroupedHeader,
+  GroupedFilterBar,
+  MediaCard,
+  ResourceRow,
+  Chip,
+  Pagination,
+  CountBadge,
+  EmptyBlock,
+  PanelSection,
+  PanelHeader,
+} from '@/components/workbench';
+import type { ChipTone } from '@/components/workbench';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const fmt = {
   seedColor: (n: number) =>
-    n >= 10 ? 'text-emerald-400' : n >= 1 ? 'text-yellow-400' : 'text-red-400',
+    n >= 10 ? 'text-success-400' : n >= 1 ? 'text-warning-400' : 'text-error-400',
   rating: (n: number) =>
-    n >= 8 ? 'text-emerald-400' : n >= 6 ? 'text-yellow-400' : 'text-stone-400',
-  sourceBadge: (s: string) => {
-    const m: Record<string, string> = {
-      nyaa: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
-      mikan: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',
-      animetosho: 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300',
-      showrss: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300',
-    };
-    return m[s] ?? 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400';
-  },
-};
-
-const typeColor = (t?: string | number) => {
-  const m: Record<string | number, string> = {
-    2: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
-    6: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
-    4: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',
-    3: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
-    tv: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
-    movie: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
-  };
-  return t != null ? (m[t] ?? 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400') : 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400';
-};
-
-const statusColor = (s?: string) => {
-  switch (s) {
-    case '连载中': return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
-    case '已完结': return 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400';
-    case '未开播': return 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400';
-    default: return '';
-  }
+    n >= 8 ? 'text-success-400' : n >= 6 ? 'text-warning-400' : 'text-surface-400',
 };
 
 const typeLabel = (t: TFunction, tf?: string | number) => {
@@ -80,54 +62,40 @@ type FilterQuality = 'all' | '4K' | '1080p' | '720p';
 function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
   const { t } = useTranslation(['search']);
   const quality = extractQuality(item.title);
+  const sourceTone = (source: string): ChipTone =>
+    source === 'mikan' ? 'success' : source === 'animetosho' ? 'accent' : source === 'showrss' ? 'warning' : 'source';
+
   return (
-    <div className="grid grid-cols-[1fr_100px] gap-2 items-center px-3 py-2.5 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-all group">
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${fmt.sourceBadge(item.source)}`}>
-            {item.sourceLabel}
-          </span>
-          {item.trusted && (
-            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-400" title={t('search:anime.trustedUploader')} />
-          )}
-          {quality && (
-            <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${
-              quality === '4K' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300'
-              : quality === '1080p' ? 'bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300'
-              : 'bg-stone-100 text-stone-500 dark:bg-stone-700/40 dark:text-stone-400'
-            }`}>{quality}</span>
-          )}
-          {item.group && (
-            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 rounded truncate max-w-[80px]" title={t('search:anime.subgroup', { name: item.group })}>
-              {item.group}
+    <ResourceRow
+      badges={
+        <>
+          <Chip tone={sourceTone(item.source)} size="xs">{item.sourceLabel}</Chip>
+          {item.trusted ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success-400" title={t('search:anime.trustedUploader')} /> : null}
+          {item.group ? <Chip tone="neutral" size="xs">{item.group}</Chip> : null}
+        </>
+      }
+      quality={quality ? <Chip tone={quality === '4K' ? 'warning' : 'source'} size="xs">{quality}</Chip> : undefined}
+      title={
+        <a href={item.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={t('search:anime.btDownloadHint', { title: item.title })}>
+          {item.title}
+        </a>
+      }
+      meta={[item.size, item.date].filter(Boolean) as React.ReactNode[]}
+      trailing={
+        <>
+          {item.source !== 'showrss' && item.source !== 'mikan' ? (
+            <span className={`mr-1 text-[11px] font-medium tabular-nums ${fmt.seedColor(item.seeders)}`}>
+              {item.seeders}<span className="mx-0.5 text-surface-400">/</span><span className="text-error-400">{item.leechers}</span>
             </span>
+          ) : item.source === 'mikan' ? (
+            <span className="type-micro mr-1 text-surface-400">{t('search:anime.subgroupResource')}</span>
+          ) : (
+            <Chip tone="neutral" size="xs" className="mr-1">DHT</Chip>
           )}
-          <a
-            href={item.magnet}
-            className="text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
-            title={t('search:anime.btDownloadHint', { title: item.title })}
-          >
-            {item.title}
-          </a>
-        </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-stone-500">
-          {item.size && <span>{item.size}</span>}
-          {item.date && <span>{item.date}</span>}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {item.source !== 'showrss' && item.source !== 'mikan' ? (
-          <span className={`text-xs font-medium ${fmt.seedColor(item.seeders)} tabular-nums`}>
-            {item.seeders}<span className="text-stone-400 mx-0.5">/</span><span className="text-red-400">{item.leechers}</span>
-          </span>
-        ) : item.source === 'mikan' ? (
-          <span className="text-[10px] text-stone-400">{t('search:anime.subgroupResource')}</span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500 dark:bg-stone-700/60 dark:text-stone-400">DHT</span>
-        )}
-        <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
-      </div>
-    </div>
+          <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
+        </>
+      }
+    />
   );
 }
 
@@ -196,249 +164,157 @@ function GroupedSubjectCard({
   const changeFilter = <T,>(setter: (v: T) => void, val: T) => { setter(val); setResPage(1); };
 
   return (
-    <div className={`rounded-2xl border transition-all ${
-      expanded
-        ? 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/5'
-        : 'border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 hover:border-amber-500/30'
+    <div className={`border-t border-surface-100 first:border-t-0 dark:border-surface-800/70 ${
+      expanded ? 'bg-surface-50/40 dark:bg-surface-900/30' : ''
     }`}>
       {/* 作品头部（可点击展开） */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex gap-4 p-4 text-left"
-      >
-        {/* 封面 */}
-        {subject.cover && (
-          <div className="shrink-0">
+      <GroupedHeader
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        cover={
+          subject.cover ? (
             <img
               src={getProxyImageUrl(subject.cover)}
               alt={subject.nameCN || subject.name}
-              className="w-16 sm:w-20 h-24 sm:h-28 object-cover rounded-lg bg-stone-200 dark:bg-stone-700 shadow-md"
+              className="h-16 w-12 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
               loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              onError={(event) => { (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
             />
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          {/* 标题行 */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                {subject.type && (
-                  <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${typeColor(subject.type)}`}>
-                    {typeLabel(t, subject.type)}
-                  </span>
-                )}
-                {subject.status && (
-                  <span className={`shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded ${statusColor(subject.status)}`}>
-                    {subject.status}
-                  </span>
-                )}
-                {subject.rank && subject.rank > 0 && subject.rank <= 1000 && (
-                  <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-amber-500 font-medium">
-                    <Trophy className="w-3 h-3" />#{subject.rank}
-                  </span>
-                )}
-                {/* 资源数量徽章 */}
-                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                  {t('search:anime.resourceCount', { count: resources.length })}
-                </span>
-              </div>
-              <h3 className={`font-semibold text-sm leading-snug line-clamp-2 transition-colors ${
-                expanded ? 'text-amber-600 dark:text-amber-400' : 'text-stone-900 dark:text-stone-100'
-              }`}>
-                {subject.nameCN || subject.name}
-              </h3>
-              {subject.nameCN && subject.name !== subject.nameCN && (
-                <p className="text-xs text-stone-500 mt-0.5 truncate">{subject.name}</p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {/* 收藏按钮（阻止冒泡） */}
-              {isAuthenticated && (
-                <span
-                  role="button"
-                  onClick={(e) => { e.stopPropagation(); onToggleFavorite(subject); }}
-                  className={`p-1.5 rounded-lg transition-all ${
-                    isFavorited
-                      ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/20'
-                      : 'text-stone-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
-                  }`}
-                  title={isFavorited ? t('search:anime.unfavorite') : t('search:anime.favorite')}
-                >
-                  <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
-                </span>
-              )}
-              {/* 外链 */}
-              <a
-                href={isProxyEnabled ? convertToProxyUrl(subject.url) : subject.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-lg text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+          ) : undefined
+        }
+        title={subject.nameCN || subject.name}
+        subtitle={subject.nameCN && subject.name !== subject.nameCN ? subject.name : undefined}
+        badges={
+          <>
+            {subject.type ? (
+              <Chip tone={subject.type === 4 || subject.type === 'web' ? 'success' : subject.type === 3 || subject.type === 'music' ? 'accent' : 'warning'} size="xs">
+                {typeLabel(t, subject.type)}
+              </Chip>
+            ) : null}
+            {subject.status ? (
+              <Chip tone={subject.status === '连载中' ? 'success' : subject.status === '未开播' ? 'warning' : 'neutral'} size="xs">
+                {subject.status}
+              </Chip>
+            ) : null}
+            {subject.rank && subject.rank > 0 && subject.rank <= 1000 ? <Chip tone="warning" size="xs">#{subject.rank}</Chip> : null}
+            <Chip tone="primary" size="xs">{t('search:anime.resourceCount', { count: resources.length })}</Chip>
+          </>
+        }
+        meta={
+          <>
+            {subject.rating > 0 ? (
+              <span className={`mr-2 inline-flex items-center gap-0.5 font-medium ${fmt.rating(subject.rating)}`}>
+                <Star className="h-2.5 w-2.5 fill-current" />{subject.rating.toFixed(1)}
+                {subject.ratingCount ? <span className="font-normal text-surface-400">({subject.ratingCount})</span> : null}
+              </span>
+            ) : null}
+            {subject.collection?.doing ? (
+              <span className="mr-2 inline-flex items-center gap-0.5"><Users className="h-2.5 w-2.5" />{subject.collection.doing}</span>
+            ) : null}
+            {subject.eps ? (
+              <span className="mr-2 inline-flex items-center gap-0.5"><Tv className="h-2.5 w-2.5" />{t('search:anime.epsCount', { count: subject.eps })}</span>
+            ) : null}
+            {subject.airDate ? (
+              <span className="mr-2 inline-flex items-center gap-0.5"><Calendar className="h-2.5 w-2.5" />{subject.airDate.slice(0, 7)}</span>
+            ) : null}
+            {subject.studio ? <span className="mr-2 truncate">{subject.studio}</span> : null}
+            {!expanded && Object.keys(sourceCounts).length > 0 ? (
+              <span>{Object.entries(sourceCounts).map(([source, count]) => `${source}:${count}`).join(' · ')}</span>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(subject)}
+                aria-label={isFavorited ? t('search:anime.unfavorite') : t('search:anime.favorite')}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                  isFavorited
+                    ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+                    : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
+                }`}
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-              {/* 展开/收起指示 */}
-              <span className="p-1.5 text-stone-400">
-                {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </span>
-            </div>
-          </div>
-
-          {/* 元信息行 */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500 mt-2">
-            {subject.rating > 0 && (
-              <span className={`flex items-center gap-1 ${fmt.rating(subject.rating)} font-medium`}>
-                <Star className="w-3 h-3 fill-current" />
-                {subject.rating.toFixed(1)}
-                {subject.ratingCount ? <span className="text-[10px] text-stone-400 font-normal">({subject.ratingCount})</span> : null}
-              </span>
-            )}
-            {subject.collection?.doing && subject.collection.doing > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px]" title={t('search:anime.watchingCount')}>
-                <Users className="w-3 h-3 text-amber-400" />{subject.collection.doing}
-              </span>
-            )}
-            {subject.eps > 0 && (
-              <span className="flex items-center gap-1"><Tv className="w-3 h-3" />{t('search:anime.epsCount', { count: subject.eps })}</span>
-            )}
-            {subject.airDate && (
-              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{subject.airDate.slice(0, 7)}</span>
-            )}
-            {subject.studio && (
-              <span className="text-[10px] text-amber-500 dark:text-amber-400 truncate">
-                <Film className="w-3 h-3 inline mr-0.5" />{subject.studio}
-              </span>
-            )}
-          </div>
-
-          {/* 标签 */}
-          {subject.tags && subject.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {subject.tags.map(tag => (
-                <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] rounded-full bg-stone-100 text-stone-500 dark:bg-stone-700/50 dark:text-stone-400">
-                  <Tag className="w-2.5 h-2.5" />{tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* 源分布迷你徽章（收起时显示） */}
-          {!expanded && Object.keys(sourceCounts).length > 0 && (
-            <div className="flex items-center gap-1 mt-2">
-              {Object.entries(sourceCounts).map(([src, count]) => (
-                <span key={src} className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${fmt.sourceBadge(src)}`}>
-                  {count}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </button>
+                <Heart className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
+              </button>
+            ) : null}
+            <a
+              href={isProxyEnabled ? convertToProxyUrl(subject.url) : subject.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('search:anime.more')}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </>
+        }
+      />
 
       {/* 展开内容：简介 + 资源列表 + 筛选排序 */}
       {expanded && processedResources.length > 0 && (
-        <div className="px-4 pb-4 border-t border-stone-100 dark:border-stone-800">
-          {/* 简介 */}
-          {subject.summary && (
-            <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed py-3 line-clamp-3">
-              {subject.summary}
-            </p>
-          )}
-          {/* 筛选排序栏 */}
-          <div className="flex flex-wrap items-center gap-2 py-3">
-            <div className="flex items-center gap-1 text-[10px] text-stone-400">
-              <Filter className="w-3 h-3" />{t('search:anime.source')}
-            </div>
-            <div className="flex items-center gap-1">
-              <FilterChip active={filterSource === 'all'} onClick={() => changeFilter(setFilterSource, 'all')}>{t('search:anime.all')}</FilterChip>
-              {Object.entries(sourceCounts).map(([src, count]) => (
-                <FilterChip key={src} active={filterSource === src} onClick={() => changeFilter(setFilterSource, src as FilterSource)}>
-                  {src} ({count})
-                </FilterChip>
-              ))}
-            </div>
+        <div className="border-t border-surface-100 px-4 pb-4 dark:border-surface-800/70">
+          {subject.summary ? (
+            <p className="line-clamp-3 py-3 text-[11px] leading-relaxed text-surface-500">{subject.summary}</p>
+          ) : null}
 
-            {/* 清晰度筛选 */}
-            {Object.keys(qualityCounts).length > 0 && (
-              <>
-                <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-2">{t('search:anime.quality')}</div>
-                <div className="flex items-center gap-1">
-                  <FilterChip active={filterQuality === 'all'} onClick={() => changeFilter(setFilterQuality, 'all')}>{t('search:anime.all')}</FilterChip>
-                  {Object.entries(qualityCounts).map(([q, count]) => (
-                    <FilterChip key={q} active={filterQuality === q} onClick={() => changeFilter(setFilterQuality, q as FilterQuality)}>
-                      {q} ({count})
-                    </FilterChip>
-                  ))}
-                </div>
-              </>
-            )}
+          <GroupedFilterBar
+            sortLabel={t('search:anime.sort')}
+            sortOptions={[
+              { value: 'seeders', label: t('search:anime.sortBySeeders') },
+              { value: 'date', label: t('search:anime.sortByDate') },
+              { value: 'size', label: t('search:anime.sortBySize') },
+            ]}
+            sortValue={sortBy}
+            onSortChange={(value) => changeFilter(setSortBy, value as SortKey)}
+            filterLabel={Object.keys(qualityCounts).length > 0 ? t('search:anime.quality') : undefined}
+            filterOptions={Object.keys(qualityCounts).length > 0 ? [
+              { value: 'all', label: t('search:anime.all') },
+              ...Object.entries(qualityCounts).map(([quality, count]) => ({ value: quality, label: quality, count })),
+            ] : undefined}
+            filterValue={filterQuality}
+            onFilterChange={(value) => changeFilter(setFilterQuality, value as FilterQuality)}
+            extra={
+              <div className="ml-auto flex items-center gap-1">
+                <span className="type-micro text-surface-500">{t('search:anime.source')}</span>
+                <button
+                  type="button"
+                  onClick={() => changeFilter(setFilterSource, 'all')}
+                  className={`h-5 rounded-md px-1.5 text-[10px] font-medium ${filterSource === 'all' ? 'bg-primary-500 text-white' : 'bg-surface-100 text-surface-500 hover:bg-surface-200 dark:bg-surface-800/60 dark:text-surface-400'}`}
+                >
+                  {t('search:anime.all')}
+                </button>
+                {Object.entries(sourceCounts).map(([source, count]) => (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => changeFilter(setFilterSource, source as FilterSource)}
+                    className={`h-5 rounded-md px-1.5 text-[10px] font-medium ${filterSource === source ? 'bg-primary-500 text-white' : 'bg-surface-100 text-surface-500 hover:bg-surface-200 dark:bg-surface-800/60 dark:text-surface-400'}`}
+                  >
+                    {source} ({count})
+                  </button>
+                ))}
+              </div>
+            }
+          />
 
-            {/* 排序 */}
-            <div className="flex items-center gap-1 text-[10px] text-stone-400 ml-auto">
-              <ArrowUpDown className="w-3 h-3" />{t('search:anime.sort')}
-            </div>
-            <div className="flex items-center gap-1">
-              <FilterChip active={sortBy === 'seeders'} onClick={() => changeFilter(setSortBy, 'seeders')}>{t('search:anime.sortBySeeders')}</FilterChip>
-              <FilterChip active={sortBy === 'date'} onClick={() => changeFilter(setSortBy, 'date')}>{t('search:anime.sortByDate')}</FilterChip>
-              <FilterChip active={sortBy === 'size'} onClick={() => changeFilter(setSortBy, 'size')}>{t('search:anime.sortBySize')}</FilterChip>
-            </div>
-          </div>
-
-          {/* 资源列表 */}
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-[1fr_100px] gap-2 px-2 py-1 text-[10px] font-semibold text-stone-400 uppercase tracking-wide border-b border-stone-100 dark:border-stone-800">
-              <span>{t('search:anime.resourceHeader')}</span>
-              <span className="text-right">{t('search:anime.statusActions')}</span>
-            </div>
-            {pagedResources.map((item, i) => (
-              <UnifiedResourceCard key={item.magnet || i} item={item} />
+          <div className="divide-y divide-surface-100 dark:divide-surface-800/70">
+            {pagedResources.map((item, index) => (
+              <UnifiedResourceCard key={item.magnet || index} item={item} />
             ))}
           </div>
 
-          {/* 分页 */}
-          {processedResources.length > RES_PAGE_SIZE && (
-            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
-              <button
-                disabled={resPage <= 1}
-                onClick={() => setResPage(p => p - 1)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-              >
-                {t('search:anime.prevPage')}
-              </button>
-              <span className="text-xs text-stone-500 px-2">
-                {resPage} / {resTotalPages}
-              </span>
-              <button
-                disabled={resPage >= resTotalPages}
-                onClick={() => setResPage(p => p + 1)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700 dark:hover:text-stone-200"
-              >
-                {t('search:anime.nextPage')}
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={resPage}
+            totalPages={resTotalPages}
+            onChange={setResPage}
+            prevLabel={t('search:anime.prevPage')}
+            nextLabel={t('search:anime.nextPage')}
+          />
         </div>
       )}
     </div>
-  );
-}
-
-// 筛选小芯片
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-2 py-0.5 text-[10px] rounded-full transition-all ${
-        active
-          ? 'bg-amber-500 text-white font-medium'
-          : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800/60 dark:text-stone-400 dark:hover:bg-stone-700'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -450,33 +326,27 @@ function UngroupedResourcesSection({ resources }: { resources: AnimeUnifiedResou
   if (resources.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
-            <Magnet className="w-3.5 h-3.5 text-stone-400" />
-          </div>
-          <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:anime.unmatchedResources')}</span>
-          <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-            {t('search:anime.countItems', { count: resources.length })}
-          </span>
-        </div>
-        {expanded ? <ChevronDown className="w-4 h-4 text-stone-400" /> : <ChevronRight className="w-4 h-4 text-stone-400" />}
-      </button>
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-stone-100 dark:border-stone-800 pt-2">
-          <p className="text-[10px] text-stone-400 mb-2">{t('search:anime.unmatchedHint')}</p>
-          <div className="space-y-1.5">
-            {resources.map((item, i) => (
-              <UnifiedResourceCard key={item.magnet || i} item={item} />
+    <PanelSection>
+      <PanelHeader
+        icon={<Magnet className="h-4 w-4" />}
+        title={t('search:anime.unmatchedResources')}
+        count={<CountBadge>{t('search:anime.countItems', { count: resources.length })}</CountBadge>}
+        onToggle={() => setExpanded(!expanded)}
+        expanded={expanded}
+        ariaControls="anime-ungrouped-resources"
+        actions={expanded ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
+      />
+      {expanded ? (
+        <div id="anime-ungrouped-resources" className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <p className="type-micro mb-2 text-surface-400">{t('search:anime.unmatchedHint')}</p>
+          <div className="divide-y divide-surface-100 dark:divide-surface-800/70">
+            {resources.map((item, index) => (
+              <UnifiedResourceCard key={item.magnet || index} item={item} />
             ))}
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+    </PanelSection>
   );
 }
 
@@ -508,108 +378,78 @@ export const AnimeGroupedView: React.FC<AnimeGroupedViewProps> = ({
   const withoutResources = grouped.groups.filter(g => g.resources.length === 0);
 
   return (
-    <div className="space-y-4">
-      {/* 统计栏 */}
-      <div className="flex items-center gap-2 text-xs text-stone-500">
-        <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 font-medium">
-          {t('search:anime.groupedView')}
-        </span>
-        <span>{t('search:anime.worksWithResources', { count: withResources.length })}</span>
-        {grouped.ungrouped.length > 0 && (
-          <>
-            <span>·</span>
-            <span>{t('search:anime.unmatchedResourcesCount', { count: grouped.ungrouped.length })}</span>
-          </>
-        )}
-        {withoutResources.length > 0 && (
-          <>
-            <span>·</span>
-            <span>{t('search:anime.worksWithoutResources', { count: withoutResources.length })}</span>
-          </>
-        )}
+    <div>
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-3 sm:px-5">
+        <Chip tone="primary" size="xs">{t('search:anime.groupedView')}</Chip>
+        <span className="type-meta">{t('search:anime.worksWithResources', { count: withResources.length })}</span>
+        {grouped.ungrouped.length > 0 ? (
+          <><span className="type-micro text-surface-400">·</span><span className="type-meta">{t('search:anime.unmatchedResourcesCount', { count: grouped.ungrouped.length })}</span></>
+        ) : null}
+        {withoutResources.length > 0 ? (
+          <><span className="type-micro text-surface-400">·</span><span className="type-meta">{t('search:anime.worksWithoutResources', { count: withoutResources.length })}</span></>
+        ) : null}
       </div>
 
-      {/* 有资源的作品（默认展开第一个） */}
-      {withResources.length > 0 && (
-        <div className="space-y-3">
-          {withResources.map((group, i) => (
+      {withResources.length > 0 ? (
+        <PanelSection>
+          {withResources.map((group, index) => (
             <GroupedSubjectCard
               key={group.subject.id}
               group={group}
               isAuthenticated={isAuthenticated}
               isFavorited={isBgmFavorited(group.subject.url)}
-              onToggleFavorite={(s) => onToggleFavorite?.(s)}
+              onToggleFavorite={(subject) => onToggleFavorite?.(subject)}
               isProxyEnabled={isProxyEnabled}
-              defaultExpanded={i === 0}
+              defaultExpanded={index === 0}
             />
           ))}
-        </div>
-      )}
+        </PanelSection>
+      ) : null}
 
-      {/* 未归组资源 */}
       <UngroupedResourcesSection resources={grouped.ungrouped} />
 
-      {/* 无资源的作品（折叠展示） */}
-      {withoutResources.length > 0 && (
-        <div className="rounded-2xl border border-stone-200 dark:border-stone-700/50 bg-white dark:bg-stone-800/40 overflow-hidden">
-          <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-stone-700/60 flex items-center justify-center">
-                <Star className="w-3.5 h-3.5 text-stone-400" />
-              </div>
-              <span className="font-semibold text-stone-700 dark:text-stone-300 text-sm">{t('search:anime.noResourceWorks')}</span>
-              <span className="px-2 py-0.5 text-xs font-bold bg-stone-100 dark:bg-stone-700/60 text-stone-500 dark:text-stone-400 rounded-full">
-                {t('search:anime.worksCount', { count: withoutResources.length })}
-              </span>
-            </div>
-          </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {withoutResources.map(group => (
-              <a
+      {withoutResources.length > 0 ? (
+        <PanelSection>
+          <PanelHeader
+            icon={<Star className="h-4 w-4" />}
+            title={t('search:anime.noResourceWorks')}
+            count={<CountBadge>{t('search:anime.worksCount', { count: withoutResources.length })}</CountBadge>}
+          />
+          <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 lg:grid-cols-3">
+            {withoutResources.map((group) => (
+              <MediaCard
                 key={group.subject.id}
+                cover={group.subject.cover ? getProxyImageUrl(group.subject.cover) : undefined}
+                coverFallback={<Star className="h-5 w-5" />}
+                coverSize="sm"
                 href={isProxyEnabled ? convertToProxyUrl(group.subject.url) : group.subject.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex gap-3 p-3 rounded-xl border border-stone-200 dark:border-stone-700/50 hover:border-amber-500/30 hover:bg-stone-50 dark:hover:bg-stone-800/70 transition-all"
-              >
-                {group.subject.cover && (
-                  <img
-                    src={getProxyImageUrl(group.subject.cover)}
-                    alt={group.subject.nameCN || group.subject.name}
-                    className="w-12 h-16 object-cover rounded-lg bg-stone-200 dark:bg-stone-700 shrink-0"
-                    loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-xs text-stone-800 dark:text-stone-100 truncate">
-                    {group.subject.nameCN || group.subject.name}
-                  </p>
-                  {group.subject.rating > 0 && (
-                    <p className={`text-[10px] mt-1 ${fmt.rating(group.subject.rating)}`}>
-                      <Star className="w-2.5 h-2.5 inline fill-current" /> {group.subject.rating.toFixed(1)}
-                    </p>
-                  )}
-                  {isProxyEnabled && (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 mt-1">
-                      <ShieldCheck className="w-2.5 h-2.5" />{t('search:anime.proxyAccessible')}
-                    </span>
-                  )}
-                </div>
-              </a>
+                title={group.subject.nameCN || group.subject.name}
+                badges={
+                  <>
+                    {group.subject.rating > 0 ? (
+                      <span className={`inline-flex items-center gap-0.5 text-[10px] ${fmt.rating(group.subject.rating)}`}>
+                        <Star className="h-2.5 w-2.5 fill-current" />{group.subject.rating.toFixed(1)}
+                      </span>
+                    ) : null}
+                    {isProxyEnabled ? <Chip tone="proxy" size="xs">{t('search:anime.proxyAccessible')}</Chip> : null}
+                  </>
+                }
+              />
             ))}
           </div>
-        </div>
-      )}
+        </PanelSection>
+      ) : null}
 
-      {/* 完全空状态 */}
-      {withResources.length === 0 && grouped.ungrouped.length === 0 && withoutResources.length === 0 && (
-        <div className="text-center py-16">
-          <Magnet className="w-10 h-10 text-stone-400 mx-auto mb-3" />
-          <p className="text-sm text-stone-500">{t('search:anime.empty')}</p>
-          <p className="text-xs text-stone-400 mt-1">{t('search:anime.emptyHint')}</p>
+      {withResources.length === 0 && grouped.ungrouped.length === 0 && withoutResources.length === 0 ? (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <EmptyBlock
+            icon={<Magnet className="h-7 w-7" />}
+            title={t('search:anime.empty')}
+            hint={t('search:anime.emptyHint')}
+            className="bg-transparent"
+          />
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

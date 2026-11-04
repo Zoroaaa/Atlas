@@ -2748,7 +2748,8 @@
       "proxy": "Proxy",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite",
-      "go": "Go"
+      "go": "Go",
+      "backToDiscovery": "Back to discovery"
     },
     "suggestions": {
       "loading": "Loading suggestions...",

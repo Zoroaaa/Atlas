@@ -123,7 +123,33 @@ describe('useSearchFlow', () => {
       );
     });
     expect(result.current.isSearching).toBe(false);
+    expect(result.current.hasSearched).toBe(true);
     expect(result.current.searchResults.length).toBeGreaterThan(0);
+  });
+
+  it('should clear hasSearched after resetResults', async () => {
+    mockSearchMutateAsync.mockResolvedValueOnce({
+      success: true,
+      data: { results: [] },
+    });
+
+    const { result } = renderHook(() => useSearchFlow(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      result.current.handleSearch('reset me');
+    });
+
+    expect(result.current.hasSearched).toBe(true);
+
+    act(() => {
+      result.current.resetResults();
+    });
+
+    expect(result.current.hasSearched).toBe(false);
+    expect(result.current.searchResults).toHaveLength(0);
+    expect(result.current.enrichedData).toBeNull();
   });
 
   it('should show error toast when search fails', async () => {
