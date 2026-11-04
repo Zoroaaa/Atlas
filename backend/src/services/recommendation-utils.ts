@@ -4,7 +4,7 @@
  * 解析：data_records 存 JSON 数组，收藏/历史存逗号分隔字符串，统一收敛成 string[]。
  * 其他：番号判定、种子清洗、缓存键哈希。
  */
-import { normalizeCode } from '@/services/jav-utils';
+import { isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
 import type { JavRecommendationItem } from '@/types';
 
 /** 推荐 item 需要的库字段（JavRecordRow / RankingRow 都满足） */
@@ -18,18 +18,14 @@ export interface RecommendationRecordLike {
   rating?: string | null;
 }
 
-const JAV_WORK_CODE_RE = /^[A-Z]{2,8}-\d{2,6}$/;
-
-/** 是否是标准 JAV 作品番号（用于画像过滤与推荐点击链路） */
+/** 是否是 JAV 作品番号（宽识别：标准/日期/下划线/多段/HEYZO 等） */
 export function isJavWorkCode(code: string | null | undefined): boolean {
   if (!code) return false;
-  return JAV_WORK_CODE_RE.test(normalizeCode(code));
+  return isJavCodeLike(normalizeJavCode(code));
 }
 
 /** 统一番号（无效格式原样返回，由调用方决定是否使用） */
-export function normalizeJavCode(code: string): string {
-  return normalizeCode(code.trim());
-}
+export { normalizeJavCode };
 
 /** 解析演员/标签/发行商字段（兼容 JSON 数组与逗号分隔） */
 export function parseValueList(raw: string | null | undefined): string[] {

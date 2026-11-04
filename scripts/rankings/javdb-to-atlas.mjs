@@ -1,9 +1,9 @@
 /**
- * JavDB 月榜 JSON → Atlas 导入 payload
+ * JavDB 周榜/月榜 JSON → Atlas 导入 payload
  *
  * 用法：
  *   node scripts/rankings/javdb-to-atlas.mjs \
- *     --input censored.json --section censored --output censored.payload.json
+ *     --input censored.json --section censored --period month --output censored.payload.json
  *
  * 输入结构（javdb-cli --json）：
  *   { "movies": [{ "number", "title", "origin_title", "cover_url", "thumb_url", "id", ... }] }
@@ -25,16 +25,22 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 const input = args.input;
 const section = args.section;
+const periodArg = args.period;
 const output = args.output;
 
-if (!input || !section || !output) {
-  console.error('missing --input/--section/--output');
+if (!input || !section || !periodArg || !output) {
+  console.error('missing --input/--section/--period/--output');
   process.exit(1);
 }
 if (section !== 'censored' && section !== 'uncensored') {
   console.error('invalid --section, expected censored|uncensored');
   process.exit(1);
 }
+if (periodArg !== 'week' && periodArg !== 'month') {
+  console.error('invalid --period, expected week|month');
+  process.exit(1);
+}
+const period = periodArg === 'week' ? 'weekly' : 'monthly';
 
 const raw = JSON.parse(fs.readFileSync(input, 'utf8'));
 const movies = Array.isArray(raw.movies) ? raw.movies : [];
@@ -52,10 +58,10 @@ const items = movies
 const payload = {
   source: 'javdb',
   section,
-  period: 'monthly',
+  period,
   fetchedAt: Date.now(),
   items,
 };
 
 fs.writeFileSync(output, JSON.stringify(payload), 'utf8');
-console.log(`${section}: ${items.length} items -> ${output}`);
+console.log(`${section}:${period}: ${items.length} items -> ${output}`);

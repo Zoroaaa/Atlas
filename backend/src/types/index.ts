@@ -62,6 +62,8 @@ export interface JavRecommendationItem {
   reason: {
     type: RecommendReasonType;
     value?: string;
+    /** 榜单来源周期（仅 type='ranking'） */
+    period?: 'weekly' | 'monthly';
   };
 }
 
@@ -88,7 +90,7 @@ export interface RankingImportItem {
 export interface RankingImportPayload {
   source: 'javdb';
   section: 'censored' | 'uncensored';
-  period: 'monthly';
+  period: 'weekly' | 'monthly';
   fetchedAt?: number;
   items: RankingImportItem[];
 }

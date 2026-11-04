@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
 import { apiClient } from '@/services/api';
 import type { JavDetail } from '@/types';
 
@@ -10,8 +11,8 @@ export function useJavDetail() {
   const [lastCode, setLastCode] = useState<string>('');
 
   const fetch = useCallback(async (code: string) => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized || !/^[A-Z0-9]+-?\d+$/.test(normalized)) return;
+    const normalized = normalizeJavCode(code);
+    if (!normalized || !isJavCodeLike(normalized)) return;
     if (normalized === lastCode && status === 'success') return; // 防重复
 
     setStatus('loading');

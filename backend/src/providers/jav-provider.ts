@@ -8,7 +8,7 @@
  * 另外 code/title/actress 三条路径都会注入「按用户过滤的多源跳转卡片」，
  * 并将 total 覆盖为源卡片数量（前端展示依赖）。
  *
- * 共享工具（normalizeCode/parseMagnets/parseJavDetail 等）提取至 jav-utils.ts
+ * 共享工具（番号解析/parseMagnets/parseJavDetail 等）提取至 jav-utils.ts
  */
 import {
   SearchProvider,
@@ -16,8 +16,9 @@ import {
   SearchContext,
   HistoryEnrichment,
 } from '@/services/search-provider';
+import { inspectJavCode, isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
 import {
-  normalizeCode,
+  fetchJavbusDetailHtml,
   getHtml,
   extractGidUc,
   parseMagnets,
@@ -65,6 +66,8 @@ export interface JavSearchResult extends SearchResultBase {
   actressWorks?: JavItem[];
   /** actress 子模式：归一化后的日文名（供前端站内搜索链接使用） */
   normalizedKeyword?: string;
+  /** code 模式：未识别为番号（title）或识别但无 JavBus 详情（sources-only） */
+  fallback?: 'title' | 'sources-only';
 }
 
 // ─── Provider 实现 ──────────────────────────────────────────────────────
@@ -83,42 +86,75 @@ export class JavProvider implements SearchProvider {
       return this.searchActress(keyword, page, ctx);
     }
 
-    const result = await this.searchByCode(keyword);
-    // 注入多源跳转卡片，并将 total 覆盖为源数量（前端分页/展示依赖）
+    // 注入多源跳转卡片（title/code/actress 三条路径均有）
     const cards = await this.buildSourceCards(keyword, ctx);
+
+    // 标题模式明确不查番号详情，只返回多源卡片
+    if (ctx.subMode === 'title') {
+      return {
+        resultType: 'jav',
+        keyword,
+        page,
+        total: cards.length,
+        errors: { search: null },
+        results: cards,
+      };
+    }
+
+    const info = inspectJavCode(keyword);
+    if (!info.recognized) {
+      return {
+        resultType: 'jav',
+        keyword,
+        page,
+        total: cards.length,
+        errors: { search: null },
+        results: cards,
+        fallback: 'title',
+      };
+    }
+
+    const result = await this.searchByCode(info.code);
     result.results = cards;
     result.total = cards.length;
+    if (!result.detail) result.fallback = 'sources-only';
     return result;
   }
 
-  /** code / title 子模式：抓 JavBus 详情页 + 磁力 */
+  /** code 子模式：抓 JavBus 详情页 + 磁力 */
   private async searchByCode(keyword: string): Promise<JavSearchResult> {
-    const code = normalizeCode(keyword);
+    const info = inspectJavCode(keyword);
 
-    // 非标准番号格式 → 返回空结果（不抛错）
-    if (!/^[A-Z]{2,8}-\d{2,6}$/.test(code)) {
+    // 未识别格式：不返回硬错误，交由上层走标题回退
+    if (!info.recognized) {
       return {
         resultType: 'jav',
         keyword,
         page: 1,
         total: 0,
-        errors: { search: '请输入有效的番号格式（如 ABP-123）' },
+        errors: { search: null },
+        fallback: 'title',
       };
     }
 
-    try {
-      const detailUrl = `https://www.javbus.com/${code}`;
-      const html = await getHtml(detailUrl, 15000);
+    const code = info.code;
 
-      if (!html || html.length < 500) {
+    try {
+      const fetched = await fetchJavbusDetailHtml(code, 15000);
+
+      if (!fetched) {
         return {
           resultType: 'jav',
           keyword,
           page: 1,
           total: 0,
           errors: { search: `未找到番号 ${code}` },
+          fallback: 'sources-only',
         };
       }
+
+      const { html, usedCode } = fetched;
+      const detailUrl = `https://www.javbus.com/${usedCode}`;
 
       // 解析基本信息（使用共享的 parseJavDetail）
       const baseInfo = parseJavDetail(html, code, detailUrl);
@@ -205,10 +241,10 @@ export class JavProvider implements SearchProvider {
 
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {
     try {
-      const upperKeyword = keyword.toUpperCase().trim();
-      if (!upperKeyword) return [];
-      // WAAA-624 与 WAAA624 视为同一番号，匹配时忽略横杠
-      const compactKeyword = upperKeyword.replace(/-/g, '');
+      const normalized = normalizeJavCode(keyword);
+      if (!normalized) return [];
+      // WAAA-624 与 WAAA624 视为同一番号，匹配时忽略横杠/下划线
+      const compactKeyword = normalized.replace(/[-_]/g, '');
       if (!compactKeyword) return [];
 
       // 从 JavBus 首页提取匹配的番号
@@ -217,11 +253,12 @@ export class JavProvider implements SearchProvider {
 
       const codes: string[] = [];
       const seen = new Set<string>();
-      const re = /<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+-\d+)<\/span>/gi;
+      const re = /<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+[-_][A-Za-z0-9]+)<\/span>/gi;
       let m: RegExpExecArray | null;
       while ((m = re.exec(html)) !== null) {
-        const c = normalizeCode(m[1]);
-        const compact = c.replace(/-/g, '');
+        const c = normalizeJavCode(m[1]);
+        if (!isJavCodeLike(c)) continue;
+        const compact = c.replace(/[-_]/g, '');
         if (compact.startsWith(compactKeyword) || compact.includes(compactKeyword)) {
           if (codes.length < 10 && !seen.has(compact)) {
             seen.add(compact);
@@ -246,10 +283,11 @@ export class JavProvider implements SearchProvider {
 
       while ((m = re.exec(html)) !== null && items.length < 10) {
         const block = m[1];
-        const codeM = block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+-\d+)<\/span>/i);
+        const codeM = block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+[-_][A-Za-z0-9]+)<\/span>/i);
         if (!codeM) continue;
 
-        const code = normalizeCode(codeM[1]);
+        const code = normalizeJavCode(codeM[1]);
+        if (!isJavCodeLike(code)) continue;
         const titleM = block.match(/title="([^"]+)"/i);
         const coverM = block.match(/<img[^>]+src="([^"]+)"/i);
 

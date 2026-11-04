@@ -25,7 +25,9 @@ interface JavRecommendationsPanelProps {
 function reasonText(t: TFunction, item: JavRecommendationItem): string {
   switch (item.reason.type) {
     case 'ranking':
-      return t('jav:recommend.reasonRanking', { rank: item.rank ?? '' });
+      return item.reason.period === 'weekly'
+        ? t('jav:recommend.reasonRankingWeekly', { rank: item.rank ?? '' })
+        : t('jav:recommend.reasonRankingMonthly', { rank: item.rank ?? '' });
     case 'actor':
       return item.reason.value
         ? t('jav:recommend.reasonActor', { value: item.reason.value })

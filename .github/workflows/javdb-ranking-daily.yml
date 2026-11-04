@@ -1,6 +1,6 @@
-name: JavDB Monthly Ranking Import
+name: JavDB Weekly/Monthly Ranking Import
 
-# 每天抓 JavDB 有码/无码月榜，转成 Atlas 导入 payload 后 POST 到 Worker。
+# 每天抓 JavDB 有码/无码的周榜与月榜，转成 Atlas 导入 payload 后 POST 到 Worker。
 # 需要仓库 Secrets：ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET
 # schedule 只在默认分支生效；workflow_dispatch 可手动运行任意分支。
 
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -32,42 +32,55 @@ jobs:
           go install github.com/FlanChanXwO/javdb-cli/cmd/javdb@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Fetch monthly rankings
+      - name: Fetch weekly and monthly rankings
         shell: bash
         run: |
           set -uo pipefail
 
           fetch() {
             local type="$1"
-            local out="$2"
-            echo "=== ${type} ==="
-            if javdb rankings movies --type "$type" --period month --json > "$out" 2> "${out}.err"; then
-              echo "${type}: auto host ok"
+            local period="$2"
+            local out="${type}-${period}.json"
+            echo "=== ${type} / ${period} ==="
+            if javdb rankings movies --type "$type" --period "$period" --json > "$out" 2> "${out}.err"; then
+              echo "${type}/${period}: auto host ok"
               return 0
             fi
-            echo "${type}: auto host failed, retry mirror"
-            javdb rankings movies --type "$type" --period month --json --host mirror > "$out" 2>> "${out}.err"
+            echo "${type}/${period}: auto host failed, retry mirror"
+            javdb rankings movies --type "$type" --period "$period" --json --host mirror > "$out" 2>> "${out}.err"
           }
 
-          if ! fetch censored censored.json; then
-            echo "censored ranking fetch failed"
-            tail -n 50 censored.json.err || true
+          failures=0
+          for period in week month; do
+            for type in censored uncensored; do
+              if ! fetch "$type" "$period"; then
+                echo "${type}/${period} ranking fetch failed"
+                tail -n 50 "${type}-${period}.json.err" || true
+                echo '{"movies":[]}' > "${type}-${period}.json"
+                failures=$((failures + 1))
+              fi
+            done
+          done
+
+          node -e "for (const period of ['week','month']) for (const type of ['censored','uncensored']) { const f=type+'-'+period+'.json'; const d=JSON.parse(require('fs').readFileSync(f,'utf8')); console.log(f, (d.movies||[]).length, 'movies'); }"
+
+          if [ "$failures" -eq 4 ]; then
+            echo "All four ranking channels failed"
             exit 1
           fi
 
-          if ! fetch uncensored uncensored.json; then
-            echo "uncensored ranking fetch failed; import cancelled list only"
-            echo '{"movies":[]}' > uncensored.json
-          fi
-
-          node -e "for (const f of ['censored.json','uncensored.json']) { const d=JSON.parse(require('fs').readFileSync(f,'utf8')); console.log(f, (d.movies||[]).length, 'movies'); }"
-
       - name: Convert to Atlas payload
         run: |
-          node scripts/rankings/javdb-to-atlas.mjs \
-            --input censored.json --section censored --output censored.payload.json
-          node scripts/rankings/javdb-to-atlas.mjs \
-            --input uncensored.json --section uncensored --output uncensored.payload.json
+          set -euo pipefail
+          for period in week month; do
+            for type in censored uncensored; do
+              node scripts/rankings/javdb-to-atlas.mjs \
+                --input "${type}-${period}.json" \
+                --section "$type" \
+                --period "$period" \
+                --output "${type}-${period}.payload.json"
+            done
+          done
 
       - name: Import to Worker
         shell: bash
@@ -75,47 +88,64 @@ jobs:
           IMPORT_URL: ${{ secrets.ATLAS_RANKING_IMPORT_URL }}
           IMPORT_SECRET: ${{ secrets.RANKINGS_IMPORT_SECRET }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ -z "${IMPORT_URL:-}" ] || [ -z "${IMPORT_SECRET:-}" ]; then
             echo "Missing ATLAS_RANKING_IMPORT_URL or RANKINGS_IMPORT_SECRET"
             exit 1
           fi
 
-          for file in censored.payload.json uncensored.payload.json; do
-            count=$(node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log((d.items||[]).length)" "$file")
-            if [ "$count" -eq 0 ]; then
-              echo "Skipping empty ${file}"
-              continue
-            fi
+          imported=0
+          failed=0
+          for period in week month; do
+            for type in censored uncensored; do
+              file="${type}-${period}.payload.json"
+              count=$(node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log((d.items||[]).length)" "$file")
+              if [ "$count" -eq 0 ]; then
+                echo "Skipping empty ${file}"
+                continue
+              fi
 
-            echo "Importing ${file} (${count} items)"
-            http_code=$(curl -sS -o /tmp/atlas-import-response.txt -w "%{http_code}" \
-              -X POST "$IMPORT_URL" \
-              -H "Content-Type: application/json" \
-              -H "X-Rankings-Secret: ${IMPORT_SECRET}" \
-              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
-              -H "Accept: application/json" \
-              -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
-              --data-binary @"${file}")
+              echo "Importing ${file} (${count} items)"
+              http_code=$(curl -sS -o /tmp/atlas-import-response.txt -w "%{http_code}" \
+                -X POST "$IMPORT_URL" \
+                -H "Content-Type: application/json" \
+                -H "X-Rankings-Secret: ${IMPORT_SECRET}" \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+                -H "Accept: application/json" \
+                -H "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8" \
+                --data-binary @"${file}")
 
-            if [ "$http_code" -eq 403 ]; then
-              echo "HTTP 403 from Cloudflare edge (managed challenge), request did not reach the Worker."
-              echo "Use the workers.dev URL for ATLAS_RANKING_IMPORT_URL, or add a WAF skip rule for /api/internal/rankings/import."
-              head -c 300 /tmp/atlas-import-response.txt || true
+              if [ "$http_code" -eq 403 ]; then
+                echo "HTTP 403 from Cloudflare edge (managed challenge), request did not reach the Worker."
+                echo "Use the workers.dev URL for ATLAS_RANKING_IMPORT_URL, or add a WAF skip rule for /api/internal/rankings/import."
+                head -c 300 /tmp/atlas-import-response.txt || true
+                echo
+                failed=$((failed + 1))
+                continue
+              fi
+
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "Import failed: HTTP ${http_code}"
+                head -c 500 /tmp/atlas-import-response.txt || true
+                echo
+                failed=$((failed + 1))
+                continue
+              fi
+
+              imported=$((imported + 1))
+              cat /tmp/atlas-import-response.txt
               echo
-              exit 1
-            fi
-
-            if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-              echo "Import failed: HTTP ${http_code}"
-              head -c 500 /tmp/atlas-import-response.txt || true
-              echo
-              exit 1
-            fi
-
-            cat /tmp/atlas-import-response.txt
-            echo
+            done
           done
+
+          if [ "$imported" -eq 0 ]; then
+            echo "No ranking channel imported"
+            exit 1
+          fi
+          if [ "$failed" -ne 0 ]; then
+            echo "${failed} ranking channel(s) failed to import"
+            exit 1
+          fi
 
       - name: Upload artifacts
         if: always()
@@ -123,11 +153,17 @@ jobs:
         with:
           name: javdb-ranking-import
           path: |
-            censored.json
-            censored.json.err
-            uncensored.json
-            uncensored.json.err
-            censored.payload.json
-            uncensored.payload.json
+            censored-week.json
+            censored-week.json.err
+            uncensored-week.json
+            uncensored-week.json.err
+            censored-month.json
+            censored-month.json.err
+            uncensored-month.json
+            uncensored-month.json.err
+            censored-week.payload.json
+            uncensored-week.payload.json
+            censored-month.payload.json
+            uncensored-month.payload.json
           if-no-files-found: warn
           retention-days: 7

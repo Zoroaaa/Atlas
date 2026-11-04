@@ -273,13 +273,11 @@ Category (large category)        Classification (subcategory)         Source (so
 
 ### 6. JAV Ranking Function
 
-#### Multi-Dimensional Rankings
-- **Coded Selection**: JavBus homepage top 3 pages, random 20 entries
-- **Uncoded Selection**: Uncoded area top 3 pages, random 20 entries
-- **HD Ranking**: HD category top 3 pages, random 20 entries
-- **Subtitle Ranking**: Subtitle category top 3 pages, random 20 entries
-- **Random Category**: Random 10 categories, each category 12 entries
-- **Random Actress**: Random 10 actresses, each actress 12 entries
+#### Weekly / Monthly Rankings
+- **JavDB Weekly / Monthly**: censored and uncensored rankings, 20 entries per tab
+- **Daily Import**: GitHub Actions imports weekly and monthly snapshots every day
+- **History Retained**: ranked works are never deleted; current tabs only show the latest snapshot
+- **Trending Actresses**: 30-day favorites/search heat plus ranked works, no random sampling
 
 #### Smart Recommendation
 - **Number Suggestion**: Input keyword to automatically match numbers

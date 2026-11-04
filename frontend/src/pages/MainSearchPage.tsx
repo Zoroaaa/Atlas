@@ -161,6 +161,14 @@ export const MainSearchPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 热门女优点击：切换到女优子模式，复用现有女优资料 + 作品搜索
+  const handleActressClick = (name: string) => {
+    setJavSubMode('actress');
+    searchFlow.setKeyword(name);
+    searchFlow.handleSearch(name, 1, 'actress');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const renderFavoritesPanel = () => isAuthenticated && (
     <FavoritesPanel favorites={favoritesManager.favorites} isLoading={favoritesManager.isLoadingFavorites} show={showFavorites} isProxyEnabled={isProxyEnabled} onToggle={() => setShowFavorites(!showFavorites)} onRemove={favoritesManager.handleRemoveFavorite} onExport={favoritesManager.handleExportFavorites} onUpdate={() => favoritesManager.refetchFavorites()} />
   );
@@ -231,7 +239,7 @@ export const MainSearchPage: React.FC = () => {
                   // 延迟关闭，避免点击建议项时触发 onBlur 导致无法选中
                   setTimeout(() => setIsInputFocused(false), 200);
                 }}
-                className={`search-input ${activeTab === 'jav' && javSubMode === 'code' && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid ? 'search-input-error' : ''}`} />
+                className="search-input" />
               <SearchSuggestionsDropdown suggestions={searchFlow.suggestions}
                 visible={isInputFocused && searchFlow.showSuggestions && searchFlow.keyword.trim().length > 0}
                 isLoading={searchFlow.isLoadingSuggestions}
@@ -241,7 +249,7 @@ export const MainSearchPage: React.FC = () => {
                 }}
                 onClose={() => searchFlow.setShowSuggestions(false)} />
             </div>
-            <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching || (activeTab === 'jav' && javSubMode === 'code' && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid)} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
+            <button onClick={() => searchFlow.handleSearch()} disabled={searchFlow.isSearching} className="search-btn flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover-lift">
               {searchFlow.isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" strokeWidth={2.5} />}
               <span>{t('home:javSubmode.searchButton')}</span>
             </button>
@@ -249,9 +257,9 @@ export const MainSearchPage: React.FC = () => {
           {/* JAV 子模式提示 */}
           {activeTab === 'jav' && (
             <div className="relative z-10">
-              {/* 番号格式错误提示：仅在输入框未聚焦时显示，避免与搜索建议冲突 */}
-              {javSubMode === 'code' && !isInputFocused && searchFlow.keyword.trim().length > 0 && !searchFlow.javFormatValid && (
-                <p className="text-xs text-red-400 mt-2 ml-1">{t('search:javFormatHint')}</p>
+              {/* 番号未识别提示：仅在输入框未聚焦时显示，避免与搜索建议冲突 */}
+              {javSubMode === 'code' && !isInputFocused && searchFlow.javFormatHintVisible && (
+                <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">{t('search:javFormatHint')}</p>
               )}
               {javSubMode === 'actress' && (
                 <p className="text-xs text-surface-500 dark:text-surface-400 mt-2 ml-1">{t('search:actressNameHint')}</p>
@@ -398,7 +406,7 @@ export const MainSearchPage: React.FC = () => {
                 />
               )}
               {activeTab === 'jav' && <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />}
-              {activeTab === 'jav' && <ActressesPanel onCodeClick={searchFlow.handleCodeClick} />}
+              {activeTab === 'jav' && <ActressesPanel onActressClick={handleActressClick} />}
               {isAuthenticated && (
                 <SearchHistoryPanel history={historyManager.searchHistory} isLoading={historyManager.isLoadingHistory} show={showHistory} onToggle={() => setShowHistory(!showHistory)} onItemClick={(query) => searchFlow.setKeyword(query)} onClear={historyManager.handleClearHistory} onDeleteSelected={historyManager.handleDeleteSelected} />
               )}

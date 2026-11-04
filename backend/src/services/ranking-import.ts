@@ -1,21 +1,26 @@
 /**
  * 榜单导入服务
  *
- * 只做两件事：
- *   1. 把榜单作品作为占位记录扩充进 data_records；
- *   2. 把名次写入 data_record_sources，供独立热门列表排序。
+ * 做三件事：
+ *   1. 把周榜/月榜作品作为占位记录扩充进 data_records（已存在则更新元数据，不删除）；
+ *   2. 把名次写入 data_record_sources（按 period + section 分来源，历史保留）；
+ *   3. 返回各通道导入计数，供 workflow 判断。
  *
  * 不参与推荐打分。
  */
 import { generateId } from '@/utils';
+import { JAV_RANKING } from '@/constants';
 import type { RankingImportPayload } from '@/types';
-import { isValidCode, normalizeCode } from './jav-utils';
+import { inspectJavCode } from '@codeseek/shared/utils';
 
 export interface RankingImportResult {
   created: number;
   existing: number;
   sources: number;
   skipped: number;
+  period: 'weekly' | 'monthly';
+  section: 'censored' | 'uncensored';
+  rejected?: 'TOO_FEW_ITEMS';
 }
 
 interface NormalizedItem {
@@ -36,12 +41,18 @@ function normalizeCover(raw?: string): string | null {
   return cover;
 }
 
-function sourceNameOf(section: 'censored' | 'uncensored'): string {
-  return section === 'censored' ? 'JavDB:有码月榜' : 'JavDB:无码月榜';
-}
+const SOURCE_BY_KEY = {
+  'censored:weekly': JAV_RANKING.SOURCE.CENSORED_WEEKLY,
+  'uncensored:weekly': JAV_RANKING.SOURCE.UNCENSORED_WEEKLY,
+  'censored:monthly': JAV_RANKING.SOURCE.CENSORED_MONTHLY,
+  'uncensored:monthly': JAV_RANKING.SOURCE.UNCENSORED_MONTHLY,
+} as const;
 
-function sourceUrlOf(section: 'censored' | 'uncensored'): string {
-  return `https://javdb.com/rankings/movies?period=month&type=${section}`;
+function sourceOf(
+  section: 'censored' | 'uncensored',
+  period: 'weekly' | 'monthly'
+) {
+  return SOURCE_BY_KEY[`${section}:${period}`];
 }
 
 async function runBatches(
@@ -60,24 +71,23 @@ export async function importRankingSnapshot(
 ): Promise<RankingImportResult> {
   const now = Date.now();
   const fetchedAt = payload.fetchedAt ?? now;
-  const sourceName = sourceNameOf(payload.section);
-  const sourceUrl = sourceUrlOf(payload.section);
+  const source = sourceOf(payload.section, payload.period);
 
   const seen = new Set<string>();
   const items: NormalizedItem[] = [];
   let skipped = 0;
 
   payload.items.forEach((raw, index) => {
-    const code = normalizeCode(raw.code);
-    if (!isValidCode(code) || seen.has(code)) {
+    const info = inspectJavCode(raw.code);
+    if (!info.recognized || seen.has(info.code)) {
       skipped++;
       return;
     }
-    seen.add(code);
+    seen.add(info.code);
     items.push({
-      code,
+      code: info.code,
       rank: Math.max(1, raw.rank ?? index + 1),
-      title: (raw.title || code).trim().slice(0, 300),
+      title: (raw.title || info.code).trim().slice(0, 300),
       cover: normalizeCover(raw.cover),
       rating: raw.score != null ? String(raw.score).slice(0, 20) : null,
       url: raw.url,
@@ -85,7 +95,26 @@ export async function importRankingSnapshot(
   });
 
   if (items.length === 0) {
-    return { created: 0, existing: 0, sources: 0, skipped };
+    return {
+      created: 0,
+      existing: 0,
+      sources: 0,
+      skipped,
+      period: payload.period,
+      section: payload.section,
+    };
+  }
+
+  if (items.length < JAV_RANKING.MIN_IMPORT_ITEMS) {
+    return {
+      created: 0,
+      existing: 0,
+      sources: 0,
+      skipped,
+      period: payload.period,
+      section: payload.section,
+      rejected: 'TOO_FEW_ITEMS',
+    };
   }
 
   const dedupKeys = items.map((item) => `jav:${item.code}`);
@@ -102,12 +131,16 @@ export async function importRankingSnapshot(
   const insertStatements = items.map((item) =>
     db
       .prepare(
-        `INSERT OR IGNORE INTO data_records
+        `INSERT INTO data_records
            (id, record_type, dedup_key, title, cover, code, actors, duration,
             release_date, publisher, tags, rating, content_data, detail_completed,
             status, source_count, first_seen_at, last_updated_at)
          VALUES (?, 'jav', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '[]', ?, '{}', 0,
-                 'active', 0, ?, ?)`
+                 'active', 0, ?, ?)
+         ON CONFLICT(record_type, dedup_key) DO UPDATE SET
+           title = CASE WHEN data_records.detail_completed = 0 THEN excluded.title ELSE data_records.title END,
+           cover = CASE WHEN data_records.detail_completed = 0 THEN COALESCE(excluded.cover, data_records.cover) ELSE data_records.cover END,
+           rating = COALESCE(data_records.rating, excluded.rating)`
       )
       .bind(
         generateId(),
@@ -161,8 +194,8 @@ export async function importRankingSnapshot(
         .bind(
           generateId(),
           recordId,
-          sourceName,
-          sourceUrl,
+          source.name,
+          source.url,
           sourceData,
           now
         )
@@ -175,5 +208,7 @@ export async function importRankingSnapshot(
     existing: existingCount,
     sources: sourceStatements.length,
     skipped,
+    period: payload.period,
+    section: payload.section,
   };
 }

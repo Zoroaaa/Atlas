@@ -8,164 +8,18 @@ import { RECOMMEND } from '@/constants';
 import type { JavRecommendationItem, JavRecommendationResponse } from '@/types';
 import {
   findJavCandidatesBySeeds,
-  getInternalSignalRows,
   getJavRecordsByCodes,
-  getRankingRows,
   getRecentJavRecords,
   getUserFavoriteCodes,
   type JavRecordRow,
-  type RankingRow,
-  type SignalRow,
 } from '@/repositories/recommendation-repository';
 import {
-  getCachedJson,
-  isJavWorkCode,
   normalizeJavCode,
-  parseValueList,
-  putCachedJson,
   recordToRecommendationItem,
   valueKey,
 } from './recommendation-utils';
-import { isTechnicalTagKey } from './tag-filter';
-
-interface HotSignals {
-  /** 番号 → 近 30 天互动去重用户数 */
-  codeUsers: Record<string, number>;
-  /** 演员小写 key → 去重用户数 */
-  actorUsers: Record<string, number>;
-  /** 标签小写 key → 去重用户数 */
-  tagUsers: Record<string, number>;
-  topActors: string[];
-  topTags: string[];
-}
-
-interface RankedEntry {
-  code: string;
-  rank: number;
-  fetchedAt: number;
-  row: RankingRow;
-}
-
-interface UserSetValue {
-  display: string;
-  users: Set<string>;
-}
-
-const SIGNALS_CACHE_KEY = 'signals-v4';
-
-// ─── 站内热度 ──────────────────────────────────────────────────────────
-
-export async function getHotSignals(db: D1Database): Promise<HotSignals> {
-  const cached = await getCachedJson<HotSignals>(SIGNALS_CACHE_KEY);
-  if (cached) return cached;
-
-  const since = Date.now() - RECOMMEND.POPULARITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  const { favorites, history } = await getInternalSignalRows(db, since);
-
-  const codeUsers = new Map<string, Set<string>>();
-  const actorUsers = new Map<string, UserSetValue>();
-  const tagUsers = new Map<string, UserSetValue>();
-
-  const addCode = (code: string, userId: string) => {
-    if (!isJavWorkCode(code)) return;
-    const normalized = normalizeJavCode(code);
-    const set = codeUsers.get(normalized) || new Set<string>();
-    set.add(userId);
-    codeUsers.set(normalized, set);
-  };
-
-  const addNamed = (
-    map: Map<string, UserSetValue>,
-    value: string,
-    userId: string
-  ) => {
-    const key = valueKey(value);
-    if (!key) return;
-    const existing = map.get(key);
-    if (existing) existing.users.add(userId);
-    else map.set(key, { display: value.trim(), users: new Set([userId]) });
-  };
-
-  const processRow = (row: SignalRow) => {
-    const code = row.code || row.query || '';
-    addCode(code, row.user_id);
-    for (const actor of parseValueList(row.actors)) {
-      addNamed(actorUsers, actor, row.user_id);
-    }
-    for (const tag of parseValueList(row.tags)) {
-      addNamed(tagUsers, tag, row.user_id);
-    }
-  };
-
-  for (const row of favorites) processRow(row);
-  for (const row of history) processRow(row);
-
-  const codeCounts: Record<string, number> = {};
-  for (const [code, users] of codeUsers) codeCounts[code] = users.size;
-
-  const actorCounts: Record<string, number> = {};
-  for (const [key, value] of actorUsers) actorCounts[key] = value.users.size;
-
-  const tagCounts: Record<string, number> = {};
-  for (const [key, value] of tagUsers) {
-    if (!isTechnicalTagKey(key)) {
-      tagCounts[key] = value.users.size;
-    }
-  }
-
-  const topActors = Array.from(actorUsers.entries())
-    .filter(([, value]) => value.users.size >= 2)
-    .sort((a, b) => b[1].users.size - a[1].users.size)
-    .slice(0, 10)
-    .map(([, value]) => value.display);
-
-  const topTags = Array.from(tagUsers.entries())
-    .filter(([key, value]) => value.users.size >= 2 && !isTechnicalTagKey(key))
-    .sort((a, b) => b[1].users.size - a[1].users.size)
-    .slice(0, 10)
-    .map(([, value]) => value.display);
-
-  const signals: HotSignals = {
-    codeUsers: codeCounts,
-    actorUsers: actorCounts,
-    tagUsers: tagCounts,
-    topActors,
-    topTags,
-  };
-
-  await putCachedJson(SIGNALS_CACHE_KEY, signals, RECOMMEND.SIGNALS_CACHE_TTL);
-  return signals;
-}
-
-// ─── 榜单行 ────────────────────────────────────────────────────────────
-
-function parseRankingRows(rows: RankingRow[]): RankedEntry[] {
-  const since = Date.now() - RECOMMEND.RANKING_FRESH_DAYS * 24 * 60 * 60 * 1000;
-  const byCode = new Map<string, RankedEntry>();
-
-  for (const row of rows) {
-    if (!isJavWorkCode(row.code)) continue;
-
-    let data: Record<string, unknown> = {};
-    try {
-      const parsed = JSON.parse(row.source_data || '{}');
-      if (parsed && typeof parsed === 'object') data = parsed as Record<string, unknown>;
-    } catch {
-      // 忽略坏数据
-    }
-
-    const fetchedAt = Number(data.fetchedAt ?? row.created_at) || 0;
-    if (fetchedAt < since) continue;
-
-    const rank = Math.max(1, Number(data.rank) || 999);
-    const existing = byCode.get(row.code);
-    if (!existing || rank < existing.rank) {
-      byCode.set(row.code, { code: row.code, rank, fetchedAt, row });
-    }
-  }
-
-  return Array.from(byCode.values()).sort((a, b) => a.rank - b.rank);
-}
+import { getHotSignals, type HotSignals } from './hot-signals';
+import { getLatestRankingRecords } from './ranking-snapshot';
 
 // ─── 热门列表 ──────────────────────────────────────────────────────────
 
@@ -187,9 +41,9 @@ export async function recommendPopular(
   isNewUser: boolean
 ): Promise<JavRecommendationResponse> {
   const limit = RECOMMEND.HOT_LIMIT;
-  const [signals, rankingRows, favoriteCodes] = await Promise.all([
+  const [signals, rankingRecords, favoriteCodes] = await Promise.all([
     getHotSignals(db),
-    getRankingRows(db),
+    getLatestRankingRecords(db),
     getUserFavoriteCodes(db, userId),
   ]);
 
@@ -213,12 +67,18 @@ export async function recommendPopular(
     });
   };
 
-  // 1. 榜单作品
-  for (const entry of parseRankingRows(rankingRows)) {
+  // 1. 榜单作品：周榜优先、月榜补充；同番号去重
+  const rankingFreshSince = Date.now() - RECOMMEND.RANKING_FRESH_DAYS * 24 * 60 * 60 * 1000;
+  const seenRankingCodes = new Set<string>();
+  for (const entry of rankingRecords) {
     if (selected.length >= limit) break;
+    if (entry.fetchedAt < rankingFreshSince) continue;
+    const code = normalizeJavCode(entry.row.code);
+    if (!code || seenRankingCodes.has(code)) continue;
+    seenRankingCodes.add(code);
     pushItem(
       recordToRecommendationItem(entry.row),
-      { type: 'ranking' },
+      { type: 'ranking', period: entry.period },
       entry.rank
     );
   }

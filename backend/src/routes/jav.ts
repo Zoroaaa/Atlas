@@ -1,23 +1,26 @@
 /**
- * JAV 榜单路由 — 仅 JavBus
- * 4 个维度：有码精选 / 无码精选 / 随机类别(10) / 随机女优(10)
+ * JAV 路由
+ * - /rankings：JavDB 周榜/月榜（读 D1 最新快照）
+ * - /actresses：热门女优榜（站内热度 + 榜单作品聚合）
+ * - /detail、/torrent、/proxy-image：番号详情、种子代理、图片代理
  *
- * 共享工具（normalizeCode/parseMagnets/parseJavDetail 等）提取至 services/jav-utils.ts
+ * 共享工具提取至 services/jav-utils.ts；榜单/女优聚合在 services 内。
  */
 import { Hono } from 'hono';
 import { Env } from '@/types';
 import { authMiddleware } from '@/middleware';
 import {
   getHtml,
+  fetchJavbusDetailHtml,
   extractGidUc,
   parseMagnets,
   parseJavDetail,
   JAV_HEADERS,
-  parseGrid,
-  parseActressList,
-  isValidCode,
-  type JavItem,
 } from '@/services/jav-utils';
+import { inspectJavCode } from '@codeseek/shared/utils';
+import { JAV_RANKING } from '@/constants';
+import { getJavRankingSnapshot } from '@/services/ranking-snapshot';
+import { getHotActressRanking } from '@/services/actress-ranking';
 import { enrichDataRecordFromDetail } from '@/services/data-storage';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
@@ -193,247 +196,13 @@ javRoutes.get('/proxy-image', async (c) => {
 javRoutes.use('*', authMiddleware);
 
 // ─────────────────────────────────────────────
-// 类型
-// ─────────────────────────────────────────────
-
-// JavItem 已提取至 services/jav-utils.ts，此处从该模块导入
-
-interface GroupRanking {
-  name: string;   // 类别名 或 女优名
-  key: string;    // slug（genre/xx 或 star/xx 的末段）
-  items: JavItem[];
-}
-
-interface RankingsResponse {
-  censored: JavItem[];          // 有码精选（前3页随机20）
-  uncensored: JavItem[];        // 无码精选（前3页随机20）
-  hd: JavItem[];                // 高清（/genre/hd 前3页随机20）
-  subtitle: JavItem[];          // 字幕（/genre/sub 前3页随机20）
-  genres: GroupRanking[];       // 随机10类别
-  actresses: GroupRanking[];    // 随机10女优
-  suggestions: string[];
-  fetchedAt: number;
-  sources: string[];
-}
-
-// ─────────────────────────────────────────────
-// 请求工具（已提取至 services/jav-utils.ts）
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// 工具函数
-// ─────────────────────────────────────────────
-
-// normalizeCode / isValidCode / parseGrid 已提取至 services/jav-utils.ts，此处从该模块导入
-
-function dedup(items: JavItem[]): JavItem[] {
-  const seen = new Set<string>();
-  return items.filter(i => { if (seen.has(i.code)) return false; seen.add(i.code); return true; });
-}
-
-/** Fisher-Yates 随机洗牌 */
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-/** 从数组随机取 n 个 */
-function sample<T>(arr: T[], n: number): T[] {
-  return shuffle(arr).slice(0, n);
-}
-
-// ─────────────────────────────────────────────
-// JavBus 网格解析（通用）— parseGrid 已提取至 services/jav-utils.ts
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// 有码精选：前3页合并 → dedup → shuffle → 取20
-// ─────────────────────────────────────────────
-
-async function fetchCensored(): Promise<JavItem[]> {
-  const pages = ['https://www.javbus.com/', 'https://www.javbus.com/page/2', 'https://www.javbus.com/page/3'];
-  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
-  const all = results.flatMap((r, i) =>
-    r.status === 'fulfilled' ? parseGrid(r.value, `javbus-p${i + 1}`) : []
-  );
-  return sample(dedup(all), 20);
-}
-
-// ─────────────────────────────────────────────
-// 无码精选：前3页合并 → dedup → shuffle → 取20
-// ─────────────────────────────────────────────
-
-async function fetchUncensored(): Promise<JavItem[]> {
-  const pages = [
-    'https://www.javbus.com/uncensored/',
-    'https://www.javbus.com/uncensored/page/2',
-    'https://www.javbus.com/uncensored/page/3',
-  ];
-  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
-  const all = results.flatMap((r, i) =>
-    r.status === 'fulfilled' ? parseGrid(r.value, `javbus-u${i + 1}`) : []
-  );
-  return sample(dedup(all), 20);
-}
-
-// ─────────────────────────────────────────────
-// 高清：/genre/hd 前3页合并 → dedup → shuffle → 取20
-// ─────────────────────────────────────────────
-
-async function fetchHD(): Promise<JavItem[]> {
-  const pages = [
-    'https://www.javbus.com/genre/hd',
-    'https://www.javbus.com/genre/hd/2',
-    'https://www.javbus.com/genre/hd/3',
-  ];
-  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
-  const all = results.flatMap((r, i) =>
-    r.status === 'fulfilled' ? parseGrid(r.value, `javbus-hd${i + 1}`) : []
-  );
-  return sample(dedup(all), 20);
-}
-
-// ─────────────────────────────────────────────
-// 字幕：/genre/sub 前3页合并 → dedup → shuffle → 取20
-// ─────────────────────────────────────────────
-
-async function fetchSubtitle(): Promise<JavItem[]> {
-  const pages = [
-    'https://www.javbus.com/genre/sub',
-    'https://www.javbus.com/genre/sub/2',
-    'https://www.javbus.com/genre/sub/3',
-  ];
-  const results = await Promise.allSettled(pages.map(u => getHtml(u)));
-  const all = results.flatMap((r, i) =>
-    r.status === 'fulfilled' ? parseGrid(r.value, `javbus-sub${i + 1}`) : []
-  );
-  return sample(dedup(all), 20);
-}
-
-// ─────────────────────────────────────────────
-// 随机类别：抓 /genre 页 → 解析所有类别 → 随机取10 → 各抓首页
-// ─────────────────────────────────────────────
-
-interface Entry { key: string; name: string; }
-
-async function fetchGenreList(): Promise<Entry[]> {
-  const html = await getHtml('https://www.javbus.com/genre');
-  if (!html) return [];
-  const entries: Entry[] = [];
-  const re = /href="https?:\/\/www\.javbus\.com\/genre\/([a-z0-9]+)"[^>]*>([^<]+)</gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const key = m[1].trim();
-    const name = m[2].trim();
-    if (/^\d+$/.test(key) || name.length < 1) continue;
-    entries.push({ key, name });
-  }
-  return entries;
-}
-
-// 兜底类别列表（/genre 页无法访问时使用）
-const FALLBACK_GENRES: Entry[] = [
-  { key: 'rq', name: '巨乳' }, { key: 'we', name: '护士' }, { key: 'dp', name: '女学生' },
-  { key: '2e', name: '角色扮演' }, { key: 'do', name: 'OL' }, { key: 'sm', name: '近亲' },
-  { key: 'e',  name: '中出' },   { key: 'q',  name: '美少女' }, { key: '28', name: '高清' },
-  { key: '2f', name: '4K' },     { key: 'zs', name: '女同' },   { key: 'zr', name: '素人' },
-];
-
-async function fetchRandomGenres(): Promise<GroupRanking[]> {
-  const list = await fetchGenreList();
-  const pool = list.length >= 10 ? list : FALLBACK_GENRES;
-  const picked = sample(pool, 10);
-
-  const results = await Promise.allSettled(
-    picked.map(g => getHtml(`https://www.javbus.com/genre/${g.key}`))
-  );
-
-  return picked
-    .map((g, i) => ({
-      name: g.name,
-      key: g.key,
-      items: results[i].status === 'fulfilled'
-        ? sample(parseGrid(results[i].value, `javbus-g-${g.key}`), 12)
-        : [],
-    }))
-    .filter(g => g.items.length > 0);
-}
-
-// ─────────────────────────────────────────────
-// 随机女优：抓 /actresses → 解析女优列表 → 随机取10 → 各抓 /star/xx 首页
-// ─────────────────────────────────────────────
-
-async function fetchActressList(): Promise<Entry[]> {
-  const html = await getHtml('https://www.javbus.com/actresses');
-  if (!html) return [];
-  const entries: Entry[] = [];
-  // <a href="https://www.javbus.com/star/okq">苍井空</a> 或带 avatar 的结构
-  const re = /href="https?:\/\/www\.javbus\.com\/star\/([a-z0-9]+)"[^>]*>\s*(?:<img[^>]*>)?\s*<span[^>]*>([^<]+)<\/span>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const key = m[1].trim();
-    const name = m[2].trim();
-    if (!key || name.length < 1) continue;
-    entries.push({ key, name });
-  }
-
-  // fallback: 更宽松的匹配（纯文本链接）
-  if (entries.length < 5) {
-    const re2 = /href="https?:\/\/www\.javbus\.com\/star\/([a-z0-9]+)"[^>]*>([^<]{1,20})<\/a>/gi;
-    while ((m = re2.exec(html)) !== null) {
-      const key = m[1].trim();
-      const name = m[2].trim();
-      if (!key || name.length < 1 || entries.find(e => e.key === key)) continue;
-      entries.push({ key, name });
-    }
-  }
-
-  return entries;
-}
-
-// 兜底女优列表
-const FALLBACK_ACTRESSES: Entry[] = [
-  { key: '2xi', name: '三上悠亜' }, { key: 'okq', name: '苍井空' },
-  { key: '2pv', name: '深田咏美' }, { key: 'jmd', name: '明日花绮罗' },
-  { key: 'pix', name: '波多野结衣' }, { key: 'lhm', name: '天使もえ' },
-  { key: 'qhd', name: '桃乃木香奈' }, { key: 'zld', name: '椎名空' },
-  { key: 'nns', name: '上原亚衣' }, { key: 'rki', name: '水野朝阳' },
-  { key: 'sqt', name: '小仓由菜' }, { key: 'hgp', name: '铃村あいり' },
-];
-
-async function fetchRandomActresses(): Promise<GroupRanking[]> {
-  const list = await fetchActressList();
-  const pool = list.length >= 10 ? list : FALLBACK_ACTRESSES;
-  const picked = sample(pool, 10);
-
-  const results = await Promise.allSettled(
-    picked.map(a => getHtml(`https://www.javbus.com/star/${a.key}`))
-  );
-
-  return picked
-    .map((a, i) => ({
-      name: a.name,
-      key: a.key,
-      items: results[i].status === 'fulfilled'
-        ? sample(parseGrid(results[i].value, `javbus-star-${a.key}`), 12)
-        : [],
-    }))
-    .filter(a => a.items.length > 0);
-}
-
-// ─────────────────────────────────────────────
-// 主路由
+// 榜单：JavDB 周榜 / 月榜（只读最近快照，不删除历史）
 // ─────────────────────────────────────────────
 
 javRoutes.get('/rankings', async (c) => {
-  const RANKINGS_CACHE_TTL = 20 * 60;
   const forceRefresh = c.req.query('refresh') === '1';
-  
-  const cacheKey = new Request('https://internal/jav-rankings-v1');
+
+  const cacheKey = new Request('https://internal/jav-rankings-v3');
   const cache = caches.default;
 
   if (!forceRefresh) {
@@ -449,44 +218,12 @@ javRoutes.get('/rankings', async (c) => {
   }
 
   try {
-    // 六路并发：有码、无码、高清、字幕、类别列表+抓取、女优列表+抓取
-    const [r_censored, r_uncensored, r_hd, r_subtitle, r_genres, r_actresses] = await Promise.allSettled([
-      fetchCensored(),
-      fetchUncensored(),
-      fetchHD(),
-      fetchSubtitle(),
-      fetchRandomGenres(),
-      fetchRandomActresses(),
-    ]);
-
-    const g = <T>(r: PromiseSettledResult<T>, fb: T): T =>
-      r.status === 'fulfilled' ? r.value : fb;
-
-    const censored   = g(r_censored, []);
-    const uncensored = g(r_uncensored, []);
-    const hd         = g(r_hd, []);
-    const subtitle   = g(r_subtitle, []);
-    const genres     = g(r_genres, []);
-    const actresses  = g(r_actresses, []);
-
-    const suggestions = dedup([...censored, ...uncensored, ...hd])
-      .map(i => i.code).filter(isValidCode).slice(0, 30);
-
-    const sources: string[] = [];
-    if (censored.length > 0)   sources.push('JavBus');
-    if (uncensored.length > 0) sources.push('JavBus(无码)');
-    if (hd.length > 0)         sources.push('JavBus(高清)');
-
-    const response: RankingsResponse = {
-      censored, uncensored, hd, subtitle, genres, actresses, suggestions,
-      fetchedAt: Date.now(), sources,
-    };
-
-    const responseBody = JSON.stringify({ success: true, data: response });
+    const snapshot = await getJavRankingSnapshot(c.env.DB);
+    const responseBody = JSON.stringify({ success: true, data: snapshot });
     const newResponse = new Response(responseBody, {
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${RANKINGS_CACHE_TTL}`,
+        'Cache-Control': `public, max-age=${JAV_RANKING.CACHE_TTL_SECONDS}`,
         'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
         'X-Fetched-At': new Date().toISOString(),
       },
@@ -500,8 +237,6 @@ javRoutes.get('/rankings', async (c) => {
     return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取榜单失败' } }, 500);
   }
 });
-
-
 
 // =====================================================================
 // 详情页 + 磁力链接提取
@@ -520,10 +255,12 @@ interface MagnetItem {
 // extractGidUc / parseMagnets / parseDetail 已提取至 services/jav-utils.ts，此处从该模块导入
 
 javRoutes.get('/detail', async (c) => {
-  const code = (c.req.query('code') ?? '').trim().toUpperCase();
-  if (!code || !/^[A-Z]+-\d+$/.test(code) && !/^[A-Z0-9]+-?\d+$/.test(code)) {
+  const rawCode = (c.req.query('code') ?? '').trim();
+  const info = inspectJavCode(rawCode);
+  if (!info.recognized) {
     return c.json({ success: false, error: { code: 'INVALID_CODE', message: '无效的番号格式' } }, 400);
   }
+  const code = info.code;
 
   const DETAIL_CACHE_TTL = 3600;
   const cacheKey = new Request(`https://internal/jav-detail/${code}`);
@@ -539,14 +276,15 @@ javRoutes.get('/detail', async (c) => {
     });
   }
 
-  const detailUrl = `https://www.javbus.com/${code}`;
-
   try {
-    // Step 1：抓详情页
-    const html = await getHtml(detailUrl, 15000);
-    if (!html || html.length < 500) {
+    // Step 1：抓详情页（按共享查询变体重试）
+    const fetched = await fetchJavbusDetailHtml(code, 15000);
+    if (!fetched) {
       return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该番号' } }, 404);
     }
+
+    const html = fetched.html;
+    const detailUrl = `https://www.javbus.com/${fetched.usedCode}`;
 
     // Step 2：提取基本信息
     const detail = parseJavDetail(html, code, detailUrl);
@@ -652,41 +390,32 @@ function base32ToHexPublic(base32: string): string {
 }
 
 // =====================================================================
-// 推荐女优列表 & 女优详情
+// 热门女优榜
 // =====================================================================
 
-interface StarResponse {
-  name: string;
-  key: string;
-  items: JavItem[];
-}
-
-// GET /api/jav/actresses — 返回前50个女优
+// GET /api/jav/actresses — 站内热度 + 周榜/月榜上榜作品聚合
 javRoutes.get('/actresses', async (c) => {
-  const ACTRESSES_CACHE_TTL = 30 * 60;
-  const cacheKey = new Request('https://internal/jav-actresses-v1');
+  const forceRefresh = c.req.query('refresh') === '1';
+  const cacheKey = new Request('https://internal/jav-hot-actresses-v2');
   const cache = caches.default;
 
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    return new Response(cached.body, {
-      headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
-    });
+  if (!forceRefresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
+      });
+    }
   }
 
   try {
-    const html = await getHtml('https://www.javbus.com/actresses', 15000);
-    if (!html || html.length < 500) {
-      return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
-    }
-
-    const actresses = parseActressList(html).map(({ key, name }) => ({ key, name }));
-    const response = JSON.stringify({ success: true, data: actresses.slice(0, 50) });
+    const ranking = await getHotActressRanking(c.env.DB);
+    const response = JSON.stringify({ success: true, data: ranking });
     const newResponse = new Response(response, {
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${ACTRESSES_CACHE_TTL}`,
-        'X-Cache': 'MISS',
+        'Cache-Control': `public, max-age=${JAV_RANKING.ACTRESS_CACHE_TTL_SECONDS}`,
+        'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
       },
     });
 
@@ -694,54 +423,6 @@ javRoutes.get('/actresses', async (c) => {
     return newResponse;
   } catch (err) {
     console.error('JAV actresses error:', err);
-    return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优列表失败' } }, 500);
-  }
-});
-
-// GET /api/jav/star/:key — 返回女优的番号列表
-javRoutes.get('/star/:key', async (c) => {
-  const STAR_CACHE_TTL = 10 * 60;
-  const key = c.req.param('key').trim().toLowerCase();
-  if (!key || !/^[a-z0-9]+$/.test(key)) {
-    return c.json({ success: false, error: { code: 'INVALID_KEY', message: '无效的女优标识' } }, 400);
-  }
-
-  const cacheKey = new Request(`https://internal/jav-star/${key}`);
-  const cache = caches.default;
-
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    return new Response(cached.body, {
-      headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
-    });
-  }
-
-  try {
-    const html = await getHtml(`https://www.javbus.com/star/${key}`, 15000);
-    if (!html || html.length < 500) {
-      return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该女优' } }, 404);
-    }
-
-    const items = parseGrid(html, `javbus-star-${key}`);
-    // 从页面提取女优名称
-    const nameM = html.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i) ||
-                  html.match(/<title>([^<]+)<\/title>/i);
-    const name = nameM ? nameM[1].replace(/<[^>]+>/g, '').replace(/\s*-\s*JavBus\s*$/i, '').trim() : key;
-
-    const response: StarResponse = { name, key, items };
-    const responseBody = JSON.stringify({ success: true, data: response });
-    const newResponse = new Response(responseBody, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${STAR_CACHE_TTL}`,
-        'X-Cache': 'MISS',
-      },
-    });
-
-    c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
-    return newResponse;
-  } catch (err) {
-    console.error('JAV star error:', err);
-    return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取女优详情失败' } }, 500);
+    return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取热门女优失败' } }, 500);
   }
 });

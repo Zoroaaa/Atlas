@@ -44,6 +44,9 @@ rankingsRoutes.post(
 
     try {
       const result = await importRankingSnapshot(c.env.DB, body);
+      if (result.rejected === 'TOO_FEW_ITEMS') {
+        return c.json(error('TOO_FEW_ITEMS', '有效榜单条目过少，已拒绝本次导入'), 400);
+      }
       return c.json(success(result, '榜单导入完成'));
     } catch (err) {
       console.error('[rankings] import error:', err);
