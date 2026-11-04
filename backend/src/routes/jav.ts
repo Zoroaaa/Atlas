@@ -52,7 +52,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'covers1.z-lib.sk',
   // 小说封面：奇书网（详情页封面，需 Referer 防盗链）
   'www.xqishuta.org',
-  // 历史遗留：v4.3 女优资料曾用 minnano-av.com，社区历史帖封面仍引用其图片 URL
+  // 历史遗留：v1.4.0 女优资料曾用 minnano-av.com，社区历史帖封面仍引用其图片 URL
   'www.minnano-av.com',
 ];
 

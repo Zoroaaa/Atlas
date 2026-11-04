@@ -1,6 +1,6 @@
 # 部署指南
 
-> **适用版本**: v4.3.0+
+> **适用版本**: v1.5.0+
 >
 > 目标平台：Cloudflare Workers + D1 + R2
 
@@ -92,10 +92,10 @@ npx wrangler d1 execute $D1_ID --file=database/04_schema_security.sql
 npx wrangler d1 execute $D1_ID --file=database/05_schema_feedback_announcements.sql
 npx wrangler d1 execute $D1_ID --file=database/10_schema_system_errors.sql
 
-# ③ 数据存储 schema（v4.3 新增，搜索结果异步落库去重）
+# ③ 数据存储 schema（v1.4.0 新增，搜索结果异步落库去重）
 npx wrangler d1 execute $D1_ID --file=database/11_schema_data_storage.sql
 
-# ③.5 存量库增量迁移（v4.4 新增，搜索限流档位；新装库已由 01 建列，跳过）
+# ③.5 存量库增量迁移（v1.5.0 新增，搜索限流档位；新装库已由 01 建列，跳过）
 npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
 
 # ④ 索引与触发器
@@ -120,7 +120,7 @@ npx wrangler d1 execute $D1_ID --command="SELECT name FROM sqlite_master WHERE t
 # 验证搜索源数据（应有 50+ 条，覆盖 jav/anime/movie/manga/novel 5 个 category）
 npx wrangler d1 execute $D1_ID --command="SELECT category, COUNT(*) as cnt FROM search_sources GROUP BY category;"
 
-# 验证数据存储表（v4.3 新增）
+# 验证数据存储表（v1.4.0 新增）
 npx wrangler d1 execute $D1_ID --command="SELECT COUNT(*) as cnt FROM data_records;"
 ```
 
@@ -149,14 +149,14 @@ D1_DATABASE_ID=xxxxxxx_from_step_2
 DMM_API_ID=your_dmm_api_id
 DMM_API_KEY=your_dmm_api_key
 
-# ── 影视搜索源 (v4.0 新增) ──
+# ── 影视搜索源 (v1.1.0 新增) ──
 TMDB_API_KEY=your_tmdb_api_key
 
-# ── 动漫搜索源 (v4.0 新增，可选) ──
+# ── 动漫搜索源 (v1.1.0 新增，可选) ──
 BANGUMI_API_KEY=your_bangumi_api_key
 
 # ── 系统 ──
-APP_VERSION=4.3.0
+APP_VERSION=1.5.0
 NODE_ENV=development
 ADMIN_GITHUB_IDS=your_github_numeric_id
 ```
@@ -171,7 +171,7 @@ wrangler secret put JWT_SECRET
 wrangler secret put D1_DATABASE_ID
 wrangler secret put DMM_API_ID
 wrangler secret put DMM_API_KEY
-wrangler secret put TMDB_API_KEY          # v4.0 新增
+wrangler secret put TMDB_API_KEY          # v1.1.0 新增
 # wrangler secret put BANGUMI_API_KEY     # 可选
 
 # 方式 B: 通过 Cloudflare Dashboard
@@ -189,7 +189,7 @@ wrangler secret put TMDB_API_KEY          # v4.0 新增
 pnpm dev
 ```
 
-### 4.2 验证 v4.0 新功能
+### 4.2 验证 v1.1.0 新功能
 
 ```bash
 # 测试 1: 健康检查
@@ -302,28 +302,34 @@ Cloudflare 自动提供免费 SSL 证书（Let's Encrypt），无需手动配置
 ### GitHub Actions 工作流示例
 
 ```yaml
-name: Deploy Atlas
+name: Deploy to Cloudflare Workers
 
 on:
   push:
     branches: [main]
+    paths: ['backend/**']
+  workflow_dispatch:
 
 jobs:
-  deploy-backend:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: ppm build
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm install
+      - run: npm run typecheck --workspace=backend
+      - run: npm run lint --workspace=backend
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: backend
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./backend
+          command: deploy
 ```
 
 **需要的 GitHub Secrets：**
@@ -331,6 +337,9 @@ jobs:
 | Secret 名 | 说明 |
 |-----------|------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 编辑权限） |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID |
+
+> 部署工作流只在 `main` 分支触发；`v1` / `v2` / `v3` 分支已移除。
 
 ---
 
@@ -397,7 +406,7 @@ npx wrangler tail  # 后端日志
 | `INVALID_CLASSIFICATION` 错误 | 分类名拼写错误 | 对照文档确认分类名（小写） |
 | D1 迁移失败 | SQL 执行顺序错误 | 按 schema → data → migration 顺序执行 |
 
-### v4.0 特有问题
+### v1.1.0 特有问题
 
 | 问题 | 解决方案 |
 |------|---------|

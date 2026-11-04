@@ -1,6 +1,6 @@
 # 配置说明
 
-> **适用版本**: v4.3.0+
+> **适用版本**: v1.5.0+
 >
 > CodeSeek 使用 Cloudflare Workers Secrets + 环境变量进行配置管理。
 
@@ -42,7 +42,7 @@
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
-| `APP_VERSION` | 应用版本号 | `4.3.0` |
+| `APP_VERSION` | 应用版本号 | `1.5.0` |
 | `NODE_ENV` | 运行环境 | `production` |
 | `CORS_ORIGIN` | CORS 允许的源 | `https://atlas.wort.uk` |
 | `ADMIN_GITHUB_IDS` | 管理员 GitHub ID 列表（逗号分隔） | `` |
@@ -75,7 +75,7 @@ ADMIN_GITHUB_IDS=123456,789012
 
 ## 搜索源配置
 
-### v4.0 三层架构下的配置方式
+### v1.1.0 三层架构下的配置方式
 
 搜索源的配置分为两层：
 

@@ -2,7 +2,121 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v4.3.0] - 2026-08-14
+## [v1.5.0] - 2026-11-04
+
+### Added - 一体化工作台 + 三语国际化 + 榜单与推荐体系 🚀
+
+本次版本跨度 50 次提交，核心变化：主页面重构为一体化工作台；前端完成 zh-CN / zh-TW / en 三语国际化；JAV 榜单升级为 JavDB 周榜 / 月榜并接入热点推荐；搜索限流改为账号活跃度阶梯配额；后端完成 repository 分层与统一 zod 校验；小说搜索切换为多源跳转；管理后台新增用户活跃度排行。
+
+---
+
+#### 核心新功能（一）：一体化搜索工作台
+
+- **主页面重构**：搜索、快捷入口、公告与结果区域整合为单一工作台（`Workbench` + `SearchDock` + `SearchWorkspace`），统一五类搜索结果的页面骨架
+- **统一结果组件**：新增 `MediaCard` / `ResourceRow` / `GroupedSection` / `Pagination` / `Toolbar` 等工作台组件，类别结果共享同一套布局与交互
+- **常驻配额展示**：搜索页常驻展示当前档位与剩余配额，并说明晋升规则
+- **认证跳转**：登录 / 注册成功后统一进入主搜索页，不再跳转看板
+
+#### 核心新功能（二）：三语国际化（i18n）
+
+- **全量文案提取**：前端硬编码中文迁移到 i18n，覆盖 auth / home / layout / search / jav / feedback / community / dashboard / admin / ui 等 17 个命名空间、约 800+ key
+- **三语支持**：zh-CN、zh-TW、en 完整词条；首次访问按浏览器语言自动选择，用户手动选择持久化
+- **组件与接口**：新增 `LanguageSwitcher` 与 `languageStore`；非组件环境统一走 `i18next.t()`
+- **补齐遗漏**：搜索命名空间 65 个缺失 key、设置 / 公告 / 趋势 / 帖子详情等残余硬编码文案全部补齐
+
+#### 核心新功能（三）：JAV 榜单升级（JavDB 周榜 / 月榜）
+
+- **四通道导入**：JavDB 有码 / 无码 × 周榜 / 月榜；GitHub Actions 每日抓取并导入
+- **历史保留**：榜单作品与来源不删除，当前榜单只展示每个周期最新 `fetchedAt` 快照
+- **每小时补全**：最多 20 条 / 小时通过 JavBus 抓取演员、标签、发行商；失败 3 次后停止重试但保留活跃
+- **导入接口**：新增内部密钥保护的 `/api/internal/rankings/import`，榜单写入 `data_records` 占位与 `data_record_sources` 名次
+- **探测与容错**：新增 JavDB 榜单探测 workflow；CI 导入补充浏览器请求头并识别 Cloudflare 403
+- **封面**：榜单封面 CDN `tp.spfcas.com` 加入图片代理白名单
+
+#### 核心新功能（四）：热门女优榜与智能推荐
+
+- **热门女优榜**：站内近 30 天收藏 / 搜索热度 + 周榜 / 月榜上榜作品聚合，移除 JavBus 随机女优列表
+- **为你推荐**：12 个推荐位，top 5 标签各 2 位、top 2 演员各 3 位，名额不足从高分候选随机补位
+- **相关推荐**：8 个推荐位（演员 4 + 标签 4），标签桶随机轮转，每个标签最多 1 位；展示在多源聚合结果之前
+- **随机与缓存**：推荐接口 `Cache-Control: no-store`，前端请求加时间戳，每次刷新重新随机
+- **标签过滤**：高画质 / 蓝光 / 字幕 / 单体 / 有码无码 / DMM·FANZA 独家等技术与发行标签不参与匹配
+- **降级修复**：修复推荐结果固定不变、演员配比错误、标签数量不足等问题
+
+#### 核心新功能（五）：搜索限流档位化
+
+- **数据库**：`12_schema_search_tier.sql` 新增搜索限流档位字段，`13_backfill_search_tier.sql` 回填存量用户
+- **阶梯配额**：按账号活跃度动态分配搜索配额，替代固定限流
+- **晋升规则**：近 30 天内活跃 5 天即可晋升，前端展示当前档位与配额
+- **注册防护**：注册接口按出口 IP 多级限流（5 / 分、10 / 时、20 / 天），超限 429 并写入安全事件；GitHub / Google OAuth 仅自动注册分支共用配额；IPv6 按 /64 聚合，`CF-Connecting-IP` 优先
+
+#### 核心新功能（六）：小说搜索多源化
+
+- **知轩藏书接入**：新增 `zxcs.zip` 明文 HTML 直链源，置顶顺序调整为 zxcs → 奇书网 → Anna's Archive
+- **Anna 改为跳转**：Anna's Archive 人机验证无法稳定抓取，移除 `NovelItem` 抓取，保留为跳转卡片
+- **多源跳转卡片**：新增 Z-Library / Anna / 知轩藏书 / 奇书网 / SoBooks / Lunarora / PDFs.top / 读书派 8 个跳转源
+- **结果面板**：小说搜索复用数据库驱动多源卡片，独立展示
+
+#### 核心新功能（七）：管理后台
+
+- **用户活跃度排行**：新增 `/admin-panel/activity-ranking`，支持今日 / 7 天 / 30 天 / 全部；加权分数（搜索 ×2、收藏 ×3、登录 ×1、其他 ×1），今日按北京时间自然日
+- **社区统计修复**：修正统计字段别名与用户详情重复计数
+
+### Improved - 架构与性能 ⚡
+
+- **SearchProvider 契约扩展**：`SearchOptions` → `SearchContext`（db / user / categoryId / subMode / enabledSources），新增 `injectsUserSources` 与 `buildHistoryEnrichment`；JAV 三子模式与 Novel 多源注入下沉 Provider，`search.ts` 由 761 行降至约 400 行，路由零内联 SQL
+- **Repository 分层**：新增 `search-source` / `search-history` / `user` / `email-verification` / `community` / `admin` / `recommendation` repository，统一 SQL 查询
+- **鉴权性能**：`authMiddleware` 单次 LEFT JOIN 加载 session + role + permissions，每请求 D1 查库由 2~3 次降为 1 次；`admin` / `superAdmin` / `permission` 中间件改读上下文
+- **统一校验**：请求体统一为 zod `validateBody`，注册强制邮箱验证码；邮箱变更与注册使用同一套长度 / 规范化 / 可信域规则
+- **用户态缓存**：JAV / Novel 搜索缓存键按用户隔离，缓存命中仍补写搜索历史
+- **React Query 收敛**：收藏、搜索历史、搜索源、分类、分析页数据域统一到 react-query，删除双轨 hooks
+- **番号识别**：新增前后端共享 `jav-code` 宽识别解析器，非标准番号自动回退标题 / 多源搜索；搜索建议兼容带 / 不带横杠写法
+
+### Fixed - 问题修复 🔧
+
+- **女优数据源**：minnano-av 上线反爬导致资料恒空，切换 JavBus `/searchstar` + `/star`；资料源失败与未匹配分开展示，不再静默留白
+- **女优跳转代理**：女优面板、作品区、详情链接统一遵守用户网址跳转代理配置
+- **JAV 详情重试**：详情获取失败支持卡片内重试，无需重新搜索
+- **收藏标题**：收藏标题长度上限由 100 提升至 300
+- **榜单补全**：补全改为全量使用 JavBus 字段，仅缺失时回退原值
+- **榜单导入**：补充浏览器 UA / Accept 头并识别 Cloudflare 403
+- **注册校验**：验证码校验收口为无条件执行，移除路由内可选死分支
+
+### Changed - 行为变更 ⚠️
+
+- **Anna's Archive**：从抓取源改为跳转源，小说结果结构改为多源卡片
+- **推荐缓存**：推荐结果不再缓存，每次请求实时随机
+- **榜单展示**：周榜 / 月榜仅展示最新快照，历史作品保留但不在当前榜单出现
+- **版本号**：全项目版本号统一为 `1.5.0`（前端常量、后端 `APP_VERSION`、workspace 包、品牌页）
+
+### Technical Details
+
+- **新增文件**：
+  - `backend/src/repositories/` — admin / community / email-verification / recommendation / search-history / search-source / user repository
+  - `backend/src/routes/rankings.ts` / `recommend.ts` — 榜单导入与推荐接口
+  - `backend/src/services/ranking-*.ts` / `recommendation*.ts` / `hot-*.ts` / `actress-ranking.ts` / `tag-filter.ts` / `tag-frequency.ts` / `search-tier.ts`
+  - `database/12_schema_search_tier.sql` / `database/13_backfill_search_tier.sql`
+  - `.github/workflows/javdb-ranking-daily.yml` / `javdb-ranking-probe.yml`
+  - `scripts/rankings/javdb-to-atlas.mjs`
+  - `frontend/src/components/workbench/*` — 工作台组件
+  - `frontend/src/components/search/SearchDock.tsx` / `SearchWorkspace.tsx` / `SearchQuotaBadge.tsx`
+  - `frontend/src/components/jav/JavRecommendationsPanel.tsx`
+  - `frontend/src/i18n/*` — 三语词条与初始化
+  - `frontend/src/pages/admin/ActivityRankingTab.tsx`
+  - `packages/shared/src/utils/jav-code.ts`
+- **修改文件**：
+  - `backend/src/routes/search.ts` — 路由收缩至编排层
+  - `backend/src/middleware/auth.ts` — 单 JOIN 权限加载
+  - `backend/src/validation/index.ts` — zod schema 统一
+  - `backend/src/routes/jav.ts` / `user.ts` / `community.ts` / `admin.ts` — 接入 repository
+  - `frontend/src/pages/MainSearchPage.tsx` — 一体化工作台
+  - `frontend/src/hooks/useSearch.ts` / `useJavSearchFlow.ts` — 搜索结果与子模式
+  - `frontend/src/i18n/locales/*.json` — 三语词条
+  - `README.md` / `README.zh-CN.md` / `docs/*` — 版本与文档同步
+  - `backend/wrangler.toml` — `APP_VERSION` 升级至 `1.5.0`
+
+---
+
+## [v1.4.0] - 2026-08-14
 
 ### Added - JAV 女优搜索系统 + 数据存储管理 + 社区完善 🌟
 
@@ -84,11 +198,11 @@ All notable changes to this project will be documented in this file.
   - `frontend/src/components/community/PostDetail.tsx` — 6 类 contentData renderer 重写
   - `frontend/src/components/jav/JavDetailPanel.tsx` — 详情页数据采集集成
   - `backend/src/utils/email-verification.ts` — 验证码哈希改用 `hashToken`，修复重发冷却与锁定
-  - `backend/wrangler.toml` — `APP_VERSION` 升级至 `4.3.0`
+  - `backend/wrangler.toml` — `APP_VERSION` 升级至 `1.4.0`
 
 ---
 
-## [v4.2.0] - 2026-08-12
+## [v1.3.0] - 2026-08-12
 
 ### Added - 小说搜索 + 聚合视图 + 观测体系 + 多项增强 📚
 
@@ -199,7 +313,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v4.1.0] - 2026-07-17
+## [v1.2.0] - 2026-07-17
 
 ### Added - 漫画搜索 + 架构优化 🎨
 
@@ -281,7 +395,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v4.0.0] - 2026-06-17
+## [v1.1.0] - 2026-06-17
 
 ### Added - 动漫 & 影视搜索 + 架构升级 🎬
 
@@ -335,89 +449,11 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [v3.1.0] - 2026-05-13
+## [v1.0.0] - 2026-03-15
 
-### Added - Monorepo 共享包 + 安全加固 + 性能优化 📦
+### Added - 首个公开发布：架构重构 + 技术栈升级 🚀
 
-本次版本核心亮点：创建 Monorepo 共享包，消除前后端重复代码，大幅提升代码质量。
-
----
-
-#### 核心新功能（一）：Monorepo 共享包
-
-- **packages/shared 创建**：统一类型定义和工具函数
-- **单源验证规则**：VALIDATION_RULES 从 shared 导入
-- **camelizeKeys 工具**：snake_case → camelCase 自动转换
-
-#### 核心新功能（二）：安全性加固
-
-- **生产 Source Map 关闭**：防止源代码暴露
-- **CI 门禁**：部署前强制 typecheck + lint
-
-#### 核心新功能（三）：性能优化
-
-- **数据库索引**：25 个高频查询索引
-- **构建脚本优化**：`tsc --noEmit && vite build`
-
-### Technical Details
-
-- **新增文件**（14个）：
-  - `packages/shared/` — 共享包目录（14个文件）
-  - `database/12_index_performance.sql` — 数据库索引迁移
-- **修改文件**（12个）：
-  - 前后端类型文件改为从 shared 导入
-  - CI 配置新增检查步骤
-  - 构建脚本优化
-
----
-
-## [v3.0.0] - 2026-05-13
-
-### Added - 安全性重大升级 + 数据模型扩展 🔐
-
-本次版本核心亮点：密码安全升级（SHA-256 → PBKDF2），JAV 元数据支持，收藏状态管理。
-
----
-
-#### 核心新功能（一）：密码安全升级
-
-- **PBKDF2-SHA256 哈希**：100,000次迭代 + 随机盐值
-- **向后兼容验证**：自动识别新旧格式
-- **Token 哈希分离**：密码和 Token 使用不同哈希策略
-
-#### 核心新功能（二）：数据模型扩展
-
-- **收藏项元数据增强**（8个字段）：code/cover/actors/duration/tags/release_date/publisher/magnet_link
-- **搜索历史元数据增强**（9个字段）
-- **收藏状态管理**：want ↔ watched 状态切换
-
-#### 核心新功能（三）：前端体验优化
-
-- **收藏面板重构**：卡片式布局 + 封面图展示 + 元数据显示
-- **搜索历史面板增强**：列表视图 + 元数据展示
-- **ProxyImage 组件**：图片代理统一
-
-### Changed - 架构改进 ⚙️
-
-- **Zod 数据验证**：全面引入 Zod 4.4.3
-- **CORS 策略强化**：正则匹配域名
-- **认证中间件统一**：消除重复代码
-
-### Technical Details
-
-- **新增文件**（3个）：
-  - `backend/src/utils/validators.ts` — Zod Schema 定义
-  - `database/10_schema_favorites_extend.sql` — 收藏表增量迁移
-  - `database/11_schema_search_history_extend.sql` — 历史表增量迁移
-- **修改文件**（30个）：前后端核心文件重构
-
----
-
-## [v2.0.0] - 2025-03
-
-### Added - 架构重构 + 技术栈升级 🚀
-
-本次版本核心亮点：从原生 ES6 架构全面重构为 React + TypeScript 现代化技术栈。
+首个公开发布版本，从原生 ES6 架构重构为 React + TypeScript 现代化技术栈，并保留 JAV 搜索、用户系统、管理后台与 Cloudflare 全栈部署能力。
 
 ---
 
@@ -437,36 +473,61 @@ All notable changes to this project will be documented in this file.
 
 #### 核心新功能（三）：安全增强
 
-- **邮箱验证机制**：6位验证码
-- **登录失败锁定**：连续失败5次自动锁定15分钟
+- **邮箱验证机制**：6 位验证码
+- **登录失败锁定**：连续失败 5 次自动锁定 15 分钟
 - **GitHub OAuth**：第三方登录
 - **用户反馈系统**：问题反馈、优化建议
 
-### Technical Details
-
-- **变更统计**：35个文件修改，+1666行 / -596行
-- **数据库优化**：8个文件整合为7个
-- **预置搜索源**：从~20个增加到50+
-
----
-
-## [v1.0.0] - 2024-10
-
-### Added - 初始版本发布 🎉
-
-CodeSeek 初始版本发布，基于原生 ES6 架构的 JAV 搜索引擎。
-
----
-
-#### 核心功能
+#### 基础能力
 
 - **JAV 搜索**：DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力搜索
 - **用户系统**：注册、登录、收藏、历史记录
 - **管理后台**：用户管理、搜索源管理、系统配置
 - **Cloudflare 全栈部署**：Workers + D1 + Pages
 
+### Technical Details
+
+- **变更统计**：35 个文件修改，+1666 行 / -596 行
+- **数据库优化**：8 个文件整合为 7 个
+- **预置搜索源**：从 ~20 个增加到 50+
+
+---
+
+## 早期未发布迭代
+
+> 以下版本在仓库内曾以 v1.0.0 / v2.0.0 / v3.0.0 / v3.1.0 命名记录，但未单独创建 GitHub Release。为避免与正式版本号冲突，统一归档为早期迭代。
+
+### 2026-05-13 — 安全加固 + Monorepo 共享包（未单独发布）
+
+#### 密码与数据模型
+
+- **PBKDF2-SHA256 哈希**：100,000 次迭代 + 随机盐值，自动识别新旧格式
+- **Token 哈希分离**：密码与 Token 使用不同哈希策略
+- **数据模型扩展**：收藏项 8 个元数据字段、搜索历史 9 个字段、want ↔ watched 状态切换
+- **前端体验**：收藏面板卡片化、历史面板元数据展示、ProxyImage 统一图片代理
+
+#### Monorepo 与工程化
+
+- **packages/shared 创建**：统一类型定义与工具函数
+- **单源验证规则**：`VALIDATION_RULES` 从 shared 导入
+- **camelizeKeys 工具**：snake_case → camelCase 自动转换
+- **生产 Source Map 关闭**：防止源代码暴露
+- **CI 门禁**：部署前强制 typecheck + lint
+- **数据库索引**：25 个高频查询索引
+- **构建脚本优化**：`tsc --noEmit && vite build`
+
+#### 架构改进
+
+- **Zod 数据验证**：全面引入 Zod 4.4.3
+- **CORS 策略强化**：正则匹配域名
+- **认证中间件统一**：消除重复代码
+
+### 2024-10 — 初版原型（未发布）
+
+基于原生 ES6 架构的 JAV 搜索引擎原型，包含 JAV 搜索、用户系统、管理后台与 Cloudflare 全栈部署雏形。
+
 ---
 
 **让搜索更简单，让体验更美好！**
 
-Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 4.3.0 | 2026-08-14
+Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 1.5.0 | 2026-11-04
