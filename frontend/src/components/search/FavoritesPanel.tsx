@@ -174,7 +174,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                       ) : null}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-0.5">
+                    <div className="flex shrink-0 flex-col items-center gap-0.5">
                       <button
                         type="button"
                         onClick={() => window.open(isProxyEnabled ? convertToProxyUrl(item.url) : item.url, '_blank')}

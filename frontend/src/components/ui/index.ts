@@ -15,5 +15,5 @@ export { DropdownMenu } from './DropdownMenu';
 export type { DropdownMenuProps, MenuItem } from './DropdownMenu';
 export { userMenuItems, adminMenuItems, communityMenuItems } from './DropdownMenu';
 export { SourceIcon } from './SourceIcon';
-export { ProxyImage } from './ImagePreview';
+export { ProxyImage, ImageLightbox } from './ImagePreview';
 export { LanguageSwitcher } from './LanguageSwitcher';

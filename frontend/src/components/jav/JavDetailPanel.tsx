@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Magnet, Film, Calendar, Clock, User, Building2,
   Tag, Star, ExternalLink, Copy, Check, Loader2,
@@ -16,6 +16,7 @@ import { ProxyImage, Modal } from '@/components/ui';
 import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, EmptyBlock, LoadingBlock } from '@/components/workbench';
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { clsx } from 'clsx';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -267,6 +268,9 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
   const { t } = useTranslation(['jav']);
+  // 封面按真实比例自适应：横版封面独占一行完整展示，竖版封面与信息并排
+  const [coverLandscape, setCoverLandscape] = useState(false);
+  useEffect(() => { setCoverLandscape(false); }, [detail?.cover]);
   if (status === 'idle') return null;
 
   return (
@@ -386,12 +390,19 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
 
       {status === 'success' && detail ? (
         <div className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
+          <div className={clsx('flex flex-col gap-4', !coverLandscape && 'sm:flex-row sm:gap-5')}>
             {detail.cover ? (
               <ProxyImage
                 src={getProxyImageUrl(resolveUrl(detail.cover, detail.detailUrl))}
                 alt={detail.code}
-                className="h-[136px] w-[96px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:h-48 sm:w-[136px]"
+                onLoad={(event) => {
+                  const img = event.currentTarget;
+                  setCoverLandscape(img.naturalWidth > img.naturalHeight);
+                }}
+                className={clsx(
+                  'h-auto shrink-0 rounded-[10px] bg-surface-100 dark:bg-surface-800',
+                  coverLandscape ? 'w-full max-w-2xl' : 'w-[96px] sm:w-[136px]'
+                )}
               />
             ) : null}
             <div className="min-w-0 flex-1">

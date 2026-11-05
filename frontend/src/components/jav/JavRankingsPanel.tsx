@@ -12,6 +12,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useJavRankings } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { ImageLightbox } from '@/components/ui/ImagePreview';
 import { PanelSection, PanelHeader, Segmented, IconAction, EmptyBlock, CountBadge, Pagination } from '@/components/workbench';
 import type { JavRankingEntry, JavRankingPeriod, JavRankingSection } from '@/types';
 import { JAV_RANKINGS_PAGE_SIZE } from '@/types';
@@ -29,17 +30,21 @@ const RankingRow: React.FC<{
   const [broken, setBroken] = useState(false);
   const hasCover = Boolean(item.cover) && !broken;
 
+  const [zoomed, setZoomed] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={() => onClick(item.code)}
-      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50"
-      title={item.title}
-    >
+    <div className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
       <span className={clsx('w-5 shrink-0 text-center text-[11px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
         {item.rank}
       </span>
-      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
+      {/* 封面：点击放大 */}
+      <div
+        className={clsx(
+          'h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800',
+          hasCover && 'cursor-zoom-in'
+        )}
+        onClick={hasCover ? () => setZoomed(true) : undefined}
+      >
         {hasCover ? (
           <img
             src={getProxyImageUrl(item.cover!)}
@@ -54,11 +59,20 @@ const RankingRow: React.FC<{
           </div>
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      {zoomed && hasCover ? (
+        <ImageLightbox src={getProxyImageUrl(item.cover!)} alt={item.code} onClose={() => setZoomed(false)} />
+      ) : null}
+      {/* 标题/番号：点击执行 */}
+      <button
+        type="button"
+        onClick={() => onClick(item.code)}
+        className="min-w-0 flex-1 text-left"
+        title={item.title}
+      >
         <p className="line-clamp-2 text-[12px] font-medium leading-snug text-surface-800 dark:text-surface-200">{item.title}</p>
         <p className="type-micro mt-0.5 truncate font-semibold text-surface-500">{item.code}</p>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 };
 
