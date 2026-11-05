@@ -14,7 +14,7 @@ import type {
   NyaaTorrent,
   ShowRssItem,
 } from '@/types/search';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
@@ -269,7 +269,7 @@ interface AnimeSearchResultPanelProps {
   data: AnimeEnrichedData;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
   onToggleFavorite?: (subject: BangumiSubject) => void;

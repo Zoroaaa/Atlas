@@ -450,6 +450,7 @@
         "removedFromListTitle": "已移除收藏",
         "removeFavoriteFailedTitle": "移除失敗",
         "exportSuccessTitle": "匯出成功",
+        "exportFailedTitle": "匯出失敗",
         "retryDefault": "請稍後重試"
       },
       "source": {
@@ -2716,6 +2717,8 @@
     },
     "favorites": {
       "title": "我的收藏",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁",
       "export": "匯出收藏",
       "updating": "更新中...",
       "updateSuccess": "狀態更新成功",

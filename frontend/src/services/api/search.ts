@@ -3,6 +3,7 @@ import { camelizeKeys } from '@/utils';
 import type {
   SearchHistoryItem,
   FavoriteItem,
+  FavoriteRef,
   AddFavoriteRequest,
   SaveSearchHistoryRequest,
 } from '@/types';
@@ -12,6 +13,7 @@ import type {
   SearchTrendingResponse,
   SearchQuotaResponse,
   FavoritesResponse,
+  ApiResponse,
   SearchHistoryResponse,
   SearchStatsResponse,
 } from './types';
@@ -58,6 +60,49 @@ export const userApi = {
     message: string 
   }> => {
     return apiClient.put('/user/settings', { settings });
+  },
+
+  getFavoritesPage: async (page: number, pageSize: number): Promise<ApiResponse<{ favorites: FavoriteItem[]; total: number }>> => {
+    const response = await apiClient.get<{ success: boolean; data: { favorites: Array<Record<string, unknown>>; total: number } }>(
+      `/user/favorites?page=${page}&pageSize=${pageSize}`
+    );
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          favorites: camelizeKeys<FavoriteItem[]>(response.data.favorites).map(f => ({
+            ...f,
+            subtitle: f.subtitle || undefined,
+            icon: f.icon || undefined,
+            keyword: f.keyword || undefined,
+            code: f.code || undefined,
+            cover: f.cover || undefined,
+            actors: f.actors || undefined,
+            duration: f.duration || undefined,
+            tags: f.tags || undefined,
+            releaseDate: f.releaseDate || undefined,
+            publisher: f.publisher || undefined,
+            magnetLink: f.magnetLink || undefined,
+            status: f.status || undefined,
+          })),
+          total: response.data.total,
+        },
+      };
+    }
+    return { success: false };
+  },
+
+  getFavoriteIndex: async (): Promise<ApiResponse<{ items: FavoriteRef[] }>> => {
+    const response = await apiClient.get<{ success: boolean; data: { items: Array<{ id: string; url: string; code: string | null }> } }>(
+      '/user/favorites/index'
+    );
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: { items: response.data.items.map(i => ({ id: i.id, url: i.url, code: i.code || undefined })) },
+      };
+    }
+    return { success: false };
   },
 
   getFavorites: async (): Promise<FavoritesResponse> => {

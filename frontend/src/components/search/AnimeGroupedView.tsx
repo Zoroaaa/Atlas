@@ -11,7 +11,7 @@ import type {
   AnimeUnifiedResource,
   BangumiSubject,
 } from '@/types/search';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
@@ -356,7 +356,7 @@ interface AnimeGroupedViewProps {
   data: AnimeEnrichedData;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onToggleFavorite?: (subject: BangumiSubject) => void;
 }
 

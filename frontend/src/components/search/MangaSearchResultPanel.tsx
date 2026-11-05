@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BookOpen, ExternalLink, Heart, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
 import { ShareToCommunityButton } from '@/components/community';
@@ -50,7 +50,7 @@ interface MangaSearchResultPanelProps {
   data: MangaEnrichedData;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
   onToggleFavorite?: (item: MangaItem) => void;

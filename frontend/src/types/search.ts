@@ -1,3 +1,8 @@
+import type { FavoriteItem as SharedFavoriteItem } from '@codeseek/shared';
+
+/** 收藏轻量引用：仅用于判断"是否已收藏"，无需拉取完整详情 */
+export type FavoriteRef = Pick<SharedFavoriteItem, 'id' | 'url' | 'code'>;
+
 // API 契约类型 - 从共享包导入
 export type {
   SearchHistoryItem,

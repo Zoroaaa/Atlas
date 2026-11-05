@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Heart, Download, Trash2, ExternalLink, Clock, Building2, Calendar, User, Eye, EyeOff, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
-import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock } from '@/components/workbench';
+import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock, Pagination } from '@/components/workbench';
 import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
 import { userApi } from '@/services/api/search';
@@ -25,6 +25,10 @@ const getProxyImageUrl = (url: string): string => {
 
 interface FavoritesPanelProps {
   favorites: FavoriteItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   isLoading: boolean;
   show: boolean;
   isProxyEnabled: boolean;
@@ -35,7 +39,7 @@ interface FavoritesPanelProps {
 }
 
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
-  favorites, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
+  favorites, total, page, totalPages, onPageChange, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
 }) => {
   const { t } = useTranslation(['search']);
   const toast = useToast();
@@ -67,13 +71,13 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
       <PanelHeader
         icon={<Heart className="h-4 w-4 text-accent-500" />}
         title={t('search:favorites.title')}
-        count={favorites.length > 0 ? <CountBadge>{favorites.length}</CountBadge> : undefined}
+        count={total > 0 ? <CountBadge>{total}</CountBadge> : undefined}
         onToggle={onToggle}
         expanded={show}
         ariaControls="main-favorites"
         actions={
           <>
-            {show && favorites.length > 0 ? (
+            {show && total > 0 ? (
               <button
                 type="button"
                 onClick={onExport}
@@ -90,7 +94,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
       />
 
       {show ? (
-        <div id="main-favorites" className="max-h-[min(60vh,520px)] overflow-y-auto scrollbar-thin">
+        <div id="main-favorites">
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loading />
@@ -191,6 +195,14 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                   </div>
                 );
               })}
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onChange={onPageChange}
+                prevLabel={t('search:favorites.prevPage')}
+                nextLabel={t('search:favorites.nextPage')}
+                className="border-t border-surface-100 pt-3 dark:border-surface-800/70"
+              />
             </div>
           ) : (
             <div className="px-4 pb-4 sm:px-5 sm:pb-5">

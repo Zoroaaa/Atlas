@@ -290,7 +290,11 @@ export const MainSearchPage: React.FC = () => {
                 <PanelRail className="min-w-0">
                   {isAuthenticated ? (
                     <FavoritesPanel
-                      favorites={favoritesManager.favorites}
+                      favorites={favoritesManager.favoritesPage}
+                      total={favoritesManager.favoritesTotal}
+                      page={favoritesManager.favoritesPageNo}
+                      totalPages={favoritesManager.favoritesTotalPages}
+                      onPageChange={favoritesManager.setFavoritesPageNo}
                       isLoading={favoritesManager.isLoadingFavorites}
                       show={showFavorites}
                       isProxyEnabled={isProxyEnabled}

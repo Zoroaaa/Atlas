@@ -8,7 +8,7 @@ export { useJavRankings } from './useJavRankings';
 export { useJavRecommendations } from './useJavRecommendations';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
-export { useFavorites as useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys } from './useFavoritesQuery';
+export { useFavorites as useFavoritesQuery, useFavoritesPage, useFavoriteIndex, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys, invalidateFavorites, FAVORITES_PAGE_SIZE } from './useFavoritesQuery';
 export { useSearchHistory, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory, searchHistoryKeys } from './useSearchHistoryQuery';
 export { useMajorCategories, useCategories, useSourcesWithUserConfig, sourcesKeys } from './useSourcesQuery';
 export { useSearchFlow } from './useSearchFlow';

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
 import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, IconAction } from '@/components/workbench';
 import { convertToProxyUrl } from '@/services/proxy';
-import type { SearchResult, FavoriteItem, Category, MajorCategory } from '@/types';
+import type { SearchResult, FavoriteRef, Category, MajorCategory } from '@/types';
 
 interface SearchResultItem extends SearchResult {
   subtitle?: string;
@@ -17,7 +17,7 @@ interface SearchResultsPanelProps {
   results: SearchResultItem[];
   isAuthenticated: boolean;
   isProxyEnabled: boolean;
-  favorites: FavoriteItem[];
+  favorites: FavoriteRef[];
   categories: Category[];
   majorCategories: MajorCategory[];
   onToggleFavorite: (result: SearchResultItem) => void;

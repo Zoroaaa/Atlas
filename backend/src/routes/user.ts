@@ -61,36 +61,77 @@ userRoutes.put('/settings', validateBody(schemas.user.updateSettings), async (c)
   }
 });
 
+const mapFavorite = (f: UserFavorite) => ({
+  id: f.id,
+  userId: f.user_id,
+  title: f.title,
+  subtitle: f.subtitle,
+  url: f.url,
+  icon: f.icon,
+  keyword: f.keyword,
+  code: f.code,
+  cover: f.cover,
+  actors: f.actors,
+  duration: f.duration,
+  tags: f.tags,
+  releaseDate: f.release_date,
+  publisher: f.publisher,
+  magnetLink: f.magnet_link,
+  status: f.status,
+  createdAt: f.created_at,
+});
+
+// 轻量索引：仅 id/url/code，供搜索结果判断"是否已收藏"，避免拉取全量详情
+userRoutes.get('/favorites/index', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const rows = await c.env.DB.prepare(
+      'SELECT id, url, code FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC'
+    ).bind(user.userId).all<{ id: string; url: string; code: string | null }>();
+
+    return c.json(success({ items: rows.results || [] }));
+  } catch (err) {
+    console.error('Get favorites index error:', err);
+    return c.json(error('SERVER_ERROR', '获取收藏失败'), 500);
+  }
+});
+
+// 传 page/pageSize 时分页返回（含 total）；不传则保持全量返回（仪表盘/导出使用）
 userRoutes.get('/favorites', async (c) => {
   const user = c.get('user');
 
   try {
+    const pageParam = c.req.query('page');
+    const paged = pageParam !== undefined;
+
+    if (paged) {
+      const page = Math.max(1, parseInt(pageParam!, 10) || 1);
+      const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10));
+
+      const [rows, totalRow] = await Promise.all([
+        c.env.DB.prepare(
+          'SELECT * FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+        ).bind(user.userId, pageSize, (page - 1) * pageSize).all<UserFavorite>(),
+        c.env.DB.prepare(
+          'SELECT COUNT(*) as count FROM user_favorites WHERE user_id = ?'
+        ).bind(user.userId).first<{ count: number }>(),
+      ]);
+
+      return c.json(success({
+        favorites: (rows.results || []).map(mapFavorite),
+        total: totalRow?.count ?? 0,
+        page,
+        pageSize,
+      }));
+    }
+
     const favorites = await c.env.DB.prepare(
       'SELECT * FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC'
     ).bind(user.userId).all<UserFavorite>();
 
-    const mapped = (favorites.results || []).map((f: UserFavorite) => ({
-      id: f.id,
-      userId: f.user_id,
-      title: f.title,
-      subtitle: f.subtitle,
-      url: f.url,
-      icon: f.icon,
-      keyword: f.keyword,
-      code: f.code,
-      cover: f.cover,
-      actors: f.actors,
-      duration: f.duration,
-      tags: f.tags,
-      releaseDate: f.release_date,
-      publisher: f.publisher,
-      magnetLink: f.magnet_link,
-      status: f.status,
-      createdAt: f.created_at,
-    }));
-
     return c.json(success({
-      favorites: mapped,
+      favorites: (favorites.results || []).map(mapFavorite),
     }));
   } catch (err) {
     console.error('Get favorites error:', err);

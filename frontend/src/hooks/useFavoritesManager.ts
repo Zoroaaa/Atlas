@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
-import { useFavoritesQuery, useAddFavorite, useRemoveFavorite } from '@/hooks';
+import { useFavoriteIndex, useFavoritesPage, useAddFavorite, useRemoveFavorite, invalidateFavorites, FAVORITES_PAGE_SIZE } from '@/hooks';
+import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import i18next from '@/i18n';
 import type { JavDetail } from '@/types/jav';
@@ -16,7 +18,24 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated } = useAuthStore();
-  const { data: favorites = [], isLoading: isLoadingFavorites, refetch: refetchFavorites } = useFavoritesQuery();
+  const queryClient = useQueryClient();
+  // 轻量索引：搜索结果判断"已收藏"（仅 id/url/code，本地缓存）
+  const { data: favorites = [] } = useFavoriteIndex();
+  // 面板分页：每页 FAVORITES_PAGE_SIZE 条，按需请求
+  const [favoritesPageNo, setFavoritesPageNo] = useState(1);
+  const pageQuery = useFavoritesPage(favoritesPageNo);
+  const favoritesPage = pageQuery.data?.favorites ?? [];
+  const favoritesTotal = pageQuery.data?.total ?? 0;
+  const favoritesTotalPages = Math.max(1, Math.ceil(favoritesTotal / FAVORITES_PAGE_SIZE));
+  const isLoadingFavorites = pageQuery.isLoading;
+  const refetchFavorites = () => invalidateFavorites(queryClient);
+
+  // 删除后当前页可能越界（如删光最后一页），回退到最后一页
+  useEffect(() => {
+    if (!pageQuery.isPlaceholderData && pageQuery.data && favoritesPageNo > favoritesTotalPages) {
+      setFavoritesPageNo(favoritesTotalPages);
+    }
+  }, [pageQuery.data, pageQuery.isPlaceholderData, favoritesPageNo, favoritesTotalPages]);
   const addFavoriteMutation = useAddFavorite();
   const removeFavoriteMutation = useRemoveFavorite();
 
@@ -214,20 +233,32 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     } catch { toast.error(i18next.t('errors:hooks.favorites.removeFavoriteFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
   };
 
-  const handleExportFavorites = () => {
-    const data = JSON.stringify(favorites, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `favorites-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(i18next.t('errors:hooks.favorites.exportSuccessTitle'));
+  const handleExportFavorites = async () => {
+    // 导出需要完整数据：点击时才拉取全量，平时不请求
+    try {
+      const result = await userApi.getFavorites();
+      if (!result.success || !result.data) throw new Error('export fetch failed');
+      const data = JSON.stringify(result.data.favorites, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `favorites-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(i18next.t('errors:hooks.favorites.exportSuccessTitle'));
+    } catch {
+      toast.error(i18next.t('errors:hooks.favorites.exportFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault'));
+    }
   };
 
   return {
     favorites,
+    favoritesPage,
+    favoritesTotal,
+    favoritesTotalPages,
+    favoritesPageNo,
+    setFavoritesPageNo,
     isLoadingFavorites,
     favoritedCodes,
     handleToggleFavorite,

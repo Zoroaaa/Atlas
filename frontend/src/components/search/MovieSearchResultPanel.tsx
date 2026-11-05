@@ -11,7 +11,7 @@ import type {
   TMDBResult,
   ResourceItem,
 } from '@/types/search';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
@@ -111,7 +111,7 @@ interface MovieSearchResultPanelProps {
   data: MovieEnrichedData;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onRefresh?: () => void;
   onPageChange?: (page: number) => void;
   onToggleFavorite?: (item: TMDBResult) => void;
