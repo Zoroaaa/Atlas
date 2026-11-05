@@ -45,7 +45,7 @@ export function useSearchFlow({
   const { user, isAuthenticated } = useAuthStore();
   const { keyword, setKeyword } = useSearchStore();
   const searchMutation = useSearchMutation();
-  const { data: searchHistory = [] } = useSearchHistory(20);
+  const { data: searchHistory = [] } = useSearchHistory(50);
 
   // ── Search Suggestions ──
   // 传大类 ID，后端会查该大类 + 该大类下所有子类 + 'all'

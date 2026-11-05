@@ -202,7 +202,7 @@ javRoutes.use('*', authMiddleware);
 javRoutes.get('/rankings', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
 
-  const cacheKey = new Request('https://internal/jav-rankings-v3');
+  const cacheKey = new Request('https://internal/jav-rankings-v4');
   const cache = caches.default;
 
   if (!forceRefresh) {
@@ -396,7 +396,7 @@ function base32ToHexPublic(base32: string): string {
 // GET /api/jav/actresses — 站内热度 + 周榜/月榜上榜作品聚合
 javRoutes.get('/actresses', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
-  const cacheKey = new Request('https://internal/jav-hot-actresses-v2');
+  const cacheKey = new Request('https://internal/jav-hot-actresses-v3');
   const cache = caches.default;
 
   if (!forceRefresh) {

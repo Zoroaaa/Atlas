@@ -264,17 +264,6 @@ export const MainSearchPage: React.FC = () => {
                       <ActressesPanel onActressClick={handleActressClick} />
                     </>
                   ) : null}
-                  {isAuthenticated ? (
-                    <SearchHistoryPanel
-                      history={historyManager.searchHistory}
-                      isLoading={historyManager.isLoadingHistory}
-                      show={showHistory}
-                      onToggle={() => setShowHistory((value) => !value)}
-                      onItemClick={(query) => searchFlow.setKeyword(query)}
-                      onClear={historyManager.handleClearHistory}
-                      onDeleteSelected={historyManager.handleDeleteSelected}
-                    />
-                  ) : null}
                   {showIdleHint ? (
                     <PanelSection className="p-4 sm:p-5">
                       <EmptyBlock
@@ -288,6 +277,17 @@ export const MainSearchPage: React.FC = () => {
                 </div>
 
                 <PanelRail className="min-w-0">
+                  {isAuthenticated ? (
+                    <SearchHistoryPanel
+                      history={historyManager.searchHistory}
+                      isLoading={historyManager.isLoadingHistory}
+                      show={showHistory}
+                      onToggle={() => setShowHistory((value) => !value)}
+                      onItemClick={(query) => searchFlow.setKeyword(query)}
+                      onClear={historyManager.handleClearHistory}
+                      onDeleteSelected={historyManager.handleDeleteSelected}
+                    />
+                  ) : null}
                   {isAuthenticated ? (
                     <FavoritesPanel
                       favorites={favoritesManager.favoritesPage}

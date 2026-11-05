@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   TrendingUp,
   RefreshCw,
@@ -12,8 +12,9 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useJavRankings } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
-import { PanelSection, PanelHeader, Segmented, IconAction, EmptyBlock, CountBadge } from '@/components/workbench';
+import { PanelSection, PanelHeader, Segmented, IconAction, EmptyBlock, CountBadge, Pagination } from '@/components/workbench';
 import type { JavRankingEntry, JavRankingPeriod, JavRankingSection } from '@/types';
+import { JAV_RANKINGS_PAGE_SIZE } from '@/types';
 
 interface JavRankingsPanelProps {
   onCodeClick: (code: string) => void;
@@ -68,7 +69,15 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
   const [period, setPeriod] = useState<JavRankingPeriod>('monthly');
   const [section, setSection] = useState<JavRankingSection>('censored');
 
+  const [page, setPage] = useState(1);
+
   const activeItems = data?.[period]?.[section] ?? [];
+  const totalPages = Math.max(1, Math.ceil(activeItems.length / JAV_RANKINGS_PAGE_SIZE));
+  const pageItems = activeItems.slice((page - 1) * JAV_RANKINGS_PAGE_SIZE, page * JAV_RANKINGS_PAGE_SIZE);
+
+  // 切换周/月、有码/无码回到第一页；数据变少时避免页码越界
+  useEffect(() => { setPage(1); }, [period, section]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const updatedAt = data?.[period]?.updatedAt ?? 0;
 
   const formatUpdatedAt = (value: number): string => {
@@ -123,7 +132,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
             />
           </div>
 
-          <div className="max-h-[420px] overflow-y-auto px-2 pb-3 scrollbar-thin sm:px-3">
+          <div className="px-2 pb-3 sm:px-3">
             {isLoading ? (
               <div className="flex h-40 flex-col items-center justify-center gap-2 text-surface-400">
                 <Loader2 className="h-5 w-5 animate-spin text-primary-500" />
@@ -143,11 +152,18 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
               />
             ) : (
               <div className="space-y-0.5">
-                {activeItems.map((item) => (
+                {pageItems.map((item) => (
                   <RankingRow key={`${period}-${section}-${item.code}`} item={item} onClick={onCodeClick} />
                 ))}
               </div>
             )}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+              prevLabel={t('jav:actressResults.previousPage')}
+              nextLabel={t('jav:actressResults.nextPage')}
+            />
           </div>
         </div>
       ) : null}

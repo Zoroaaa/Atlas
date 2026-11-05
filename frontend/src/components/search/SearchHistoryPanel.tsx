@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2, Square, CheckSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
-import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock } from '@/components/workbench';
+import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock, Pagination } from '@/components/workbench';
 import { API_BASE_URL } from '@/constants';
 import type { SearchHistoryItem } from '@/types';
 import type { TFunction } from 'i18next';
 import { clsx } from 'clsx';
+
+const HISTORY_PAGE_SIZE = 10;
 
 const resolveCoverUrl = (cover: string): string => {
   if (!cover) return '';
@@ -61,7 +63,16 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
   const { t } = useTranslation(['search']);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const groupedHistory = useMemo(() => groupByDay(history, t), [history, t]);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE));
+  const pageItems = useMemo(
+    () => history.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE),
+    [history, page]
+  );
+  // 删除/清空后当前页可能越界
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+
+  const groupedHistory = useMemo(() => groupByDay(pageItems, t), [pageItems, t]);
 
   const toggleSelectAll = (_dayKey: string, items: SearchHistoryItem[]) => {
     const allSelected = items.every((item) => selectedIds.has(item.id));
@@ -111,7 +122,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
       />
 
       {show ? (
-        <div id="main-search-history" className="max-h-[min(60vh,520px)] overflow-y-auto scrollbar-thin">
+        <div id="main-search-history">
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loading />
@@ -119,7 +130,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
           ) : history.length > 0 ? (
             <>
               {selectedIds.size > 0 ? (
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-error-100 bg-error-50/90 px-4 py-2 backdrop-blur-sm dark:border-error-900/30 dark:bg-error-900/20 sm:px-5">
+                <div className="flex items-center justify-between border-b border-error-100 bg-error-50/90 px-4 py-2 backdrop-blur-sm dark:border-error-900/30 dark:bg-error-900/20 sm:px-5">
                   <span className="type-micro text-error-600 dark:text-error-400">
                     {t('search:history.selected', { count: selectedIds.size })}
                   </span>
@@ -239,6 +250,14 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                     </div>
                   </div>
                 ))}
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onChange={setPage}
+                  prevLabel={t('search:favorites.prevPage')}
+                  nextLabel={t('search:favorites.nextPage')}
+                  className="mt-2 border-t border-surface-100 pt-3 dark:border-surface-800/70"
+                />
               </div>
             </>
           ) : (

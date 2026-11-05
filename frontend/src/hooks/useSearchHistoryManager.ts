@@ -8,7 +8,7 @@ import { searchHistoryKeys } from './useSearchHistoryQuery';
 export function useSearchHistoryManager() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { data: searchHistory = [], isLoading: isLoadingHistory } = useSearchHistory(20);
+  const { data: searchHistory = [], isLoading: isLoadingHistory } = useSearchHistory(50);
   const clearHistoryMutation = useClearSearchHistory();
 
   const handleClearHistory = async () => {
