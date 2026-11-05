@@ -1,4 +1,5 @@
-import { useSearchHistory, useClearSearchHistory } from '@/hooks';
+import { useEffect, useState } from 'react';
+import { useSearchHistoryPage, useClearSearchHistory, SEARCH_HISTORY_PAGE_SIZE } from '@/hooks';
 import { useToast } from '@/components/ui/Toast';
 import { userApi } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,19 @@ import { searchHistoryKeys } from './useSearchHistoryQuery';
 export function useSearchHistoryManager() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { data: searchHistory = [], isLoading: isLoadingHistory } = useSearchHistory(50);
+  const [historyPageNo, setHistoryPageNo] = useState(1);
+  const pageQuery = useSearchHistoryPage(historyPageNo);
+  const searchHistory = pageQuery.data?.history ?? [];
+  const historyTotal = pageQuery.data?.total ?? 0;
+  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / SEARCH_HISTORY_PAGE_SIZE));
+  const isLoadingHistory = pageQuery.isLoading;
+
+  // 删除/清空后当前页可能越界，回退到最后一页
+  useEffect(() => {
+    if (!pageQuery.isPlaceholderData && pageQuery.data && historyPageNo > historyTotalPages) {
+      setHistoryPageNo(historyTotalPages);
+    }
+  }, [pageQuery.data, pageQuery.isPlaceholderData, historyPageNo, historyTotalPages]);
   const clearHistoryMutation = useClearSearchHistory();
 
   const handleClearHistory = async () => {
@@ -34,6 +47,10 @@ export function useSearchHistoryManager() {
 
   return {
     searchHistory,
+    historyTotal,
+    historyTotalPages,
+    historyPageNo,
+    setHistoryPageNo,
     isLoadingHistory,
     handleClearHistory,
     handleDeleteSelected,

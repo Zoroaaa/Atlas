@@ -12,9 +12,15 @@ const FAV_CACHE_PREFIX = 'fav:';
 export const favoritesKeys = {
   all: ['favorites'] as const,
   index: (userId?: string) => ['favorites', 'index', userId] as const,
-  page: (userId: string | undefined, pageSize: number, page: number) =>
-    ['favorites', 'page', userId, pageSize, page] as const,
+  page: (userId: string | undefined, pageSize: number, page: number, opts?: FavoritesPageOpts) =>
+    ['favorites', 'page', userId, pageSize, page, opts?.q ?? '', opts?.sort ?? '', opts?.order ?? ''] as const,
 };
+
+export interface FavoritesPageOpts {
+  q?: string;
+  sort?: 'date' | 'title';
+  order?: 'asc' | 'desc';
+}
 
 interface FavoritesPageData {
   favorites: FavoriteItem[];
@@ -27,25 +33,26 @@ export function invalidateFavorites(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: favoritesKeys.all });
 }
 
-/** 主页收藏面板：服务端分页，每页 FAVORITES_PAGE_SIZE 条 */
-export function useFavoritesPage(page: number, pageSize = FAVORITES_PAGE_SIZE) {
+/** 服务端分页；无搜索/排序参数时（主页面板）落本地持久缓存，带参数时（控制台）只走内存缓存 */
+export function useFavoritesPage(page: number, pageSize = FAVORITES_PAGE_SIZE, opts: FavoritesPageOpts = {}) {
+  const persist = !opts.q && !opts.sort && !opts.order;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
   const cacheKey = `${FAV_CACHE_PREFIX}page:${userId}:${pageSize}:${page}`;
 
   return useQuery({
-    queryKey: favoritesKeys.page(userId, pageSize, page),
+    queryKey: favoritesKeys.page(userId, pageSize, page, opts),
     queryFn: async (): Promise<FavoritesPageData> => {
-      const response = await userApi.getFavoritesPage(page, pageSize);
+      const response = await userApi.getFavoritesPage(page, pageSize, opts);
       if (!response.success || !response.data) throw new Error('fetch favorites page failed');
-      writePersisted(cacheKey, response.data);
+      if (persist) writePersisted(cacheKey, response.data);
       return response.data;
     },
     enabled: isAuthenticated && !!userId,
-    staleTime: FAVORITES_CACHE_TTL,
+    staleTime: persist ? FAVORITES_CACHE_TTL : 60 * 1000,
     placeholderData: keepPreviousData,
-    initialData: () => readPersisted<FavoritesPageData>(cacheKey, FAVORITES_CACHE_TTL)?.data,
-    initialDataUpdatedAt: () => readPersisted<FavoritesPageData>(cacheKey, FAVORITES_CACHE_TTL)?.cachedAt,
+    initialData: persist ? () => readPersisted<FavoritesPageData>(cacheKey, FAVORITES_CACHE_TTL)?.data : undefined,
+    initialDataUpdatedAt: persist ? () => readPersisted<FavoritesPageData>(cacheKey, FAVORITES_CACHE_TTL)?.cachedAt : undefined,
   });
 }
 

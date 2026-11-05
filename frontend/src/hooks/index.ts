@@ -9,7 +9,7 @@ export { useJavRecommendations } from './useJavRecommendations';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
 export { useFavorites as useFavoritesQuery, useFavoritesPage, useFavoriteIndex, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys, invalidateFavorites, FAVORITES_PAGE_SIZE } from './useFavoritesQuery';
-export { useSearchHistory, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory, searchHistoryKeys } from './useSearchHistoryQuery';
+export { useSearchHistory, useSearchHistoryPage, useSearchHistoryStats, SEARCH_HISTORY_PAGE_SIZE, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory, searchHistoryKeys } from './useSearchHistoryQuery';
 export { useMajorCategories, useCategories, useSourcesWithUserConfig, sourcesKeys } from './useSourcesQuery';
 export { useSearchFlow } from './useSearchFlow';
 export type { SearchResultItem } from './useSearchFlow';

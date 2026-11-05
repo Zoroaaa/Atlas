@@ -26,19 +26,24 @@ interface ChipProps {
   tone?: ChipTone;
   size?: 'xs' | 'sm';
   className?: string;
+  /** 内容过长时截断（如 manga:uuid 这类长 ID），默认不截断 */
+  truncate?: boolean;
   children: React.ReactNode;
 }
 
-export const Chip: React.FC<ChipProps> = ({ tone = 'neutral', size = 'sm', className, children }) => (
+export const Chip: React.FC<ChipProps> = ({ tone = 'neutral', size = 'sm', className, truncate = false, children }) => (
   <span
     className={clsx(
-      'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md font-medium',
+      'inline-flex items-center gap-1 whitespace-nowrap rounded-md font-medium',
+      truncate ? 'min-w-0 max-w-[9rem]' : 'shrink-0',
       size === 'xs' ? 'h-4 px-1 text-[10px]' : 'h-5 px-1.5 text-[10px]',
       TONE_CLASS[tone],
       className
     )}
   >
-    {children}
+    {truncate ? (
+      <span className="truncate" title={typeof children === 'string' ? children : undefined}>{children}</span>
+    ) : children}
   </span>
 );
 

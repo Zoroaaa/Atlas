@@ -280,6 +280,10 @@ export const MainSearchPage: React.FC = () => {
                   {isAuthenticated ? (
                     <SearchHistoryPanel
                       history={historyManager.searchHistory}
+                      total={historyManager.historyTotal}
+                      page={historyManager.historyPageNo}
+                      totalPages={historyManager.historyTotalPages}
+                      onPageChange={historyManager.setHistoryPageNo}
                       isLoading={historyManager.isLoadingHistory}
                       show={showHistory}
                       onToggle={() => setShowHistory((value) => !value)}

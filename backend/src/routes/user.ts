@@ -61,6 +61,9 @@ userRoutes.put('/settings', validateBody(schemas.user.updateSettings), async (c)
   }
 });
 
+// LIKE 通配符转义（配合 ESCAPE '\\'）
+const escapeLike = (v: string) => v.replace(/[\\%_]/g, (m) => '\\' + m);
+
 const mapFavorite = (f: UserFavorite) => ({
   id: f.id,
   userId: f.user_id,
@@ -109,13 +112,20 @@ userRoutes.get('/favorites', async (c) => {
       const page = Math.max(1, parseInt(pageParam!, 10) || 1);
       const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10));
 
+      // 可选：标题搜索 + 排序（控制台收藏页使用）
+      const q = (c.req.query('q') || '').trim();
+      const sortKey = c.req.query('sort') === 'title' ? 'title COLLATE NOCASE' : 'created_at';
+      const sortDir = c.req.query('order') === 'asc' ? 'ASC' : 'DESC';
+      const where = q ? "user_id = ? AND title LIKE ? ESCAPE '\\'" : 'user_id = ?';
+      const whereArgs: unknown[] = q ? [user.userId, `%${escapeLike(q)}%`] : [user.userId];
+
       const [rows, totalRow] = await Promise.all([
         c.env.DB.prepare(
-          'SELECT * FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
-        ).bind(user.userId, pageSize, (page - 1) * pageSize).all<UserFavorite>(),
+          `SELECT * FROM user_favorites WHERE ${where} ORDER BY ${sortKey} ${sortDir}, id ${sortDir} LIMIT ? OFFSET ?`
+        ).bind(...whereArgs, pageSize, (page - 1) * pageSize).all<UserFavorite>(),
         c.env.DB.prepare(
-          'SELECT COUNT(*) as count FROM user_favorites WHERE user_id = ?'
-        ).bind(user.userId).first<{ count: number }>(),
+          `SELECT COUNT(*) as count FROM user_favorites WHERE ${where}`
+        ).bind(...whereArgs).first<{ count: number }>(),
       ]);
 
       return c.json(success({
@@ -301,11 +311,82 @@ userRoutes.patch('/favorites/:id/status', validateBody(schemas.user.updateFavori
   }
 });
 
+// 搜索历史统计（控制台）：总数/今日/去重关键词/活跃天数/热门关键词，全部在库里聚合
+userRoutes.get('/search-history/stats', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const todayStart = parseInt(c.req.query('todayStart') || '0', 10) || 0;
+    // 客户端时区偏移（分钟，东区为正），用于按本地日期统计活跃天数
+    const tzOffset = Math.max(-840, Math.min(840, parseInt(c.req.query('tzOffset') || '0', 10) || 0));
+
+    const [summary, top] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END), 0) AS today_count,
+                COUNT(DISTINCT query) AS unique_keywords,
+                COUNT(DISTINCT date(created_at / 1000 + ? * 60, 'unixepoch')) AS active_days
+         FROM user_search_history WHERE user_id = ?`
+      ).bind(todayStart, tzOffset, user.userId).first<{
+        total: number; today_count: number; unique_keywords: number; active_days: number;
+      }>(),
+      c.env.DB.prepare(
+        `SELECT query AS keyword, COUNT(*) AS count FROM user_search_history
+         WHERE user_id = ? AND TRIM(query) != ''
+         GROUP BY query ORDER BY count DESC, MAX(created_at) DESC LIMIT 20`
+      ).bind(user.userId).all<{ keyword: string; count: number }>(),
+    ]);
+
+    return c.json(success({
+      total: summary?.total ?? 0,
+      todayCount: summary?.today_count ?? 0,
+      uniqueKeywords: summary?.unique_keywords ?? 0,
+      activeDays: summary?.active_days ?? 0,
+      topKeywords: top.results || [],
+    }));
+  } catch (err) {
+    console.error('Get search history stats error:', err);
+    return c.json(error('SERVER_ERROR', '获取搜索历史统计失败'), 500);
+  }
+});
+
+// 传 page/pageSize 时分页返回（含 total，可选 q 关键词 / since 起始时间）；不传则按 limit 返回（统计、导出使用）
 userRoutes.get('/search-history', async (c) => {
   const user = c.get('user');
 
   try {
-    const limit = parseInt(c.req.query('limit') || '100', 10);
+    const pageParam = c.req.query('page');
+
+    if (pageParam !== undefined) {
+      const page = Math.max(1, parseInt(pageParam, 10) || 1);
+      const pageSize = Math.min(100, Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10));
+      const q = (c.req.query('q') || '').trim();
+      const since = parseInt(c.req.query('since') || '0', 10) || 0;
+
+      const conds = ['user_id = ?'];
+      const args: unknown[] = [user.userId];
+      if (q) { conds.push("query LIKE ? ESCAPE '\\'"); args.push(`%${escapeLike(q)}%`); }
+      if (since > 0) { conds.push('created_at >= ?'); args.push(since); }
+      const where = conds.join(' AND ');
+
+      const [rows, totalRow] = await Promise.all([
+        c.env.DB.prepare(
+          `SELECT * FROM user_search_history WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+        ).bind(...args, pageSize, (page - 1) * pageSize).all<UserSearchHistory>(),
+        c.env.DB.prepare(
+          `SELECT COUNT(*) AS count FROM user_search_history WHERE ${where}`
+        ).bind(...args).first<{ count: number }>(),
+      ]);
+
+      return c.json(success({
+        history: rows.results || [],
+        total: totalRow?.count ?? 0,
+        page,
+        pageSize,
+      }));
+    }
+
+    const limit = Math.min(R.SEARCH_HISTORY.MAX_COUNT, Math.max(1, parseInt(c.req.query('limit') || '100', 10) || 100));
     const history = await c.env.DB.prepare(
       'SELECT * FROM user_search_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?'
     ).bind(user.userId, limit).all<UserSearchHistory>();

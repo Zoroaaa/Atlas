@@ -123,7 +123,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        {item.code ? <Chip tone="primary">{item.code}</Chip> : null}
+                        {item.code ? <Chip tone="primary" truncate>{item.code}</Chip> : null}
                         <span className="truncate text-[12px] font-medium text-surface-900 dark:text-surface-100">
                           {item.title}
                         </span>
