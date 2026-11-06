@@ -40,11 +40,14 @@ vi.mock('@/stores', () => ({
 
 // useFavoritesManager imports from '@/hooks', so we mock that module
 vi.mock('@/hooks', () => ({
-  useFavoritesQuery: () => ({
-    data: mockFavorites,
+  useFavoriteIndex: () => ({ data: mockFavorites }),
+  useFavoritesPage: () => ({
+    data: { favorites: mockFavorites, total: mockFavorites.length },
     isLoading: false,
-    refetch: mockRefetch,
+    isPlaceholderData: false,
   }),
+  invalidateFavorites: (...args: unknown[]) => mockRefetch(...args),
+  FAVORITES_PAGE_SIZE: 10,
   useAddFavorite: () => ({
     mutateAsync: mockAddMutateAsync,
   }),
@@ -52,6 +55,10 @@ vi.mock('@/hooks', () => ({
     mutateAsync: mockRemoveMutateAsync,
   }),
   favoritesKeys: { all: ['favorites'] },
+}));
+
+vi.mock('@/services/api', () => ({
+  userApi: { getFavorites: vi.fn() },
 }));
 
 // ── Helpers ──

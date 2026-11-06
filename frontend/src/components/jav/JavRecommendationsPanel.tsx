@@ -37,7 +37,7 @@ function reasonText(t: TFunction, item: JavRecommendationItem): string {
 function SkeletonCard() {
   return (
     <div className="overflow-hidden rounded-[10px] bg-surface-50/60 p-2.5 dark:bg-surface-900/40">
-      <div className="skeleton aspect-[3/4] w-full" />
+      <div className="skeleton aspect-[3/2] w-full" />
       <div className="skeleton mt-2 h-3 w-4/5" />
     </div>
   );
@@ -106,6 +106,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
                 <MediaCard
                   key={`${item.code}-${item.reason.type}`}
                   orientation="tile"
+                  coverAspect="auto"
                   cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
                   coverFallback={<Film className="h-6 w-6" />}
                   title={item.title}

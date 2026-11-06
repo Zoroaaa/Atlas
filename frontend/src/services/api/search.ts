@@ -3,6 +3,8 @@ import { camelizeKeys } from '@/utils';
 import type {
   SearchHistoryItem,
   FavoriteItem,
+  FavoriteRef,
+  SearchHistoryStats,
   AddFavoriteRequest,
   SaveSearchHistoryRequest,
 } from '@/types';
@@ -12,6 +14,7 @@ import type {
   SearchTrendingResponse,
   SearchQuotaResponse,
   FavoritesResponse,
+  ApiResponse,
   SearchHistoryResponse,
   SearchStatsResponse,
 } from './types';
@@ -58,6 +61,69 @@ export const userApi = {
     message: string 
   }> => {
     return apiClient.put('/user/settings', { settings });
+  },
+
+  getFavoritesPage: async (
+    page: number,
+    pageSize: number,
+    opts: { q?: string; sort?: 'date' | 'title'; order?: 'asc' | 'desc' } = {}
+  ): Promise<ApiResponse<{ favorites: FavoriteItem[]; total: number }>> => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts.q) params.set('q', opts.q);
+    if (opts.sort) params.set('sort', opts.sort);
+    if (opts.order) params.set('order', opts.order);
+    const response = await apiClient.get<{ success: boolean; data: { favorites: Array<Record<string, unknown>>; total: number } }>(
+      `/user/favorites?${params.toString()}`
+    );
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          favorites: camelizeKeys<FavoriteItem[]>(response.data.favorites).map(f => ({
+            ...f,
+            subtitle: f.subtitle || undefined,
+            icon: f.icon || undefined,
+            keyword: f.keyword || undefined,
+            code: f.code || undefined,
+            cover: f.cover || undefined,
+            actors: f.actors || undefined,
+            duration: f.duration || undefined,
+            tags: f.tags || undefined,
+            releaseDate: f.releaseDate || undefined,
+            publisher: f.publisher || undefined,
+            magnetLink: f.magnetLink || undefined,
+            status: f.status || undefined,
+          })),
+          total: response.data.total,
+        },
+      };
+    }
+    return { success: false };
+  },
+
+  getSyncState: async (): Promise<ApiResponse<{
+    favorites: { count: number; updatedAt: number };
+    history: { count: number; updatedAt: number };
+  }>> => {
+    const response = await apiClient.get<{ success: boolean; data: {
+      favorites: { count: number; updatedAt: number };
+      history: { count: number; updatedAt: number };
+    } }>('/user/sync-state');
+    if (response.success && response.data) return { success: true, data: response.data };
+    return { success: false };
+  },
+
+  getFavoriteIndex: async (): Promise<ApiResponse<{ items: FavoriteRef[] }>> => {
+    const response = await apiClient.get<{ success: boolean; data: { items: Array<{ id: string; url: string; code: string | null }> } }>(
+      '/user/favorites/index'
+    );
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: { items: response.data.items.map(i => ({ id: i.id, url: i.url, code: i.code || undefined })) },
+      };
+    }
+    return { success: false };
   },
 
   getFavorites: async (): Promise<FavoritesResponse> => {
@@ -139,6 +205,37 @@ export const userApi = {
         data: { history: camelizeKeys<SearchHistoryItem[]>(response.data.history) }
       };
     }
+    return { success: false };
+  },
+
+  getSearchHistoryPage: async (
+    page: number,
+    pageSize: number,
+    opts: { q?: string; since?: number } = {}
+  ): Promise<ApiResponse<{ history: SearchHistoryItem[]; total: number }>> => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts.q) params.set('q', opts.q);
+    if (opts.since) params.set('since', String(opts.since));
+    const response = await apiClient.get<{ success: boolean; data: { history: Array<Record<string, unknown>>; total: number } }>(
+      `/user/search-history?${params.toString()}`
+    );
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: { history: camelizeKeys<SearchHistoryItem[]>(response.data.history), total: response.data.total },
+      };
+    }
+    return { success: false };
+  },
+
+  getSearchHistoryStats: async (): Promise<ApiResponse<SearchHistoryStats>> => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const tzOffset = -now.getTimezoneOffset();
+    const response = await apiClient.get<{ success: boolean; data: SearchHistoryStats }>(
+      `/user/search-history/stats?todayStart=${todayStart}&tzOffset=${tzOffset}`
+    );
+    if (response.success && response.data) return { success: true, data: response.data };
     return { success: false };
   },
 

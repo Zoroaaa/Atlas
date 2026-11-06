@@ -3,6 +3,7 @@ import { RefreshCw, Loader2, ChevronDown, ChevronRight, Flame } from 'lucide-rea
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useActresses } from '@/hooks';
+import { JAV_ACTRESSES_DISPLAY } from '@/types';
 import { PanelSection, PanelHeader, IconAction, CountBadge } from '@/components/workbench';
 
 interface ActressesPanelProps {
@@ -14,7 +15,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
   const { data, isLoading, error, refresh } = useActresses();
   const [expanded, setExpanded] = useState(true);
 
-  const items = data?.items ?? [];
+  const items = (data?.items ?? []).slice(0, JAV_ACTRESSES_DISPLAY);
   if (!isLoading && (error || items.length === 0)) return null;
 
   return (
@@ -41,7 +42,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
       />
 
       {expanded ? (
-        <div id="main-actresses" className="max-h-[360px] overflow-y-auto px-4 pb-4 scrollbar-thin sm:px-5 sm:pb-5">
+        <div id="main-actresses" className="px-4 pb-4 sm:px-5 sm:pb-5">
           {isLoading ? (
             <div className="flex h-32 flex-col items-center justify-center gap-2 text-surface-400">
               <Loader2 className="h-5 w-5 animate-spin text-primary-500" />

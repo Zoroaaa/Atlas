@@ -264,7 +264,7 @@ export const StatsManager: React.FC = () => {
   const { t } = useTranslation(['dashboard']);
 
   const queryClient = useQueryClient();
-  const historyQuery = useSearchHistory(500);
+  const historyQuery = useSearchHistory(1000);
   const favoritesQuery = useFavoritesQuery();
   const history = historyQuery.data ?? [];
   const favorites = favoritesQuery.data ?? [];

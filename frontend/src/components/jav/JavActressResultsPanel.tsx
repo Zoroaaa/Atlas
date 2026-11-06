@@ -8,6 +8,7 @@ import { Heart, Users, MapPin, Calendar, Cake, Sparkles, SearchX, Film, External
 import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { ProxyImage } from '@/components/ui';
 import { convertToProxyUrl } from '@/services/proxy';
 import { ShareToCommunityButton } from '@/components/community/ShareToCommunityButton';
 import {
@@ -56,14 +57,10 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
   return (
     <div className="flex items-start gap-3 border-b border-surface-100 py-3 last:border-b-0 dark:border-surface-800/70">
       {imgSrc ? (
-        <img
+        <ProxyImage
           src={imgSrc}
           alt={item.name}
-          loading="lazy"
           className="h-20 w-16 shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
-          onError={(event) => {
-            (event.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-          }}
         />
       ) : null}
 
@@ -256,6 +253,7 @@ export function JavActressResultsPanel({
                 <MediaCard
                   key={`${work.code}-${index}`}
                   orientation="tile"
+                  coverAspect="auto"
                   cover={work.cover ? getProxyImageUrl(work.cover) : undefined}
                   coverFallback={<Film className="h-6 w-6" />}
                   title={work.title}

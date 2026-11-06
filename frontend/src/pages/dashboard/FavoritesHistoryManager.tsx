@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Heart,
   Search,
@@ -21,10 +21,15 @@ import { Card, Button, Input, Badge, Modal, Loading, EmptyState } from '@/compon
 import { getBackendBaseUrl } from '@/constants';
 import { ProxyImage } from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
-import { useFavoritesQuery, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, useSearchHistory, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory } from '@/hooks';
+import { useFavoritesPage, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, useSearchHistoryPage, useSearchHistoryStats, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory } from '@/hooks';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { Pagination } from '@/components/workbench';
+import { userApi } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SearchHistoryItem } from '@/types';
+
+const DASHBOARD_PAGE_SIZE = 20;
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -43,7 +48,6 @@ const getProxyImageUrl = (url: string): string => {
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
   const { t } = useTranslation(['dashboard']);
-  const { data: favorites = [], isLoading } = useFavoritesQuery();
   const addFavoriteMutation = useAddFavorite();
   const removeFavoriteMutation = useRemoveFavorite();
   const updateStatusMutation = useUpdateFavoriteStatus();
@@ -51,7 +55,22 @@ export const FavoritesManager: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(searchQuery.trim(), 300);
+
+  // 搜索/排序都在服务端完成，每次只取一页
+  const { data: pageData, isLoading } = useFavoritesPage(page, DASHBOARD_PAGE_SIZE, {
+    q: debouncedQuery || undefined,
+    sort: sortBy,
+    order: sortOrder,
+  });
+  const favorites = pageData?.favorites ?? [];
+  const total = pageData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE));
+
+  useEffect(() => { setPage(1); }, [debouncedQuery, sortBy, sortOrder]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+
   const [importModal, setImportModal] = useState(false);
   const [importData, setImportData] = useState('');
 
@@ -95,8 +114,14 @@ export const FavoritesManager: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    const data = JSON.stringify(favorites, null, 2);
+  const handleExport = async () => {
+    // 导出需要全部数据：点击时才拉取全量
+    const all = await userApi.getFavorites();
+    if (!all.success || !all.data) {
+      toast.error(t('dashboard:favoritesHistory.favorites.exportFailedTitle', { defaultValue: '导出失败' }));
+      return;
+    }
+    const data = JSON.stringify(all.data.favorites, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -136,19 +161,6 @@ export const FavoritesManager: React.FC = () => {
     }
   };
 
-  const filteredFavorites = favorites
-    .filter(f => f.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      if (sortBy === 'date') {
-        return sortOrder === 'asc' 
-          ? a.createdAt - b.createdAt 
-          : b.createdAt - a.createdAt;
-      }
-      return sortOrder === 'asc' 
-        ? a.title.localeCompare(b.title) 
-        : b.title.localeCompare(a.title);
-    });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -169,7 +181,7 @@ export const FavoritesManager: React.FC = () => {
               {t('dashboard:favoritesHistory.favorites.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              {t('dashboard:favoritesHistory.favorites.total', { count: favorites.length })}
+              {t('dashboard:favoritesHistory.favorites.total', { count: total })}
             </p>
           </div>
         </div>
@@ -185,7 +197,7 @@ export const FavoritesManager: React.FC = () => {
             variant="outline"
             leftIcon={<Download className="w-4 h-4" />}
             onClick={handleExport}
-            disabled={favorites.length === 0}
+            disabled={total === 0}
           >
             {t('dashboard:favoritesHistory.favorites.export')}
           </Button>
@@ -249,9 +261,10 @@ export const FavoritesManager: React.FC = () => {
         </Card>
       )}
 
-      {filteredFavorites.length > 0 ? (
+      {favorites.length > 0 ? (
+        <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredFavorites.map(favorite => (
+          {favorites.map(favorite => (
             <Card key={favorite.id} className="p-3 sm:p-4 border-surface-200/50 dark:border-surface-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col gap-2 sm:gap-3">
                 <div className="flex gap-3">
@@ -280,7 +293,7 @@ export const FavoritesManager: React.FC = () => {
                         </button>
                       )}
                       {favorite.code && (
-                        <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded w-fit">
+                        <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded w-fit max-w-full truncate" title={favorite.code}>
                           {favorite.code}
                         </span>
                       )}
@@ -356,6 +369,14 @@ export const FavoritesManager: React.FC = () => {
             </Card>
           ))}
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onChange={setPage}
+          prevLabel={t('search:favorites.prevPage')}
+          nextLabel={t('search:favorites.nextPage')}
+        />
+        </div>
       ) : (
         <EmptyState
           icon={<Heart className="w-12 h-12" />}
@@ -403,7 +424,6 @@ export const HistoryManager: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation(['dashboard']);
   
-  const { data: history = [], isLoading } = useSearchHistory(50);
   const clearHistoryMutation = useClearSearchHistory();
   const deleteItemMutation = useDeleteSearchHistoryItem();
   const batchDeleteMutation = useBatchDeleteSearchHistory();
@@ -411,6 +431,32 @@ export const HistoryManager: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showKeywordCloud, setShowKeywordCloud] = useState(false);
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(searchQuery.trim(), 300);
+
+  // 日期筛选换算为起始时间，交给服务端过滤（依赖 dateFilter 保持稳定，避免 key 抖动）
+  const since = useMemo(() => {
+    const now = new Date();
+    switch (dateFilter) {
+      case 'today': return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      case 'week': return now.getTime() - 7 * 24 * 60 * 60 * 1000;
+      case 'month': return now.getTime() - 30 * 24 * 60 * 60 * 1000;
+      default: return undefined;
+    }
+  }, [dateFilter]);
+
+  const { data: pageData, isLoading } = useSearchHistoryPage(page, DASHBOARD_PAGE_SIZE, {
+    q: debouncedQuery || undefined,
+    since,
+  });
+  const history = pageData?.history ?? [];
+  const filteredTotal = pageData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / DASHBOARD_PAGE_SIZE));
+  // 统计：服务端对全部记录聚合，不受筛选和分页影响
+  const { data: stats } = useSearchHistoryStats();
+
+  useEffect(() => { setPage(1); }, [debouncedQuery, since]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
   const handleClearHistory = async () => {
     if (!confirm(t('dashboard:favoritesHistory.history.clearConfirm'))) return;
@@ -457,30 +503,6 @@ export const HistoryManager: React.FC = () => {
     setSelectedItems(newSelected);
   };
 
-  const filterByDate = (item: SearchHistoryItem) => {
-    const itemDate = new Date(item.createdAt);
-    const now = new Date();
-    
-    switch (dateFilter) {
-      case 'today':
-        return itemDate.toDateString() === now.toDateString();
-      case 'week': {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return itemDate >= weekAgo;
-      }
-      case 'month': {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return itemDate >= monthAgo;
-      }
-      default:
-        return true;
-    }
-  };
-
-  const filteredHistory = history
-    .filter(h => h.query.toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter(filterByDate);
-
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -498,7 +520,7 @@ export const HistoryManager: React.FC = () => {
     });
   };
 
-  const groupedHistory = filteredHistory.reduce((groups, item) => {
+  const groupedHistory = history.reduce((groups, item) => {
     const date = new Date(item.createdAt).toDateString();
     if (!groups[date]) {
       groups[date] = [];
@@ -507,25 +529,23 @@ export const HistoryManager: React.FC = () => {
     return groups;
   }, {} as Record<string, SearchHistoryItem[]>);
 
-  // ── 统计计算 ──
-  const uniqueKeywords = new Set(history.map(h => h.query)).size;
-  const activeDays = new Set(history.map(h => new Date(h.createdAt).toDateString())).size;
-  const todayCount = history.filter(h => new Date(h.createdAt).toDateString() === new Date().toDateString()).length;
+  // ── 统计（来自服务端聚合）──
+  const totalRecords = stats?.total ?? 0;
+  const uniqueKeywords = stats?.uniqueKeywords ?? 0;
+  const activeDays = stats?.activeDays ?? 0;
+  const todayCount = stats?.todayCount ?? 0;
+  const topKeywords = stats?.topKeywords ?? [];
 
-  const kwFreq: Record<string, number> = {};
-  history.forEach(h => {
-    const kw = h.query?.trim();
-    if (kw) kwFreq[kw] = (kwFreq[kw] || 0) + 1;
-  });
-  const topKeywords = Object.entries(kwFreq)
-    .map(([keyword, count]) => ({ keyword, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20);
-
-  const handleExportHistory = () => {
+  const handleExportHistory = async () => {
+    // 导出需要全部记录：点击时才拉取
+    const all = await userApi.getSearchHistory(1000);
+    if (!all.success || !all.data) {
+      toast.error(t('dashboard:favoritesHistory.history.exportFailedTitle', { defaultValue: '导出失败' }));
+      return;
+    }
     const data = JSON.stringify({
-      searchHistory: history,
-      stats: { total: history.length, uniqueKeywords, activeDays },
+      searchHistory: all.data.history,
+      stats: { total: totalRecords, uniqueKeywords, activeDays },
       exportTime: new Date().toISOString(),
     }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
@@ -558,7 +578,7 @@ export const HistoryManager: React.FC = () => {
               {t('dashboard:favoritesHistory.history.title')}
             </h2>
             <p className="text-surface-500 dark:text-surface-400">
-              {t('dashboard:favoritesHistory.history.total', { count: history.length })}
+              {t('dashboard:favoritesHistory.history.total', { count: totalRecords })}
             </p>
           </div>
         </div>
@@ -568,7 +588,7 @@ export const HistoryManager: React.FC = () => {
             size="sm"
             leftIcon={<Download className="w-4 h-4" />}
             onClick={handleExportHistory}
-            disabled={history.length === 0}
+            disabled={totalRecords === 0}
           >
             {t('dashboard:favoritesHistory.history.export')}
           </Button>
@@ -585,7 +605,7 @@ export const HistoryManager: React.FC = () => {
             size="sm"
             leftIcon={<Trash2 className="w-4 h-4" />}
             onClick={handleClearHistory}
-            disabled={history.length === 0}
+            disabled={totalRecords === 0}
           >
             {t('dashboard:favoritesHistory.history.clear')}
           </Button>
@@ -595,7 +615,7 @@ export const HistoryManager: React.FC = () => {
       {/* 统计小卡 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: t('dashboard:favoritesHistory.history.statsTotalRecords'), value: history.length, color: 'from-primary-500 to-primary-600' },
+          { label: t('dashboard:favoritesHistory.history.statsTotalRecords'), value: totalRecords, color: 'from-primary-500 to-primary-600' },
           { label: t('dashboard:favoritesHistory.history.statsTodaySearches'), value: todayCount, color: 'from-accent-500 to-accent-600' },
           { label: t('dashboard:favoritesHistory.history.statsUniqueKeywords'), value: uniqueKeywords, color: 'from-success-500 to-emerald-600' },
           { label: t('dashboard:favoritesHistory.history.statsActiveDays'), value: activeDays, color: 'from-warning-500 to-orange-600' },
@@ -722,7 +742,7 @@ export const HistoryManager: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {item.code && (
-                            <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                            <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0 max-w-[12rem] truncate" title={item.code}>
                               {item.code}
                             </span>
                           )}
@@ -810,6 +830,13 @@ export const HistoryManager: React.FC = () => {
               </Card>
             </div>
           ))}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onChange={setPage}
+            prevLabel={t('search:favorites.prevPage')}
+            nextLabel={t('search:favorites.nextPage')}
+          />
         </div>
       ) : (
         <EmptyState

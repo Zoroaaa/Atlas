@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2, Square, CheckSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
-import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock } from '@/components/workbench';
+import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock, Pagination } from '@/components/workbench';
 import { API_BASE_URL } from '@/constants';
 import type { SearchHistoryItem } from '@/types';
 import type { TFunction } from 'i18next';
@@ -47,6 +47,10 @@ function groupByDay(items: SearchHistoryItem[], t: TFunction): Map<string, Searc
 
 interface SearchHistoryPanelProps {
   history: SearchHistoryItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   isLoading: boolean;
   show: boolean;
   onToggle: () => void;
@@ -56,7 +60,7 @@ interface SearchHistoryPanelProps {
 }
 
 export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
-  history, isLoading, show, onToggle, onItemClick, onClear, onDeleteSelected,
+  history, total, page, totalPages, onPageChange, isLoading, show, onToggle, onItemClick, onClear, onDeleteSelected,
 }) => {
   const { t } = useTranslation(['search']);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -89,13 +93,13 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
       <PanelHeader
         icon={<Clock className="h-4 w-4" />}
         title={t('search:history.title')}
-        count={history.length > 0 ? <CountBadge>{history.length}</CountBadge> : undefined}
+        count={total > 0 ? <CountBadge>{total}</CountBadge> : undefined}
         onToggle={onToggle}
         expanded={show}
         ariaControls="main-search-history"
         actions={
           <>
-            {show && history.length > 0 ? (
+            {show && total > 0 ? (
               <button
                 type="button"
                 onClick={onClear}
@@ -111,15 +115,15 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
       />
 
       {show ? (
-        <div id="main-search-history" className="max-h-[min(60vh,520px)] overflow-y-auto scrollbar-thin">
+        <div id="main-search-history">
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loading />
             </div>
-          ) : history.length > 0 ? (
+          ) : total > 0 ? (
             <>
               {selectedIds.size > 0 ? (
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-error-100 bg-error-50/90 px-4 py-2 backdrop-blur-sm dark:border-error-900/30 dark:bg-error-900/20 sm:px-5">
+                <div className="flex items-center justify-between border-b border-error-100 bg-error-50/90 px-4 py-2 backdrop-blur-sm dark:border-error-900/30 dark:bg-error-900/20 sm:px-5">
                   <span className="type-micro text-error-600 dark:text-error-400">
                     {t('search:history.selected', { count: selectedIds.size })}
                   </span>
@@ -191,7 +195,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                             )}
                             <div className="min-w-0 flex-1">
                               <div className="flex min-w-0 items-center gap-1.5">
-                                {item.code ? <Chip tone="primary">{item.code}</Chip> : null}
+                                {item.code ? <Chip tone="primary" truncate>{item.code}</Chip> : null}
                                 <span className="truncate text-[12px] font-medium text-surface-800 dark:text-surface-200">
                                   {item.title || item.query}
                                 </span>
@@ -239,6 +243,14 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                     </div>
                   </div>
                 ))}
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onChange={onPageChange}
+                  prevLabel={t('search:favorites.prevPage')}
+                  nextLabel={t('search:favorites.nextPage')}
+                  className="mt-2 border-t border-surface-100 pt-3 dark:border-surface-800/70"
+                />
               </div>
             </>
           ) : (

@@ -27,6 +27,10 @@ export interface JavRankingEntry {
   cover?: string;
   rank: number;
   url?: string;
+  /** 相对上一期快照的名次变化：正数=上升，负数=下降；无上一期快照时不返回 */
+  change?: number;
+  /** 上一期快照里没有（新上榜）；无上一期快照时不返回 */
+  isNew?: boolean;
 }
 
 export interface JavRankingSectionView {
@@ -97,11 +101,50 @@ function toRankingRecord(row: RankingRow): RankingRecord | null {
  * 历史行保留在表里，但不会混进当前榜单。
  */
 export async function getLatestRankingRecords(db: D1Database): Promise<RankingRecord[]> {
+  return latestRecordsOf(await loadRankingRecords(db));
+}
+
+async function loadRankingRecords(db: D1Database): Promise<RankingRecord[]> {
   const rows = await getRankingRows(db);
-  const parsed = rows
+  return rows
     .map(toRankingRecord)
     .filter((record): record is RankingRecord => record !== null);
+}
 
+// 与上一期快照至少间隔这么久才算"上一期"，避免同一天多次导入互相比较
+const PREVIOUS_SNAPSHOT_MIN_GAP_MS = 20 * 60 * 60 * 1000;
+
+/** 每个 (period, section) 上一期快照的 code -> rank；没有上一期的组不出现在结果中 */
+function previousRankMaps(parsed: RankingRecord[]): Map<string, Map<string, number>> {
+  const latestByGroup = new Map<string, number>();
+  for (const record of parsed) {
+    const key = `${record.period}:${record.section}`;
+    if (record.fetchedAt > (latestByGroup.get(key) ?? 0)) latestByGroup.set(key, record.fetchedAt);
+  }
+
+  const previousByGroup = new Map<string, number>();
+  for (const record of parsed) {
+    const key = `${record.period}:${record.section}`;
+    const latest = latestByGroup.get(key) ?? 0;
+    if (record.fetchedAt <= latest - PREVIOUS_SNAPSHOT_MIN_GAP_MS &&
+        record.fetchedAt > (previousByGroup.get(key) ?? 0)) {
+      previousByGroup.set(key, record.fetchedAt);
+    }
+  }
+
+  const result = new Map<string, Map<string, number>>();
+  for (const record of parsed) {
+    const key = `${record.period}:${record.section}`;
+    if (previousByGroup.get(key) !== record.fetchedAt) continue;
+    const ranks = result.get(key) ?? new Map<string, number>();
+    const existing = ranks.get(record.row.code);
+    if (existing === undefined || record.rank < existing) ranks.set(record.row.code, record.rank);
+    result.set(key, ranks);
+  }
+  return result;
+}
+
+function latestRecordsOf(parsed: RankingRecord[]): RankingRecord[] {
   const latestByGroup = new Map<string, number>();
   for (const record of parsed) {
     const key = `${record.period}:${record.section}`;
@@ -133,19 +176,29 @@ export async function getLatestRankingRecords(db: D1Database): Promise<RankingRe
 function entriesOf(
   records: RankingRecord[],
   period: RankingPeriod,
-  section: RankingSection
+  section: RankingSection,
+  previous: Map<string, Map<string, number>>
 ): JavRankingEntry[] {
+  const prevRanks = previous.get(`${period}:${section}`);
   return records
     .filter((record) => record.period === period && record.section === section)
     .sort((a, b) => a.rank - b.rank)
     .slice(0, JAV_RANKING.PANEL_LIMIT)
-    .map((record) => ({
-      code: record.row.code,
-      title: record.row.title || record.row.code,
-      cover: record.row.cover || undefined,
-      rank: record.rank,
-      url: record.url,
-    }));
+    .map((record) => {
+      const prevRank = prevRanks?.get(record.row.code);
+      return {
+        code: record.row.code,
+        title: record.row.title || record.row.code,
+        cover: record.row.cover || undefined,
+        rank: record.rank,
+        url: record.url,
+        ...(prevRanks
+          ? prevRank === undefined
+            ? { isNew: true }
+            : { change: prevRank - record.rank }
+          : {}),
+      };
+    });
 }
 
 function updatedAtOf(records: RankingRecord[], period: RankingPeriod): number {
@@ -156,17 +209,19 @@ function updatedAtOf(records: RankingRecord[], period: RankingPeriod): number {
 
 /** 包装成前端响应：每个 period+section 截取 PANEL_LIMIT 条 */
 export async function getJavRankingSnapshot(db: D1Database): Promise<JavRankingSnapshot> {
-  const records = await getLatestRankingRecords(db);
+  const parsed = await loadRankingRecords(db);
+  const records = latestRecordsOf(parsed);
+  const previous = previousRankMaps(parsed);
 
   return {
     weekly: {
-      censored: entriesOf(records, 'weekly', 'censored'),
-      uncensored: entriesOf(records, 'weekly', 'uncensored'),
+      censored: entriesOf(records, 'weekly', 'censored', previous),
+      uncensored: entriesOf(records, 'weekly', 'uncensored', previous),
       updatedAt: updatedAtOf(records, 'weekly'),
     },
     monthly: {
-      censored: entriesOf(records, 'monthly', 'censored'),
-      uncensored: entriesOf(records, 'monthly', 'uncensored'),
+      censored: entriesOf(records, 'monthly', 'censored', previous),
+      uncensored: entriesOf(records, 'monthly', 'uncensored', previous),
       updatedAt: updatedAtOf(records, 'monthly'),
     },
     source: 'javdb',

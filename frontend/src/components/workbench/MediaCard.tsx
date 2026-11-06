@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { clsx } from 'clsx';
+import { ImageLightbox } from '@/components/ui/ImagePreview';
 
 interface MediaCardProps {
   cover?: string;
@@ -16,6 +17,8 @@ interface MediaCardProps {
   selected?: boolean;
   orientation?: 'row' | 'tile';
   coverSize?: 'sm' | 'md';
+  /** tile 模式封面比例：portrait 固定 3:4 裁剪；auto 按图片原始比例自适应（如横版 JAV 封面） */
+  coverAspect?: 'portrait' | 'auto';
   className?: string;
 }
 
@@ -35,21 +38,30 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   selected,
   orientation = 'row',
   coverSize = 'md',
+  coverAspect = 'portrait',
   className,
 }) => {
+  const [zoomed, setZoomed] = useState(false);
   const isRow = orientation === 'row';
+  const isAuto = !isRow && coverAspect === 'auto';
   const coverClass = isRow
     ? coverSize === 'sm'
       ? 'h-[76px] w-14'
       : 'h-[96px] w-[72px] sm:h-28 sm:w-20'
-    : 'aspect-[3/4] w-full';
+    : isAuto
+      ? 'w-full'
+      : 'aspect-[3/4] w-full';
 
   const coverNode = cover ? (
     <img
       src={cover}
       alt={typeof title === 'string' ? title : ''}
       loading="lazy"
-      className={clsx('h-full w-full rounded-[10px] object-cover', isRow ? 'bg-surface-200 dark:bg-surface-700' : '')}
+      className={clsx(
+        'w-full rounded-[10px]',
+        isAuto ? 'h-auto' : 'h-full object-cover',
+        isRow ? 'bg-surface-200 dark:bg-surface-700' : ''
+      )}
       onError={(event) => {
         (event.currentTarget as HTMLImageElement).style.visibility = 'hidden';
       }}
@@ -67,8 +79,12 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       className={clsx(
         'relative shrink-0 overflow-hidden rounded-[10px] bg-surface-100 dark:bg-surface-800/70',
         coverClass,
-        !cover && 'flex items-center justify-center'
+        !cover && 'flex items-center justify-center',
+        !cover && isAuto && 'aspect-[3/2]',
+        cover && 'cursor-zoom-in'
       )}
+      // 封面只负责放大查看；点标题/信息区才执行实际动作
+      onClick={cover ? (event) => { event.preventDefault(); event.stopPropagation(); setZoomed(true); } : undefined}
     >
       {coverNode}
     </div>
@@ -99,13 +115,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           : undefined
       }
     >
-      {href ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="shrink-0" onClick={(event) => event.stopPropagation()}>
-          {coverWrapper}
-        </a>
-      ) : (
-        coverWrapper
-      )}
+      {coverWrapper}
+      {zoomed && cover ? (
+        <ImageLightbox src={cover} alt={typeof title === 'string' ? title : ''} onClose={() => setZoomed(false)} />
+      ) : null}
 
       <div className={clsx('min-w-0 flex-1', isRow ? 'flex flex-col justify-center gap-1' : 'pt-2')}>
         {badges ? <div className="flex flex-wrap items-center gap-1">{badges}</div> : null}

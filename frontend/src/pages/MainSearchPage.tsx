@@ -17,8 +17,9 @@ import {
 import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
-import { Panel, PanelSection, PanelRail, EmptyBlock } from '@/components/workbench';
+import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
+import { useCacheSync } from '@/hooks/useCacheSync';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
 import { useSearchHistoryManager } from '@/hooks/useSearchHistoryManager';
 import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
@@ -131,6 +132,7 @@ export const MainSearchPage: React.FC = () => {
   }, [searchParams, setActiveTab]);
 
   useEffect(() => { initializeProxy(); }, [initializeProxy]);
+  useCacheSync();
 
   // ── Tab 切换 ──
   const handleTabChange = useCallback((tab: SearchTabType) => {
@@ -259,21 +261,16 @@ export const MainSearchPage: React.FC = () => {
                 <div className="min-w-0">
                   {activeTab === 'jav' ? (
                     <>
-                      <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
-                      <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
-                      <ActressesPanel onActressClick={handleActressClick} />
+                      <LazyMount minHeight={200}>
+                        <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
+                      </LazyMount>
+                      <LazyMount minHeight={200}>
+                        <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
+                      </LazyMount>
+                      <LazyMount minHeight={200}>
+                        <ActressesPanel onActressClick={handleActressClick} />
+                      </LazyMount>
                     </>
-                  ) : null}
-                  {isAuthenticated ? (
-                    <SearchHistoryPanel
-                      history={historyManager.searchHistory}
-                      isLoading={historyManager.isLoadingHistory}
-                      show={showHistory}
-                      onToggle={() => setShowHistory((value) => !value)}
-                      onItemClick={(query) => searchFlow.setKeyword(query)}
-                      onClear={historyManager.handleClearHistory}
-                      onDeleteSelected={historyManager.handleDeleteSelected}
-                    />
                   ) : null}
                   {showIdleHint ? (
                     <PanelSection className="p-4 sm:p-5">
@@ -289,8 +286,27 @@ export const MainSearchPage: React.FC = () => {
 
                 <PanelRail className="min-w-0">
                   {isAuthenticated ? (
+                    <SearchHistoryPanel
+                      history={historyManager.searchHistory}
+                      total={historyManager.historyTotal}
+                      page={historyManager.historyPageNo}
+                      totalPages={historyManager.historyTotalPages}
+                      onPageChange={historyManager.setHistoryPageNo}
+                      isLoading={historyManager.isLoadingHistory}
+                      show={showHistory}
+                      onToggle={() => setShowHistory((value) => !value)}
+                      onItemClick={(query) => searchFlow.setKeyword(query)}
+                      onClear={historyManager.handleClearHistory}
+                      onDeleteSelected={historyManager.handleDeleteSelected}
+                    />
+                  ) : null}
+                  {isAuthenticated ? (
                     <FavoritesPanel
-                      favorites={favoritesManager.favorites}
+                      favorites={favoritesManager.favoritesPage}
+                      total={favoritesManager.favoritesTotal}
+                      page={favoritesManager.favoritesPageNo}
+                      totalPages={favoritesManager.favoritesTotalPages}
+                      onPageChange={favoritesManager.setFavoritesPageNo}
                       isLoading={favoritesManager.isLoadingFavorites}
                       show={showFavorites}
                       isProxyEnabled={isProxyEnabled}

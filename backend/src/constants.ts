@@ -216,11 +216,12 @@ export const JAV_RANKING = {
       url: 'https://javdb.com/rankings/movies?period=month&type=uncensored',
     },
   },
-  PANEL_LIMIT: 20,
-  CACHE_TTL_SECONDS: 30 * 60,
+  PANEL_LIMIT: 60,
+  // 榜单由每日定时任务导入，缓存 6 小时即可
+  CACHE_TTL_SECONDS: 6 * 60 * 60,
   MIN_IMPORT_ITEMS: 5,
-  ACTRESS_LIMIT: 12,
-  ACTRESS_CACHE_TTL_SECONDS: 30 * 60,
+  ACTRESS_LIMIT: 18,
+  ACTRESS_CACHE_TTL_SECONDS: 6 * 60 * 60,
   ACTRESS_USER_WEIGHT: 3,
   ACTRESS_WORK_WEIGHT: 2,
 } as const;

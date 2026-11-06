@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen, ExternalLink, Heart, RefreshCw, Download, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import type { NovelItem } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
@@ -117,7 +117,7 @@ interface NovelSearchResultPanelProps {
   data: NovelEnrichedData;
   isAuthenticated?: boolean;
   isProxyEnabled?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onRefresh?: () => void;
   onToggleFavorite?: (item: NovelItem) => void;
   onLoginRequired?: () => void;

@@ -10,7 +10,7 @@ import type {
   TMDBResult,
   ResourceItem,
 } from '@/types/search';
-import type { FavoriteItem } from '@/types';
+import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import {
   GroupedHeader,
@@ -323,7 +323,7 @@ function UngroupedMovieResources({ resources }: { resources: ResourceItem[] }) {
 interface MovieGroupedViewProps {
   data: MovieEnrichedData;
   isAuthenticated?: boolean;
-  favorites?: FavoriteItem[];
+  favorites?: FavoriteRef[];
   onToggleFavorite?: (item: TMDBResult) => void;
 }
 

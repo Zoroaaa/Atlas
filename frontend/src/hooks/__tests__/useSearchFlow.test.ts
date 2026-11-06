@@ -164,7 +164,7 @@ describe('useSearchFlow', () => {
     });
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith('搜索失败', '请稍后重试');
+      expect(mockToast.error).toHaveBeenCalledWith('搜索失败', 'Network error');
     });
     expect(result.current.isSearching).toBe(false);
   });
@@ -184,7 +184,7 @@ describe('useSearchFlow', () => {
       result.current.handleSearch('  hello  ');
     });
 
-    expect(onSearch).toHaveBeenCalledWith('hello');
+    expect(onSearch).toHaveBeenCalledWith('hello', 'code');
   });
 
   it('should show info toast when no results found', async () => {
