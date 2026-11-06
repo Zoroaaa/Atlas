@@ -29,6 +29,11 @@ export function writePersisted<T>(key: string, data: T): void {
   }
 }
 
+/** 清空全部本地持久缓存（退出登录时调用，避免共用设备上泄露收藏/历史） */
+export function clearAllPersisted(): void {
+  removePersistedByPrefix('');
+}
+
 /** 删除所有以 prefix 开头的缓存项（数据发生变化时调用） */
 export function removePersistedByPrefix(prefix: string): void {
   try {

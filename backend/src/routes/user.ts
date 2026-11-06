@@ -84,6 +84,30 @@ const mapFavorite = (f: UserFavorite) => ({
   createdAt: f.created_at,
 });
 
+// 缓存校验：收藏/搜索历史的数量 + 最近修改时间，前端据此判断本地缓存是否过期（跨设备修改）
+userRoutes.get('/sync-state', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const [fav, hist] = await Promise.all([
+      c.env.DB.prepare(
+        'SELECT COUNT(*) AS count, COALESCE(MAX(updated_at), 0) AS updated_at FROM user_favorites WHERE user_id = ?'
+      ).bind(user.userId).first<{ count: number; updated_at: number }>(),
+      c.env.DB.prepare(
+        'SELECT COUNT(*) AS count, COALESCE(MAX(created_at), 0) AS updated_at FROM user_search_history WHERE user_id = ?'
+      ).bind(user.userId).first<{ count: number; updated_at: number }>(),
+    ]);
+
+    return c.json(success({
+      favorites: { count: fav?.count ?? 0, updatedAt: fav?.updated_at ?? 0 },
+      history: { count: hist?.count ?? 0, updatedAt: hist?.updated_at ?? 0 },
+    }));
+  } catch (err) {
+    console.error('Get sync state error:', err);
+    return c.json(error('SERVER_ERROR', '获取同步状态失败'), 500);
+  }
+});
+
 // 轻量索引：仅 id/url/code，供搜索结果判断"是否已收藏"，避免拉取全量详情
 userRoutes.get('/favorites/index', async (c) => {
   const user = c.get('user');

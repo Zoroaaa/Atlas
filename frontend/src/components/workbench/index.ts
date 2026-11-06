@@ -6,6 +6,7 @@ export { ResourceRow } from './ResourceRow';
 export { Pagination } from './Pagination';
 export { Notice, EmptyBlock, LoadingBlock } from './Feedback';
 export { Chip, CountBadge } from './Chip';
+export { LazyMount } from './LazyMount';
 export type { ChipTone } from './Chip';
 export { GroupedHeader, GroupedFilterBar } from './GroupedSection';
 export type { GroupedFilterOption } from './GroupedSection';

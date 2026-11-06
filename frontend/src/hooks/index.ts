@@ -6,6 +6,7 @@ export { useNotification, useToast } from './useNotification';
 export { useJavDetail } from './useJavDetail';
 export { useJavRankings } from './useJavRankings';
 export { useJavRecommendations } from './useJavRecommendations';
+export { useCacheSync } from './useCacheSync';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
 export { useFavorites as useFavoritesQuery, useFavoritesPage, useFavoriteIndex, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys, invalidateFavorites, FAVORITES_PAGE_SIZE } from './useFavoritesQuery';

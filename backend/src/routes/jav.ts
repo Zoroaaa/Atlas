@@ -202,7 +202,7 @@ javRoutes.use('*', authMiddleware);
 javRoutes.get('/rankings', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
 
-  const cacheKey = new Request('https://internal/jav-rankings-v4');
+  const cacheKey = new Request('https://internal/jav-rankings-v5');
   const cache = caches.default;
 
   if (!forceRefresh) {

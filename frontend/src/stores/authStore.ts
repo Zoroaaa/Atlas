@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User, UserSettings } from '@/types';
+import { clearAllPersisted } from '@/utils/persistentCache';
+import { queryClient } from '@/services/api/queryClient';
 
 interface AuthState {
   user: User | null;
@@ -58,6 +60,9 @@ export const useAuthStore = create<AuthState>()(
       },
       
       logout: () => {
+        // 清掉本地收藏/历史/推荐缓存和内存查询缓存，避免共用设备上被下一个人看到
+        clearAllPersisted();
+        queryClient.clear();
         set({
           user: null,
           token: null,

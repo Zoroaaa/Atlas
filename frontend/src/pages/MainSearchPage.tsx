@@ -17,8 +17,9 @@ import {
 import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
-import { Panel, PanelSection, PanelRail, EmptyBlock } from '@/components/workbench';
+import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
+import { useCacheSync } from '@/hooks/useCacheSync';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
 import { useSearchHistoryManager } from '@/hooks/useSearchHistoryManager';
 import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
@@ -131,6 +132,7 @@ export const MainSearchPage: React.FC = () => {
   }, [searchParams, setActiveTab]);
 
   useEffect(() => { initializeProxy(); }, [initializeProxy]);
+  useCacheSync();
 
   // ── Tab 切换 ──
   const handleTabChange = useCallback((tab: SearchTabType) => {
@@ -259,9 +261,15 @@ export const MainSearchPage: React.FC = () => {
                 <div className="min-w-0">
                   {activeTab === 'jav' ? (
                     <>
-                      <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
-                      <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
-                      <ActressesPanel onActressClick={handleActressClick} />
+                      <LazyMount minHeight={200}>
+                        <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
+                      </LazyMount>
+                      <LazyMount minHeight={200}>
+                        <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
+                      </LazyMount>
+                      <LazyMount minHeight={200}>
+                        <ActressesPanel onActressClick={handleActressClick} />
+                      </LazyMount>
                     </>
                   ) : null}
                   {showIdleHint ? (

@@ -20,6 +20,6 @@ export const queryClient = new QueryClient({
 queryClient.getQueryCache().subscribe((event) => {
   if (event.type !== 'updated' || event.action.type !== 'invalidate') return;
   const root = event.query.queryKey[0];
-  if (root === 'favorites') removePersistedByPrefix('fav:');
-  if (root === 'searchHistory') removePersistedByPrefix('hist:');
+  if (root === 'favorites') { removePersistedByPrefix('fav:'); removePersistedByPrefix('sync:'); }
+  if (root === 'searchHistory') { removePersistedByPrefix('hist:'); removePersistedByPrefix('sync:'); }
 });

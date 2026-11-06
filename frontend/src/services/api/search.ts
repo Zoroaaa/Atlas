@@ -101,6 +101,18 @@ export const userApi = {
     return { success: false };
   },
 
+  getSyncState: async (): Promise<ApiResponse<{
+    favorites: { count: number; updatedAt: number };
+    history: { count: number; updatedAt: number };
+  }>> => {
+    const response = await apiClient.get<{ success: boolean; data: {
+      favorites: { count: number; updatedAt: number };
+      history: { count: number; updatedAt: number };
+    } }>('/user/sync-state');
+    if (response.success && response.data) return { success: true, data: response.data };
+    return { success: false };
+  },
+
   getFavoriteIndex: async (): Promise<ApiResponse<{ items: FavoriteRef[] }>> => {
     const response = await apiClient.get<{ success: boolean; data: { items: Array<{ id: string; url: string; code: string | null }> } }>(
       '/user/favorites/index'

@@ -34,9 +34,23 @@ const RankingRow: React.FC<{
 
   return (
     <div className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
-      <span className={clsx('w-5 shrink-0 text-center text-[11px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
-        {item.rank}
-      </span>
+      <div className="flex w-6 shrink-0 flex-col items-center">
+        <span className={clsx('text-[11px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
+          {item.rank}
+        </span>
+        {item.isNew ? (
+          <span className="text-[9px] font-bold leading-none text-amber-500">NEW</span>
+        ) : item.change ? (
+          <span
+            className={clsx(
+              'text-[9px] font-semibold leading-none tabular-nums',
+              item.change > 0 ? 'text-emerald-500' : 'text-red-500'
+            )}
+          >
+            {item.change > 0 ? '↑' : '↓'}{Math.abs(item.change)}
+          </span>
+        ) : null}
+      </div>
       {/* 封面：点击放大 */}
       <div
         className={clsx(
