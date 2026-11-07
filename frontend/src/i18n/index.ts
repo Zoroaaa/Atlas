@@ -13,6 +13,7 @@ import zhTW from './locales/zh-TW.json';
 import en from './locales/en.json';
 import {
   FALLBACK_LANGUAGE,
+  mapBrowserLanguage,
 } from './config';
 
 export const RESOURCES = {
@@ -42,13 +43,9 @@ void i18next
       order: ['navigator'],
       // 由 languageStore 自管持久化，禁用 detector 的反向缓存写入，避免双写冲突
       caches: [],
-      convertDetectedLanguage: (lng: string) => {
-        // 浏览器可能返回 zh-CN / zh-Hans / zh / zh-TW / zh-Hant / en-US 等
-        if (lng.startsWith('zh-TW') || lng.startsWith('zh-Hant') || lng === 'zh-TW') return 'zh-TW';
-        if (lng.startsWith('zh')) return 'zh-CN';
-        if (lng.startsWith('en')) return 'en';
-        return lng;
-      },
+      // 中文按简/繁映射，其它语言（如 ja）统一为英语，
+      // 否则不支持的语言会落到 fallbackLng（中文）
+      convertDetectedLanguage: (lng: string) => mapBrowserLanguage(lng),
     },
     returnNull: false,
   });
