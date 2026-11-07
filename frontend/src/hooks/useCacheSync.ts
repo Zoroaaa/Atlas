@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { userApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { readPersisted, writePersisted } from '@/utils/persistentCache';
+import { notificationKeys } from '@/hooks/useNotifications';
 
 const SYNC_KEY_TTL = 30 * 24 * 60 * 60 * 1000;
 
@@ -24,7 +25,11 @@ export function useCacheSync() {
         const response = await userApi.getSyncState();
         if (!response.success || !response.data) return;
 
-        const next = JSON.stringify(response.data);
+        // 未读通知数顺带写入，铃铛不必再单独请求
+        const unread = (response.data as { notifications?: { unread?: number } }).notifications?.unread;
+        if (typeof unread === 'number') queryClient.setQueryData(notificationKeys.unread(userId), unread);
+
+        const next = JSON.stringify({ favorites: response.data.favorites, history: response.data.history });
         const key = `sync:${userId}`;
         const prev = readPersisted<string>(key, SYNC_KEY_TTL)?.data;
         writePersisted(key, next);

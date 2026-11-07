@@ -222,8 +222,30 @@ export const JAV_RANKING = {
   MIN_IMPORT_ITEMS: 5,
   ACTRESS_LIMIT: 18,
   ACTRESS_CACHE_TTL_SECONDS: 6 * 60 * 60,
-  ACTRESS_USER_WEIGHT: 3,
-  ACTRESS_WORK_WEIGHT: 2,
+  // 热门女优 = 四个榜单上榜作品数 × 5 + 被关注人数 × 2。
+  // 关注功能刚上线、关注数还少，所以上榜作品数权重更大；关注多起来后可调高 FOLLOW 权重
+  ACTRESS_WORK_WEIGHT: 5,
+  ACTRESS_FOLLOW_WEIGHT: 2,
+} as const;
+
+// ==================================================================
+// 关注女优 / 通知系统常量
+// ==================================================================
+
+export const FOLLOW = {
+  MAX_PER_USER: 100,
+  /** 每次定时任务最多检查几位（Workers 每次调用 50 次子请求上限，留足余量） */
+  WATCH_BATCH: 20,
+  WATCH_CONCURRENCY: 4,
+  /** 同一位女优两次检查的最小间隔；连续失败按 2 的幂退避，最多 32 倍 */
+  WATCH_MIN_INTERVAL_MS: 30 * 60 * 1000,
+  WATCH_MAX_BACKOFF_EXP: 5,
+  FEED_MAX_PAGE_SIZE: 50,
+} as const;
+
+export const NOTIFICATION = {
+  MAX_PAGE_SIZE: 50,
+  TYPES: ['follow.new_work', 'follow.release_soon'] as const,
 } as const;
 
 // ==================================================================

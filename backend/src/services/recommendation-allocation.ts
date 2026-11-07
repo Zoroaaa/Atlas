@@ -145,7 +145,8 @@ export function allocateForYouItems(
   const hasTags = tagPrimary.length > 0 || tagSecondary.length > 0;
   const hasActors = actorPrimary.length > 0 || actorSecondary.length > 0;
 
-  const tagQuota = hasTags ? Math.min(6, limit) : 0;
+  // 没有演员桶时（为你推荐已不再使用女优维度），标签桶独占全部名额，由标签/发行商补位
+  const tagQuota = hasTags ? (hasActors ? Math.min(6, limit) : limit) : 0;
   const actorQuota = hasActors
     ? (hasTags ? Math.min(6, limit - tagQuota) : limit)
     : 0;

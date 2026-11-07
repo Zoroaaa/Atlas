@@ -17,6 +17,7 @@ import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, EmptyBlock, L
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { clsx } from 'clsx';
+import { FollowButton } from '@/components/follow/FollowButton';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -450,8 +451,11 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 <span className="type-micro font-medium text-surface-500">{t('jav:detail.actressesLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {detail.actresses.map((actress, index) => (
-                  <Chip key={`${actress}-${index}`} tone="accent" size="xs">{actress}</Chip>
+                {Array.from(new Set(detail.actresses)).map((actress) => (
+                  <span key={actress} className="inline-flex items-center gap-1">
+                    <Chip tone="accent" size="xs">{actress}</Chip>
+                    <FollowButton name={actress} />
+                  </span>
                 ))}
               </div>
             </div>

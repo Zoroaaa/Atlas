@@ -4,6 +4,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useActresses } from '@/hooks';
 import { JAV_ACTRESSES_DISPLAY } from '@/types';
+import { FollowButton } from '@/components/follow/FollowButton';
 import { PanelSection, PanelHeader, IconAction, CountBadge } from '@/components/workbench';
 
 interface ActressesPanelProps {
@@ -51,11 +52,11 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {items.map((actress, index) => (
+                <div key={actress.name} className="relative">
                 <button
-                  key={actress.name}
                   type="button"
                   onClick={() => onActressClick(actress.name)}
-                  className="min-h-16 w-full rounded-[10px] bg-surface-50/60 px-2.5 py-2 text-left transition-colors hover:bg-surface-100 dark:bg-surface-900/40 dark:hover:bg-surface-800/60"
+                  className="min-h-16 w-full rounded-[10px] bg-surface-50/60 px-2.5 py-2 pr-8 text-left transition-colors hover:bg-surface-100 dark:bg-surface-900/40 dark:hover:bg-surface-800/60"
                   title={t('jav:actresses.viewWorksTitle', { name: actress.name })}
                 >
                   <span className="flex items-center gap-1.5">
@@ -63,10 +64,12 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
                     <span className="truncate text-[12px] font-semibold text-surface-800 dark:text-surface-200">{actress.name}</span>
                   </span>
                   <span className="type-micro mt-1 flex items-center gap-2 pl-5 text-surface-500">
-                    <span>{t('jav:actresses.users', { count: actress.users })}</span>
+                    <span>{t('jav:actresses.followers', { count: actress.followers })}</span>
                     <span>{t('jav:actresses.works', { count: actress.works })}</span>
                   </span>
                 </button>
+                <FollowButton name={actress.name} variant="icon" className="absolute right-1 top-1" />
+                </div>
               ))}
             </div>
           )}

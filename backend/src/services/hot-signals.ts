@@ -35,7 +35,7 @@ interface UserSetValue {
   users: Set<string>;
 }
 
-const SIGNALS_CACHE_KEY = 'signals-v4';
+const SIGNALS_CACHE_KEY = 'signals-v5';
 
 export async function getHotSignals(db: D1Database): Promise<HotSignals> {
   const cached = await getCachedJson<HotSignals>(SIGNALS_CACHE_KEY);
@@ -81,6 +81,15 @@ export async function getHotSignals(db: D1Database): Promise<HotSignals> {
 
   for (const row of favorites) processRow(row);
   for (const row of history) processRow(row);
+
+  // 关注女优计入演员热度（取代原先"女优收藏"提供的信号）；按用户去重，和收藏/历史不会重复计数
+  const follows = await db
+    .prepare(
+      `SELECT f.user_id AS user_id, w.name AS name
+       FROM user_follows f JOIN actress_watch w ON w.key = f.watch_key`
+    )
+    .all<{ user_id: string; name: string }>();
+  for (const row of follows.results || []) addNamed(actorUsers, row.name, row.user_id);
 
   const codeCounts: Record<string, number> = {};
   for (const [code, users] of codeUsers) codeCounts[code] = users.size;

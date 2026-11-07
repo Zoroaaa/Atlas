@@ -12,6 +12,7 @@ export type { FeedbackSubmit, FeedbackItem, FeedbackStats, AdminHandleFeedback }
 export { announcementApi } from './announcement';
 export type { Announcement, AnnouncementForm } from './announcement';
 export { recommendApi } from './recommend';
+export { followApi, notificationApi } from './follow';
 export type {
   ApiResponse,
   ApiOkResponse,

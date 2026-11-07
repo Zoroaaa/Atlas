@@ -15,8 +15,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import i18next from '@/i18n';
 import {
-  DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
+  detectBrowserLanguage,
   isSupportedLanguage,
   type Language,
 } from '@/i18n/config';
@@ -36,7 +36,8 @@ const syncI18n = (lang: Language): void => {
 export const useLanguageStore = create<LanguageState>()(
   persist(
     (set) => ({
-      language: DEFAULT_LANGUAGE,
+      // 首次访问（本地没有保存过）用浏览器语言；已保存的值会在 rehydrate 时覆盖这里
+      language: detectBrowserLanguage(),
 
       setLanguage: (lang) => {
         syncI18n(lang);

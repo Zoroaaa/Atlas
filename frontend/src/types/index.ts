@@ -5,5 +5,6 @@ export * from './community';
 export * from './common';
 export * from './notification';
 export * from './jav';
+export * from './follow';
 export * from './recommend';
 export * from './data-storage';

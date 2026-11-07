@@ -40,7 +40,8 @@ export interface JavRankings {
 
 export interface HotActressItem {
   name: string;
-  users: number;
+  /** 关注这位女优的用户数 */
+  followers: number;
   works: number;
   score: number;
 }
@@ -57,7 +58,7 @@ export const JAV_CACHE_KEY = 'jav_rankings_cache_v4';
 // 榜单由每日定时任务更新（见 javdb-ranking-daily.yml），缓存 6 小时；用户点刷新会强制重取
 export const JAV_CACHE_TTL = 6 * 60 * 60 * 1000;
 
-export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v4';
+export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v5';
 export const ACTRESSES_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 // ── 详情 & 磁力 ──────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
 import type { SearchTabType } from '@/types/source';
 import { DropdownMenu, userMenuItems, Modal, LanguageSwitcher } from '@/components/ui';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
 import { useTranslation } from 'react-i18next';
 
@@ -394,6 +395,9 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                     <Shield className="w-4 h-4" />
                   )}
                 </button>
+
+                {/* 通知 */}
+                <NotificationBell />
 
                 {/* 主题切换 */}
                 <button onClick={toggleTheme} className="theme-toggle-btn sm:p-2 p-1.5" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
