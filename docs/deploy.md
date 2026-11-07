@@ -101,6 +101,10 @@ npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
 # ③.6 通知系统 + 关注女优（新增表，可重复执行；存量库和新装库都需要执行）
 npx wrangler d1 execute $D1_ID --file=database/14_schema_notifications_follows.sql
 
+# ③.7 女优收藏 → 关注女优（一次性迁移，可重复执行）。先部署新版前后端，再执行；
+#      每位用户最多迁移 100 个，超出的留在收藏里，执行后按文件末尾的"遗留检查"确认
+npx wrangler d1 execute $D1_ID --file=database/15_migrate_actress_favorites_to_follows.sql
+
 # ④ 索引与触发器
 npx wrangler d1 execute $D1_ID --file=database/09_indexes_triggers.sql
 

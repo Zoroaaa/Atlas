@@ -1947,10 +1947,10 @@
       "title": "热门女优榜",
       "refresh": "刷新热门女优",
       "loadingActresses": "正在加载热门女优...",
-      "users": "{{count}} 人在看",
+      "followers": "{{count}} 人关注",
       "works": "{{count}} 部上榜",
       "viewWorksTitle": "查看{{name}}的作品",
-      "footerHint": "按站内近 30 天收藏/搜索热度与周榜/月榜上榜作品聚合；点击进入女优搜索"
+      "footerHint": "按四个榜单（周榜/月榜 × 有码/无码）上榜作品数与被关注人数综合排序；点击进入女优搜索"
     },
     "actressResults": {
       "searchFailed": "女优搜索失败：{{message}}",

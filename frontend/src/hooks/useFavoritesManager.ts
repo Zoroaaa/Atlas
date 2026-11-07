@@ -7,7 +7,7 @@ import { userApi } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import i18next from '@/i18n';
 import type { JavDetail } from '@/types/jav';
-import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem, ActressProfile } from '@/types/search';
+import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem } from '@/types/search';
 import type { SearchResultItem } from './useSearchFlow';
 
 interface UseFavoritesManagerOptions {
@@ -200,32 +200,6 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     }
   };
 
-  const handleToggleFavoriteActress = async (actress: ActressProfile) => {
-    if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const actressCode = `actress:${actress.id}`;
-    const existingFavoriteId = favorites.find(f => f.code === actressCode)?.id;
-    if (existingFavoriteId) {
-      try {
-        await removeFavoriteMutation.mutateAsync(existingFavoriteId);
-        toast.success(i18next.t('errors:hooks.favorites.removedTitle'));
-      } catch { toast.error(i18next.t('errors:hooks.favorites.removeFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
-    } else {
-      try {
-        const response = await addFavoriteMutation.mutateAsync({
-          title: actress.name,
-          url: actress.detailUrl,
-          code: actressCode,
-          cover: actress.cover,
-          subtitle: actress.birthday,
-          actors: actress.name,
-          keyword: keyword.trim() || undefined,
-        });
-        if (!response.success) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), response.message || i18next.t('errors:hooks.favorites.retryDefault')); return; }
-        toast.success(i18next.t('errors:hooks.favorites.addedTitle'));
-      } catch { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); }
-    }
-  };
-
   const handleRemoveFavorite = async (id: string) => {
     try {
       await removeFavoriteMutation.mutateAsync(id);
@@ -267,7 +241,6 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
     handleToggleFavoriteMovie,
     handleToggleFavoriteManga,
     handleToggleFavoriteNovel,
-    handleToggleFavoriteActress,
     handleRemoveFavorite,
     handleExportFavorites,
     refetchFavorites,

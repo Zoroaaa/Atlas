@@ -4,7 +4,7 @@
  * 女优资料与女优作品为两个连续区段，不再各自套独立卡片。
  */
 import { useState } from 'react';
-import { Heart, Users, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
+import { Users, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
@@ -37,14 +37,12 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
 
 interface ActressCardProps {
   item: ActressProfile;
-  isFavorited: boolean;
   isAuthenticated: boolean;
   isProxyEnabled: boolean;
-  onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
 }
 
-function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onToggleFavorite, onLoginRequired }: ActressCardProps) {
+function ActressCard({ item, isAuthenticated, isProxyEnabled, onLoginRequired }: ActressCardProps) {
   const { t } = useTranslation(['jav']);
   const imgSrc = item.cover ? getProxyImageUrl(item.cover) : undefined;
   const detailHref = isProxyEnabled ? convertToProxyUrl(item.detailUrl) : item.detailUrl;
@@ -99,19 +97,6 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
       </div>
 
       <div className="flex shrink-0 flex-col items-center gap-1">
-        <button
-          type="button"
-          onClick={() => onToggleFavorite(item)}
-          disabled={!isAuthenticated}
-          aria-label={isFavorited ? t('jav:actressResults.unfavorite') : t('jav:actressResults.favorite')}
-          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-            isFavorited
-              ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
-              : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
-          }`}
-        >
-          <Heart className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
-        </button>
         <ShareToCommunityButton
           postData={{
             postType: 'actress',
@@ -144,20 +129,16 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
 
 export interface JavActressResultsPanelProps {
   data: JavEnrichedData;
-  favoritedCodes: Set<string>;
   isAuthenticated: boolean;
   isProxyEnabled?: boolean;
-  onToggleFavorite: (actress: ActressProfile) => void;
   onLoginRequired: () => void;
   onWorkClick?: (code: string) => void;
 }
 
 export function JavActressResultsPanel({
   data,
-  favoritedCodes,
   isAuthenticated,
   isProxyEnabled = false,
-  onToggleFavorite,
   onLoginRequired,
   onWorkClick,
 }: JavActressResultsPanelProps) {
@@ -200,10 +181,8 @@ export function JavActressResultsPanel({
               <ActressCard
                 key={item.id}
                 item={item}
-                isFavorited={favoritedCodes.has(`actress:${item.id}`)}
                 isAuthenticated={isAuthenticated}
                 isProxyEnabled={isProxyEnabled}
-                onToggleFavorite={onToggleFavorite}
                 onLoginRequired={onLoginRequired}
               />
             ))}

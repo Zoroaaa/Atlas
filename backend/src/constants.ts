@@ -222,8 +222,10 @@ export const JAV_RANKING = {
   MIN_IMPORT_ITEMS: 5,
   ACTRESS_LIMIT: 18,
   ACTRESS_CACHE_TTL_SECONDS: 6 * 60 * 60,
-  ACTRESS_USER_WEIGHT: 3,
-  ACTRESS_WORK_WEIGHT: 2,
+  // 热门女优 = 四个榜单上榜作品数 × 5 + 被关注人数 × 2。
+  // 关注功能刚上线、关注数还少，所以上榜作品数权重更大；关注多起来后可调高 FOLLOW 权重
+  ACTRESS_WORK_WEIGHT: 5,
+  ACTRESS_FOLLOW_WEIGHT: 2,
 } as const;
 
 // ==================================================================

@@ -1947,10 +1947,10 @@
       "title": "Trending actresses",
       "refresh": "Refresh trending actresses",
       "loadingActresses": "Loading trending actresses...",
-      "users": "{{count}} viewers",
+      "followers": "{{count}} followers",
       "works": "{{count}} ranked works",
       "viewWorksTitle": "View works by {{name}}",
-      "footerHint": "Based on 30-day favorites/searches and weekly/monthly ranked works; click to search the actress"
+      "footerHint": "Ranked by works on the four charts (weekly/monthly × censored/uncensored) plus follower count; click to search the actress"
     },
     "actressResults": {
       "searchFailed": "Actress search failed: {{message}}",

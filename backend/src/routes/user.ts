@@ -193,6 +193,11 @@ userRoutes.post('/favorites', validateBody(schemas.user.addFavorite), async (c) 
     const body = c.get('validatedBody') as z.infer<typeof schemas.user.addFavorite>;
     const { title, subtitle, url, icon, keyword, code, cover, actors, duration, tags, releaseDate, publisher, magnetLink, status } = body;
 
+    // 女优收藏已并入"关注女优"，不再接受新的女优收藏（兼容仍缓存着旧前端的客户端）
+    if (typeof code === 'string' && code.startsWith('actress:')) {
+      return c.json(error('USE_FOLLOW', '女优收藏已改为关注，请使用"关注"'), 400);
+    }
+
     const existing = await c.env.DB.prepare(
       'SELECT * FROM user_favorites WHERE user_id = ? AND url = ?'
     ).bind(user.userId, url).first<UserFavorite>();

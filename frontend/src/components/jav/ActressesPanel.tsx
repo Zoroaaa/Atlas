@@ -64,7 +64,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
                     <span className="truncate text-[12px] font-semibold text-surface-800 dark:text-surface-200">{actress.name}</span>
                   </span>
                   <span className="type-micro mt-1 flex items-center gap-2 pl-5 text-surface-500">
-                    <span>{t('jav:actresses.users', { count: actress.users })}</span>
+                    <span>{t('jav:actresses.followers', { count: actress.followers })}</span>
                     <span>{t('jav:actresses.works', { count: actress.works })}</span>
                   </span>
                 </button>

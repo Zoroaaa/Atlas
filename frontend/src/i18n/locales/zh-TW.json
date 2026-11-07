@@ -1947,10 +1947,10 @@
       "title": "熱門女優榜",
       "refresh": "重新整理熱門女優",
       "loadingActresses": "正在載入熱門女優...",
-      "users": "{{count}} 人在看",
+      "followers": "{{count}} 人關注",
       "works": "{{count}} 部上榜",
       "viewWorksTitle": "查看{{name}}的作品",
-      "footerHint": "按站內近 30 天收藏/搜尋熱度與週榜/月榜上榜作品聚合；點擊進入女優搜尋"
+      "footerHint": "依四個榜單（週榜/月榜 × 有碼/無碼）上榜作品數與被關注人數綜合排序；點擊進入女優搜尋"
     },
     "actressResults": {
       "searchFailed": "女優搜尋失敗：{{message}}",

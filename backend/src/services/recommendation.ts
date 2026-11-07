@@ -1,7 +1,8 @@
 /**
  * JAV 推荐引擎
  *
- * 只做"相关度"：演员 50% / 标签 40% / 发行商 10%。
+ * 只做"相关度"。相关推荐（以当前作品为种子）：演员 50% / 标签 40% / 发行商 10%；
+ * 为你推荐：只用标签 + 发行商（权重 4:1）——女优维度交给"关注女优"动态，不再重复计算。
  * 不做人气加权、不乘榜单名次；热门列表由 services/hot-list.ts 独立负责。
  */
 import { RECOMMEND } from '@/constants';
@@ -122,7 +123,7 @@ export async function getUserProfile(
   db: D1Database,
   userId: string
 ): Promise<UserProfile> {
-  const cacheKey = `profile-v4/${userId}`;
+  const cacheKey = `profile-v5/${userId}`;
   const cached = await getCachedJson<UserProfile>(cacheKey);
   if (cached) return cached;
 
@@ -138,6 +139,8 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
     countUserJavHistory(db, userId),
   ]);
 
+  // 为你推荐不再计算女优维度：喜欢的女优请用"关注"，新作会进关注动态，
+  // 这里重复算只会让推荐位被同一批女优占满。女优收藏（actress:）也不再有信号意义，直接忽略
   const actor = createCollector();
   const tag = createCollector();
   const publisher = createCollector();
@@ -145,20 +148,13 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
 
   for (const row of favorites) {
     const code = row.code || '';
-    if (isJavWorkCode(code)) {
-      javFavorites += 1;
-      addValues(actor, row.actors, RECOMMEND.FAVORITE_WEIGHT);
-      addValues(tag, row.tags, RECOMMEND.FAVORITE_WEIGHT);
-      if (row.publisher) addValue(publisher, row.publisher, RECOMMEND.FAVORITE_WEIGHT);
-    } else if (code.startsWith('actress:')) {
-      // 女优收藏：只贡献演员信号
-      javFavorites += 1;
-      addValues(actor, row.actors, RECOMMEND.FAVORITE_WEIGHT);
-    }
+    if (!isJavWorkCode(code)) continue;
+    javFavorites += 1;
+    addValues(tag, row.tags, RECOMMEND.FAVORITE_WEIGHT);
+    if (row.publisher) addValue(publisher, row.publisher, RECOMMEND.FAVORITE_WEIGHT);
   }
 
-  // 历史信号：同一演员/标签/发行商出现 ≥3 次才计入，每次 +1
-  const historyActor = new Map<string, { display: string; count: number }>();
+  // 历史信号：同一标签/发行商出现 ≥3 次才计入，每次 +1
   const historyTag = new Map<string, { display: string; count: number }>();
   const historyPublisher = new Map<string, { display: string; count: number }>();
 
@@ -176,18 +172,10 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
   };
 
   for (const row of history) {
-    countHistoryValues(historyActor, row.actors);
     countHistoryValues(historyTag, row.tags);
     if (row.publisher) countHistoryValues(historyPublisher, row.publisher);
   }
 
-  for (const [key, value] of historyActor) {
-    if (value.count >= RECOMMEND.HISTORY_MIN_OCCURRENCES) {
-      const existing = actor.values.get(key);
-      if (existing) existing.count += value.count * RECOMMEND.HISTORY_WEIGHT;
-      else actor.values.set(key, { display: value.display, count: value.count * RECOMMEND.HISTORY_WEIGHT });
-    }
-  }
   for (const [key, value] of historyTag) {
     if (value.count >= RECOMMEND.HISTORY_MIN_OCCURRENCES) {
       const existing = tag.values.get(key);
@@ -210,7 +198,7 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
     }
   }
 
-  const actorDim = finalizeDimension(actor);
+  const actorDim = finalizeDimension(actor); // 恒为空：为你推荐不使用女优维度
   const tagDim = finalizeDimension(tag);
   const publisherDim = finalizeDimension(publisher);
   const hasSignal =
@@ -392,7 +380,7 @@ export async function recommendForYou(
   const candidates = await findJavCandidatesBySeeds(
     db,
     {
-      actors: profile.topActors.slice(0, 10),
+      actors: [],
       tags: profile.topTags.slice(0, 15),
       publisher: profile.topPublishers[0],
     },
@@ -407,7 +395,7 @@ export async function recommendForYou(
   const items = allocateForYouItems(
     scored,
     profile.topTags,
-    profile.topActors,
+    [],
     excluded,
     RECOMMEND.FOR_YOU_LIMIT
   );
@@ -418,7 +406,7 @@ export async function recommendForYou(
     isNewUser: false,
     items,
     basis: {
-      actors: profile.topActors.slice(0, 3),
+      actors: [],
       tags: profile.topTags.slice(0, 3),
     },
     generatedAt: Date.now(),
