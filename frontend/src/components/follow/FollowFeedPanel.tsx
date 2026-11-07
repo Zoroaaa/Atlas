@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCheck, Heart, Settings2, Bell, BellOff, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCheck, UserCheck, Settings2, Bell, BellOff, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import {
@@ -39,7 +39,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
   return (
     <PanelSection>
       <PanelHeader
-        icon={<Heart className="h-4 w-4 text-rose-500" />}
+        icon={<UserCheck className="h-4 w-4 text-primary-500" />}
         title={t('follow:title')}
         count={unread > 0 ? <CountBadge>{unread}</CountBadge> : undefined}
         meta={follows.length > 0 ? t('follow:manageTitle', { count: follows.length, limit: followsData?.limit ?? 100 }) : undefined}
@@ -71,7 +71,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
         <div id="main-follow-feed" className="px-4 pb-4 sm:px-5 sm:pb-5">
           {follows.length === 0 ? (
             <EmptyBlock
-              icon={<Heart className="h-6 w-6" />}
+              icon={<UserCheck className="h-6 w-6" />}
               title={t('follow:emptyTitle')}
               hint={t('follow:emptyHint')}
             />

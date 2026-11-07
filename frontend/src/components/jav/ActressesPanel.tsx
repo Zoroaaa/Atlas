@@ -68,7 +68,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
                     <span>{t('jav:actresses.works', { count: actress.works })}</span>
                   </span>
                 </button>
-                <FollowButton name={actress.name} className="absolute right-1 top-1" />
+                <FollowButton name={actress.name} variant="icon" className="absolute right-1 top-1" />
                 </div>
               ))}
             </div>

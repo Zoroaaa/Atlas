@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
@@ -7,14 +7,16 @@ import { useFollows, useFollowActions } from '@/hooks';
 
 interface FollowButtonProps {
   name: string;
-  /** JavBus 女优 key；只有名字时（如热门女优）留空，由后端解析 */
+  /** JavBus 女优 key；只有名字时（如热门女优、影片演员）留空，由后端解析 */
   followKey?: string;
   avatar?: string;
+  /** pill：带文字的小按钮（默认）；icon：仅 +/✓ 图标，用于很窄的位置 */
+  variant?: 'pill' | 'icon';
   className?: string;
 }
 
-/** 关注/取消关注女优。未登录不显示。 */
-export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, avatar, className }) => {
+/** 关注/取消关注女优（与收藏的爱心区分：用 +关注 / 已关注）。未登录不显示。 */
+export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, avatar, variant = 'pill', className }) => {
   const { t } = useTranslation(['follow']);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data } = useFollows();
@@ -35,6 +37,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, ava
   };
 
   const label = isFollowing ? t('follow:following') : t('follow:follow');
+  const Icon = isFollowing ? Check : Plus;
 
   return (
     <button
@@ -45,14 +48,16 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, ava
       aria-label={`${label} ${name}`}
       title={`${label} ${name}`}
       className={clsx(
-        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50',
+        'inline-flex shrink-0 items-center justify-center rounded-md text-[11px] font-medium leading-none transition-colors disabled:opacity-50',
+        variant === 'pill' ? 'h-6 gap-0.5 px-1.5' : 'h-6 w-6',
         isFollowing
-          ? 'text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'
-          : 'text-surface-400 hover:bg-surface-100 hover:text-rose-500 dark:hover:bg-surface-800',
+          ? 'bg-surface-100 text-surface-500 hover:bg-red-50 hover:text-red-500 dark:bg-surface-800 dark:text-surface-400 dark:hover:bg-red-900/20'
+          : 'bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50',
         className
       )}
     >
-      <Heart className={clsx('h-3.5 w-3.5', isFollowing && 'fill-current')} />
+      <Icon className="h-3 w-3" />
+      {variant === 'pill' ? <span>{label}</span> : null}
     </button>
   );
 };

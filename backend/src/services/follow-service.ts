@@ -8,6 +8,8 @@ import { FOLLOW } from '@/constants';
 import { getHtml, parseActressList, parseGrid, type JavItem } from '@/services/jav-utils';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
 import { emitNotification } from '@/services/notification-service';
+import { generateId } from '@/utils';
+import { inspectJavCode } from '@codeseek/shared/utils';
 
 const JAVBUS_BASE = 'https://www.javbus.com';
 
@@ -38,6 +40,93 @@ export async function fetchStarWorks(key: string): Promise<JavItem[]> {
   if (!html) throw new Error('JavBus 无响应');
   if (html.length < 500 || !/id="waterfall"/.test(html)) throw new Error('JavBus 返回异常内容');
   return parseGrid(html, 'javbus-star');
+}
+
+/**
+ * 把抓到的作品写进本地库（data_records / data_record_sources）：
+ * - 库里没有的：新增（detail_completed=0，之后由每小时的补全任务补详情）
+ * - 库里已有的：只补空缺的演员/发行日期，不覆盖已有数据
+ * 失败不影响新作检测。
+ */
+async function saveWorksToLibrary(
+  db: D1Database,
+  works: JavItem[],
+  actressName: string,
+  now: number
+): Promise<void> {
+  const seen = new Set<string>();
+  const items: JavItem[] = [];
+  for (const work of works) {
+    const info = inspectJavCode(work.code);
+    if (!info.recognized || seen.has(info.code)) continue;
+    seen.add(info.code);
+    items.push({ ...work, code: info.code });
+  }
+  if (items.length === 0) return;
+
+  const keys = items.map((item) => `jav:${item.code}`);
+  const placeholders = keys.map(() => '?').join(',');
+  const existing = await db
+    .prepare(
+      `SELECT id, dedup_key, actors, release_date FROM data_records
+       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
+    )
+    .bind(...keys)
+    .all<{ id: string; dedup_key: string; actors: string | null; release_date: string | null }>();
+  const byKey = new Map((existing.results || []).map((row) => [row.dedup_key, row]));
+
+  const actorsJson = JSON.stringify([actressName]);
+  const statements: D1PreparedStatement[] = [];
+
+  for (const item of items) {
+    const key = `jav:${item.code}`;
+    const row = byKey.get(key);
+
+    if (row) {
+      const needActors = !row.actors || row.actors === '[]';
+      const needDate = !row.release_date && Boolean(item.date);
+      if (needActors || needDate) {
+        statements.push(
+          db
+            .prepare('UPDATE data_records SET actors = ?, release_date = ?, last_updated_at = ? WHERE id = ?')
+            .bind(needActors ? actorsJson : row.actors, needDate ? item.date! : row.release_date, now, row.id)
+        );
+      }
+      continue;
+    }
+
+    const recordId = generateId();
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO data_records
+             (id, record_type, dedup_key, title, cover, code, actors, duration,
+              release_date, publisher, tags, rating, content_data, detail_completed,
+              status, source_count, first_seen_at, last_updated_at)
+           VALUES (?, 'jav', ?, ?, ?, ?, ?, NULL, ?, NULL, '[]', NULL, '{}', 0, 'active', 0, ?, ?)
+           ON CONFLICT(record_type, dedup_key) DO NOTHING`
+        )
+        .bind(
+          recordId, key, (item.title || item.code).slice(0, 300), item.cover ?? null,
+          item.code, actorsJson, item.date ?? null, now, now
+        ),
+      db
+        .prepare(
+          `INSERT OR IGNORE INTO data_record_sources
+             (id, record_id, source_name, source_type, source_url, source_data, created_at)
+           SELECT ?, id, 'JavBus', 'info', ?, ?, ?
+           FROM data_records WHERE record_type = 'jav' AND dedup_key = ?`
+        )
+        .bind(
+          generateId(), `https://www.javbus.com/${item.code}`,
+          JSON.stringify({ via: 'follow', actress: actressName }), now, key
+        )
+    );
+  }
+
+  for (let i = 0; i < statements.length; i += 50) {
+    await db.batch(statements.slice(i, i + 50));
+  }
 }
 
 interface WatchRow {
@@ -105,6 +194,13 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
     )
     .bind(now, now, key)
     .run();
+
+  // 顺便把拉到的作品写进本地库（含已知作品：补齐此前缺失的条目）；失败不影响检测
+  try {
+    await saveWorksToLibrary(db, works, watch.name, now);
+  } catch (err) {
+    console.error(`[follow] save works to library failed for ${key}:`, err);
+  }
 
   const baseline = watch.baseline_done === 0;
   if (baseline || fresh.length === 0) {
