@@ -102,10 +102,12 @@ export const userApi = {
   },
 
   getSyncState: async (): Promise<ApiResponse<{
+    notifications?: { unread: number };
     favorites: { count: number; updatedAt: number };
     history: { count: number; updatedAt: number };
   }>> => {
     const response = await apiClient.get<{ success: boolean; data: {
+      notifications?: { unread: number };
       favorites: { count: number; updatedAt: number };
       history: { count: number; updatedAt: number };
     } }>('/user/sync-state');

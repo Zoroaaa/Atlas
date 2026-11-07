@@ -7,6 +7,8 @@ export { useJavDetail } from './useJavDetail';
 export { useJavRankings } from './useJavRankings';
 export { useJavRecommendations } from './useJavRecommendations';
 export { useCacheSync } from './useCacheSync';
+export { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys } from './useFollows';
+export { useUnreadCount, useNotificationInbox, useMarkNotificationsRead, notificationKeys } from './useNotifications';
 export { useSearchMutation } from './useSearchQuery';
 export type { SearchMutationVars } from './useSearchQuery';
 export { useFavorites as useFavoritesQuery, useFavoritesPage, useFavoriteIndex, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, favoritesKeys, invalidateFavorites, FAVORITES_PAGE_SIZE } from './useFavoritesQuery';

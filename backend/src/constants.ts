@@ -227,6 +227,26 @@ export const JAV_RANKING = {
 } as const;
 
 // ==================================================================
+// 关注女优 / 通知系统常量
+// ==================================================================
+
+export const FOLLOW = {
+  MAX_PER_USER: 100,
+  /** 每次定时任务最多检查几位（Workers 每次调用 50 次子请求上限，留足余量） */
+  WATCH_BATCH: 20,
+  WATCH_CONCURRENCY: 4,
+  /** 同一位女优两次检查的最小间隔；连续失败按 2 的幂退避，最多 32 倍 */
+  WATCH_MIN_INTERVAL_MS: 30 * 60 * 1000,
+  WATCH_MAX_BACKOFF_EXP: 5,
+  FEED_MAX_PAGE_SIZE: 50,
+} as const;
+
+export const NOTIFICATION = {
+  MAX_PAGE_SIZE: 50,
+  TYPES: ['follow.new_work', 'follow.release_soon'] as const,
+} as const;
+
+// ==================================================================
 // 推荐系统常量 — 代码级固定规则，改了需重新部署
 // ==================================================================
 

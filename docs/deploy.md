@@ -98,6 +98,9 @@ npx wrangler d1 execute $D1_ID --file=database/11_schema_data_storage.sql
 # ③.5 存量库增量迁移（v1.5.0 新增，搜索限流档位；新装库已由 01 建列，跳过）
 npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
 
+# ③.6 通知系统 + 关注女优（新增表，可重复执行；存量库和新装库都需要执行）
+npx wrangler d1 execute $D1_ID --file=database/14_schema_notifications_follows.sql
+
 # ④ 索引与触发器
 npx wrangler d1 execute $D1_ID --file=database/09_indexes_triggers.sql
 

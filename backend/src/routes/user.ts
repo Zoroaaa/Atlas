@@ -13,6 +13,7 @@ import { userActivitySchema } from '@/utils/validators';
 import { CONFIG, VALIDATION_RULES } from '@/constants';
 import { checkRateLimitD1 } from '@/utils/rate-limit';
 import { validateBody, schemas } from '@/validation';
+import { getUnreadCount } from '@/services/notification-service';
 
 const R = VALIDATION_RULES;
 
@@ -89,16 +90,18 @@ userRoutes.get('/sync-state', async (c) => {
   const user = c.get('user');
 
   try {
-    const [fav, hist] = await Promise.all([
+    const [fav, hist, unread] = await Promise.all([
       c.env.DB.prepare(
         'SELECT COUNT(*) AS count, COALESCE(MAX(updated_at), 0) AS updated_at FROM user_favorites WHERE user_id = ?'
       ).bind(user.userId).first<{ count: number; updated_at: number }>(),
       c.env.DB.prepare(
         'SELECT COUNT(*) AS count, COALESCE(MAX(created_at), 0) AS updated_at FROM user_search_history WHERE user_id = ?'
       ).bind(user.userId).first<{ count: number; updated_at: number }>(),
+      getUnreadCount(c.env.DB, user.userId),
     ]);
 
     return c.json(success({
+      notifications: { unread },
       favorites: { count: fav?.count ?? 0, updatedAt: fav?.updated_at ?? 0 },
       history: { count: hist?.count ?? 0, updatedAt: hist?.updated_at ?? 0 },
     }));

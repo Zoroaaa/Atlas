@@ -2785,5 +2785,40 @@
       "reqActiveDays": "活跃",
       "reqTotalSearches": "累计搜索"
     }
+  },
+  "follow": {
+    "title": "关注动态",
+    "tabNew": "新作",
+    "tabUpcoming": "即将发售",
+    "emptyTitle": "还没有关注的女优",
+    "emptyHint": "在热门女优或女优搜索结果里点 ♡ 关注，新作和发售日会出现在这里",
+    "noFeed": "暂无动态",
+    "markViewed": "全部标为已读",
+    "manage": "管理关注",
+    "manageTitle": "已关注 {{count}}/{{limit}}",
+    "unfollow": "取消关注",
+    "follow": "关注",
+    "following": "已关注",
+    "notifyOn": "站内提醒：开（点击关闭）",
+    "notifyOff": "站内提醒：关（点击开启）",
+    "releaseOn": "{{date}} 发售",
+    "newBadge": "新",
+    "checkFailing": "检查失败",
+    "followSuccess": "已关注 {{name}}",
+    "unfollowSuccess": "已取消关注",
+    "followFailed": "关注失败",
+    "followLimit": "关注数量已达上限",
+    "notFound": "没有找到这位女优",
+    "upstreamError": "女优资料源暂时不可用，请稍后重试",
+    "operationFailed": "操作失败，请稍后重试"
+  },
+  "notify": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "暂无通知",
+    "newWork": "{{name}} 有 {{count}} 部新作",
+    "unreadAria": "通知，{{count}} 条未读",
+    "prev": "上一页",
+    "next": "下一页"
   }
 }

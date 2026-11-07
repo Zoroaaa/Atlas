@@ -2785,5 +2785,40 @@
       "reqActiveDays": "活躍",
       "reqTotalSearches": "累計搜尋"
     }
+  },
+  "follow": {
+    "title": "關注動態",
+    "tabNew": "新作",
+    "tabUpcoming": "即將發售",
+    "emptyTitle": "還沒有關注的女優",
+    "emptyHint": "在熱門女優或女優搜尋結果裡點 ♡ 關注，新作和發售日會出現在這裡",
+    "noFeed": "暫無動態",
+    "markViewed": "全部標為已讀",
+    "manage": "管理關注",
+    "manageTitle": "已關注 {{count}}/{{limit}}",
+    "unfollow": "取消關注",
+    "follow": "關注",
+    "following": "已關注",
+    "notifyOn": "站內提醒：開（點擊關閉）",
+    "notifyOff": "站內提醒：關（點擊開啟）",
+    "releaseOn": "{{date}} 發售",
+    "newBadge": "新",
+    "checkFailing": "檢查失敗",
+    "followSuccess": "已關注 {{name}}",
+    "unfollowSuccess": "已取消關注",
+    "followFailed": "關注失敗",
+    "followLimit": "關注數量已達上限",
+    "notFound": "沒有找到這位女優",
+    "upstreamError": "女優資料來源暫時無法使用，請稍後重試",
+    "operationFailed": "操作失敗，請稍後重試"
+  },
+  "notify": {
+    "title": "通知",
+    "markAllRead": "全部已讀",
+    "empty": "暫無通知",
+    "newWork": "{{name}} 有 {{count}} 部新作",
+    "unreadAria": "通知，{{count}} 則未讀",
+    "prev": "上一頁",
+    "next": "下一頁"
   }
 }

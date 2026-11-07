@@ -2785,5 +2785,40 @@
       "reqActiveDays": "active days",
       "reqTotalSearches": "total searches"
     }
+  },
+  "follow": {
+    "title": "Following",
+    "tabNew": "New",
+    "tabUpcoming": "Upcoming",
+    "emptyTitle": "You're not following anyone yet",
+    "emptyHint": "Tap ♡ on Hot Actresses or actress search results — new releases and release dates show up here",
+    "noFeed": "Nothing here yet",
+    "markViewed": "Mark all as seen",
+    "manage": "Manage follows",
+    "manageTitle": "Following {{count}}/{{limit}}",
+    "unfollow": "Unfollow",
+    "follow": "Follow",
+    "following": "Following",
+    "notifyOn": "In-app alerts on (click to turn off)",
+    "notifyOff": "In-app alerts off (click to turn on)",
+    "releaseOn": "Releases {{date}}",
+    "newBadge": "New",
+    "checkFailing": "Check failing",
+    "followSuccess": "Following {{name}}",
+    "unfollowSuccess": "Unfollowed",
+    "followFailed": "Couldn't follow",
+    "followLimit": "Follow limit reached",
+    "notFound": "Couldn't find this actress",
+    "upstreamError": "Actress data source is unavailable, please try again later",
+    "operationFailed": "Something went wrong, please try again"
+  },
+  "notify": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications",
+    "newWork": "{{name}} has {{count}} new release(s)",
+    "unreadAria": "Notifications, {{count}} unread",
+    "prev": "Previous",
+    "next": "Next"
   }
 }

@@ -12,3 +12,5 @@ export { javRoutes } from './jav';
 export { dataStorageRoutes } from './data-storage';
 export { recommendRoutes } from './recommend';
 export { rankingsRoutes } from './rankings';
+export { notificationRoutes } from './notifications';
+export { followRoutes } from './follows';

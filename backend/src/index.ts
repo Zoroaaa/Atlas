@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
@@ -21,6 +21,7 @@ import { javProvider } from '@/providers/jav-provider';
 import { mangaProvider } from '@/providers/manga-provider';
 import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
+import { runWatchCheck } from '@/services/follow-service';
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
@@ -87,6 +88,8 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/config', configRoutes);
 app.route('/api/jav', javRoutes);
 app.route('/api/recommend', recommendRoutes);
+app.route('/api/notifications', notificationRoutes);
+app.route('/api/follows', followRoutes);
 app.route('/api/internal/rankings', rankingsRoutes);
 app.route('/api/admin/data-storage', dataStorageRoutes);
 app.route('/api/feedback', feedbackRoutes);
@@ -147,6 +150,14 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    if (event.cron === '*/30 * * * *') {
+      // 关注女优新作检测：独立触发器，独占一次调用的 50 次子请求额度
+      ctx.waitUntil(
+        runWatchCheck(env.DB)
+          .then((r) => { if (r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
+          .catch((err) => console.error('[follow] watch check failed:', err))
+      );
+    }
     if (event.cron === '0 * * * *') {
       ctx.waitUntil(
         env.DB.prepare('DELETE FROM user_sessions WHERE expires_at < ?').bind(Date.now()).run()

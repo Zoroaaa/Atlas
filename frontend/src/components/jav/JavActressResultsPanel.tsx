@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import type { JavEnrichedData, ActressProfile } from '@/types/search';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { ProxyImage } from '@/components/ui';
+import { FollowButton } from '@/components/follow/FollowButton';
 import { convertToProxyUrl } from '@/services/proxy';
 import { ShareToCommunityButton } from '@/components/community/ShareToCommunityButton';
 import {
@@ -78,6 +79,7 @@ function ActressCard({ item, isFavorited, isAuthenticated, isProxyEnabled, onTog
           ) : (
             <span className="truncate text-[15px] font-semibold text-surface-900 dark:text-surface-100">{item.name}</span>
           )}
+          <FollowButton name={item.name} followKey={item.id} avatar={item.cover} className="self-center" />
         </div>
 
         {metrics.length > 0 ? (

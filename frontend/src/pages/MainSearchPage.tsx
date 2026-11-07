@@ -20,6 +20,7 @@ import { UnifiedNavBar } from '@/components/layout';
 import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useCacheSync } from '@/hooks/useCacheSync';
+import { FollowFeedPanel } from '@/components/follow/FollowFeedPanel';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
 import { useSearchHistoryManager } from '@/hooks/useSearchHistoryManager';
 import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
@@ -261,6 +262,7 @@ export const MainSearchPage: React.FC = () => {
                 <div className="min-w-0">
                   {activeTab === 'jav' ? (
                     <>
+                      <FollowFeedPanel show={isAuthenticated} onCodeClick={searchFlow.handleCodeClick} />
                       <LazyMount minHeight={200}>
                         <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
                       </LazyMount>
