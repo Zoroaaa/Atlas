@@ -10,7 +10,9 @@ import {
   useNotificationPreferences, useNotificationPreferenceActions, useToast,
 } from '@/hooks';
 import { describeNotification } from '@/components/notifications/notificationView';
+import { NotificationDetailModal } from '@/components/notifications/NotificationDetailModal';
 import { formatRelativeTime } from '@/utils/relativeTime';
+import type { NotificationItem } from '@/types';
 
 const PAGE_SIZE = 20;
 /** 设置页里展示的通知类型（follow.release_soon 等发售提醒上线后再加入） */
@@ -34,6 +36,7 @@ const Inbox: React.FC = () => {
   const navigate = useNavigate();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
 
   const { data, isLoading } = useNotificationInbox(page, PAGE_SIZE, true, unreadOnly);
   const markRead = useMarkNotificationsRead();
@@ -91,11 +94,19 @@ const Inbox: React.FC = () => {
                 <li key={item.id} className="flex items-start gap-3 px-2 py-3">
                   <span className={clsx('mt-2 h-2 w-2 shrink-0 rounded-full', item.isRead ? 'bg-transparent' : 'bg-rose-500')} />
                   <div className="min-w-0 flex-1">
-                    <p className={clsx('text-sm leading-snug', item.isRead ? 'text-surface-600 dark:text-surface-400' : 'font-semibold text-surface-900 dark:text-surface-100')}>
-                      {view.title}
-                    </p>
-                    {view.body ? <p className="mt-0.5 truncate text-xs text-surface-500">{view.body}</p> : null}
-                    <p className="mt-0.5 text-xs text-surface-400">{formatRelativeTime(item.createdAt, i18n.language)}</p>
+                    <button
+                      type="button"
+                      onClick={() => setDetailItem(item)}
+                      className="block w-full text-left"
+                      title={t('notify:detail.open')}
+                      aria-label={t('notify:detail.open')}
+                    >
+                      <p className={clsx('text-sm leading-snug', item.isRead ? 'text-surface-600 dark:text-surface-400' : 'font-semibold text-surface-900 dark:text-surface-100')}>
+                        {view.title}
+                      </p>
+                      {view.body ? <p className="mt-0.5 truncate text-xs text-surface-500">{view.body}</p> : null}
+                      <p className="mt-0.5 text-xs text-surface-400">{formatRelativeTime(item.createdAt, i18n.language)}</p>
+                    </button>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {view.code ? (
@@ -141,6 +152,19 @@ const Inbox: React.FC = () => {
           />
         </Card>
       )}
+
+      <NotificationDetailModal
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        onOpenPost={(postId) => {
+          setDetailItem(null);
+          navigate(`/community/post/${postId}`);
+        }}
+        onSearchCode={(code) => {
+          setDetailItem(null);
+          navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+        }}
+      />
     </div>
   );
 };
