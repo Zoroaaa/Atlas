@@ -9,7 +9,6 @@ import {
   User,
   ChevronDown,
   ShieldAlert,
-  Globe,
   Github,
   HelpCircle,
   Moon,
@@ -212,22 +211,6 @@ const AdminLink: React.FC = memo(() => {
 });
 
 AdminLink.displayName = 'AdminLink';
-
-/** 社区入口 */
-const CommunityLink: React.FC = memo(() => {
-  const { t } = useTranslation(['nav']);
-  return (
-    <Link
-      to="/community"
-      className="p-2 rounded-lg text-stone-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200"
-      title={t('nav:communityLink.title')}
-    >
-      <Globe className="w-4 h-4" />
-    </Link>
-  );
-});
-
-CommunityLink.displayName = 'CommunityLink';
 
 /** 工具按钮行 */
 interface ToolButtonsProps {
@@ -478,38 +461,36 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
       </nav>
       )}
 
-      {/* ── 帮助模态框 ── */}
+      {/* ── 帮助入口：简短提示 + 前往帮助中心 ── */}
       <Modal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
         title={t('nav:help.modalTitle')}
-        size="lg"
+        size="md"
       >
-        <div className="text-sm text-stone-600 dark:text-stone-300 space-y-4">
-          <p dangerouslySetInnerHTML={{ __html: t('nav:help.intro') }} />
-
-          <div>
-            <h3 className="font-semibold text-base mb-2">{t('nav:help.howToUseTitle')}</h3>
-            <ol className="list-decimal list-inside space-y-1.5 ml-2">
-              <li>{t('nav:help.howToUse1')}</li>
-              <li>{t('nav:help.howToUse2')}</li>
-              <li>{t('nav:help.howToUse3')}</li>
-              <li>{t('nav:help.howToUse4')}</li>
-            </ol>
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200/70 bg-amber-50/80 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+            <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-sm leading-relaxed text-stone-700 dark:text-stone-300">
+              {t('nav:help.hint')}
+            </p>
           </div>
-
-          <div>
-            <h3 className="font-semibold text-base mb-2">{t('nav:help.shortcutsTitle')}</h3>
-            <ul className="list-disc list-inside space-y-1.5 ml-2">
-              <li dangerouslySetInnerHTML={{ __html: t('nav:help.proxyShortcut') }} />
-              <li dangerouslySetInnerHTML={{ __html: t('nav:help.favoriteShortcut') }} />
-              <li dangerouslySetInnerHTML={{ __html: t('nav:help.historyShortcut') }} />
-              <li dangerouslySetInnerHTML={{ __html: t('nav:help.javRankingShortcut') }} />
-            </ul>
-          </div>
-
-          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs">
-            {t('nav:help.tip')}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsHelpModalOpen(false)}
+              className="flex-1 rounded-xl bg-stone-100 px-4 py-2.5 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700"
+            >
+              {t('nav:help.close')}
+            </button>
+            <button
+              onClick={() => {
+                setIsHelpModalOpen(false);
+                navigate('/help');
+              }}
+              className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-500/25 transition-all hover:from-amber-600 hover:to-orange-600"
+            >
+              {t('nav:help.openCenter')}
+            </button>
           </div>
         </div>
       </Modal>

@@ -95,19 +95,10 @@
     },
     "help": {
       "buttonTitle": "Help",
-      "modalTitle": "Help",
-      "intro": "<strong>Atlas</strong> is an all-in-one aggregated search engine covering JAV / anime / movies, with multi-source aggregated search.",
-      "howToUseTitle": "How to use",
-      "howToUse1": "Switch search type via the top nav (JAV / Anime / Movies / Sources)",
-      "howToUse2": "Enter keywords or code number in the search box, press Enter or click Search",
-      "howToUse3": "Use category tags to filter specific resource types",
-      "howToUse4": "Click buttons on result cards to access resources or favorite",
-      "shortcutsTitle": "Shortcuts",
-      "proxyShortcut": "<strong>Proxy toggle</strong>: Enable network proxy when accessing restricted resources",
-      "favoriteShortcut": "<strong>Favorites</strong>: Log in to favorite resources with multi-device sync",
-      "historyShortcut": "<strong>Search history</strong>: Automatically records searches, one-click re-search",
-      "javRankingShortcut": "<strong>JAV ranking</strong>: Popular code numbers shown under the JAV tab",
-      "tip": "Tip: Entering a JAV code format (e.g. SONE-520) will auto-trigger detail extraction"
+      "modalTitle": "Need help?",
+      "hint": "Stuck or curious about a feature? The Help Center organizes guides and troubleshooting steps for search, community, follows, notifications, and your account.",
+      "close": "Close",
+      "openCenter": "Open Help Center"
     },
     "proxyConfirm": {
       "title": "Enable Access Proxy",
@@ -148,6 +139,7 @@
         "users": "User Management",
         "sessions": "Session Management",
         "actions": "Activity Logs",
+        "emailLogs": "Email Logs",
         "analytics": "Data Analytics",
         "observability": "System Observability",
         "trends": "Trends Report",
@@ -1424,6 +1416,44 @@
       "confirmDelete": "Confirm Delete",
       "deleteConfirm": "Are you sure you want to delete the announcement \"{{title}}\"? This action cannot be undone.",
       "confirmDeleteButton": "Confirm Delete"
+    },
+    "emailLogs": {
+      "tabs": {
+        "logs": "Send Logs",
+        "queue": "Email Queue"
+      },
+      "refresh": "Refresh",
+      "allTypes": "All types",
+      "allStatus": "All statuses",
+      "totalCount": "{{count}} records",
+      "loading": "Loading...",
+      "noData": "No records",
+      "loadFailed": "Failed to load email logs",
+      "columns": {
+        "time": "Time",
+        "user": "User",
+        "recipient": "Recipient",
+        "type": "Type",
+        "status": "Status",
+        "subject": "Subject",
+        "ip": "IP",
+        "queueTitle": "Title",
+        "queueType": "Notification Type",
+        "reason": "Failure / Skip Reason"
+      },
+      "types": {
+        "registration": "Registration",
+        "forgot_password": "Password Reset",
+        "email_change": "Email Change",
+        "email_verify": "Email Verification",
+        "account_delete": "Account Deletion"
+      },
+      "status": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "pending": "Pending",
+        "skipped": "Skipped"
+      }
     }
   },
 
@@ -1478,16 +1508,6 @@
       "register": "Sign up free",
       "hasAccount": "Already have an account",
       "login": "Log in now"
-    },
-    "helpModal": {
-      "title": "Help",
-      "intro": "Atlas is an aggregated search engine covering JAV / anime / movies / manga / novels and many other resource types, helping you find what you need in one place.",
-      "stepsTitle": "How to use:",
-      "step1": "Register or log in to your account",
-      "step2": "Enter keywords in the search box (supports code numbers, titles, etc.)",
-      "step3": "Choose the appropriate search source and category",
-      "step4": "Click the search button to start",
-      "step5": "Favorite and manage found resources"
     },
     "javSubmode": {
       "greeting": "Hi",
@@ -1737,7 +1757,7 @@
       "colorLabel": "Color",
       "create": "Create",
       "nameRequired": "Please enter a tag name",
-      "created": "Tag \"{{name}}\" created successfully (demo)",
+      "created": "Tag \"{{name}}\" created successfully",
       "totalCount": "{{count}} tag(s) in total",
       "searchResult": "(Search results: {{count}})",
       "emptyTitle": "No tags yet",
@@ -2299,6 +2319,7 @@
         "batchDeleteFailedTitle": "Delete failed",
         "batchDeleteFailedDesc": "Some favorites may not be deleted",
         "exportSuccess": "Exported successfully",
+        "exportFailedTitle": "Export failed",
         "importDataRequired": "Please enter import data",
         "invalidFormat": "Invalid data format",
         "importSuccess": "Imported {{count}} favorites",
@@ -2322,6 +2343,8 @@
         "emptyDesc": "Click the favorite button while searching to add",
         "importModalTitle": "Import Favorites",
         "importModalDesc": "Paste exported JSON data, or enter a JSON array",
+        "prevPage": "Previous",
+        "nextPage": "Next",
         "cancel": "Cancel"
       },
       "history": {
@@ -2337,10 +2360,13 @@
         "batchDeleteSuccess": "Batch delete complete",
         "batchDeleteFailedTitle": "Delete failed",
         "batchDeleteFailedDesc": "Some records may not be deleted",
+        "exportFailedTitle": "Export failed",
         "timeAgoJustNow": "just now",
         "timeAgoMinutesAgo": "{{count}} min ago",
         "timeAgoHoursAgo": "{{count}} hr ago",
         "exportSuccess": "Exported successfully",
+        "prevPage": "Previous",
+        "nextPage": "Next",
         "loading": "Loading history...",
         "title": "Search History",
         "total": "{{count}} records",
@@ -2704,6 +2730,7 @@
       "statusWatched": "Watched",
       "toggleTo": "Switch to {{status}}",
       "durationMinutes": "{{count}} min",
+      "removeConfirm": "Remove this item from favorites?",
       "empty": "No favorites yet"
     },
     "history": {
@@ -2892,6 +2919,380 @@
       "testFailed": "Couldn't send the test email, please try again later",
       "testRateLimited": "Too many attempts, please wait a minute",
       "saveFailed": "Couldn't save, please try again"
+    }
+  },
+  "help": {
+    "page": {
+      "badge": "Help Center",
+      "title": "Atlas Help Center",
+      "subtitle": "Browse guides, FAQs, and troubleshooting steps by topic. You can also search directly, for example “favorites”, “email verification”, or “report”.",
+      "searchPlaceholder": "Search help, e.g. search quota, email verification, reporting",
+      "clearSearch": "Clear search",
+      "searchResultCount": "{{total}} matching sections",
+      "noResultsTitle": "No help articles found",
+      "noResultsDesc": "Nothing matches “{{query}}”. Try a shorter keyword or browse the categories on the left.",
+      "toc": "Contents",
+      "openToc": "Open contents",
+      "closeToc": "Close contents",
+      "steps": "Steps",
+      "sectionCount": "{{total}} sections"
+    },
+    "categories": {
+      "start": {
+        "title": "Getting started",
+        "description": "What Atlas does and where to begin."
+      },
+      "search": {
+        "title": "Search & browsing",
+        "description": "Keywords, filters, sorting, and every action on the results page."
+      },
+      "categories": {
+        "title": "Content categories",
+        "description": "What each category searches and what its results look like."
+      },
+      "detail": {
+        "title": "Entry details",
+        "description": "What the detail page contains and how to explore further."
+      },
+      "community": {
+        "title": "Community",
+        "description": "Posts, comments, likes, favorites, reports, and community rules."
+      },
+      "follow": {
+        "title": "Follows & subscriptions",
+        "description": "Follow actresses, view the feed, and manage alerts."
+      },
+      "notifications": {
+        "title": "Notifications & email",
+        "description": "Notification center, email verification, preferences, and unsubscribe."
+      },
+      "account": {
+        "title": "Account & security",
+        "description": "Sign up, sign in, OAuth, change email, reset password, and delete your account."
+      },
+      "faq": {
+        "title": "FAQ & troubleshooting",
+        "description": "Start here when searches fail, links do not open, or emails do not arrive."
+      }
+    },
+    "sections": {
+      "overview": {
+        "title": "Site overview",
+        "summary": "Atlas is an aggregated search and discovery platform that brings results from multiple sources together.",
+        "paragraphs": [
+          "Atlas covers JAV, anime, movies, manga, and novels. Enter a keyword once, then browse results from different sources by category.",
+          "After signing in, search history, favorites, follows, notifications, and community features sync with your account. You can browse categories and search results without signing in."
+        ],
+        "bullets": [
+          "Top navigation: switch between JAV, anime, movies, manga, and novels.",
+          "Search box: enter a keyword, code number, or actress name and press Enter.",
+          "Top-right tools: proxy toggle, notification bell, theme and language switchers, and this Help Center.",
+          "Dashboard: manage favorites, history, follows, notifications, and account settings."
+        ],
+        "note": "Some features depend on site configuration, such as whether registration or the community is enabled. If an entry point is missing, the feature is probably turned off."
+      },
+      "first-steps": {
+        "title": "Get started in three steps",
+        "summary": "Sign in, choose a category, and enter a keyword to complete your first search.",
+        "steps": [
+          "Sign up or sign in. Registration requires an email verification code; GitHub / Google sign-in is also supported.",
+          "Choose a category at the top, such as JAV, anime, or movies.",
+          "Enter a keyword and press Enter. Open a source, favorite an entry, or continue to the detail page."
+        ],
+        "note": "For your first visit, read “Search & browsing” and “Account & security” first."
+      },
+      "search-basics": {
+        "title": "Keywords and search modes",
+        "summary": "All categories share one search box; the JAV category adds code, actress, and title modes.",
+        "bullets": [
+          "Keywords: works with titles, code numbers, and actress names. Press Enter or click Search.",
+          "JAV modes: code search (e.g. SONE-520), actress search, and title search. The input hint changes with the mode.",
+          "Suggestions: a dropdown appears as you type; click a suggestion to search immediately.",
+          "Search quota: the current quota is shown near the search box. If it runs out, wait for the reset as prompted.",
+          "Quick submit: press Enter in the input box to search without using the mouse."
+        ],
+        "note": "Code numbers usually follow the “letters-numbers” format. If a code search finds nothing, try title mode."
+      },
+      "filters-sort": {
+        "title": "Filters, sorting, and pagination",
+        "summary": "Use categories and views to filter results, then sort and paginate to control browsing order.",
+        "bullets": [
+          "Category filter: the top navigation is the first filter. Switching categories re-runs the current keyword.",
+          "Source view: anime and movie results can switch between “aggregated” and “by source”. Aggregated view merges the same work across sources.",
+          "Sorting: results follow the aggregated order by default. Community lists support “Latest / Hottest” sorting.",
+          "Pagination: when there are many results, use the bottom pager or Previous / Next.",
+          "Refresh: the refresh button in the results header re-runs the current keyword."
+        ],
+        "note": "To sort by time or popularity, use the aggregated view for that category or the community list."
+      },
+      "result-actions": {
+        "title": "Actions on the results page",
+        "summary": "Every result can open its source directly; after signing in you can also favorite or share to the community.",
+        "bullets": [
+          "Open source: click “Go” or the external-link button to open the original site in a new tab.",
+          "Favorite: after signing in, click the heart to favorite; click again to remove it.",
+          "Proxy access: with the proxy enabled, sources open through the proxy and the button color changes.",
+          "Share to community: JAV detail pages and similar pages offer “Share to community”, where you can add a recommendation and tags.",
+          "Back to discovery: the back button at the top-left of the results page returns to the category home."
+        ]
+      },
+      "history-favorites": {
+        "title": "Search history and favorites",
+        "summary": "Search history is recorded after signing in, and favorites sync with your account.",
+        "bullets": [
+          "Search history: grouped by date. Click an entry to search again; delete individual entries or clear all.",
+          "Favorites: favorite resources from results or detail pages. The dashboard Favorites page supports filtering and bulk management.",
+          "Export: the favorites panel can export your data for backup.",
+          "Sync: history and favorites are stored in your account and remain available on other devices."
+        ]
+      },
+      "jav": {
+        "title": "JAV category",
+        "summary": "Search by code, actress, or title, with details, rankings, recommendations, and a follow feed.",
+        "bullets": [
+          "Code search: enter a code to find a work; matches show details, magnet links, and source entry points.",
+          "Actress search: enter an actress name to see her works and follow her directly.",
+          "Title search: find works by title or keyword.",
+          "Home modules: follow feed, recommendations, popular rankings, and actress list.",
+          "Detail fields: code, release date, duration, studio, series, tags, actresses, magnet links, and more."
+        ]
+      },
+      "anime-movie": {
+        "title": "Anime and movie categories",
+        "summary": "Anime and movie results group different sources of the same work together.",
+        "bullets": [
+          "Anime: view works in aggregated mode or switch to a source list; subtitling group, size, and release date are shown.",
+          "Movies: aggregated and source views are available, showing resolution, size, and release date.",
+          "Open and favorite: open a source directly from the result row, or sign in to favorite it."
+        ]
+      },
+      "manga-novel": {
+        "title": "Manga and novel categories",
+        "summary": "Manga and novels are shown by chapter or bibliographic information, making it easy to continue reading or favorite.",
+        "bullets": [
+          "Manga: chapters, update status, and source links.",
+          "Novels: author, publisher, category, chapters, and source links.",
+          "Favorites: sign in to favorite entries and manage them from the dashboard."
+        ]
+      },
+      "sources": {
+        "title": "Search source management",
+        "summary": "The Sources category lets you inspect, enable, and test every source site.",
+        "bullets": [
+          "Groups and sources: expand by major category and category to see each source’s status.",
+          "Enable or disable: a disabled source will not be used in later searches.",
+          "Health check: test one source or all sources; results show online, restricted, timeout, or offline.",
+          "Visit site: click the external-link icon to open the source site."
+        ],
+        "note": "If a source is restricted or will not open, run a health check first, then try enabling the proxy."
+      },
+      "detail-page": {
+        "title": "Entry detail page",
+        "summary": "The detail page collects work information, magnet links, source entry points, and community sharing.",
+        "bullets": [
+          "How to open: click the code or work in JAV results, notifications, the follow feed, or a community post.",
+          "Basic information: release date, duration, director, studio, publisher, series, and tags.",
+          "Actresses and follows: click an actress to view her works, or follow her directly.",
+          "Magnet links: expand the magnet list to copy a link or open WebTor. A hint appears when no magnet is available.",
+          "Recommendations: other works are suggested based on the current work’s tags, actresses, and studio.",
+          "Favorite and share: favorite the current work or share it to the community."
+        ],
+        "note": "If details fail to load, use the retry button on the panel, or go back and open another source."
+      },
+      "community-browse-post": {
+        "title": "Browse, filter, and post",
+        "summary": "The community supports type filters, search, sorting, and one-click sharing from search results.",
+        "bullets": [
+          "Browse: search posts on the discovery page and filter by All, JAV, Anime, Movies, Manga, Novels, or Actresses.",
+          "Sorting and view: “Latest / Hottest” sorting plus grid and list views.",
+          "Posting: from a JAV detail page, click “Share to community”, add a recommendation (up to 200 characters), and choose tags.",
+          "My posts: view and manage your own posts under “My posts”.",
+          "Tags: browse popular tags and their posts on the Tags page."
+        ],
+        "note": "Whether the community entry appears depends on the site feature flag. Guests cannot post, comment, or like."
+      },
+      "community-interact": {
+        "title": "Comments, likes, and favorites",
+        "summary": "After signing in you can like, favorite, and comment on posts. Comments are limited to 500 characters.",
+        "bullets": [
+          "Like: click the heart on a post; click again to remove the like.",
+          "Favorite: save posts you like and find them under “My favorites”.",
+          "Comment: enter a comment at the bottom of a post; press Ctrl / Cmd + Enter to send quickly.",
+          "Delete comments: you can delete your own comments after a confirmation.",
+          "Share link: copy a share link from the post detail page."
+        ]
+      },
+      "community-rules-report": {
+        "title": "Reports and community rules",
+        "summary": "Report inappropriate content and moderators will review it and notify you of the outcome.",
+        "bullets": [
+          "Report entry: the report button at the top-right of a post detail page.",
+          "Reasons: inappropriate content, false information, copyright issues, spam, or other.",
+          "Details: add an explanation to help moderators review the report.",
+          "Outcome: after the report is handled, you receive an in-app or email notification depending on your settings."
+        ],
+        "note": "Do not abuse reporting. Malicious reports may affect your account."
+      },
+      "follow-actress": {
+        "title": "Follow actresses",
+        "summary": "Follow actresses from the actress list, a work detail page, or the follow management page.",
+        "bullets": [
+          "Where to follow: the follow button in actress lists or detail pages, or add a name manually in Dashboard → My follows.",
+          "Limit: follow up to 100 actresses.",
+          "View works: click an actress name to jump to her search results.",
+          "Unfollow: remove one follow on the management page, or select several and remove them in bulk."
+        ]
+      },
+      "follow-feed": {
+        "title": "Follow feed and alerts",
+        "summary": "The follow feed collects new releases and upcoming works, with mute and mark-as-read support.",
+        "bullets": [
+          "Where to find it: “Follow feed” on the JAV category home page and in the dashboard.",
+          "Feed types: new releases and upcoming releases.",
+          "Unread badge: shows the unread count; mark everything as read in one click.",
+          "Per-actress alerts: mute or restore alerts for an actress under “My follows”; this applies to in-app and email at once.",
+          "Bulk actions: mute, restore alerts, or unfollow several actresses at once."
+        ],
+        "note": "The follow feed relies on scheduled source checks. If a check fails, retry later or verify source availability."
+      },
+      "notification-center": {
+        "title": "Notification center",
+        "summary": "Use the top-right bell for recent notifications and the dashboard for the full inbox.",
+        "bullets": [
+          "Bell: the red number is the unread count; notifications load page by page.",
+          "Clicking a notification: code-based notifications open the work; community or announcement notifications open the notification center.",
+          "Mark all read: available in both the bell and the notification center.",
+          "Delete and clear: delete individual notifications or clear read ones.",
+          "Filter: show unread only and paginate."
+        ]
+      },
+      "email-verification": {
+        "title": "Email verification",
+        "summary": "Verify your email before enabling email notifications. The code has 6 digits.",
+        "steps": [
+          "Go to Dashboard → Notifications → Notification settings.",
+          "Click “Verify email” on the email card; a 6-digit code is sent to your current email.",
+          "Enter the code and submit. The email status becomes “Verified”."
+        ],
+        "bullets": [
+          "Resend: the resend button is available after the countdown ends.",
+          "Before verification: email toggles are unavailable until verification is complete."
+        ]
+      },
+      "email-preferences": {
+        "title": "Email preferences and privacy",
+        "summary": "Each notification type can control in-app and email channels separately.",
+        "bullets": [
+          "Types: new works from followed actresses, post likes / comments / favorites, report outcomes, and site announcements.",
+          "Channel toggles: every type has separate “In-app” and “Email” switches.",
+          "Hide email details: emails show only counts, without actress names or codes, and use a neutral subject.",
+          "Batching: new feed items are combined into one email about every 10 minutes, up to 3 emails per day; extras are deferred.",
+          "Test email: after verification, send a test email to confirm delivery."
+        ],
+        "note": "If emails do not arrive, check your spam folder and make sure the email is verified and the matching email toggle is on."
+      },
+      "unsubscribe": {
+        "title": "Unsubscribe from emails",
+        "summary": "Every notification email has a one-click unsubscribe link; you can also turn emails off in notification settings.",
+        "bullets": [
+          "From email: click “Unsubscribe from email notifications” at the bottom and confirm.",
+          "Email only: unsubscribing does not affect in-app notifications.",
+          "Resubscribe: turn the matching email toggle back on in notification settings.",
+          "Expired link: if the unsubscribe link is invalid, sign in and disable email notifications from the dashboard."
+        ]
+      },
+      "register-login": {
+        "title": "Sign up and sign in",
+        "summary": "Email registration, password sign-in, and GitHub / Google sign-in are supported.",
+        "bullets": [
+          "Registration: username 3–20 characters, password 6–100 characters, email verified with a 6-digit code.",
+          "Sign in: use your username or email plus password. Use “Forgot password” on the sign-in page if needed.",
+          "Registration switch: the site may disable registration. The sign-up page will explain; existing accounts can still sign in.",
+          "Sign out: top-right user menu → Sign out."
+        ]
+      },
+      "oauth": {
+        "title": "Third-party sign-in (OAuth)",
+        "summary": "Sign in with GitHub or Google without remembering a separate password.",
+        "bullets": [
+          "Entry: the GitHub / Google buttons at the bottom of the sign-in page.",
+          "First sign-in: an account is created or linked automatically and you return to the site.",
+          "Callback failure: if the callback page reports an error, return to sign-in and retry, or use password sign-in."
+        ],
+        "note": "OAuth availability depends on whether the site has configured the provider app. If the button is missing, it is not enabled."
+      },
+      "email-password": {
+        "title": "Change email and password",
+        "summary": "Changing your email requires your current password and a code sent to the new address; changing your password signs you out.",
+        "steps": [
+          "Change email: Dashboard → Settings → Profile → “Change” next to email.",
+          "Enter the new email and current password, then request a 6-digit code sent to the new address.",
+          "Enter the code to finish. You will be signed out; sign in again with the new email."
+        ],
+        "bullets": [
+          "Cancel: you can cancel the email change request from the verification dialog.",
+          "Change password: Dashboard → Settings → Security → Change password; current and new passwords are required.",
+          "Password rule: 6–100 characters. You will be signed out after a successful change."
+        ]
+      },
+      "reset-password": {
+        "title": "Reset your password",
+        "summary": "Reset your password with an email code; the old password is not required.",
+        "steps": [
+          "Click “Forgot password” on the sign-in page.",
+          "Enter your registered email and request a 6-digit code.",
+          "Enter the code and a new password, then sign in with the new password."
+        ],
+        "note": "Codes expire. You can resend after expiry. If the email does not arrive, check spam first."
+      },
+      "delete-account": {
+        "title": "Delete your account",
+        "summary": "Deleting your account permanently removes its data and cannot be undone.",
+        "steps": [
+          "Dashboard → Settings → Security → Danger zone → Delete account.",
+          "Read the impact and confirm to continue; a 6-digit code is sent to your email.",
+          "Enter the confirmation text and code. The account is deleted after submission."
+        ],
+        "bullets": [
+          "Deleted data: profile, favorites, search history, custom sources, and other account data.",
+          "No recovery: a deleted account cannot be restored."
+        ],
+        "note": "If you only want a break, sign out instead of deleting your account."
+      },
+      "faq-search": {
+        "title": "No results or very few results",
+        "summary": "Work through these checks in order to find the cause quickly.",
+        "bullets": [
+          "Change mode: if a JAV code finds nothing, try title or actress mode.",
+          "Change category: make sure the top category matches the type of content you want.",
+          "Check sources: run a health check in the Sources category and confirm the source is online and enabled.",
+          "Wait for quota: if the quota is exhausted, wait for the reset as prompted and avoid repeated searches.",
+          "Change keywords: try a shorter keyword, an alias, or remove extra symbols."
+        ]
+      },
+      "faq-access": {
+        "title": "Sources will not open or fail to load",
+        "summary": "What to try when a source will not open, images are missing, or details fail to load.",
+        "bullets": [
+          "Enable the proxy: try the top-right proxy toggle for restricted sources.",
+          "Try another source: the same entry may be available from several sources.",
+          "Retry: use retry when details fail; if it still fails, go back and search again.",
+          "Missing images: hotlink protection or network issues may be the cause. Refresh the page or enable the proxy.",
+          "Proxy confirmation: the first time you enable the proxy, a notice appears; it takes effect after you confirm."
+        ]
+      },
+      "faq-account": {
+        "title": "Account, verification code, and notification issues",
+        "summary": "Troubleshooting for sign-in problems, missing verification codes, and missing notifications.",
+        "bullets": [
+          "No verification code: check spam, confirm the email address, then resend after the countdown.",
+          "Signed out unexpectedly: sign in again. If you changed your password or email, use the new credentials.",
+          "No email notifications: confirm the email is verified, the matching “Email” toggle is on, and you have not unsubscribed.",
+          "No in-app notifications: confirm the matching “In-app” toggle is on and check unread items in the notification center.",
+          "Still stuck: use the feedback button at the bottom-right of the page and include the steps you took."
+        ],
+        "note": "Never include passwords or verification codes in feedback."
+      }
     }
   }
 }
