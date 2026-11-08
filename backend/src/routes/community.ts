@@ -28,6 +28,7 @@ import {
   listPosts,
   findPostWithUserById,
   incrementPostViewCount,
+  recordPostViewIfNeeded,
   findPostInteractionState,
   insertPost,
   findPostById,
@@ -56,6 +57,9 @@ import {
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
 const escapeLike = (v: string) => v.replace(/[\\%_]/g, (m) => '\\' + m);
+
+/** 浏览量去重窗口：同一用户对同一帖子 24 小时内只计一次 */
+const POST_VIEW_DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 communityRoutes.use('*', authMiddleware);
 
@@ -469,10 +473,20 @@ communityRoutes.get('/posts/:id', async (c) => {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    // 增加浏览量（作者本人访问不计数）
+    // 增加浏览量（作者本人访问不计数；同一用户 24 小时内对同一帖子只计一次）
     const isSelfView = post.user_id === user.userId;
+    let viewCount = post.view_count as number;
     if (!isSelfView) {
-      await incrementPostViewCount(c.env.DB, postId);
+      const counted = await recordPostViewIfNeeded(c.env.DB, {
+        userId: user.userId,
+        postId,
+        now: Date.now(),
+        windowMs: POST_VIEW_DEDUP_WINDOW_MS,
+      });
+      if (counted) {
+        await incrementPostViewCount(c.env.DB, postId);
+        viewCount += 1;
+      }
     }
 
     // 查询当前用户的点赞/收藏状态
@@ -488,7 +502,7 @@ communityRoutes.get('/posts/:id', async (c) => {
       contentData: post.content_data,
       caption: post.caption,
       tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags,
-      viewCount: (post.view_count as number) + (isSelfView ? 0 : 1),
+      viewCount,
       likeCount: post.like_count,
       commentCount: post.comment_count,
       favoriteCount: post.favorite_count,

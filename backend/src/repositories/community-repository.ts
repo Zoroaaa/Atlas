@@ -285,6 +285,28 @@ export async function incrementPostViewCount(db: D1Database, id: string): Promis
   await db.prepare('UPDATE community_posts SET view_count = view_count + 1 WHERE id = ?').bind(id).run();
 }
 
+/**
+ * 记录一次浏览，并判断本次是否应计入浏览量。
+ * 同一 user_id + post_id 在 windowMs 窗口内只返回一次 true。
+ * upsert 的 WHERE 不满足时 meta.changes 为 0，以此作为去重依据（单条语句原子）。
+ */
+export async function recordPostViewIfNeeded(
+  db: D1Database,
+  opts: { userId: string; postId: string; now: number; windowMs: number }
+): Promise<boolean> {
+  const cutoff = opts.now - opts.windowMs;
+  const result = await db
+    .prepare(
+      `INSERT INTO community_post_views (user_id, post_id, last_viewed_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(user_id, post_id) DO UPDATE SET last_viewed_at = excluded.last_viewed_at
+       WHERE community_post_views.last_viewed_at <= ?`
+    )
+    .bind(opts.userId, opts.postId, opts.now, cutoff)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
 /** 查询当前用户对某帖子的点赞/收藏状态（一次 batch） */
 export async function findPostInteractionState(
   db: D1Database,

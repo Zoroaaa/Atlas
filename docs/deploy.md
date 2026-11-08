@@ -1,453 +1,319 @@
 # 部署指南
 
-> **适用版本**: v1.5.0+
->
-> 目标平台：Cloudflare Workers + D1 + R2
+> 适用版本：v1.6.0+
+> 本文覆盖全新数据库的一次性初始化、已有数据库的增量升级、本地开发、生产部署与故障排查。
 
 ---
 
-## 目录
+## 一、部署架构
 
-- [前置要求](#前置要求)
-- [Step 1: Cloudflare 初始化](#step-1-cloudflare-初始化)
-- [Step 2: D1 数据库](#step-2-d1-数据库)
-- [Step 3: 环境变量配置](#step-3-环境变量配置)
-- [Step 4: 本地开发](#step-4-本地开发)
-- [Step 5: 生产部署](#step-5-生产部署)
-- [Step 6: 自定义域名](#step-6-自定义域名)
-- [Step 7: CI/CD 自动化](#step-7-cicd-自动化)
-- [运维操作](#运维操作)
-- [故障排查](#故障排查)
+```
+用户浏览器
+   │
+   ├─ Cloudflare Pages（frontend 构建产物）
+   │     └─ /api/* 反向代理到 Workers
+   │
+   └─ Cloudflare Workers（backend，Hono）
+         ├─ D1（绑定名 DB，database_name = codeseek）
+         ├─ Cron Triggers（每小时清理 / 30 分钟关注检测 / 15 分钟邮件摘要）
+         └─ 外部服务（GitHub OAuth / Google OAuth / Resend / 搜索源）
+```
+
+- 不使用 R2 或 KV；所有持久化数据都在 D1
+- 前端为静态站点，后端为单一 Worker
+- 通知、关注、邮件队列都复用同一个 D1
 
 ---
 
-## 前置要求
+## 二、前置要求
 
-| 工具 | 版本 | 用途 |
+| 工具 | 版本 | 说明 |
 |------|------|------|
-| Node.js | >= 18 | 运行时 |
-| pnpm | >= 8 | 包管理 |
-| Wrangler CLI | >= 3.x | CF 部署工具 |
-| Git | 任意 | 版本控制 |
-| Cloudflare 账号 | - | Workers/D1 |
+| Node.js | >= 18 | CI 使用 Node 20 |
+| npm | >= 9 | 仓库使用 npm workspaces，根目录提交 `package-lock.json` |
+| Wrangler | >= 3 | 本地可用 `npx wrangler` |
+| Cloudflare 账号 | — | 需要 Workers、D1、Pages 权限 |
 
-```bash
-# 安装 wrangler
-npm install -g wrangler
-
-# 登录 Cloudflare
-wrangler login
-```
+本地开发还需要一个 GitHub OAuth App（必需）和 Resend 账号（邮件功能需要）。
 
 ---
 
-## Step 1: Cloudflare 初始化
+## 三、首次部署（全新数据库）
 
-### 1.1 创建项目目录并克隆
-
-```bash
-git clone https://github.com/your-username/atlas.git
-cd atlas
-pnpm install
-```
-
-### 1.2 项目结构确认
-
-```
-atlas/
-├── frontend/          # React 前端 (Vite)
-├── backend/           # Hono 后端 (Workers)
-├── packages/shared/   # 共享类型
-├── database/          # SQL 迁移文件
-└── docs/              # 文档
-```
-
----
-
-## Step 2: D1 数据库
-
-### 2.1 创建数据库
+### 1. 获取代码并安装依赖
 
 ```bash
-npx wrangler d1 create atlas-db
+git clone https://github.com/Zoroaaa/Atlas.git
+cd Atlas
+npm install
 ```
 
-记下输出的 `database_id`，后续配置使用。
-
-### 2.2 执行建表（按顺序）
-
-**重要：必须按以下顺序执行，存在外键依赖关系。**
+### 2. 创建 D1 数据库
 
 ```bash
-# 替换 <DATABASE_ID> 为上一步获取的 ID
-D1_ID="<DATABASE_ID>"
-
-# ① 核心 schema（用户、收藏、历史等基础表）
-npx wrangler d1 execute $D1_ID --file=database/01_schema_core.sql
-
-# ② 搜索 schema（搜索源、社区、安全、反馈公告、系统错误等）
-npx wrangler d1 execute $D1_ID --file=database/02_schema_search.sql
-npx wrangler d1 execute $D1_ID --file=database/03_schema_community.sql
-npx wrangler d1 execute $D1_ID --file=database/04_schema_security.sql
-npx wrangler d1 execute $D1_ID --file=database/05_schema_feedback_announcements.sql
-npx wrangler d1 execute $D1_ID --file=database/10_schema_system_errors.sql
-
-# ③ 数据存储 schema（v1.4.0 新增，搜索结果异步落库去重）
-npx wrangler d1 execute $D1_ID --file=database/11_schema_data_storage.sql
-
-# ③.5 存量库增量迁移（v1.5.0 新增，搜索限流档位；新装库已由 01 建列，跳过）
-npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
-
-# ③.6 通知系统 + 关注女优（新增表，可重复执行；存量库和新装库都需要执行）
-npx wrangler d1 execute $D1_ID --file=database/14_schema_notifications_follows.sql
-
-# ③.6b 邮件通知渠道（新增 3 张表，可重复执行；需要先执行上一条 14）
-#       还需要：已配置 RESEND_API_KEY（wrangler secret）、DEFAULT_FROM_EMAIL 所在域名已在 Resend 验证；
-#       wrangler.toml 新增了 */15 的定时触发器（共 3 个，免费套餐上限 5 个），部署后端时一并生效
-npx wrangler d1 execute $D1_ID --file=database/16_email_notifications.sql
-
-# ③.7 女优收藏 → 关注女优（一次性迁移，可重复执行）。先部署新版前后端，再执行；
-#      每位用户最多迁移 100 个，超出的留在收藏里，执行后按文件末尾的"遗留检查"确认
-npx wrangler d1 execute $D1_ID --file=database/15_migrate_actress_favorites_to_follows.sql
-
-# ④ 索引与触发器
-npx wrangler d1 execute $D1_ID --file=database/09_indexes_triggers.sql
-
-# ⑤ 种子数据（系统配置、搜索源、标签）
-npx wrangler d1 execute $D1_ID --file=database/06_data_system.sql
-npx wrangler d1 execute $D1_ID --file=database/07_data_search_sources.sql
-npx wrangler d1 execute $D1_ID --file=database/08_data_tags.sql
+npx wrangler d1 create codeseek
 ```
 
-### 2.3 验证数据库
+将返回的 `database_id` 写入 `backend/wrangler.toml`：
 
-```bash
-# 查看表结构
-npx wrangler d1 execute $D1_ID --command="SELECT name FROM sqlite_master WHERE type='table';"
-
-# 预期输出应包含:
-# users, favorites, history, comments, ratings, reports,
-# feedback, search_sources, admin_logs, data_records, data_record_sources (等)
-
-# 验证搜索源数据（应有 50+ 条，覆盖 jav/anime/movie/manga/novel 5 个 category）
-npx wrangler d1 execute $D1_ID --command="SELECT category, COUNT(*) as cnt FROM search_sources GROUP BY category;"
-
-# 验证数据存储表（v1.4.0 新增）
-npx wrangler d1 execute $D1_ID --command="SELECT COUNT(*) as cnt FROM data_records;"
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "codeseek"
+database_id = "<返回的 database_id>"
 ```
 
----
+### 3. 配置非敏感变量
 
-## Step 3: 环境变量配置
+`backend/wrangler.toml` 的 `[vars]` 至少确认以下值：
 
-### 3.1 创建 `.env.local`（本地开发）
-
-```bash
-cp .env.example .env.local
+```toml
+[vars]
+APP_VERSION = "1.6.0"
+APP_ENV = "production"
+SITE_URL = "https://atlas.example.com"
+FRONTEND_URL = "https://atlas.example.com"
+BACKEND_URL = "https://api-atlas.example.com"
+DEFAULT_FROM_EMAIL = "noreply@atlas.example.com"
+DEFAULT_FROM_NAME = "Atlas"
+JWT_EXPIRY_DAYS = "30"
+ENABLE_ACTION_LOGGING = "true"
 ```
 
-编辑 `.env.local`，填入以下内容：
+### 4. 配置 Secrets
 
-```env
-# ── 认证 ──
-GITHUB_CLIENT_ID=Ov23li...
-GITHUB_CLIENT_SECRET=abc123...
-JWT_SECRET=rand0m-s3cr3t-k3y-32chars-min!!
+本地开发写入 `backend/.dev.vars`（不要提交）：
 
-# ── 数据库 ──
-D1_DATABASE_ID=xxxxxxx_from_step_2
-
-# ── JAV 搜索源 ──
-DMM_API_ID=your_dmm_api_id
-DMM_API_KEY=your_dmm_api_key
-
-# ── 影视搜索源 (v1.1.0 新增) ──
-TMDB_API_KEY=your_tmdb_api_key
-
-# ── 动漫搜索源 (v1.1.0 新增，可选) ──
-BANGUMI_API_KEY=your_bangumi_api_key
-
-# ── 系统 ──
-APP_VERSION=1.5.0
-NODE_ENV=development
-ADMIN_GITHUB_IDS=your_github_numeric_id
+```dotenv
+JWT_SECRET=replace-with-a-32-byte-random-string
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+RESEND_API_KEY=re_your_resend_key
+RANKINGS_IMPORT_SECRET=optional-shared-secret
 ```
 
-### 3.2 生产环境 Secrets（Cloudflare Dashboard 或 Wrangler）
-
-```bash
-# 方式 A: 交互式设置（推荐首次使用）
-wrangler secret put GITHUB_CLIENT_ID
-wrangler secret put GITHUB_CLIENT_SECRET
-wrangler secret put JWT_SECRET
-wrangler secret put D1_DATABASE_ID
-wrangler secret put DMM_API_ID
-wrangler secret put DMM_API_KEY
-wrangler secret put TMDB_API_KEY          # v1.1.0 新增
-# wrangler secret put BANGUMI_API_KEY     # 可选
-
-# 方式 B: 通过 Cloudflare Dashboard
-# Workers & Pages → atlas-api → Settings → Variables and Secrets
-```
-
----
-
-## Step 4: 本地开发
-
-### 4.1 启动开发服务器
-
-```bash
-# 启动全部服务（前端 :5173 + 后端 :8787 + D1 本地模拟）
-pnpm dev
-```
-
-### 4.2 验证 v1.1.0 新功能
-
-```bash
-# 测试 1: 健康检查
-curl http://localhost:8787/api/health
-
-# 测试 2: 搜索源列表（应看到 3 个 category）
-curl http://localhost:8787/api/config/search-sources
-
-# 测试 3: 动漫分类列表
-curl http://localhost:8787/api/search-sources/classifications/anime
-
-# 测试 4: 影视分类列表
-curl http://localhost:8787/api/search-sources/classifications/movie
-
-# 测试 5: 动漫搜索（需先登录获取 token）
-curl -X POST http://localhost:8787/api/search \
-  -H "Content-Type: application/json" \
-  -d '{"category":"anime","classification":"bangumi","keyword":"Frieren"}'
-
-# 测试 6: 影视搜索
-curl -X POST http://localhost:8787/api/search \
-  -H "Content-Type: application/json" \
-  -d '{"category":"movie","classification":"tmdb","keyword":"Inception"}'
-```
-
-### 4.3 本地数据库管理
-
-```bash
-# 查看 D1 本地数据
-npx wrangler d1 execute atlas-db --local --command="SELECT * FROM search_sources;"
-
-# 重置本地数据库
-rm -rf .wrangler/state/v3/d1/miniflare-D1DatabaseObject/
-pnpm dev  # 会自动重建
-```
-
----
-
-## Step 5: 生产部署
-
-### 5.1 构建
-
-```bash
-# 构建所有包
-pnpm build
-```
-
-### 5.2 部署后端 API
+生产环境：
 
 ```bash
 cd backend
-npx wrangler deploy
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RANKINGS_IMPORT_SECRET
 ```
 
-### 5.3 部署前端
+### 5. 初始化数据库（必须按 01 → 19 顺序）
 
-前端部署到 Cloudflare Pages：
+全新库一次性执行全部脚本，顺序不能调整：
 
 ```bash
-# 方式 A: 手动部署
-cd frontend
-npx wrangler pages deploy dist --project-name=atlas-frontend
+cd backend
 
-# 方式 B: 连接 GitHub 仓库自动部署（推荐）
-# Cloudflare Dashboard → Pages → Create → Connect to Git
+for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
+         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
+         08_data_tags 09_indexes_triggers 10_schema_system_errors \
+         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
+         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
+         16_email_notifications 17_schema_announcement_reads \
+         18_backfill_community_notifications 19_schema_community_post_views; do
+  npx wrangler d1 execute codeseek --remote --file=../database/$f.sql
+done
 ```
 
-### 5.4 验证生产环境
+Windows PowerShell：
+
+```powershell
+cd backend
+$scripts = @(
+  '01_schema_core','02_schema_search','03_schema_community','04_schema_security',
+  '05_schema_feedback_announcements','06_data_system','07_data_search_sources',
+  '08_data_tags','09_indexes_triggers','10_schema_system_errors',
+  '11_schema_data_storage','12_schema_search_tier','13_backfill_search_tier',
+  '14_schema_notifications_follows','15_migrate_actress_favorites_to_follows',
+  '16_email_notifications','17_schema_announcement_reads',
+  '18_backfill_community_notifications','19_schema_community_post_views'
+)
+foreach ($s in $scripts) {
+  npx wrangler d1 execute codeseek --remote --file="../database/$s.sql"
+}
+```
+
+说明：
+
+| 脚本 | 作用 | 全新库是否需要 |
+|------|------|----------------|
+| `01`–`12` | 基础表、搜索、社区、安全、公告、标签、索引、数据存储、搜索档位 | 必需 |
+| `13_backfill_search_tier` | 回填已有用户的搜索档位 | 必需（空表时无操作） |
+| `14_schema_notifications_follows` | 通知、关注、邮件偏好、用户公告已读相关表 | 必需 |
+| `15_migrate_actress_favorites_to_follows` | 女优收藏迁移为关注 | 必需（新库无数据，安全） |
+| `16_email_notifications` | 邮件发送日志、队列、退订令牌 | 必需 |
+| `17_schema_announcement_reads` | 公告已读表 | 必需 |
+| `18_backfill_community_notifications` | 历史社区互动补写通知 | 可选（新库无数据） |
+| `19_schema_community_post_views` | 帖子浏览 24 小时去重表 | 必需 |
+
+所有脚本均可重复执行。`08` 与 `12` 已修复跨版本重复加列问题，`13`/`18` 为空表时无副作用。
+
+### 6. 本地开发
+
+分别启动两个终端：
 
 ```bash
-# API 健康检查
-curl https://atlasapi.wort.uk/api/health
-
-# 搜索源就绪检查
-curl https://atlasapi.wort.uk/api/config/search-sources
-
-# 前端可访问性
-curl -I https://atlas.wort.uk
+npm run dev --workspace=backend    # http://localhost:8787
+npm run dev --workspace=frontend   # http://localhost:3000
 ```
+
+前端 Vite 已把 `/api` 代理到 `http://localhost:8787`。本地 D1 初始化把 `--remote` 换成 `--local`，或在 `backend` 目录执行：
+
+```bash
+npx wrangler d1 execute codeseek --local --file=../database/01_schema_core.sql
+```
+
+### 7. 部署后端
+
+```bash
+npm run typecheck --workspace=backend
+npm run lint --workspace=backend
+npm run deploy --workspace=backend
+```
+
+部署后检查：
+
+```bash
+curl https://api-atlas.example.com/api/health
+# { "success": true, "data": { "status": "ok", "version": "1.6.0" } }
+```
+
+### 8. 部署前端
+
+```bash
+npm run build --workspace=frontend
+npx wrangler pages deploy frontend/dist --project-name atlas-frontend
+```
+
+Cloudflare Pages 项目需要把 `FRONTEND_URL` 对应的自定义域名绑定好，并在 Pages 中配置 `/api/*` 反代到 Worker 域名（或使用同一域名下的 Routes）。
+
+### 9. 配置 OAuth 回调
+
+| 平台 | 回调地址 |
+|------|----------|
+| GitHub | `${BACKEND_URL}/api/auth/github/callback` |
+| Google | `${BACKEND_URL}/api/auth/google/callback` |
+
+回调地址必须与 `BACKEND_URL` 完全一致。
+
+### 10. 验收清单
+
+- [ ] `/api/health` 返回 `version: 1.6.0`
+- [ ] `/api/system/public-config` 返回站点名与注册开关
+- [ ] 注册 → 邮箱验证码 → 登录成功
+- [ ] `/help` 可访问且三语文案正常
+- [ ] `/dashboard/notifications` 能收到关注/社区/公告通知
+- [ ] 通知偏好页能发送测试邮件（收到即表示 Resend 配置正确）
+- [ ] 后台「邮件日志 / 邮件队列」有数据
+- [ ] 社区帖子 24 小时内重复浏览不增加 `view_count`
 
 ---
 
-## Step 6: 自定义域名
+## 四、已有数据库升级（v1.5.x → v1.6.0）
 
-### 6.1 API 域名
-
-```bash
-# 在 Cloudflare Dashboard 操作:
-# Workers & Pages → atlas-api → Settings → Domains & Certificates
-# Add Custom Domain → atlasapi.wort.uk
-# （Cloudflare DNS 会自动添加 CNAME 记录）
-```
-
-### 6.2 前端域名
+先执行新增迁移，再部署代码：
 
 ```bash
-# Pages → atlas-frontend → Settings → Domains & Certificates
-# Add Custom Domain → atlas.wort.uk
-# 或 www.atlas.wort.uk
+cd backend
+npx wrangler d1 execute codeseek --remote --file=../database/17_schema_announcement_reads.sql
+npx wrangler d1 execute codeseek --remote --file=../database/18_backfill_community_notifications.sql
+npx wrangler d1 execute codeseek --remote --file=../database/19_schema_community_post_views.sql
 ```
 
-### 6.3 SSL 证书
+升级注意事项：
 
-Cloudflare 自动提供免费 SSL 证书（Let's Encrypt），无需手动配置。
+- `18` 会把历史社区互动补写为通知，数据量大时建议在低峰执行
+- 帖子浏览去重表只记录 24 小时内的 `(post_id, viewer_key)`，过期行由每小时清理任务删除
+- 公告不再写入通知表，改为读取时合并，因此升级后社区通知 Tab 与旧接口会消失，统一入口为 `/dashboard/notifications`
+- 版本号升级不涉及 D1 结构变更
 
 ---
 
-## Step 7: CI/CD 自动化
+## 五、Cron Triggers
 
-### GitHub Actions 工作流示例
+`backend/wrangler.toml` 已配置三个触发器：
 
-```yaml
-name: Deploy to Cloudflare Workers
+| Cron | 频率 | 任务 |
+|------|------|------|
+| `0 * * * *` | 每小时 | 清理过期会话、7 天前验证码、过期通知/浏览记录等 |
+| `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（`follow.new_work` / `follow.release_soon`） |
+| `*/15 * * * *` | 每 15 分钟 | 邮件摘要合并发送（每轮最多 15 封） |
 
-on:
-  push:
-    branches: [main]
-    paths: ['backend/**']
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - run: npm install
-      - run: npm run typecheck --workspace=backend
-      - run: npm run lint --workspace=backend
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: ./backend
-          command: deploy
-```
-
-**需要的 GitHub Secrets：**
-
-| Secret 名 | 说明 |
-|-----------|------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（需 Workers 编辑权限） |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID |
-
-> 部署工作流只在 `main` 分支触发；`v1` / `v2` / `v3` 分支已移除。
+三个任务相互独立，避免共用同一次调用的子请求额度。
 
 ---
 
-## 运维操作
+## 六、CI/CD
 
-### 数据库备份
+仓库内置 `.github/workflows/backend-deploy.yml`：
 
-```bash
-# 导出完整数据库
-npx wrangler d1 export atlas-db --remote > backup_$(date +%Y%m%d).sql
+- 触发：推送到 `main` 且改动 `backend/**`，或手动 `workflow_dispatch`
+- 流程：`npm install` → `typecheck` → `lint` → `wrangler deploy`
+- 需要的仓库 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
 
-# 导入恢复（谨慎操作）
-npx wrangler d1 execute atlas-db --remote --file=backup_20260615.sql
-```
+`javdb-ranking-daily.yml` / `javdb-ranking-probe.yml` 用于榜单抓取与探活，需要配置 `ATLAS_RANKING_IMPORT_URL`（完整导入地址）与 `RANKINGS_IMPORT_SECRET`。
 
-### 搜索源管理
+前端目前未接入 CI 自动部署，按第三节第 8 步手动发布；如需自动化，在 Pages 项目中连接 GitHub 仓库并设置构建命令：
 
 ```bash
-# 查看所有源状态
-curl -H "Authorization: Bearer <admin_token>" \
-  "https://atlasapi.wort.uk/api/search-sources?includeStats=true"
-
-# 健康检查
-curl -H "Authorization: Bearer <admin_token>" \
-  "https://atlasapi.wort.uk/api/search-sources/health"
-
-# 禁用某个源
-curl -X PUT -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
-  "https://atlasapi.wort.uk/api/search-sources/3" \
-  -d '{"isActive": false}'
+npm install && npm run build --workspace=frontend
 ```
 
-### 日志查看
-
-```bash
-# 实时日志（Tail）
-npx wrangler tail  # 后端日志
-
-# 或通过 Cloudflare Dashboard:
-# Workers & Pages → atlas-api → Logs → Begin log stream
-```
-
-### 版本回滚
-
-```bash
-# 回滚到上一个版本
-# Cloudflare Dashboard → Workers → atlas-api → Deployments
-# 点击之前的 Deployment → Rollback
-```
+输出目录：`frontend/dist`。
 
 ---
 
-## 故障排查
+## 七、常见问题
 
-### 常见问题
+### Q1: `wrangler dev` 报 EPERM / 无法写日志
 
-| 问题 | 原因 | 解决方案 |
-|------|------|---------|
-| 搜索返回空结果 | TMDB_API_KEY 未配置或无效 | 检查环境变量，重新生成 Key |
-| 动漫搜索超时 | Bangumi API 限流 | 配置 BANGUMI_API_KEY 或降低请求频率 |
-| 图片不显示 | R2/CORS 问题 | 确认使用后端代理而非直连 |
-| `PROVIDER_NOT_FOUND` 错误 | Provider 未注册 | 检查 `index.ts` 中是否有 `providerRegistry.register()` |
-| `INVALID_CLASSIFICATION` 错误 | 分类名拼写错误 | 对照文档确认分类名（小写） |
-| D1 迁移失败 | SQL 执行顺序错误 | 按 schema → data → migration 顺序执行 |
+Windows 下 Wrangler 需要写 `%APPDATA%\xdg.config\.wrangler\logs`。以普通用户权限运行，或设置可写的 `XDG_CONFIG_HOME` 后重试。
 
-### v1.1.0 特有问题
+### Q2: 数据库脚本执行到一半失败
 
-| 问题 | 解决方案 |
-|------|---------|
-| 新类别 Tab 不显示 | 确认 Provider 已注册 + 前端 SearchPage 已更新 |
-| 分类下拉为空 | 检查 `/api/search-sources/classifications/:category` 是否返回数据 |
-| history 缺少 cover_image | 执行 `13_schema_history_cover.sql` 迁移 |
-| `category` 参数报错 | 确认前端请求体包含 `category` 和 `classification` 字段 |
+所有脚本都是幂等的，修复报错后从失败的那个脚本继续执行即可，不需要回滚重建。常见原因：
 
----
+- 数据库 ID 配置错误（`database_name` 必须是 `codeseek`）
+- 跳过了前置脚本（例如先执行 `14` 再执行 `03`）
+- 使用了旧版脚本（`08`/`12` 的旧版本可能重复加列）
 
-## 架构图
+### Q3: 邮件发送失败
 
+1. 检查 `RESEND_API_KEY` 与 `DEFAULT_FROM_EMAIL` 域名是否已验证
+2. 查看 `email_send_logs` 的 `status` 与 `error_message`
+3. 查看 `email_queue` 是否堆积在 `failed`
+4. 确认用户邮箱已验证，且通知偏好中已开启对应邮件开关
+5. 确认未触发 `email_rate_limit_per_hour` / `email_rate_limit_per_day`
+
+### Q4: 通知收件箱没有公告
+
+公告为读取时合并，只有同时满足以下条件才可见：
+
+- `site_announcements` 中公告处于发布状态且在有效期内
+- 用户未在 `user_announcement_reads` 中删除该公告
+- 通知偏好中「站点公告」站内开关未关闭
+
+### Q5: 前端提示找不到 `@codeseek/shared`
+
+确认 `frontend/tsconfig.json` 的 `paths` 与 `vite.config.ts` 的 `alias` 同时存在；修改后重启 TS Server 与 Vite。
+
+### Q6: 需要回滚版本
+
+```bash
+git checkout <上一个发布提交>
+npm install
+npm run deploy --workspace=backend
+npm run build --workspace=frontend && npx wrangler pages deploy frontend/dist --project-name atlas-frontend
 ```
-                    ┌─────────────┐
-                    │   用户浏览器   │
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-    ┌──────────────┐ ┌──────────┐ ┌──────────┐
-    │ Cloudflare   │ │ Cloudflare│ │ Cloudflare│
-    │ Pages (前端)  │ │ Workers  │ │    D1     │
-    │ atlas.wort.uk│ │ (API)    │ │ (数据库)  │
-    └──────────────┘ └────┬─────┘ └────┬─────┘
-                          │            │
-                ┌─────────┼────────────┤
-                ▼         ▼            ▼
-         ┌──────────┐ ┌──────┐ ┌──────────┐
-         │    R2    │ │ 外部API│ │ 磁力站点  │
-         │ (图片缓存)│ │TMDB等 │ │Nyaa/YTS等│
-         └──────────┘ └──────┘ └──────────┘
-```
+
+v1.6.0 的迁移均为新增表，回滚代码不会破坏数据；如需彻底回退数据库，可手动删除 `user_announcement_reads`、`community_post_views`、`email_send_logs`、`email_queue` 等新表。

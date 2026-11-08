@@ -7,7 +7,7 @@
 **An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -52,7 +52,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), **v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), **v1.6.0 (help center + unified notification inbox + email delivery)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 
 ### Frontend Specialized Documentation
@@ -90,6 +90,10 @@ The project uses a modular documentation system, where each specialized document
 - **Comprehensive Email Verification**: Includes registration verification, password reset, email change, and account deletion, all with email confirmation
 - **Multi-Layer Security Mechanisms**: Features login failure lock, verification code frequency limits, temporary email blacklists, and security event logs
 - **RBAC Permission System**: Implements a four-level role permission system (Super Admin, Administrator, User, Guest) with fine-grained permission control
+
+#### 5. Notification & In-Product Help (v1.6.0)
+- **Unified Notification Center**: Community interactions, actress follow updates, and site announcements share one inbox, one unread badge, and one set of in-app / email preferences
+- **Built-in Help Center**: `/help` documents every user-facing module, with feature overviews, step-by-step guides, and per-category caveats
 
 ### Technical Highlights
 
@@ -137,7 +141,7 @@ Resend → Modern email service with high deliverability and real-time tracking
 
 | Category | Data Source | Description |
 |----------|--------|------|
-| **JAV** | DMM/FANZA / JavBus / JavDB / **JavBus (actress profiles, v1.4.0 new)** | Adult film metadata + magnet aggregation + actress profile search |
+| **JAV** | DMM/FANZA / JavBus / JavDB / **JavBus (actress profiles, v1.4.0 new)** | Adult film metadata + magnet aggregation + actress profile search (JAV search, not code-only search) |
 | **Anime** | Bangumi / Mikan / ShowRSS | Anime metadata + subtitle groups (nyaa source disabled due to deployment environment restrictions, v1.4.0 adjusted) |
 | **Movie** | TMDB / YTS / EZTV / TPB | Movie/TV series metadata and seed resources |
 | **Comic** | MangaDex / 13 search sources | Comic metadata and resource aggregation |
@@ -221,6 +225,15 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Search History**: Automatically record search history (with cover thumbnail), support clear and delete
 - **Data Sync**: Cross-device synchronization of favorites, history, and settings
 - **Data Export**: Support export personal data (JSON format)
+- **Favorites & History Pagination**: Server-side pagination with totals; console statistics are aggregated server-side (v1.6.0)
+
+#### Notification Center (v1.6.0)
+- **One Inbox**: Actress follow updates (`follow.new_work` / `follow.release_soon`), community likes / comments / favorites / report results, and site announcements are merged into `/dashboard/notifications`
+- **Read-Time Announcement Merge**: Announcements stay in `site_announcements`; the inbox merges them on read and only stores each user's read/dismissed state in `user_announcement_reads`
+- **Per-Type Preferences**: Independent in-app and email switches for every notification type; email cannot be enabled before the address is verified
+- **Email Verification Entry**: The notification preferences page can send and verify an email code without leaving the page
+- **Inbox Actions**: All / unread views, mark as read, delete one, clear all read, and an unread badge in the navigation bar
+- **Test Email**: Send a test message from the preferences page (rate limited to once per minute per user)
 
 ### 3. Community Features
 
@@ -233,7 +246,9 @@ Category (large category)        Classification (subcategory)         Source (so
 #### Interactive Features
 - **Comment Rating**: Publish reviews on search sources to help others choose
 - **Like/Favorite**: Like quality search sources and collect them in personal list
-- **Report Mechanism**: Report违规内容, with admin processing
+- **Report Mechanism**: Report inappropriate content, with admin processing
+- **View De-duplication (v1.6.0)**: The same user viewing the same post only increments `view_count` once per 24 hours (author self-views never count); requires `database/19_schema_community_post_views.sql`
+- **Unified Notifications (v1.6.0)**: Likes, comments, favorites, and report results are delivered to the unified notification inbox; the separate community notification tab and its legacy endpoints were removed
 
 #### Contribution Statistics
 - **Personal Contribution**: View number of shared search sources, download count, and rating
@@ -264,6 +279,12 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Data Storage Management**: Search results asynchronously persisted to DB with deduplication, multi-source merging; browse / hide / cleanup stale data by type, with statistics overview (v1.4.0 new)
 - **Community Review**: Review user-shared search sources
 - **Report Processing**: Process user-reported content
+- **Announcement Management**: Publish, edit, and delete announcements; publishing enqueues announcement emails, and deleting removes pending queue entries (v1.6.0)
+
+#### Email Operations (v1.6.0)
+- **Email Send Logs**: Admin page lists every message with type, status, user, IP, and error details (`GET /api/config/email/logs`)
+- **Email Queue**: Inspect pending / sent / skipped / failed digest tasks, including the last failure reason (`GET /api/config/email/queue`)
+- **Unified Sender**: All transactional and notification mail goes through one sender with Resend, logging, and rate-limit metadata
 
 #### System Monitoring
 - **Dashboard**: One-view system operation status and user activity
@@ -284,9 +305,16 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Multi-Source Data**: Support multi-source data aggregation display
 - **Login Required**: Need user login authentication to access
 
+### 7. Help Center (v1.6.0)
+
+- **Route**: `/help`, linked from the main navigation
+- **Categories**: Getting started, discovery (for-you / JAV rankings / trending actresses), search basics & tab differences, category guides, detail page, community, actress follows, notifications & email, account security, general notices, FAQ
+- **Structure**: Every section follows “feature overview + step-by-step guide + caveats”, plus a standalone general notices chapter
+- **Consistency**: Content is kept in sync with shipped behavior; JAV search is named “JAV search” everywhere instead of “JAV code search”
+
 ## Technology Stack Overview
 
-**Frontend Layer (v1.5.0)**
+**Frontend Layer (v1.6.0)**
 - React 19 + TypeScript
 - Vite / Tailwind CSS / Zustand / React Router
 - AnimeSearchResultPanel / MovieSearchResultPanel
@@ -295,9 +323,11 @@ Category (large category)        Classification (subcategory)         Source (so
 - JavActressResultsPanel + ActressesPanel (v1.4.0)
 - DataStorageTab (v1.4.0)
 - Workbench components + trilingual i18n (v1.5.0)
+- HelpCenterPage + help content definitions (v1.6.0)
+- Notification bell / inbox / preferences pages (v1.6.0)
 - Deployment: Cloudflare Pages
 
-**Provider Layer (v1.5.0)**
+**Provider Layer (v1.6.0)**
 - SearchProvider interface + ProviderRegistry
 - anime-provider (Bangumi / Mikan / ShowRSS)
 - movie-provider (TMDB / YTS / EZTV / TPB)
@@ -306,7 +336,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - jav-provider (Metadata / Magnet + Actress submode)
 - recommendation / ranking services (v1.5.0)
 
-**Backend Service Layer (v1.5.0)**
+**Backend Service Layer (v1.6.0)**
 - Hono Framework / TypeScript
 - Cloudflare Workers / D1
 - JWT authentication (jose) / Resend
@@ -315,15 +345,15 @@ Category (large category)        Classification (subcategory)         Source (so
 - Data storage management (v1.4.0)
 - opencc Simplified-to-Japanese conversion (v1.4.0)
 - Search tier quotas + JavDB rankings (v1.5.0)
-
-[See Complete Architecture Design](docs/backend-frontend-tree.md)
+- Unified notification service + follow feed + email sender/queue/log (v1.6.0)
+- Monorepo shared package: TypeScript `paths` + Vite alias point directly at `packages/shared/src` (v1.6.0)
 
 ## Quick Start
 
 ### Environment Requirements
 
 - **Node.js**: >= 18.0.0
-- **pnpm**: >= 8.0.0
+- **npm**: >= 9 (the repository uses npm workspaces; `package-lock.json` is committed at the root)
 - **Cloudflare Account**: For deploying Workers and D1 database
 - **Wrangler CLI**: Cloudflare development tool (>= 3.x)
 
@@ -334,27 +364,36 @@ Category (large category)        Classification (subcategory)         Source (so
 git clone https://github.com/Zoroaaa/Atlas.git
 cd Atlas
 
-# Install dependencies
-pnpm install
+# Install dependencies (npm workspaces)
+npm install
 
-# Initialize database (including v1.3.0 new novel search sources, v1.4.0 new data storage tables)
-npx wrangler d1 create atlas-db
-npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
-npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
-npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
-npx wrangler d1 execute atlas-db --file=database/11_schema_data_storage.sql
+# Create the D1 database and keep the returned database_id for backend/wrangler.toml
+npx wrangler d1 create codeseek
 
-# Local development
-pnpm dev
+# Initialize a fresh database in this exact order (01 → 19).
+# All scripts are idempotent, so partial reruns are safe.
+for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
+         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
+         08_data_tags 09_indexes_triggers 10_schema_system_errors \
+         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
+         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
+         16_email_notifications 17_schema_announcement_reads \
+         18_backfill_community_notifications 19_schema_community_post_views; do
+  npx wrangler d1 execute codeseek --remote --file=database/$f.sql
+done
+
+# Local development (two terminals; frontend runs on :3000 and proxies /api to :8787)
+npm run dev --workspace=backend
+npm run dev --workspace=frontend
 
 # Production deployment
-pnpm build && cd backend && npx wrangler deploy
+npm run build --workspace=frontend
+npm run deploy --workspace=backend
 ```
 
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
-[See Complete API Documentation](docs/api/index.md)
-[See v1.5.0 Changelog](docs/CHANGELOG.md)
+[See v1.6.0 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 
