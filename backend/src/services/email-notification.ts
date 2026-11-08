@@ -12,48 +12,23 @@ import { CONFIG, EMAIL } from '@/constants';
 import { generateId } from '@/utils';
 import type { Env } from '@/types';
 
-// ─── Resend 发送 ──────────────────────────────────────────────────────
+// ─── Resend 发送（复用统一发送器）────────────────────────────────────────
 
-export interface OutgoingEmail {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-  headers?: Record<string, string>;
-}
+import { sendResendEmail, buildEmailSendLogStatement } from './email-sender';
+export type { OutgoingEmail, SendResult } from './email-sender';
 
-export interface SendResult {
-  ok: boolean;
-  messageId?: string;
-  error?: string;
-}
-
-export async function sendEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
-  if (!env.RESEND_API_KEY) return { ok: false, error: '未配置 RESEND_API_KEY' };
-
-  const fromName = env.DEFAULT_FROM_NAME || 'Atlas';
-  const fromEmail = env.DEFAULT_FROM_EMAIL || 'noreply@mail.wort.uk';
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: [email.to],
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-        headers: email.headers,
-        tags: [{ name: 'source', value: 'notification-digest' }],
-      }),
-    });
-    const result = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
-    if (!response.ok) return { ok: false, error: result.message || `HTTP ${response.status}` };
-    return { ok: true, messageId: result.id };
-  } catch (err) {
-    return { ok: false, error: (err as Error).message };
-  }
+/**
+ * 通知摘要/测试邮件的发送入口：保留原有 source 标签。
+ * 实际 HTTP 与日志均走统一发送器。
+ */
+export async function sendEmail(
+  env: Env,
+  email: import('./email-sender').OutgoingEmail
+): Promise<import('./email-sender').SendResult> {
+  return sendResendEmail(env, {
+    ...email,
+    tags: email.tags ?? [{ name: 'source', value: 'notification-digest' }],
+  });
 }
 
 // ─── 退订令牌（HMAC，不含过期时间：退订链接需要长期有效）──────────────────
@@ -368,6 +343,16 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
         ...allowed.map((r) => db.prepare("UPDATE email_queue SET status = 'sent', sent_at = ? WHERE id = ?").bind(now, r.id)),
         db.prepare("INSERT INTO email_log (id, user_id, sent_at, status, item_count, message_id) VALUES (?, ?, ?, 'sent', ?, ?)")
           .bind(generateId(), userId, now, allowed.length, sent.messageId ?? null),
+        await buildEmailSendLogStatement(db, {
+          userId,
+          recipientEmail: user.email,
+          emailType: 'notification_digest',
+          status: 'sent',
+          messageId: sent.messageId ?? null,
+          templateName: 'notification_digest',
+          subject: content.subject ?? null,
+          createdAt: now,
+        }),
       ]);
       result.sent++;
     } else {
@@ -375,6 +360,15 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
       await db.batch([
         db.prepare("INSERT INTO email_log (id, user_id, sent_at, status, item_count, error) VALUES (?, ?, ?, 'failed', ?, ?)")
           .bind(generateId(), userId, now, allowed.length, (sent.error || '').slice(0, 300)),
+        await buildEmailSendLogStatement(db, {
+          userId,
+          recipientEmail: user.email,
+          emailType: 'notification_digest',
+          status: 'failed',
+          subject: content.subject ?? null,
+          error: (sent.error || '').slice(0, 300),
+          createdAt: now,
+        }),
         ...(giveUp
           ? allowed.map((r) => db.prepare("UPDATE email_queue SET status = 'failed' WHERE id = ?").bind(r.id))
           : []),

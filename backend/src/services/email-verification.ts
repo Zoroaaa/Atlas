@@ -1,9 +1,12 @@
 import { Env } from '@/types';
-import { generateId, hashToken } from '@/utils';
-import { CONFIG, DB_CONFIG_KEYS, VALIDATION_RULES } from '@/constants';
+import { generateId, hashToken, maskEmail } from '@/utils';
+import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from './config';
-
-const R = VALIDATION_RULES;
+import {
+  sendResendEmail,
+  logEmailSend as writeEmailSendLog,
+  assertVerificationEmailRateLimit,
+} from './email-sender';
 
 export type VerificationType =
   | 'registration'
@@ -71,23 +74,12 @@ export const emailVerificationUtils = {
     return CONFIG.VALIDATION.EMAIL_REGEX.test(email);
   },
 
-  isTempEmail(email: string): boolean {
-    const domain = email.split('@')[1]?.toLowerCase();
-    return CONFIG.TempEmail.DOMAINS.includes(domain as typeof CONFIG.TempEmail.DOMAINS[number]);
-  },
-
   normalizeEmail(email: string): string {
     return email.toLowerCase().trim();
   },
 
   maskEmail(email: string): string {
-    const [localPart, domain] = email.split('@');
-    if (!domain) return email;
-    if (localPart.length <= 2) {
-      return `${localPart[0]}***@${domain}`;
-    }
-    const masked = localPart[0] + '*'.repeat(localPart.length - 2) + localPart[localPart.length - 1];
-    return `${masked}@${domain}`;
+    return maskEmail(email);
   },
 
   isValidVerificationCode(code: string): boolean {
@@ -169,43 +161,6 @@ export class EmailVerificationService {
     };
   }
 
-  async getUserPendingVerifications(userId: string): Promise<PendingVerification[]> {
-    const now = Date.now();
-
-    const verifications = await this.env.DB.prepare(
-      `SELECT * FROM email_verifications 
-       WHERE user_id = ? AND status = 'pending' AND expires_at > ?
-       ORDER BY created_at DESC`
-    )
-      .bind(userId, now)
-      .all();
-
-    return verifications.results.map((v) => {
-      const verification = v as {
-        id: string;
-        email: string;
-        verification_type: string;
-        expires_at: number;
-        created_at: number;
-        attempt_count: number;
-        max_attempts: number;
-        metadata: string;
-      };
-      return {
-        id: verification.id,
-        email: emailVerificationUtils.maskEmail(verification.email),
-        verificationType: verification.verification_type,
-        expiresAt: verification.expires_at,
-        remainingTime: verification.expires_at - now,
-        canResend: verification.expires_at - now <= 60000,
-        attemptCount: verification.attempt_count,
-        maxAttempts: verification.max_attempts,
-        createdAt: verification.created_at,
-        metadata: JSON.parse(verification.metadata || '{}'),
-      };
-    });
-  }
-
   async getPendingEmailChangeRequest(userId: string): Promise<EmailChangeRequestStatus | null> {
     const now = Date.now();
 
@@ -250,18 +205,6 @@ export class EmailVerificationService {
     };
   }
 
-  async getVerificationStatus(
-    email: string,
-    verificationType: VerificationType,
-    userId: string | null = null
-  ): Promise<PendingVerification | EmailChangeRequestStatus | null> {
-    if (verificationType.includes('email_change') && userId) {
-      return await this.getPendingEmailChangeRequest(userId);
-    }
-
-    return await this.getPendingVerification(email, verificationType, userId);
-  }
-
   async canResendVerification(
     email: string,
     verificationType: VerificationType,
@@ -291,67 +234,12 @@ export class EmailVerificationService {
     };
   }
 
-  async getVerificationStateForFrontend(
-    email: string,
-    verificationType: VerificationType,
-    userId: string | null = null,
-    additionalData: Record<string, unknown> = {}
-  ): Promise<{
-    hasPendingVerification: boolean;
-    verificationStatus: PendingVerification | EmailChangeRequestStatus | null;
-    canResend: boolean;
-    resendReason: string;
-    waitTime?: number;
-  } & Record<string, unknown>> {
-    const status = await this.getVerificationStatus(email, verificationType, userId);
-    const canResend = await this.canResendVerification(email, verificationType, userId);
-
-    return {
-      hasPendingVerification: !!status,
-      verificationStatus: status,
-      canResend: canResend.canResend,
-      resendReason: canResend.reason,
-      waitTime: canResend.waitTime,
-      ...additionalData,
-    };
-  }
-
   generateVerificationCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   async checkEmailRateLimit(email: string, ipAddress: string): Promise<boolean> {
-    const configService = new ConfigService(this.env);
-    const now = Date.now();
-    const oneHourAgo = now - CONFIG.Stats.HOUR_IN_MS;
-    const oneDayAgo = now - CONFIG.Stats.DAY_IN_MS;
-
-    const hourlyCount = (await this.env.DB.prepare(
-      `SELECT COUNT(*) as count FROM email_send_logs 
-       WHERE (recipient_email = ? OR ip_address = ?) 
-       AND created_at > ? AND send_status = 'sent'`
-    )
-      .bind(email, ipAddress, oneHourAgo)
-      .first()) as { count: number };
-
-    const hourlyLimit = await configService.getInt(DB_CONFIG_KEYS.EMAIL_RATE_LIMIT_PER_HOUR, 5);
-    if (hourlyCount.count >= hourlyLimit) {
-      throw new Error(`发送频率过快，请1小时后再试（每小时限制${hourlyLimit}次）`);
-    }
-
-    const dailyCount = (await this.env.DB.prepare(
-      `SELECT COUNT(*) as count FROM email_send_logs 
-       WHERE (recipient_email = ? OR ip_address = ?) 
-       AND created_at > ? AND send_status = 'sent'`
-    )
-      .bind(email, ipAddress, oneDayAgo)
-      .first()) as { count: number };
-
-    const dailyLimit = await configService.getInt(DB_CONFIG_KEYS.EMAIL_RATE_LIMIT_PER_DAY, 20);
-    if (dailyCount.count >= dailyLimit) {
-      throw new Error(`今日发送次数已达上限，请明天再试（每日限制${dailyLimit}次）`);
-    }
-
+    await assertVerificationEmailRateLimit(this.env, email, ipAddress);
     return true;
   }
 
@@ -376,14 +264,15 @@ export class EmailVerificationService {
     const codeHash = await hashToken(verificationCode);
     const configService = new ConfigService(this.env);
     const expiryTime = Date.now() + await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
+    const maxAttempts = await configService.getInt(DB_CONFIG_KEYS.MAX_VERIFICATION_ATTEMPTS, 3);
 
     const verificationId = generateId();
 
     await this.env.DB.prepare(
       `INSERT INTO email_verifications (
         id, user_id, email, email_hash, verification_code, code_hash,
-        verification_type, status, expires_at, created_at, metadata
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        verification_type, status, max_attempts, expires_at, created_at, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         verificationId,
@@ -394,6 +283,7 @@ export class EmailVerificationService {
         codeHash,
         verificationType,
         'pending',
+        maxAttempts,
         expiryTime,
         Date.now(),
         JSON.stringify(metadata)
@@ -416,35 +306,39 @@ export class EmailVerificationService {
     const emailHash = await hashToken(email);
     const codeHash = await hashToken(inputCode);
     const now = Date.now();
+    const userFilter = userId ? ' AND user_id = ?' : ' AND user_id IS NULL';
+    const userBinds = userId ? [userId] : [];
 
-    const query = `
-      SELECT * FROM email_verifications 
-      WHERE email_hash = ? AND code_hash = ? AND verification_type = ?
-      AND status = 'pending' AND expires_at > ?
-      ${userId ? 'AND user_id = ?' : 'AND user_id IS NULL'}
-      ORDER BY created_at DESC LIMIT 1
-    `;
+    const latest = await this.env.DB.prepare(
+      `SELECT id, attempt_count, max_attempts, expires_at
+       FROM email_verifications
+       WHERE email_hash = ? AND verification_type = ? AND status = 'pending'${userFilter}
+       ORDER BY created_at DESC LIMIT 1`
+    )
+      .bind(emailHash, verificationType, ...userBinds)
+      .first<{ id: string; attempt_count: number; max_attempts: number; expires_at: number }>();
 
-    const params = userId ? [emailHash, codeHash, verificationType, now, userId] : [emailHash, codeHash, verificationType, now];
-
-    const verification = await this.env.DB.prepare(query)
-      .bind(...params)
-      .first();
-
-    if (!verification) {
-      await this.recordFailedAttempt(emailHash, inputCode, verificationType);
+    if (!latest) {
       throw new Error('验证码无效或已过期');
     }
 
-    const v = verification as {
-      id: string;
-      attempt_count: number;
-      max_attempts: number;
-      metadata: string;
-    };
+    if (latest.expires_at <= now) {
+      throw new Error('验证码无效或已过期');
+    }
 
-    if (v.attempt_count >= v.max_attempts) {
+    if ((latest.attempt_count || 0) >= (latest.max_attempts || 3)) {
       throw new Error('验证尝试次数已达上限，请重新申请验证码');
+    }
+
+    const matched = await this.env.DB.prepare(
+      'SELECT id, metadata FROM email_verifications WHERE id = ? AND code_hash = ?'
+    )
+      .bind(latest.id, codeHash)
+      .first<{ id: string; metadata: string }>();
+
+    if (!matched) {
+      await this.recordFailedAttempt(emailHash, inputCode, verificationType);
+      throw new Error('验证码无效或已过期');
     }
 
     await this.env.DB.prepare(
@@ -452,13 +346,13 @@ export class EmailVerificationService {
        SET status = 'used', used_at = ?
        WHERE id = ?`
     )
-      .bind(now, v.id)
+      .bind(now, matched.id)
       .run();
 
     return {
       success: true,
-      verificationId: v.id,
-      metadata: JSON.parse(v.metadata || '{}'),
+      verificationId: matched.id,
+      metadata: JSON.parse(matched.metadata || '{}'),
     };
   }
 
@@ -476,11 +370,114 @@ export class EmailVerificationService {
       .run();
   }
 
+  /**
+   * 校验用户侧验证码并累计失败次数（注册 / 改邮箱 / 当前邮箱验证共用）。
+   * 与 verifyCode 的区别：不依赖 metadata，超过 max_attempts 后把待用验证码置为 expired。
+   */
+  async verifyCodeWithAttempts(params: {
+    email: string;
+    code: string;
+    type: VerificationType;
+    userId?: string | null;
+  }): Promise<
+    | { success: true; verificationId: string }
+    | { success: false; reason: 'invalid' | 'expired' | 'max_attempts' }
+  > {
+    const now = Date.now();
+    const userFilter = params.userId ? ' AND user_id = ?' : '';
+    const userBinds: string[] = params.userId ? [params.userId] : [];
+
+    const latest = await this.env.DB.prepare(
+      `SELECT id, attempt_count, max_attempts, expires_at
+       FROM email_verifications
+       WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}
+       ORDER BY created_at DESC LIMIT 1`
+    )
+      .bind(params.email, params.type, ...userBinds)
+      .first<{ id: string; attempt_count: number; max_attempts: number; expires_at: number }>();
+
+    if (!latest) {
+      return { success: false, reason: 'invalid' };
+    }
+
+    const maxAttempts = latest.max_attempts || 3;
+
+    if (latest.expires_at <= now) {
+      await this.expirePendingVerifications(params.email, params.type, params.userId);
+      return { success: false, reason: 'expired' };
+    }
+
+    if ((latest.attempt_count || 0) >= maxAttempts) {
+      await this.expirePendingVerifications(params.email, params.type, params.userId);
+      return { success: false, reason: 'max_attempts' };
+    }
+
+    const matched = await this.env.DB.prepare(
+      `SELECT id FROM email_verifications
+       WHERE email_hash = ? AND code_hash = ? AND verification_type = ?
+       AND status = 'pending' AND expires_at > ?${userFilter}
+       ORDER BY created_at DESC LIMIT 1`
+    )
+      .bind(await hashToken(params.email), await hashToken(params.code), params.type, now, ...userBinds)
+      .first<{ id: string }>();
+
+    if (!matched) {
+      await this.env.DB.prepare(
+        `UPDATE email_verifications
+         SET attempt_count = attempt_count + 1, last_attempt_at = ?
+         WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
+      )
+        .bind(now, params.email, params.type, ...userBinds)
+        .run();
+
+      const after = await this.env.DB.prepare(
+        `SELECT MAX(attempt_count) AS max_count
+         FROM email_verifications
+         WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
+      )
+        .bind(params.email, params.type, ...userBinds)
+        .first<{ max_count: number | null }>();
+
+      if ((after?.max_count || 0) >= maxAttempts) {
+        await this.expirePendingVerifications(params.email, params.type, params.userId);
+        return { success: false, reason: 'max_attempts' };
+      }
+
+      return { success: false, reason: 'invalid' };
+    }
+
+    await this.env.DB.prepare(
+      `UPDATE email_verifications SET status = 'used', used_at = ? WHERE id = ?`
+    )
+      .bind(now, matched.id)
+      .run();
+
+    return { success: true, verificationId: matched.id };
+  }
+
+  /** 将待用验证码置为过期（超过尝试次数或已过期时） */
+  private async expirePendingVerifications(
+    email: string,
+    type: VerificationType,
+    userId?: string | null
+  ): Promise<void> {
+    const userFilter = userId ? ' AND user_id = ?' : '';
+    const binds: string[] = userId ? [userId] : [];
+    await this.env.DB.prepare(
+      `UPDATE email_verifications
+       SET status = 'expired'
+       WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
+    )
+      .bind(email, type, ...binds)
+      .run();
+  }
+
   async sendVerificationEmail(
     email: string,
     verificationCode: string,
     templateType: VerificationType,
-    templateVars: Record<string, unknown> = {}
+    templateVars: Record<string, unknown> = {},
+    logContext: { userId?: string | null; ipAddress?: string | null } = {}
   ): Promise<{ success: boolean; messageId?: string; message: string }> {
     if (!this.resendApiKey) {
       throw new Error('邮件服务未配置');
@@ -512,55 +509,51 @@ export class EmailVerificationService {
     const textContent = this.renderTemplate(template.text_template || '', vars);
 
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: `${defaultFromName} <${this.defaultFromEmail}>`,
-          to: [email],
-          subject: subject,
-          html: htmlContent,
-          text: textContent,
-          tags: [
-            {
-              name: 'type',
-              value: mappedTemplateType,
-            },
-            {
-              name: 'source',
-              value: 'email-verification',
-            },
-          ],
-        }),
+      const result = await sendResendEmail(this.env, {
+        to: email,
+        subject,
+        html: htmlContent,
+        text: textContent,
+        fromName: defaultFromName,
+        fromEmail: this.defaultFromEmail,
+        tags: [
+          { name: 'type', value: mappedTemplateType },
+          { name: 'source', value: 'email-verification' },
+        ],
       });
 
-      const result = (await response.json()) as { id?: string; message?: string };
-
-      if (!response.ok) {
-        throw new Error(result.message || '邮件发送失败');
+      if (!result.ok) {
+        throw new Error(result.error || '邮件发送失败');
       }
 
-      await this.logEmailSend(email, mappedTemplateType, 'sent', {
-        messageId: result.id,
+      await writeEmailSendLog(this.env.DB, {
+        recipientEmail: email,
+        emailType: mappedTemplateType,
+        status: 'sent',
+        messageId: result.messageId,
         subject,
         templateName: template.template_name,
+        userId: logContext.userId,
+        ipAddress: logContext.ipAddress,
       });
 
       return {
         success: true,
-        messageId: result.id,
+        messageId: result.messageId,
         message: '验证邮件已发送',
       };
     } catch (error) {
       console.error('发送邮件失败:', error);
 
-      await this.logEmailSend(email, mappedTemplateType, 'failed', {
+      await writeEmailSendLog(this.env.DB, {
+        recipientEmail: email,
+        emailType: mappedTemplateType,
+        status: 'failed',
         error: (error as Error).message,
         subject,
         templateName: template.template_name,
+        userId: logContext.userId,
+        ipAddress: logContext.ipAddress,
       });
 
       throw new Error('邮件发送失败: ' + (error as Error).message, { cause: error });
@@ -588,47 +581,6 @@ export class EmailVerificationService {
     return rendered;
   }
 
-  private async logEmailSend(
-    email: string,
-    emailType: string,
-    status: string,
-    details: Record<string, unknown> = {}
-  ): Promise<void> {
-    const logId = generateId();
-    await this.env.DB.prepare(
-      `INSERT INTO email_send_logs (
-        id, recipient_email, email_type, send_status, provider,
-        provider_message_id, template_name, subject, send_error,
-        created_at, sent_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        logId,
-        email,
-        emailType,
-        status,
-        'resend',
-        (details.messageId as string) || null,
-        (details.templateName as string) || null,
-        (details.subject as string) || null,
-        (details.error as string) || null,
-        Date.now(),
-        status === 'sent' ? Date.now() : null
-      )
-      .run();
-  }
-
-  async cleanupExpiredVerifications(): Promise<number> {
-    const deleted = await this.env.DB.prepare(
-      `DELETE FROM email_verifications 
-       WHERE expires_at < ? AND status = 'pending'`
-    )
-      .bind(Date.now())
-      .run();
-
-    return (deleted.meta as { changes?: number })?.changes || 0;
-  }
-
   async getUserActiveEmailChangeRequest(userId: string): Promise<{
     id: string;
     user_id: string;
@@ -653,79 +605,6 @@ export class EmailVerificationService {
       expires_at: number;
       created_at: number;
     } | null;
-  }
-
-  async createEmailChangeRequest(
-    userId: string,
-    oldEmail: string,
-    newEmail: string
-  ): Promise<{ id: string; expiresAt: number }> {
-    const requestId = generateId();
-    const newEmailHash = await hashToken(newEmail);
-    const expiryTime = Date.now() + R.EMAIL_CHANGE.REQUEST_EXPIRY_MS;
-
-    await this.env.DB.prepare(
-      `INSERT INTO email_change_requests (
-        id, user_id, old_email, new_email, new_email_hash,
-        status, expires_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(requestId, userId, oldEmail, newEmail, newEmailHash, 'pending', expiryTime, Date.now())
-      .run();
-
-    return {
-      id: requestId,
-      expiresAt: expiryTime,
-    };
-  }
-
-  async completeEmailChange(
-    requestId: string,
-    userId: string
-  ): Promise<{ success: boolean; newEmail: string; message: string }> {
-    const request = await this.env.DB.prepare(
-      `SELECT * FROM email_change_requests 
-       WHERE id = ? AND user_id = ? AND status = 'pending'
-       AND expires_at > ?`
-    )
-      .bind(requestId, userId, Date.now())
-      .first();
-
-    if (!request) {
-      throw new Error('邮箱更改请求不存在或已过期');
-    }
-
-    const r = request as {
-      new_email: string;
-      new_email_verified: number;
-    };
-
-    if (!r.new_email_verified) {
-      throw new Error('新邮箱尚未验证');
-    }
-
-    try {
-      await this.env.DB.prepare(`UPDATE users SET email = ?, updated_at = ? WHERE id = ?`)
-        .bind(r.new_email, Date.now(), userId)
-        .run();
-
-      await this.env.DB.prepare(
-        `UPDATE email_change_requests 
-         SET status = 'completed', completed_at = ?
-         WHERE id = ?`
-      )
-        .bind(Date.now(), requestId)
-        .run();
-
-      return {
-        success: true,
-        newEmail: r.new_email,
-        message: '邮箱更改成功',
-      };
-    } catch (error) {
-      console.error('完成邮箱更改失败:', error);
-      throw new Error('邮箱更改失败', { cause: error });
-    }
   }
 
   async cancelEmailChangeRequest(requestId: string, userId: string): Promise<{ success: boolean; message: string }> {
@@ -766,61 +645,6 @@ export class EmailVerificationService {
       .run();
 
     return (result.meta as { changes?: number })?.changes || 0;
-  }
-
-  async markEmailVerificationCompleted(requestId: string, verificationType: string): Promise<void> {
-    const updateField = verificationType === 'email_change_old' ? 'old_email_verified = 1' : 'new_email_verified = 1';
-
-    await this.env.DB.prepare(
-      `UPDATE email_change_requests 
-       SET ${updateField}, updated_at = ?
-       WHERE id = ?`
-    )
-      .bind(Date.now(), requestId)
-      .run();
-  }
-
-  async getVerificationStats(timeRange = 'day'): Promise<{
-    verifications: Array<{ verification_type: string; status: string; count: number }>;
-    emails: Array<{ send_status: string; count: number }>;
-    period: string;
-  }> {
-    const timeMap: Record<string, number> = {
-      day: Date.now() - CONFIG.Stats.DAY_IN_MS,
-      week: Date.now() - CONFIG.Stats.WEEK_IN_MS,
-      month: Date.now() - 30 * CONFIG.Stats.DAY_IN_MS,
-    };
-
-    const since = timeMap[timeRange] || timeMap.day;
-
-    const stats = await this.env.DB.prepare(
-      `SELECT 
-        verification_type,
-        status,
-        COUNT(*) as count
-      FROM email_verifications 
-      WHERE created_at > ?
-      GROUP BY verification_type, status`
-    )
-      .bind(since)
-      .all();
-
-    const emailStats = await this.env.DB.prepare(
-      `SELECT 
-        send_status,
-        COUNT(*) as count
-      FROM email_send_logs 
-      WHERE created_at > ?
-      GROUP BY send_status`
-    )
-      .bind(since)
-      .all();
-
-    return {
-      verifications: stats.results as Array<{ verification_type: string; status: string; count: number }>,
-      emails: emailStats.results as Array<{ send_status: string; count: number }>,
-      period: timeRange,
-    };
   }
 
   private getTemplateType(verificationType: VerificationType): string {

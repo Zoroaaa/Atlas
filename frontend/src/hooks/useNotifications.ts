@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { notificationApi, authApi, ApiError } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import i18next from 'i18next';
 import { useAuthStore } from '@/stores';
 
@@ -79,7 +79,7 @@ export function useRemoveNotifications() {
 
 function errorCode(err: unknown): string | undefined {
   if (err instanceof ApiError) {
-    return (err.data as { error?: { code?: string } } | undefined)?.error?.code;
+    return err.code || (err.data as { error?: { code?: string } } | undefined)?.error?.code;
   }
   return undefined;
 }

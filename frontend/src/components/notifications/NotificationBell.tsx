@@ -37,11 +37,14 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open]);
 
-  const handleItemClick = (item: NotificationItem, code?: string) => {
+  const handleItemClick = (item: NotificationItem, code?: string, postId?: string) => {
     if (!item.isRead) markRead.mutate([item.id]);
     if (code) {
       setOpen(false);
       navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+    } else if (postId) {
+      setOpen(false);
+      navigate(`/community/post/${postId}`);
     } else if (item.source === 'announcement' || item.type.startsWith('community.')) {
       setOpen(false);
       navigate('/dashboard/notifications');
@@ -95,7 +98,7 @@ export const NotificationBell: React.FC = () => {
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => handleItemClick(item, view.code)}
+                      onClick={() => handleItemClick(item, view.code, view.postId)}
                       className="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50"
                     >
                       <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', item.isRead ? 'bg-transparent' : 'bg-rose-500')} />

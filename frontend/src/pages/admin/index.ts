@@ -3,6 +3,7 @@ export { AdminPanelOverview } from './AdminPanelOverview';
 export { UsersTab } from './UsersTab';
 export { SessionsTab } from './SessionsTab';
 export { ActionsTab } from './ActionsTab';
+export { EmailLogsTab } from './EmailLogsTab';
 export { AnalyticsTab } from './AnalyticsTab';
 export { TrendsTab } from './TrendsTab';
 export { ActivityRankingTab } from './ActivityRankingTab';

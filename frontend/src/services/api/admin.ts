@@ -648,7 +648,94 @@ export const adminApi = {
     const query = byFingerprint ? '?byFingerprint=true' : '';
     await apiClient.delete(`/admin/errors/${errorId}${query}`);
   },
+
+  getEmailLogs: async (params: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    status?: string;
+  } = {}): Promise<PaginatedResponse<EmailLogRow>> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.type) queryParams.set('type', params.type);
+    if (params.status) queryParams.set('status', params.status);
+
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { logs: EmailLogRow[]; total: number; page: number; pageSize: number };
+    }>(`/config/email/logs?${queryParams.toString()}`);
+
+    return {
+      items: response.data.logs,
+      total: response.data.total,
+      page: response.data.page,
+      pageSize: response.data.pageSize,
+      totalPages: Math.ceil(response.data.total / response.data.pageSize),
+    };
+  },
+
+  getEmailQueue: async (params: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    status?: string;
+  } = {}): Promise<PaginatedResponse<EmailQueueRow>> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page.toString());
+    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.type) queryParams.set('type', params.type);
+    if (params.status) queryParams.set('status', params.status);
+
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { items: EmailQueueRow[]; total: number; page: number; pageSize: number };
+    }>(`/config/email/queue?${queryParams.toString()}`);
+
+    return {
+      items: response.data.items,
+      total: response.data.total,
+      page: response.data.page,
+      pageSize: response.data.pageSize,
+      totalPages: Math.ceil(response.data.total / response.data.pageSize),
+    };
+  },
 };
+
+export interface EmailLogRow {
+  id: string;
+  user_id: string | null;
+  recipient_email: string;
+  email_type: string;
+  send_status: 'sent' | 'failed';
+  provider: string;
+  provider_message_id: string | null;
+  template_name: string | null;
+  subject: string | null;
+  send_error: string | null;
+  ip_address: string | null;
+  rate_limit_key: string | null;
+  created_at: number;
+  sent_at: number | null;
+  delivered_at: number | null;
+  username: string | null;
+}
+
+export interface EmailQueueRow {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  payload: string;
+  dedup_key: string;
+  status: 'pending' | 'sent' | 'skipped' | 'failed';
+  created_at: number;
+  sent_at: number | null;
+  username: string | null;
+  user_email: string | null;
+  last_error: string | null;
+}
 
 // ============================================================
 // 数据存储管理

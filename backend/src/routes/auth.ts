@@ -8,10 +8,13 @@ import { EmailVerificationService, emailVerificationUtils, ConfigService } from 
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
-import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserPassword, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
+import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
 import { findVerificationByCode, findLatestVerificationByEmailType, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
 
 const R = VALIDATION_RULES;
+
+/** 验证码剩余有效秒数，供前端倒计时使用 */
+const expiresInSeconds = (expiresAt: number) => Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
@@ -43,18 +46,20 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
   try {
     const clientIP = getClientIP(c);
     const userAgent = c.req.header('User-Agent') || '';
+    // 邮箱登录统一小写，避免大小写不同导致查不到用户 / 锁定计数被绕过
+    const loginIdentifier = identifier.includes('@') ? identifier.trim().toLowerCase() : identifier.trim();
 
-    const lockoutCheck = await checkLockout(c.env.DB, 'login', identifier);
+    const lockoutCheck = await checkLockout(c.env.DB, 'login', loginIdentifier);
     if (lockoutCheck.isLocked) {
       const remainingTime = lockoutCheck.lockedUntil ? Math.ceil((lockoutCheck.lockedUntil - Date.now()) / 60000) : 0;
       return c.json(error('LOCKED', `账户已锁定，请${remainingTime}分钟后再试`), 423);
     }
 
-    const queryField: 'username' | 'email' = identifier.includes('@') ? 'email' : 'username';
-    const user = await findUserForLogin(c.env.DB, queryField, identifier);
+    const queryField: 'username' | 'email' = loginIdentifier.includes('@') ? 'email' : 'username';
+    const user = await findUserForLogin(c.env.DB, queryField, loginIdentifier);
 
     if (!user) {
-      const lockoutResult = await recordFailedAttempt(c.env, 'login', identifier, undefined, undefined, clientIP, userAgent);
+      const lockoutResult = await recordFailedAttempt(c.env, 'login', loginIdentifier, undefined, undefined, clientIP, userAgent);
       return c.json(error('AUTH_ERROR', `用户名/邮箱或密码错误${lockoutResult.remainingAttempts ? `，剩余${lockoutResult.remainingAttempts}次尝试机会` : ''}`), 401);
     }
 
@@ -79,7 +84,7 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
     if (!isValid) {
       await logUserAction(c.env, user.id, 'login_failed', { reason: '密码错误', ip: clientIP }, c);
 
-      const lockoutResult = await recordFailedAttempt(c.env, 'login', identifier, undefined, undefined, clientIP, userAgent);
+      const lockoutResult = await recordFailedAttempt(c.env, 'login', loginIdentifier, undefined, undefined, clientIP, userAgent);
 
       c.executionCtx.waitUntil(
         recordSecurityEvent(c.env.DB, {
@@ -93,13 +98,14 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
       );
 
       if (lockoutResult.isLocked) {
-        return c.json(error('LOCKED', '登录失败次数过多，账户已锁定1小时'), 423);
+        const remainingMinutes = Math.max(1, Math.ceil(((lockoutResult.lockedUntil ?? Date.now()) - Date.now()) / 60000));
+        return c.json(error('LOCKED', `登录失败次数过多，账户已锁定，请 ${remainingMinutes} 分钟后重试`), 423);
       }
 
       return c.json(error('AUTH_ERROR', `用户名/邮箱或密码错误${lockoutResult.remainingAttempts ? `，剩余${lockoutResult.remainingAttempts}次尝试机会` : ''}`), 401);
     }
 
-    await clearLockout(c.env.DB, 'login', identifier);
+    await clearLockout(c.env.DB, 'login', loginIdentifier);
 
     const now = Date.now();
     await recordLogin(c.env.DB, user.id, now);
@@ -215,13 +221,20 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     }
 
     // 注册必须完成邮箱验证：验证码为必填项（schema 层强制），此处校验其有效性
-    const verification = await findVerificationByCode(c.env.DB, { email: normalizedEmail, code: verificationCode, type: 'registration', now: Date.now() });
+    const emailService = new EmailVerificationService(c.env);
+    const codeResult = await emailService.verifyCodeWithAttempts({
+      email: normalizedEmail,
+      code: verificationCode,
+      type: 'registration',
+    });
 
-    if (!verification) {
-      return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
+    if (!codeResult.success) {
+      return c.json(error('VALIDATION_ERROR',
+        codeResult.reason === 'max_attempts' ? '验证尝试次数已达上限，请重新获取验证码' : '验证码无效或已过期'
+      ), 400);
     }
 
-    await deleteVerificationById(c.env.DB, verification.id);
+    await deleteVerificationById(c.env.DB, codeResult.verificationId);
 
     const emailVerified = 1;
 
@@ -356,7 +369,7 @@ authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), a
 
   const configService = new ConfigService(c.env);
   
-  const verificationCodeExpiry = await configService.getInt(DB_CONFIG_KEYS.RESET_PASSWORD_CODE_EXPIRY, 30 * 60 * 1000);
+  const verificationCodeExpiry = await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
   
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
   const maskedEmail = emailVerificationUtils.maskEmail(normalizedEmail);
@@ -399,7 +412,8 @@ authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), a
         normalizedEmail,
         verification.code,
         'forgot_password',
-        { username: user.username }
+        { username: user.username },
+        { userId: user.id, ipAddress }
       );
 
       await updatePasswordResetLog(c.env.DB, resetLogId, {
@@ -508,7 +522,8 @@ authRoutes.put('/change-password', authMiddleware, validateBody(schemas.auth.cha
     const passwordHash = await hashPassword(newPassword);
     const now = Date.now();
 
-    await updateUserPassword(c.env.DB, user.id, passwordHash, now);
+    // 改密后撤销全部会话，避免旧 token 继续有效
+    await resetPasswordAndRevokeSessions(c.env.DB, user.id, passwordHash, now);
 
     await logUserAction(c.env, user.id, 'change_password', {}, c);
 
@@ -625,7 +640,8 @@ authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistr
         normalizedEmail,
         verification.code,
         'registration',
-        { username: '新用户' }
+        { username: '新用户' },
+        { ipAddress }
       );
     } catch (sendError) {
       console.error('发送注册验证码失败:', sendError);
@@ -634,7 +650,7 @@ authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistr
 
     return c.json(success({ 
       maskedEmail: emailVerificationUtils.maskEmail(normalizedEmail),
-      expiresIn: 900
+      expiresIn: expiresInSeconds(verification.expiresAt)
     }, '验证码已发送'));
   } catch (err) {
     console.error('Send registration code error:', err);
@@ -678,7 +694,8 @@ authRoutes.post('/send-current-email-code', async (c) => {
         user.email,
         verification.code,
         'email_verify',
-        { username: username || '用户' }
+        { username: username || '用户' },
+        { userId: payload.userId, ipAddress }
       );
     } catch (sendError) {
       console.error('发送邮箱验证验证码失败:', sendError);
@@ -687,7 +704,7 @@ authRoutes.post('/send-current-email-code', async (c) => {
 
     return c.json(success({
       maskedEmail: emailVerificationUtils.maskEmail(user.email),
-      expiresIn: 900,
+      expiresIn: expiresInSeconds(verification.expiresAt),
     }, '验证码已发送'));
   } catch (err) {
     console.error('Send current email code error:', err);
@@ -709,19 +726,21 @@ authRoutes.post('/verify-current-email', validateBody(schemas.auth.verifyCurrent
       return c.json(success({ emailVerified: true }, '邮箱已验证'));
     }
 
-    const verification = await findVerificationByCode(c.env.DB, {
+    const emailService = new EmailVerificationService(c.env);
+    const codeResult = await emailService.verifyCodeWithAttempts({
       email: user.email,
       code,
       type: 'email_verify',
-      now: Date.now(),
       userId: payload.userId,
     });
 
-    if (!verification) {
-      return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
+    if (!codeResult.success) {
+      return c.json(error('VALIDATION_ERROR',
+        codeResult.reason === 'max_attempts' ? '验证尝试次数已达上限，请重新获取验证码' : '验证码无效或已过期'
+      ), 400);
     }
 
-    await deleteVerificationById(c.env.DB, verification.id);
+    await deleteVerificationById(c.env.DB, codeResult.verificationId);
     await markUserEmailVerified(c.env.DB, payload.userId, Date.now());
     await logUserAction(c.env, payload.userId, 'email_verify', { email: user.email }, c);
 
@@ -843,7 +862,8 @@ authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailCh
           username: username || '用户',
           oldEmail: changeRequest.old_email,
           newEmail: changeRequest.new_email
-        }
+        },
+        { userId: payload.userId, ipAddress }
       );
     } catch (sendError) {
       console.error('发送邮箱更改验证码失败:', sendError);
@@ -853,7 +873,7 @@ authRoutes.post('/send-email-change-code', validateBody(schemas.auth.sendEmailCh
     return c.json(success({ 
       emailType,
       maskedEmail: emailVerificationUtils.maskEmail(targetEmail),
-      expiresIn: 900
+      expiresIn: expiresInSeconds(verification.expiresAt)
     }, '验证码已发送'));
   } catch (err) {
     console.error('Send email change code error:', err);
@@ -877,20 +897,28 @@ authRoutes.post('/verify-email-change-code', validateBody(schemas.auth.verifyEma
     const targetEmail = emailType === 'old' ? changeRequest.old_email : changeRequest.new_email;
     const verificationType = emailType === 'old' ? 'email_change_old' : 'email_change_new';
 
-    const verification = await findVerificationByCode(c.env.DB, { email: targetEmail, code, type: verificationType, now: Date.now() });
+    const emailService = new EmailVerificationService(c.env);
+    const codeResult = await emailService.verifyCodeWithAttempts({
+      email: targetEmail,
+      code,
+      type: verificationType,
+      userId: payload.userId,
+    });
 
-    if (!verification) {
-      return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
+    if (!codeResult.success) {
+      return c.json(error('VALIDATION_ERROR',
+        codeResult.reason === 'max_attempts' ? '验证尝试次数已达上限，请重新获取验证码' : '验证码无效或已过期'
+      ), 400);
     }
 
     const updateField: 'old_email_verified' | 'new_email_verified' = emailType === 'old' ? 'old_email_verified' : 'new_email_verified';
     await markChangeRequestVerified(c.env.DB, requestId, updateField, Date.now());
 
-    await deleteVerificationById(c.env.DB, verification.id);
+    await deleteVerificationById(c.env.DB, codeResult.verificationId);
 
     const updatedRequest = await findChangeRequestById(c.env.DB, requestId);
 
-    if (updatedRequest && updatedRequest.new_email_verified === 1) {
+    if (updatedRequest && updatedRequest.old_email_verified === 1 && updatedRequest.new_email_verified === 1) {
       await updateUserEmail(c.env.DB, payload.userId, changeRequest.new_email, Date.now());
 
       await completeChangeRequest(c.env.DB, requestId, Date.now());
@@ -969,7 +997,8 @@ authRoutes.post('/send-account-delete-code', async (c) => {
         user.email,
         verification.code,
         'account_delete',
-        { username: user.username }
+        { username: user.username },
+        { userId: user.id, ipAddress }
       );
     } catch (sendError) {
       console.error('发送账户删除验证码失败:', sendError);
@@ -978,7 +1007,7 @@ authRoutes.post('/send-account-delete-code', async (c) => {
 
     return c.json(success({ 
       maskedEmail: emailVerificationUtils.maskEmail(user.email),
-      expiresIn: 900 
+      expiresIn: expiresInSeconds(verification.expiresAt) 
     }, '验证码已发送'));
   } catch (err) {
     console.error('Send account delete code error:', err);
@@ -998,8 +1027,26 @@ authRoutes.get('/verification-status', async (c) => {
     return c.json(error('VALIDATION_ERROR', '邮箱格式不正确'), 400);
   }
 
+  const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
+
+  // 仅注册流程允许匿名查询；其他类型需登录且只能查自己的邮箱，避免任意邮箱枚举验证码状态
+  if (verificationType !== 'registration') {
+    const authHeader = c.req.header('Authorization');
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const payload = token ? await verifyToken(token, c.env.JWT_SECRET) : null;
+    if (!payload) {
+      return c.json(error('AUTH_ERROR', '未授权'), 401);
+    }
+
+    const owner = await findUserById(c.env.DB, payload.userId);
+    const pendingChange = owner ? await findActiveChangeRequestByUser(c.env.DB, { userId: owner.id, now: Date.now() }) : null;
+    if (owner?.email !== normalizedEmail && pendingChange?.new_email !== normalizedEmail) {
+      return c.json(error('FORBIDDEN', '无权查询该邮箱'), 403);
+    }
+  }
+
   try {
-    const verification = await findLatestVerificationByEmailType(c.env.DB, { email, type: verificationType, now: Date.now() });
+    const verification = await findLatestVerificationByEmailType(c.env.DB, { email: normalizedEmail, type: verificationType, now: Date.now() });
 
     if (!verification) {
       return c.json(success({
@@ -1094,12 +1141,25 @@ authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCo
 
     const username = (userId ? await findUsernameById(c.env.DB, userId) : null) ?? '用户';
 
+    // email_change 模板需要 oldEmail/newEmail，缺失会导致邮件正文空白
+    const templateVars: Record<string, unknown> = { username };
+    if (verificationType === 'email_change_old' || verificationType === 'email_change_new') {
+      const activeRequest = userId
+        ? await findActiveChangeRequestByUser(c.env.DB, { userId, now: Date.now() })
+        : null;
+      templateVars.oldEmail = activeRequest?.old_email
+        ?? (verificationType === 'email_change_old' ? normalizedEmail : '');
+      templateVars.newEmail = activeRequest?.new_email
+        ?? (verificationType === 'email_change_new' ? normalizedEmail : '');
+    }
+
     try {
       await emailService.sendVerificationEmail(
         normalizedEmail,
         verification.code,
         verificationType as 'registration' | 'password_reset' | 'forgot_password' | 'email_change_old' | 'email_change_new' | 'account_delete',
-        { username }
+        templateVars,
+        { userId, ipAddress }
       );
     } catch (sendError) {
       console.error('发送验证码失败:', sendError);
@@ -1108,7 +1168,7 @@ authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCo
 
     return c.json(success({
       maskedEmail: emailVerificationUtils.maskEmail(normalizedEmail),
-      expiresIn: 900
+      expiresIn: expiresInSeconds(verification.expiresAt)
     }, '验证码已发送'));
   } catch (err) {
     console.error('Smart send code error:', err);

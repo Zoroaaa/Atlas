@@ -29,18 +29,6 @@ export const CONFIG = {
   // 固定枚举值 — 代码逻辑依赖，不可热改
   // ==================================================================
 
-  ALLOWED_ACTIONS: [
-    'search', 'login', 'logout', 'register', 'visit_site', 'copy_url',
-    'favorite_add', 'favorite_remove', 'settings_update', 'export_data',
-    'sync_data', 'page_view', 'session_start', 'session_end',
-    'custom_source_add', 'custom_source_edit', 'custom_source_delete',
-    'tag_created', 'tag_updated', 'tag_deleted',
-    'major_category_create', 'major_category_update', 'major_category_delete',
-    'source_category_create', 'source_category_update', 'source_category_delete',
-    'search_source_create', 'search_source_update', 'search_source_delete',
-    'user_source_config_update', 'search_sources_export',
-  ] as const,
-
   // ==================================================================
   // 正则表达式 — 格式规则，改了需改验证逻辑
   // ==================================================================
@@ -90,25 +78,6 @@ export const CONFIG = {
     ],
   },
 
-  // ==================================================================
-  // 纯计算用时间常量 — 不是业务参数，是代码里的数学常量
-  // ==================================================================
-
-  Time: {
-    SECOND: 1000,
-    MINUTE: 60 * 1000,
-    HOUR: 60 * 60 * 1000,
-    HOUR_IN_MS: 60 * 60 * 1000,
-    DAY: 24 * 60 * 60 * 1000,
-    DAY_IN_MS: 24 * 60 * 60 * 1000,
-    WEEK: 7 * 24 * 60 * 60 * 1000,
-    WEEK_IN_MS: 7 * 24 * 60 * 60 * 1000,
-    TWO_WEEKS: 14 * 24 * 60 * 60 * 1000,
-    TWO_WEEKS_IN_MS: 14 * 24 * 60 * 60 * 1000,
-    MONTH: 30 * 24 * 60 * 60 * 1000,
-    MONTH_IN_MS: 30 * 24 * 60 * 60 * 1000,
-  },
-
   Stats: {
     HOUR_IN_MS: 60 * 60 * 1000,
     DAY_IN_MS: 24 * 60 * 60 * 1000,
@@ -141,7 +110,7 @@ export const CONFIG = {
     DEFAULT_ROLE_NAME: 'user',
     DEFAULT_ROLE_DISPLAY_NAME: '普通用户',
     DEFAULT_ROLE_PRIORITY: 10,
-    DEFAULT_PERMISSIONS: ['search', 'favorite', 'history', 'sync'] as const,
+    DEFAULT_PERMISSIONS: ['search', 'favorite', 'history', 'sync', 'community:share', 'community:review'] as const,
   },
 };
 
@@ -263,6 +232,10 @@ export const EMAIL = {
 
 export const NOTIFICATION = {
   MAX_PAGE_SIZE: 50,
+  /** 用户事后开启公告邮件时，允许补发的近期公告窗口（天） */
+  ANNOUNCEMENT_BACKFILL_DAYS: 7,
+  /** 单次补发的公告数量上限，避免一次性轰炸 */
+  ANNOUNCEMENT_BACKFILL_LIMIT: 20,
   /** 公告在收件箱里的伪 ID 前缀（读时合并，不落 notifications 表） */
   ANNOUNCEMENT_ID_PREFIX: 'announcement:',
   TYPES: [

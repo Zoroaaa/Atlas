@@ -1,60 +1,54 @@
-import { TOAST_CONFIG } from '@/constants';
+/** 通知中心（站内信 / 公告）领域类型 */
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-export type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
-
-export interface ToastOptions {
-  title: string;
-  message?: string;
-  type?: ToastType;
-  duration?: number;
-  showProgress?: boolean;
-  showCloseButton?: boolean;
-  onClick?: () => void;
-  onClose?: () => void;
+export interface NotificationWork {
+  code: string;
+  title?: string;
+  cover?: string;
+  date?: string;
 }
 
-export interface Toast {
+export interface NotificationItem {
   id: string;
-  type: ToastType;
+  type: string;
   title: string;
-  message?: string;
-  duration: number;
-  showProgress: boolean;
-  showCloseButton: boolean;
-  onClick?: () => void;
-  onClose?: () => void;
-  isExiting: boolean;
+  body: string;
+  payload: {
+    key?: string;
+    name?: string;
+    count?: number;
+    works?: NotificationWork[];
+    /** 社区互动事件 */
+    postId?: string;
+    postTitle?: string;
+    actorName?: string;
+    comment?: string;
+    /** 站点公告（读时合并） */
+    announcementId?: string;
+    level?: 'info' | 'success' | 'warning' | 'error';
+  };
+  /** 收件箱来源：公告为读时合并，不落 notifications 表 */
+  source?: 'notification' | 'announcement';
   createdAt: number;
+  isRead: boolean;
 }
 
-export interface ToastConfig {
-  maxToasts: number;
-  defaultDuration: number;
-  defaultPosition: ToastPosition;
-  defaultShowProgress: boolean;
-  defaultShowCloseButton: boolean;
+export interface NotificationInboxData {
+  items: NotificationItem[];
+  total: number;
+  unread: number;
+  page: number;
+  pageSize: number;
 }
 
-export const DEFAULT_TOAST_CONFIG: ToastConfig = {
-  maxToasts: TOAST_CONFIG.MAX_TOASTS,
-  defaultDuration: TOAST_CONFIG.DEFAULT_DURATION,
-  defaultPosition: 'top-right',
-  defaultShowProgress: true,
-  defaultShowCloseButton: true,
-};
+export interface NotificationPreferenceItem {
+  type: string;
+  inApp: boolean;
+  email: boolean;
+}
 
-export const TOAST_ICONS: Record<ToastType, string> = {
-  success: 'CheckCircle',
-  error: 'AlertCircle',
-  warning: 'AlertTriangle',
-  info: 'Info',
-};
-
-export const TOAST_TITLES: Record<ToastType, string> = {
-  success: '成功',
-  error: '错误',
-  warning: '警告',
-  info: '提示',
-};
+export interface NotificationPreferencesData {
+  preferences: NotificationPreferenceItem[];
+  /** 邮箱已脱敏；未验证时不能开启邮件通知 */
+  email: { address: string; verified: boolean };
+  settings: { emailHideDetails: boolean };
+}

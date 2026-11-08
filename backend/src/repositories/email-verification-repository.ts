@@ -39,7 +39,7 @@ export async function findLatestVerificationByEmailType(
   return db
     .prepare(
       `SELECT * FROM email_verifications
-       WHERE email = ? AND verification_type = ? AND expires_at > ?
+       WHERE email = ? AND verification_type = ? AND status = 'pending' AND expires_at > ?
        ORDER BY created_at DESC LIMIT 1`
     )
     .bind(opts.email, opts.type, opts.now)
@@ -55,7 +55,7 @@ export async function listPendingVerificationsByUser(
   const rows = await db
     .prepare(
       `SELECT * FROM email_verifications
-       WHERE user_id = ? AND expires_at > ?
+       WHERE user_id = ? AND status = 'pending' AND expires_at > ?
        ORDER BY created_at DESC`
     )
     .bind(userId, now)

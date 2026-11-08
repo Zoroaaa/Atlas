@@ -4,7 +4,8 @@
  * 所有功能只调用 emitNotification：写站内收件箱、入邮件队列，由用户的偏好决定。
  * 站内 (user_id, dedup_key) 唯一、邮件 (user_id, dedup_key) 唯一，重复调用是安全的（幂等）。
  */
-import { generateId } from '@/utils';
+import { generateId, maskEmail } from '@/utils';
+
 import { NOTIFICATION } from '@/constants';
 
 export type NotificationType = typeof NOTIFICATION.TYPES[number];
@@ -34,12 +35,7 @@ export function isNotificationType(value: unknown): value is NotificationType {
   return typeof value === 'string' && (NOTIFICATION.TYPES as readonly string[]).includes(value);
 }
 
-export function maskEmail(email: string): string {
-  const [name, domain] = email.split('@');
-  if (!domain) return email;
-  const head = name.slice(0, 1);
-  return `${head}***@${domain}`;
-}
+export { maskEmail };
 
 export interface EmitResult {
   inApp: boolean;
@@ -182,6 +178,72 @@ export async function enqueueAnnouncementEmail(
     await db.batch(statements.slice(i, i + 50));
   }
   return statements.length;
+}
+
+/** 用户事后开启公告邮件时，补发近期仍在生效的公告（dedup 保证不重复轰炸） */
+export async function backfillRecentAnnouncementEmails(
+  db: D1Database,
+  userId: string,
+  now = Date.now()
+): Promise<number> {
+  const pref = await db
+    .prepare(
+      `SELECT u.email_verified, p.email
+       FROM users u
+       LEFT JOIN notification_preferences p
+         ON p.user_id = u.id AND p.type = 'site.announcement'
+       WHERE u.id = ?`
+    )
+    .bind(userId)
+    .first<{ email_verified: number; email: number | null }>();
+
+  if (!pref || pref.email_verified !== 1 || pref.email !== 1) return 0;
+
+  const cutoff = now - NOTIFICATION.ANNOUNCEMENT_BACKFILL_DAYS * 24 * 60 * 60 * 1000;
+  const announcements = await db
+    .prepare(
+      `SELECT id, title, content, type, created_at
+       FROM site_announcements
+       WHERE is_active = 1
+         AND (start_time IS NULL OR start_time <= ?)
+         AND (end_time IS NULL OR end_time >= ?)
+         AND created_at >= ?
+       ORDER BY created_at DESC
+       LIMIT ?`
+    )
+    .bind(now, now, cutoff, NOTIFICATION.ANNOUNCEMENT_BACKFILL_LIMIT)
+    .all<{ id: string; title: string; content: string; type: string; created_at: number }>();
+
+  const rows = announcements.results || [];
+  let queued = 0;
+
+  for (const item of rows) {
+    const r = await db
+      .prepare(
+        `INSERT INTO email_queue (id, user_id, type, title, body, payload, dedup_key, status, created_at)
+         VALUES (?, ?, 'site.announcement', ?, ?, ?, ?, 'pending', ?)
+         ON CONFLICT(user_id, dedup_key) DO UPDATE SET
+           status = 'pending',
+           title = excluded.title,
+           body = excluded.body,
+           payload = excluded.payload,
+           created_at = excluded.created_at
+         WHERE email_queue.status IN ('skipped', 'failed')`
+      )
+      .bind(
+        generateId(),
+        userId,
+        item.title,
+        item.content,
+        JSON.stringify({ announcementId: item.id, level: item.type }),
+        `announcement:${item.id}`,
+        item.created_at
+      )
+      .run();
+    queued += r.meta?.changes ?? 0;
+  }
+
+  return queued;
 }
 
 /** 每种类型的偏好（未设置的用默认：站内开、邮件关） */

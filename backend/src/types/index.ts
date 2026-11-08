@@ -257,19 +257,6 @@ export interface UserSearchSourceConfig {
   updated_at: number;
 }
 
-export interface CommunitySourceTag {
-  id: string;
-  tag_name: string;
-  tag_description: string | null;
-  tag_color: string;
-  usage_count: number;
-  is_official: number;
-  tag_active: number;
-  created_by: string;
-  created_at: number;
-  updated_at: number;
-}
-
 export interface CommunityReport {
   id: string;
   post_id: string;
@@ -327,26 +314,11 @@ export interface EmailChangeRequest {
   updated_at: number | null;
 }
 
-export interface PasswordResetLog {
-  id: string;
-  user_id: string | null;
-  email: string;
-  request_type: string;
-  request_status: string;
-  ip_address: string | null;
-  user_agent: string | null;
-  verification_code_sent: number;
-  verification_attempts: number;
-  created_at: number;
-  code_sent_at: number | null;
-  verified_at: number | null;
-  completed_at: number | null;
-}
-
 export interface SecurityLockout {
   id: string;
   lockout_type: string;
   identifier: string;
+  identifier_hash: string;
   attempt_count: number;
   max_attempts: number;
   lockout_duration: number;
@@ -467,18 +439,6 @@ export interface ConfigGroup {
   updated_at: number;
 }
 
-export interface AnalyticsEvent {
-  id: string;
-  user_id: string | null;
-  session_id: string | null;
-  event_type: string;
-  event_data: string;
-  ip_address: string | null;
-  user_agent: string | null;
-  referer: string | null;
-  created_at: number;
-}
-
 export interface JwtPayload {
   userId: string;
   username: string;
@@ -488,23 +448,3 @@ export interface JwtPayload {
 }
 
 // 系统错误记录（前端 ErrorBoundary + 后端 onError 上报）
-export interface SystemError {
-  id: string;
-  source: 'frontend' | 'backend';
-  error_type: string;
-  message: string;
-  stack: string | null;
-  url: string | null;
-  line_number: number | null;
-  column_number: number | null;
-  user_id: string | null;
-  session_id: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  request_method: string | null;
-  request_path: string | null;
-  status_code: number | null;
-  context: string;
-  fingerprint: string | null;
-  created_at: number;
-}

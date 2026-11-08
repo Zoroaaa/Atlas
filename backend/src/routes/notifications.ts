@@ -15,6 +15,7 @@ import {
   isNotificationType,
   setPreference,
   setSettings,
+  backfillRecentAnnouncementEmails,
 } from '@/services/notification-service';
 import {
   appUrls,
@@ -213,7 +214,7 @@ notificationRoutes.post('/read', async (c) => {
                AND (a.end_time IS NULL OR a.end_time >= ?)`
           ).bind(user.userId, now, now, now),
           c.env.DB.prepare(
-            'UPDATE user_announcement_reads SET read_at = ? WHERE user_id = ? AND read_at IS NULL'
+            'UPDATE user_announcement_reads SET read_at = ? WHERE user_id = ? AND read_at IS NULL AND dismissed_at IS NULL'
           ).bind(now, user.userId),
         ]);
       }
@@ -301,6 +302,13 @@ notificationRoutes.put('/preferences', async (c) => {
       inApp: typeof body.inApp === 'boolean' ? body.inApp : undefined,
       email: typeof body.email === 'boolean' ? body.email : undefined,
     });
+
+    // 事后再打开公告邮件：补发近期公告，dedup_key 保证不会重复入队
+    if (body.type === 'site.announcement' && body.email === true) {
+      await backfillRecentAnnouncementEmails(c.env.DB, user.userId)
+        .catch((err) => console.error('Backfill announcement emails error:', err));
+    }
+
     return c.json(success(await preferencesPayload(c.env.DB, user.userId)));
   } catch (err) {
     console.error('Set notification preference error:', err);

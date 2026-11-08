@@ -2,34 +2,15 @@
  * 网站公告路由
  * 功能：管理员发布/编辑/删除公告，用户获取有效公告列表
  */
-import { Hono, Context, Next } from 'hono';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, JwtPayload } from '@/types';
-import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
-import { checkIsAdmin } from '@/middleware/auth';
+import { success, error, generateId, logUserAction } from '@/utils';
+import { authMiddleware, adminMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
 import { enqueueAnnouncementEmail } from '@/services/notification-service';
 
 export const announcementRoutes = new Hono<{ Bindings: Env }>();
-
-// -----------------------------------------------------------------------
-// 管理员鉴权中间件 - 实时从数据库查询权限
-// -----------------------------------------------------------------------
-const adminAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return c.json(error('AUTH_ERROR', '请先登录'), 401);
-  const token = authHeader.slice(7);
-  const payload = await verifyToken(token, c.env.JWT_SECRET);
-  if (!payload) return c.json(error('AUTH_ERROR', '认证失败'), 401);
-
-  c.set('user', payload);
-
-  // 实时查询数据库确认管理员权限（无 authMiddleware 链路，走回退查询）
-  const isAdmin = await checkIsAdmin(c);
-  if (!isAdmin) return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
-
-  await next();
-};
 
 // -----------------------------------------------------------------------
 // GET /api/announcements  — 公开接口：获取当前有效公告（无需登录）
@@ -58,7 +39,7 @@ announcementRoutes.get('/', async (c) => {
 // -----------------------------------------------------------------------
 // GET /api/announcements/admin/list  — 管理员：获取所有公告（含已失效）
 // -----------------------------------------------------------------------
-announcementRoutes.get('/admin/list', adminAuth, async (c) => {
+announcementRoutes.get('/admin/list', authMiddleware, adminMiddleware, async (c) => {
   const page = parseInt(c.req.query('page') || '1');
   const pageSize = Math.min(parseInt(c.req.query('pageSize') || '20'), 50);
 
@@ -91,7 +72,7 @@ announcementRoutes.get('/admin/list', adminAuth, async (c) => {
 // -----------------------------------------------------------------------
 // POST /api/announcements/admin  — 管理员：发布公告
 // -----------------------------------------------------------------------
-announcementRoutes.post('/admin', adminAuth, validateBody(schemas.announcement.create), async (c) => {
+announcementRoutes.post('/admin', authMiddleware, adminMiddleware, validateBody(schemas.announcement.create), async (c) => {
   const adminUser = c.get('user') as JwtPayload;
 
   const body = c.get('validatedBody') as z.infer<typeof schemas.announcement.create>;
@@ -139,7 +120,7 @@ announcementRoutes.post('/admin', adminAuth, validateBody(schemas.announcement.c
 // -----------------------------------------------------------------------
 // PUT /api/announcements/admin/:id  — 管理员：编辑公告
 // -----------------------------------------------------------------------
-announcementRoutes.put('/admin/:id', adminAuth, validateBody(schemas.announcement.update), async (c) => {
+announcementRoutes.put('/admin/:id', authMiddleware, adminMiddleware, validateBody(schemas.announcement.update), async (c) => {
   const adminUser = c.get('user') as JwtPayload;
   const id = c.req.param('id');
 
@@ -185,7 +166,7 @@ announcementRoutes.put('/admin/:id', adminAuth, validateBody(schemas.announcemen
 // -----------------------------------------------------------------------
 // DELETE /api/announcements/admin/:id  — 管理员：删除公告
 // -----------------------------------------------------------------------
-announcementRoutes.delete('/admin/:id', adminAuth, async (c) => {
+announcementRoutes.delete('/admin/:id', authMiddleware, adminMiddleware, async (c) => {
   const adminUser = c.get('user') as JwtPayload;
   const id = c.req.param('id');
 
@@ -193,6 +174,10 @@ announcementRoutes.delete('/admin/:id', adminAuth, async (c) => {
     const existing = await c.env.DB.prepare('SELECT id FROM site_announcements WHERE id = ?').bind(id).first();
     if (!existing) return c.json(error('NOT_FOUND', '公告不存在'), 404);
 
+    // 先清理该公告尚未发送的邮件，避免删除后仍继续投递
+    await c.env.DB.prepare(
+      "DELETE FROM email_queue WHERE status = 'pending' AND dedup_key = ?"
+    ).bind(`announcement:${id}`).run();
     await c.env.DB.prepare('DELETE FROM site_announcements WHERE id = ?').bind(id).run();
     await logUserAction(c.env, adminUser.userId, 'admin_delete_announcement', { id }, c);
     return c.json(success(null, '公告已删除'));
