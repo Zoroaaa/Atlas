@@ -25,6 +25,7 @@ import {
   Bug,
   Database,
   Trophy,
+  Mail,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { id: 'users', label: 'nav:adminPanel.items.users', icon: <Users className="w-[18px] h-[18px]" />, path: '/admin-panel/users' },
   { id: 'sessions', label: 'nav:adminPanel.items.sessions', icon: <Server className="w-[18px] h-[18px]" />, path: '/admin-panel/sessions' },
   { id: 'actions', label: 'nav:adminPanel.items.actions', icon: <Activity className="w-[18px] h-[18px]" />, path: '/admin-panel/actions' },
+  { id: 'email-logs', label: 'nav:adminPanel.items.emailLogs', icon: <Mail className="w-[18px] h-[18px]" />, path: '/admin-panel/email-logs' },
   { id: 'analytics', label: 'nav:adminPanel.items.analytics', icon: <BarChart2 className="w-[18px] h-[18px]" />, path: '/admin-panel/analytics' },
   { id: 'observability', label: 'nav:adminPanel.items.observability', icon: <Bug className="w-[18px] h-[18px]" />, path: '/admin-panel/observability' },
   { id: 'trends', label: 'nav:adminPanel.items.trends', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },

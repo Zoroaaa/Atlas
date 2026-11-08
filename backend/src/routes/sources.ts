@@ -336,6 +336,12 @@ ${sourcesList.map(s => `    <outline type="link" text="${s.name}" htmlUrl="${s.u
 
 sourceRoutes.get('/user-configs/:userId', async (c) => {
   const userId = c.req.param('userId');
+  const currentUser = c.get('user');
+
+  const isAdmin = await checkIsAdmin(c);
+  if (userId !== currentUser.userId && !isAdmin) {
+    return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
+  }
 
   try {
     const configs = await c.env.DB.prepare(
@@ -389,6 +395,12 @@ sourceRoutes.get('/with-user-config/:userId', async (c) => {
 
 sourceRoutes.get('/export-user-configs/:userId', async (c) => {
   const userId = c.req.param('userId');
+  const currentUser = c.get('user');
+
+  const isAdmin = await checkIsAdmin(c);
+  if (userId !== currentUser.userId && !isAdmin) {
+    return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
+  }
 
   try {
     const userConfigs = await c.env.DB.prepare(`
@@ -432,8 +444,22 @@ sourceRoutes.get('/:id', async (c) => {
 
 sourceRoutes.post('/:id/increment-usage', async (c) => {
   const sourceId = c.req.param('id');
+  const user = c.get('user');
 
   try {
+    const source = await c.env.DB.prepare(
+      'SELECT id, is_system, created_by, is_active FROM search_sources WHERE id = ?'
+    ).bind(sourceId).first<Pick<SearchSource, 'id' | 'is_system' | 'created_by' | 'is_active'>>();
+
+    if (!source || !source.is_active) {
+      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
+    }
+
+    // 自定义源仅本人/管理员可累加，避免他人刷计数
+    if (!source.is_system && source.created_by !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('FORBIDDEN', '无权操作此搜索源'), 403);
+    }
+
     await c.env.DB.prepare(`
       UPDATE search_sources 
       SET usage_count = usage_count + 1, last_used_at = ? 
@@ -897,6 +923,7 @@ sourceRoutes.delete('/user-configs/:sourceId', async (c) => {
 
 sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) => {
   const sourceId = c.req.param('id');
+  const user = c.get('user');
 
   try {
     const existingSource = await c.env.DB.prepare(
@@ -909,6 +936,11 @@ sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) =
 
     if (existingSource.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可修改'), 403);
+    }
+
+    // 非系统源仅创建者或管理员可修改
+    if (!existingSource.is_system && existingSource.created_by !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('FORBIDDEN', '无权修改他人搜索源'), 403);
     }
 
     const body = c.get('validatedBody') as z.infer<typeof schemas.sources.updateSource> & Record<string, unknown>;
@@ -970,6 +1002,7 @@ sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) =
 
 sourceRoutes.delete('/:id', async (c) => {
   const sourceId = c.req.param('id');
+  const user = c.get('user');
 
   try {
     const existingSource = await c.env.DB.prepare(
@@ -982,6 +1015,11 @@ sourceRoutes.delete('/:id', async (c) => {
 
     if (existingSource.is_system && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '系统搜索源仅管理员可删除'), 403);
+    }
+
+    // 非系统源仅创建者或管理员可删除
+    if (!existingSource.is_system && existingSource.created_by !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('FORBIDDEN', '无权删除他人搜索源'), 403);
     }
 
     await c.env.DB.prepare(

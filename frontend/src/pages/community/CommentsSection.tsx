@@ -5,7 +5,7 @@ import { MessageSquare, Send, Trash2 } from 'lucide-react';
 import { Card, Button, Input } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 
 interface CommentsSectionProps {
   postId: string;
@@ -14,7 +14,7 @@ interface CommentsSectionProps {
 export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const { t } = useTranslation(['communityPages']);
   const toast = useToast();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const {
     comments,
     commentsLoading,
@@ -179,7 +179,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                         {formatDate(comment.createdAt)}
                       </span>
                       {/* 删除按钮 - 仅自己的评论显示 */}
-                      {isAuthenticated && (
+                      {isAuthenticated && user?.id === comment.userId && (
                         <button
                           onClick={() => handleDelete(comment.id)}
                           className={clsx(

@@ -10,6 +10,7 @@ import { feedbackSchema } from '@/utils/validators';
 import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
 import { validateBody, schemas } from '@/validation';
+import { sendResendEmail, logEmailSend } from '@/services/email-sender';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
 
@@ -358,6 +359,10 @@ async function sendFeedbackReplyEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   if (!env.RESEND_API_KEY) return { sent: false, error: '邮件服务未配置' };
 
+  const escapeHtml = (v: string) =>
+    v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
   const recipientEmail = feedback.contact_email;
   if (!recipientEmail) return { sent: false, error: '无收件人邮箱' };
 
@@ -367,12 +372,15 @@ async function sendFeedbackReplyEmail(
   const typeLabel = TYPE_LABELS[feedback.type] || feedback.type;
   const statusLabel = STATUS_LABELS[newStatus] || newStatus;
   const submitterName = feedback.username || feedback.contact_email?.split('@')[0] || '用户';
+  const safeTitle = escapeHtml(feedback.title);
+  const safeReply = escapeHtml(adminReply);
+  const safeSubmitter = escapeHtml(submitterName);
 
   const subject = `[${siteName}] 您的反馈已被处理 — ${feedback.title}`;
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${subject}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${safeTitle}</title></head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 20px;">
     <tr><td align="center">
@@ -384,9 +392,9 @@ async function sendFeedbackReplyEmail(
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:36px 40px;">
-          <p style="margin:0 0 20px;color:#374151;font-size:16px;">您好，${submitterName}！</p>
+          <p style="margin:0 0 20px;color:#374151;font-size:16px;">您好，${safeSubmitter}！</p>
           <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.8;">
-            您在 <strong>${new Date(feedback.created_at).toLocaleDateString('zh-CN')}</strong> 提交的反馈已由我们的工作人员处理完毕。
+            您在 <strong>${new Date(feedback.created_at).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</strong> 提交的反馈已由我们的工作人员处理完毕。
           </p>
 
           <!-- Feedback Summary -->
@@ -397,7 +405,7 @@ async function sendFeedbackReplyEmail(
             </div>
             <div style="margin-bottom:8px;">
               <span style="font-size:13px;color:#6b7280;">反馈标题：</span>
-              <span style="font-size:13px;font-weight:600;color:#374151;">${feedback.title}</span>
+              <span style="font-size:13px;font-weight:600;color:#374151;">${safeTitle}</span>
             </div>
             <div>
               <span style="font-size:13px;color:#6b7280;">当前状态：</span>
@@ -408,7 +416,7 @@ async function sendFeedbackReplyEmail(
           <!-- Admin Reply -->
           <div style="border-left:4px solid #3b82f6;padding:16px 20px;background:#eff6ff;border-radius:0 8px 8px 0;margin-bottom:28px;">
             <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1d4ed8;">团队回复</p>
-            <p style="margin:0;font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${adminReply}</p>
+            <p style="margin:0;font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${safeReply}</p>
           </div>
 
           <p style="margin:0 0 28px;color:#6b7280;font-size:13px;line-height:1.7;">
@@ -432,24 +440,29 @@ async function sendFeedbackReplyEmail(
 </body>
 </html>`.trim();
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `${siteName} <${fromEmail}>`,
-      to: [recipientEmail],
-      subject,
-      html: htmlContent,
-      tags: [{ name: 'type', value: 'feedback_reply' }],
-    }),
+  const result = await sendResendEmail(env, {
+    to: recipientEmail,
+    subject,
+    html: htmlContent,
+    fromName: siteName,
+    fromEmail,
+    tags: [{ name: 'type', value: 'feedback_reply' }],
   });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({})) as { message?: string };
-    return { sent: false, error: errData.message || '邮件发送失败' };
+  await logEmailSend(env.DB, {
+    userId: feedback.user_id,
+    recipientEmail,
+    emailType: 'feedback_reply',
+    status: result.ok ? 'sent' : 'failed',
+    messageId: result.messageId ?? null,
+    templateName: 'feedback_reply',
+    subject,
+    error: result.ok ? null : (result.error || '邮件发送失败'),
+    ipAddress: feedback.ip_address,
+  });
+
+  if (!result.ok) {
+    return { sent: false, error: result.error || '邮件发送失败' };
   }
 
   return { sent: true };

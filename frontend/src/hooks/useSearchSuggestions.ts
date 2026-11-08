@@ -56,12 +56,15 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
     setIsLoading(true);
     try {
       const response = await searchApi.getSuggestions(query, maxSuggestions, controller.signal, source);
+      // 已被更新的请求取代（或已中止），不再写入过期结果
+      if (abortRef.current !== controller) return;
       if (response.success && response.data) {
         setSuggestions(response.data.slice(0, maxSuggestions));
       } else {
         setSuggestions([]);
       }
     } catch (error) {
+      if (abortRef.current !== controller) return;
       const isAbort =
         (error as Error).name === 'AbortError' ||
         (error as Error).message?.includes('请求超时') ||
@@ -71,7 +74,9 @@ export function useSearchSuggestions(options: UseSearchSuggestionsOptions = {}) 
       }
       setSuggestions([]);
     } finally {
-      setIsLoading(false);
+      if (abortRef.current === controller) {
+        setIsLoading(false);
+      }
     }
   }, [minChars, maxSuggestions, source]);
 

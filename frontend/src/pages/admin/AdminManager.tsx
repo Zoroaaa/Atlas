@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { UsersTab } from './UsersTab';
 import { SessionsTab } from './SessionsTab';
 import { ActionsTab } from './ActionsTab';
+import { EmailLogsTab } from './EmailLogsTab';
 import { AnalyticsTab } from './AnalyticsTab';
 import { TrendsTab } from './TrendsTab';
 import { ReportsTab } from './ReportsTab';
@@ -15,7 +16,7 @@ import { ObservabilityTab } from './ObservabilityTab';
 import { DataStorageTab } from './DataStorageTab';
 import { ActivityRankingTab } from './ActivityRankingTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
+type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
@@ -24,6 +25,7 @@ export const AdminManager: React.FC = () => {
     const p = location.pathname;
     if (p.includes('/sessions')) return 'sessions';
     if (p.includes('/actions')) return 'actions';
+    if (p.includes('/email-logs')) return 'email-logs';
     if (p.includes('/analytics')) return 'analytics';
     if (p.includes('/observability')) return 'observability';
     if (p.includes('/trends')) return 'trends';
@@ -46,6 +48,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'users' && <UsersTab />}
       {activeTab === 'sessions' && <SessionsTab />}
       {activeTab === 'actions' && <ActionsTab />}
+      {activeTab === 'email-logs' && <EmailLogsTab />}
       {activeTab === 'analytics' && <AnalyticsTab />}
       {activeTab === 'observability' && <ObservabilityTab />}
       {activeTab === 'trends' && <TrendsTab />}

@@ -7,7 +7,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
-import { success, error, generateId, getClientIP } from '@/utils';
+import { success, error, generateId, getClientIP, hashToken, verifyToken } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { ConfigService } from '@/services';
 import { DB_CONFIG_KEYS } from '@/constants';
@@ -102,23 +102,21 @@ systemRoutes.post('/errors', validateBody(schemas.system.reportError), async (c)
     const ip = getClientIP(c);
     const userAgent = c.req.header('User-Agent') || null;
 
+    // 限流：同一 IP 每分钟最多 20 条错误上报
+    const recent = await c.env.DB.prepare(
+      'SELECT COUNT(*) AS cnt FROM system_errors WHERE ip_address = ? AND created_at > ?'
+    ).bind(ip, Date.now() - 60000).first<{ cnt: number }>();
+    if ((recent?.cnt ?? 0) >= 20) {
+      return c.json(error('RATE_LIMIT', '错误上报过于频繁，请稍后重试'), 429);
+    }
+
     // 从 Authorization header 尝试识别用户（可选，匿名也接受）
     let userId: string | null = null;
     const authHeader = c.req.header('Authorization') || '';
     if (authHeader.startsWith('Bearer ')) {
-      try {
-        // 复用 auth 工具：jwtVerify 在每次请求时太重，这里只做轻量提取
-        // 实际用户身份在 adminMiddleware 链路中由更上游中间件处理；
-        // 这里仅尽力而为地填充 user_id，未识别到就置空
-        const token = authHeader.slice(7);
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          if (payload.userId) userId = String(payload.userId).slice(0, 64);
-        }
-      } catch {
-        // 解析失败忽略，user_id 留空
-      }
+      const token = authHeader.slice(7);
+      const payload = await verifyToken(token, c.env.JWT_SECRET);
+      if (payload?.userId) userId = String(payload.userId);
     }
 
     const fingerprint = generateErrorFingerprint(errorType, message, stack, url);
@@ -225,13 +223,14 @@ async function saveStatusCache(
   try {
     const cacheId = generateId();
     const now = Date.now();
+    const keywordHash = await hashToken('health');
     await db.prepare(`
       INSERT INTO source_status_cache
         (id, source_id, keyword, keyword_hash, status, available, content_match,
          response_time, quality_score, check_error, expires_at, created_at, last_accessed, access_count)
-      VALUES (?, ?, 'health', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, 'health', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `).bind(
-      cacheId, sourceId,
+      cacheId, sourceId, keywordHash,
       result.status, result.available ? 1 : 0, result.available ? 1 : 0,
       result.responseTime, result.available ? 100 : 0, result.error,
       now + ttlMs, now, now,

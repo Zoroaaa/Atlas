@@ -6,7 +6,7 @@ import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock, Pagination } f
 import { convertToProxyUrl } from '@/services/proxy';
 import type { FavoriteItem } from '@/types';
 import { userApi } from '@/services/api/search';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { getBackendBaseUrl } from '@/constants';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
@@ -185,7 +185,11 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onRemove(item.id)}
+                        onClick={() => {
+                          if (window.confirm(t('search:favorites.removeConfirm'))) {
+                            onRemove(item.id);
+                          }
+                        }}
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20"
                         aria-label={t('search:favorites.empty')}
                       >

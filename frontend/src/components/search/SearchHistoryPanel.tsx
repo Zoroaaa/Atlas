@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Clock, Search, Trash2, ChevronDown, ChevronRight, Calendar, User, Building2, Square, CheckSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Loading, ProxyImage } from '@/components/ui';
 import { PanelSection, PanelHeader, Chip, CountBadge, EmptyBlock, Pagination } from '@/components/workbench';
-import { API_BASE_URL } from '@/constants';
+import { getProxyImageUrl } from '@/utils/imageProxy';
 import type { SearchHistoryItem } from '@/types';
 import type { TFunction } from 'i18next';
 import { clsx } from 'clsx';
@@ -13,14 +13,6 @@ const resolveCoverUrl = (cover: string): string => {
   if (cover.startsWith('http://') || cover.startsWith('https://')) return cover;
   if (cover.startsWith('/')) return `https://www.javbus.com${cover}`;
   return cover;
-};
-
-const getProxyImageUrl = (url: string): string => {
-  const isLocal = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  );
-  const baseUrl = isLocal ? '' : API_BASE_URL.PRODUCTION.replace('/api', '');
-  return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(resolveCoverUrl(url))}`;
 };
 
 function groupByDay(items: SearchHistoryItem[], t: TFunction): Map<string, SearchHistoryItem[]> {
@@ -64,6 +56,11 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
 }) => {
   const { t } = useTranslation(['search']);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 翻页后清空选择，避免跨页残留的 ID 被误删
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page]);
 
   const groupedHistory = useMemo(() => groupByDay(history, t), [history, t]);
 
@@ -186,7 +183,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                           >
                             {item.cover ? (
                               <ProxyImage
-                                src={getProxyImageUrl(item.cover)}
+                                src={getProxyImageUrl(resolveCoverUrl(item.cover))}
                                 alt={item.title || item.query}
                                 className="h-14 w-10 shrink-0 rounded-md bg-surface-100 object-cover"
                               />
@@ -247,8 +244,8 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                   page={page}
                   totalPages={totalPages}
                   onChange={onPageChange}
-                  prevLabel={t('search:favorites.prevPage')}
-                  nextLabel={t('search:favorites.nextPage')}
+                  prevLabel={t('search:history.prevPage')}
+                  nextLabel={t('search:history.nextPage')}
                   className="mt-2 border-t border-surface-100 pt-3 dark:border-surface-800/70"
                 />
               </div>

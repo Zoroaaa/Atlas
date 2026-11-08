@@ -10,6 +10,8 @@ import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
 import { emitNotification } from '@/services/notification-service';
+import { ConfigService } from '@/services';
+import { DB_CONFIG_KEYS } from '@/constants';
 import {
   listActiveTags,
   findTagIdByName,
@@ -53,7 +55,18 @@ import {
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
+const escapeLike = (v: string) => v.replace(/[\\%_]/g, (m) => '\\' + m);
+
 communityRoutes.use('*', authMiddleware);
+
+// 社区开关：关闭时普通用户不可用，管理员仍可进入管理/清理
+communityRoutes.use('*', async (c, next) => {
+  const enabled = await new ConfigService(c.env).getBoolean(DB_CONFIG_KEYS.COMMUNITY_ENABLED, true);
+  if (!enabled && !(await checkIsAdmin(c))) {
+    return c.json(error('FORBIDDEN', '社区功能未开启'), 403);
+  }
+  await next();
+});
 
 // ============================================================
 // 1. 标签管理
@@ -154,6 +167,7 @@ communityRoutes.get('/tags/:id', async (c) => {
 
 /** 更新标签 */
 communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), async (c) => {
+  const user = c.get('user');
   const tagId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.updateTag>;
   const { name, description, color, isActive } = body;
@@ -163,6 +177,10 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
 
     if (!existingTag) {
       return c.json(error('NOT_FOUND', '标签不存在'), 404);
+    }
+
+    if (existingTag.created_by !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('FORBIDDEN', '无权修改此标签'), 403);
     }
 
     if (name !== undefined) {
@@ -211,6 +229,18 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
 
     await updateTagFields(c.env.DB, { updates, params });
 
+    // 帖子 tags 以 JSON 名称数组存储，重命名时同步替换，避免历史帖子失去标签
+    if (name !== undefined && name.trim() !== existingTag.tag_name) {
+      await c.env.DB.prepare(
+        `UPDATE community_posts SET tags = REPLACE(tags, ?, ?), updated_at = ? WHERE tags LIKE ? ESCAPE '\\'`
+      ).bind(
+        JSON.stringify(existingTag.tag_name),
+        JSON.stringify(name.trim()),
+        Date.now(),
+        `%${escapeLike(JSON.stringify(existingTag.tag_name))}%`
+      ).run();
+    }
+
     return c.json(success({
       tagId,
       updatedFields: Object.keys(body),
@@ -233,12 +263,12 @@ communityRoutes.delete('/tags/:id', async (c) => {
       return c.json(error('NOT_FOUND', '标签不存在'), 404);
     }
 
-    if (existingTag.created_by !== user.userId) {
+    if (existingTag.created_by !== user.userId && !await checkIsAdmin(c)) {
       return c.json(error('FORBIDDEN', '无权删除此标签'), 403);
     }
 
     // 检查是否有帖子使用该标签
-    const usageCount = await countPostsByTagPattern(c.env.DB, `%"${existingTag.tag_name}"%`);
+    const usageCount = await countPostsByTagPattern(c.env.DB, `%${escapeLike(JSON.stringify(existingTag.tag_name))}%`);
 
     if (usageCount > 0) {
       return c.json(error('VALIDATION_ERROR', '不能删除正在使用的标签'), 400);
@@ -368,7 +398,8 @@ communityRoutes.get('/posts', async (c) => {
   const tags = c.req.query('tags');
   const sort = c.req.query('sort') || 'latest';
   const search = c.req.query('search');
-  const status = c.req.query('status') || 'active';
+  const isAdmin = await checkIsAdmin(c);
+  const status = isAdmin ? (c.req.query('status') || 'active') : 'active';
 
   try {
     const { total, rows, likedPostIds, favoritedPostIds } = await listPosts(c.env.DB, {
@@ -434,8 +465,15 @@ communityRoutes.get('/posts/:id', async (c) => {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    // 增加浏览量
-    await incrementPostViewCount(c.env.DB, postId);
+    if (post.status !== 'active' && post.user_id !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+    }
+
+    // 增加浏览量（作者本人访问不计数）
+    const isSelfView = post.user_id === user.userId;
+    if (!isSelfView) {
+      await incrementPostViewCount(c.env.DB, postId);
+    }
 
     // 查询当前用户的点赞/收藏状态
     const interaction = await findPostInteractionState(c.env.DB, { postId, userId: user.userId });
@@ -450,7 +488,7 @@ communityRoutes.get('/posts/:id', async (c) => {
       contentData: post.content_data,
       caption: post.caption,
       tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags,
-      viewCount: (post.view_count as number) + 1,
+      viewCount: (post.view_count as number) + (isSelfView ? 0 : 1),
       likeCount: post.like_count,
       commentCount: post.comment_count,
       favoriteCount: post.favorite_count,
@@ -516,9 +554,8 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
       updatedAt: now,
     }, '发布成功'));
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
     console.error('Create post error:', err);
-    return c.json(error('SERVER_ERROR', `发布失败: ${errorMessage}`, { rawError: errorMessage }), 500);
+    return c.json(error('SERVER_ERROR', '发布失败，请稍后重试'), 500);
   }
 });
 

@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Zap, Users, Server, Search, Globe } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Input } from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper } from './shared';
 

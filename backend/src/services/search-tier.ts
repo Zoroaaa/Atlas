@@ -107,13 +107,13 @@ export async function getSearchTierStats(db: D1Database, userId: string): Promis
     .prepare(
       `SELECT u.created_at AS created_at,
               (SELECT COUNT(*) FROM user_search_history h WHERE h.user_id = u.id) AS total_searches,
-              (SELECT COUNT(DISTINCT CAST(h.created_at / ? AS INTEGER))
+              (SELECT COUNT(DISTINCT date(h.created_at / 1000, 'unixepoch', '+8 hours'))
                  FROM user_search_history h
                 WHERE h.user_id = u.id AND h.created_at >= ?) AS active_days
          FROM users u
         WHERE u.id = ?`,
     )
-    .bind(DAY_MS, now - 30 * DAY_MS, userId)
+    .bind(now - 30 * DAY_MS, userId)
     .first<{ created_at: number; total_searches: number; active_days: number }>();
 
   if (!row) return null;

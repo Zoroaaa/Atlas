@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Star, Calendar, Tv, ExternalLink,
   Magnet, Wifi, RefreshCw,
@@ -296,6 +296,15 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
 
   const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));
   const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
+
+  // 换关键词/翻页后重置各来源页码与视图模式，避免沿用上一批数据的状态
+  useEffect(() => {
+    setLocalPage(1);
+    setAtosPage(1);
+    setMikanPage(1);
+    setSrPage(1);
+    setViewMode(hasGrouped ? 'grouped' : 'sources');
+  }, [data.keyword, data.page, hasGrouped]);
 
   const bgmList = data.bgm ?? [];
   const nyaaList = data.nyaa ?? [];

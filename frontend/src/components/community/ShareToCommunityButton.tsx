@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '@/stores';
 import { ShareToCommunityModal } from '@/pages/community/ShareToCommunityModal';
 
 export interface SharePostData {
@@ -34,11 +35,14 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
   postData,
   className = '',
   size = 'medium',
-  isAuthenticated = true,
+  isAuthenticated: isAuthenticatedProp,
   onLoginRequired,
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const { t } = useTranslation(['community']);
+  // 未显式传入登录态时以全局登录态为准，避免默认放行导致未登录也能打开分享弹窗
+  const storeAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isAuthenticated = isAuthenticatedProp ?? storeAuthenticated;
 
   const handleClick = () => {
     if (!isAuthenticated) {

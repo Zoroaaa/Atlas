@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { Trophy, Search, Heart, LogIn, Users, RefreshCw, Crown, MoreHorizontal, Zap, Activity } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import type { ActivityRanking, ActivityRankingEntry, ActivityRankingMetric, ActivityRankingPeriod } from '@/services/api/admin';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { TableWrapper, formatRelativeTime } from './shared';
 

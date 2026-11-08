@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '@/services/api';
 import i18next from '@/i18n';
 import type { HotActressRanking } from '@/types/jav';
@@ -46,6 +46,7 @@ export function useActresses() {
   const [data, setData] = useState<HotActressRanking | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const fetchActresses = useCallback(async (force = false) => {
     if (!force) {
@@ -58,6 +59,7 @@ export function useActresses() {
       clearCache();
     }
 
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -65,6 +67,7 @@ export function useActresses() {
       const resp = await apiClient.get<{ success: boolean; data: HotActressRanking }>(
         `/jav/actresses${force ? '?refresh=1' : ''}`
       );
+      if (requestId !== requestIdRef.current) return;
       if (resp.success && resp.data) {
         writeCache(resp.data);
         setData(resp.data);
@@ -72,10 +75,13 @@ export function useActresses() {
         setError(i18next.t('errors:hooks.actresses.fetchListFailed'));
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       console.error('Actresses fetch error:', err);
       setError(i18next.t('errors:hooks.actresses.networkFailed'));
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 

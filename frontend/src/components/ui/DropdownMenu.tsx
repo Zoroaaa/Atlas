@@ -516,7 +516,7 @@ export const communityMenuItems = (
     id: 'favorites',
     label: t('ui:menu.favorites'),
     icon: <Heart className="w-4 h-4" />,
-    onClick: () => navigate('/community/favorites'),
+    onClick: () => navigate('/community/my-favorites'),
   },
   {
     id: 'tags',

@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { feedbackApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 
 const TYPE_OPTIONS = [
   {

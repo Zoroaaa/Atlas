@@ -64,9 +64,9 @@ jobs:
 
           node -e "for (const period of ['week','month']) for (const type of ['censored','uncensored']) { const f=type+'-'+period+'.json'; const d=JSON.parse(require('fs').readFileSync(f,'utf8')); console.log(f, (d.movies||[]).length, 'movies'); }"
 
-          if [ "$failures" -eq 4 ]; then
-            echo "All four ranking channels failed"
-            exit 1
+          echo "$failures" > fetch-failures.txt
+          if [ "$failures" -ne 0 ]; then
+            echo "${failures} ranking channel(s) failed to fetch; will fail after import so good channels still land"
           fi
 
       - name: Convert to Atlas payload
@@ -144,6 +144,15 @@ jobs:
           fi
           if [ "$failed" -ne 0 ]; then
             echo "${failed} ranking channel(s) failed to import"
+            exit 1
+          fi
+
+      - name: Report missing ranking channels
+        if: always()
+        run: |
+          failures=$(cat fetch-failures.txt 2>/dev/null || echo 0)
+          if [ "$failures" -ne 0 ]; then
+            echo "${failures} ranking channel(s) failed to fetch; see warnings above."
             exit 1
           fi
 

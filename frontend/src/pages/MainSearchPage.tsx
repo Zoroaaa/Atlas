@@ -102,35 +102,41 @@ export const MainSearchPage: React.FC = () => {
   }, [searchFlow.isSearching]);
 
   // ── URL 初始化 + 浏览器前进/后退恢复搜索 ──
+  // 先同步 tab，再发搜索：直链/刷新时 handleSearch 闭包里的 activeTab 还是上一次的值
   useEffect(() => {
     const qParam = searchParams.get('q');
-    if (!qParam) return;
-    if (programmaticUrlRef.current) {
-      programmaticUrlRef.current = false;
-      return;
-    }
     const tabParam = searchParams.get('tab');
     const subParam = searchParams.get('sub');
-    let overrideSubMode: JavSubMode | undefined;
-    if (tabParam === 'jav' && subParam && JAV_SUB_MODES.includes(subParam as JavSubMode)) {
-      overrideSubMode = subParam as JavSubMode;
-      setJavSubMode(overrideSubMode);
+
+    // 兼容旧链接：?tab=community 直接跳转社区页
+    if (tabParam === 'community') {
+      navigate('/community', { replace: true });
+      return;
     }
+
+    const nextTab = tabParam && TAB_IDS.includes(tabParam as SearchTabType)
+      ? (tabParam as SearchTabType)
+      : null;
+
+    if (nextTab && nextTab !== activeTab) {
+      setActiveTab(nextTab);
+      if (qParam) return; // 等 activeTab 更新后本 effect 会再次执行
+    }
+
+    let overrideSubMode: JavSubMode | undefined;
+    if (subParam && JAV_SUB_MODES.includes(subParam as JavSubMode)) {
+      overrideSubMode = subParam as JavSubMode;
+      if (overrideSubMode !== javSubMode) setJavSubMode(overrideSubMode);
+    }
+
+    const isProgrammatic = programmaticUrlRef.current;
+    if (isProgrammatic) programmaticUrlRef.current = false;
+    if (!qParam || isProgrammatic) return;
+
     searchFlow.setKeyword(qParam);
     searchFlow.handleSearch(qParam, 1, overrideSubMode);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam && TAB_IDS.includes(tabParam as SearchTabType)) {
-      setActiveTab(tabParam as SearchTabType);
-    }
-    const subParam = searchParams.get('sub');
-    if (subParam && JAV_SUB_MODES.includes(subParam as JavSubMode)) {
-      setJavSubMode(subParam as JavSubMode);
-    }
-  }, [searchParams, setActiveTab]);
+  }, [searchParams, activeTab]);
 
   useEffect(() => { initializeProxy(); }, [initializeProxy]);
   useCacheSync();

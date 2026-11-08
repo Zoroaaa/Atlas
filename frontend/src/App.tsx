@@ -16,9 +16,10 @@ import { HomePage } from '@/pages/HomePage';
 import { MainSearchPage } from '@/pages/MainSearchPage';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
+import { HelpCenterPage } from '@/pages/help/HelpCenterPage';
 import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
 import { AdminManager, AdminPanelOverview } from '@/pages/admin';
-import { CommunityManager } from '@/pages/community';
+import { CommunityManager, PostDetailPage } from '@/pages/community';
 import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage, GoogleCallbackPage } from '@/pages/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
@@ -170,6 +171,7 @@ const App: React.FC = () => {
         <Route element={<MainLayout />}>
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/help" element={<HelpCenterPage />} />
         </Route>
         <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
         <Route path="/register" element={<AuthRedirect><RegisterPage /></AuthRedirect>} />
@@ -203,7 +205,7 @@ const App: React.FC = () => {
           <Route index element={<DashboardPage />} />
           <Route path="stats" element={<DashboardPage />} />
           <Route path="sources" element={<DashboardPage />} />
-          <Route path="categories" element={<DashboardPage />} />
+          <Route path="categories" element={<GuardRoute requiredRole="admin"><DashboardPage /></GuardRoute>} />
           <Route path="favorites" element={<DashboardPage />} />
           <Route path="history" element={<DashboardPage />} />
           <Route path="follows" element={<DashboardPage />} />
@@ -218,8 +220,7 @@ const App: React.FC = () => {
           <Route path="my-shares" element={<CommunityManager />} />
           <Route path="my-favorites" element={<CommunityManager />} />
           <Route path="tags" element={<CommunityManager />} />
-          <Route path="trending" element={<CommunityManager />} />
-          <Route path="reports" element={<CommunityManager />} />
+          <Route path="post/:postId" element={<PostDetailPage />} />
         </Route>
         
         <Route path="/admin-panel" element={<GuardRoute requiredRole='admin'><AdminPanelLayout /></GuardRoute>}>
@@ -227,6 +228,7 @@ const App: React.FC = () => {
           <Route path="users" element={<AdminManager />} />
           <Route path="sessions" element={<AdminManager />} />
           <Route path="actions" element={<AdminManager />} />
+          <Route path="email-logs" element={<AdminManager />} />
           <Route path="analytics" element={<AdminManager />} />
           <Route path="observability" element={<AdminManager />} />
           <Route path="trends" element={<AdminManager />} />

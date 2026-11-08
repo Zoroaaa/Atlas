@@ -1,9 +1,9 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LucideIcon } from 'lucide-react';
-import { Button } from '@/components/ui';
-import { useTranslation } from 'react-i18next';
+import { LucideIcon } from 'lucide-react';
 import i18next from '@/i18n';
 import { useLanguageStore } from '@/stores';
+import { formatRelativeTime as formatRelativeTimeBase } from '@/utils/relativeTime';
+import { Pagination as WorkbenchPagination } from '@/components/workbench';
 
 /** 格式化时间戳为本地化日期字符串,跟随当前界面语言切换 locale */
 export const formatDate = (timestamp: number | null | undefined) => {
@@ -12,21 +12,9 @@ export const formatDate = (timestamp: number | null | undefined) => {
   return new Date(timestamp).toLocaleString(language);
 };
 
-/** 格式化相对时间,使用 Intl.RelativeTimeFormat 跟随当前界面语言 */
-export const formatRelativeTime = (timestamp: number) => {
-  const language = useLanguageStore.getState().language;
-  const diff = timestamp - Date.now();
-  const sec = Math.round(diff / 1000);
-  const min = Math.round(diff / 60000);
-  const hr = Math.round(diff / 3600000);
-  const day = Math.round(diff / 86400000);
-
-  const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
-  if (Math.abs(day) >= 1) return rtf.format(day, 'day');
-  if (Math.abs(hr) >= 1) return rtf.format(hr, 'hour');
-  if (Math.abs(min) >= 1) return rtf.format(min, 'minute');
-  return rtf.format(sec, 'second');
-};
+/** 格式化相对时间,复用统一的相对时间实现 */
+export const formatRelativeTime = (timestamp: number) =>
+  formatRelativeTimeBase(timestamp, useLanguageStore.getState().language);
 
 /** 操作类型 -> i18n key 映射。消费端调用 t(actionLabels[actionType] || actionType) 解析。 */
 export const actionLabels: Record<string, string> = {
@@ -70,19 +58,10 @@ export const actionColors: Record<string, string> = {
   admin_update_user_role: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
 };
 
-export const Pagination: React.FC<{ page: number; totalPages: number; onPageChange: (p: number) => void }> = ({ page, totalPages, onPageChange }) => {
-  const { t } = useTranslation(['common']);
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200 dark:border-surface-700">
-      <div className="text-sm text-surface-500">{t('common:pagination', { page, totalPages })}</div>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}><ChevronLeft className="w-4 h-4" /></Button>
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}><ChevronRight className="w-4 h-4" /></Button>
-      </div>
-    </div>
-  );
-};
+/** 管理后台分页：复用统一分页组件（bar 模式），保留 onPageChange 旧签名以免改动调用点。 */
+export const Pagination: React.FC<{ page: number; totalPages: number; onPageChange: (p: number) => void }> = ({ page, totalPages, onPageChange }) => (
+  <WorkbenchPagination variant="bar" page={page} totalPages={totalPages} onChange={onPageChange} />
+);
 
 export const TableWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 overflow-hidden">

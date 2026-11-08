@@ -119,21 +119,6 @@ export const verifyToken = async (token: string, secret: string): Promise<JwtPay
   }
 };
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-export const formatDate = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString();
-};
-
-export const parseBody = async <T>(c: Context<{ Bindings: Env }>): Promise<T> => {
-  return c.req.json<T>();
-};
-
 export const getClientIP = (c: Context): string => {
   // 优先取 CF-Connecting-IP：由 Cloudflare 边缘节点写入，客户端无法伪造；
   // x-forwarded-for / x-real-ip 可能携带客户端自报值，仅作为非 Cloudflare 环境兜底
@@ -170,21 +155,6 @@ export const validatePassword = (password: string): boolean => {
   return password.length >= 6;
 };
 
-export const paginate = <T>(items: T[], page: number, pageSize: number) => {
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const paginatedItems = items.slice(start, end);
-  const totalPages = Math.ceil(items.length / pageSize);
-  
-  return {
-    items: paginatedItems,
-    total: items.length,
-    page,
-    pageSize,
-    totalPages,
-  };
-};
-
 export const logUserAction = async (
   env: Env, 
   userId: string | null, 
@@ -214,42 +184,6 @@ export const logUserAction = async (
   } catch (error) {
     console.error('记录用户行为失败:', error);
   }
-};
-
-export const validateInput = (
-  data: Record<string, unknown>, 
-  rules: Record<string, { 
-    required?: boolean; 
-    minLength?: number; 
-    maxLength?: number; 
-    pattern?: RegExp; 
-    message?: string 
-  }>
-): string[] => {
-  const errors: string[] = [];
-  for (const [field, rule] of Object.entries(rules)) {
-    const value = data[field];
-    
-    if (rule.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
-      errors.push(`${field}是必需的`);
-      continue;
-    }
-    
-    if (value && typeof value === 'string') {
-      if (rule.minLength && value.length < rule.minLength) {
-        errors.push(`${field}至少需要${rule.minLength}个字符`);
-      }
-      
-      if (rule.maxLength && value.length > rule.maxLength) {
-        errors.push(`${field}最多${rule.maxLength}个字符`);
-      }
-      
-      if (rule.pattern && !rule.pattern.test(value)) {
-        errors.push(rule.message || `${field}格式不正确`);
-      }
-    }
-  }
-  return errors;
 };
 
 export const maskEmail = (email: string): string => {

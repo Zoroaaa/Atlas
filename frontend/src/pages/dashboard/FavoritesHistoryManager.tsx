@@ -20,7 +20,7 @@ import {
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState } from '@/components/ui';
 import { getBackendBaseUrl } from '@/constants';
 import { ProxyImage } from '@/components/ui';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useFavoritesPage, useAddFavorite, useRemoveFavorite, useUpdateFavoriteStatus, useSearchHistoryPage, useSearchHistoryStats, useClearSearchHistory, useDeleteSearchHistoryItem, useBatchDeleteSearchHistory } from '@/hooks';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Pagination } from '@/components/workbench';

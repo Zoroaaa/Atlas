@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMajorCategories, useCategories, useSourcesWithUserConfig } from '@/hooks';
 import { sourceApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import i18next from '@/i18n';
 import type { MajorCategory, Category, SearchSource, UserSourceConfig } from '@/types';
 

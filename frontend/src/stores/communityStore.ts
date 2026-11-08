@@ -17,6 +17,7 @@ interface CommunityState {
   posts: CommunityPost[];
   currentPost: CommunityPost | null;
   postsLoading: boolean;
+  postDetailLoading: boolean;
   postsTotal: number;
   postsPage: number;
 
@@ -35,7 +36,10 @@ interface CommunityState {
 
   // 用户数据
   myPosts: CommunityPost[];
+  myPostsTotal: number;
+  myPostsLoading: boolean;
   myFavorites: CommunityPost[];
+  myFavoritesLoading: boolean;
   userStats: CommunityUserStats | null;
 
   // 社区统计
@@ -44,7 +48,7 @@ interface CommunityState {
   // Actions - 帖子操作
   fetchPosts: (params?: { page?: number; pageSize?: number; postType?: string; tags?: string; sort?: string; search?: string }) => Promise<void>;
   fetchPost: (id: string) => Promise<void>;
-  createPost: (data: CreatePostRequest) => Promise<void>;
+  createPost: (data: CreatePostRequest) => Promise<CommunityPost>;
   updatePost: (id: string, data: UpdatePostRequest) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
 
@@ -81,6 +85,7 @@ const initialState = {
   posts: [],
   currentPost: null,
   postsLoading: false,
+  postDetailLoading: false,
   postsTotal: 0,
   postsPage: 1,
 
@@ -95,7 +100,10 @@ const initialState = {
   commentsLoading: false,
 
   myPosts: [],
+  myPostsTotal: 0,
+  myPostsLoading: false,
   myFavorites: [],
+  myFavoritesLoading: false,
   userStats: null,
 
   communityStats: null,
@@ -131,17 +139,17 @@ export const useCommunityStore = create<CommunityState>()(
       },
 
       fetchPost: async (id) => {
-        set({ postsLoading: true });
+        set({ postDetailLoading: true });
         try {
           const post = await communityApi.getPost(id);
 
           set({
             currentPost: post,
-            postsLoading: false,
+            postDetailLoading: false,
           });
         } catch (error) {
           console.error('获取帖子详情失败:', error);
-          set({ postsLoading: false });
+          set({ postDetailLoading: false });
         }
       },
 
@@ -155,9 +163,11 @@ export const useCommunityStore = create<CommunityState>()(
             postsTotal: state.postsTotal + 1,
             postsLoading: false,
           }));
+          return response.data;
         } catch (error) {
           console.error('创建帖子失败:', error);
           set({ postsLoading: false });
+          throw error;
         }
       },
 
@@ -176,6 +186,7 @@ export const useCommunityStore = create<CommunityState>()(
           }));
         } catch (error) {
           console.error('更新帖子失败:', error);
+          throw error;
         }
       },
 
@@ -190,6 +201,7 @@ export const useCommunityStore = create<CommunityState>()(
           }));
         } catch (error) {
           console.error('删除帖子失败:', error);
+          throw error;
         }
       },
 
@@ -224,27 +236,27 @@ export const useCommunityStore = create<CommunityState>()(
           if (result.liked !== newLikedState) {
             set((state) => ({
               posts: state.posts.map((p) =>
-                p.id === postId
+                p.id === postId && p.isLiked === newLikedState
                   ? { ...p, isLiked: post.isLiked, likeCount: post.likeCount }
                   : p
               ),
               currentPost:
-                state.currentPost && state.currentPost.id === postId
+                state.currentPost && state.currentPost.id === postId && state.currentPost.isLiked === newLikedState
                   ? { ...state.currentPost, isLiked: post.isLiked, likeCount: post.likeCount }
                   : state.currentPost,
             }));
           }
         } catch (error) {
           console.error('点赞操作失败:', error);
-          // 回滚状态
+          // 回滚状态（仅当当前仍是我们乐观写入的值，避免覆盖期间的新操作）
           set((state) => ({
             posts: state.posts.map((p) =>
-              p.id === postId
+              p.id === postId && p.isLiked === newLikedState
                 ? { ...p, isLiked: post.isLiked, likeCount: post.likeCount }
                 : p
             ),
             currentPost:
-              state.currentPost && state.currentPost.id === postId
+              state.currentPost && state.currentPost.id === postId && state.currentPost.isLiked === newLikedState
                 ? { ...state.currentPost, isLiked: post.isLiked, likeCount: post.likeCount }
                 : state.currentPost,
           }));
@@ -413,32 +425,33 @@ export const useCommunityStore = create<CommunityState>()(
       // ==================== 个人中心 ====================
 
       fetchMyPosts: async (params) => {
-        set({ postsLoading: true });
+        set({ myPostsLoading: true });
         try {
           const response = await communityApi.getMyPosts(params);
 
           set({
             myPosts: response.items || [],
-            postsLoading: false,
+            myPostsTotal: response.total || 0,
+            myPostsLoading: false,
           });
         } catch (error) {
           console.error('获取我的帖子失败:', error);
-          set({ postsLoading: false });
+          set({ myPostsLoading: false });
         }
       },
 
       fetchMyFavorites: async (params) => {
-        set({ postsLoading: true });
+        set({ myFavoritesLoading: true });
         try {
           const response = await communityApi.getMyFavorites(params);
 
           set({
             myFavorites: response.items || [],
-            postsLoading: false,
+            myFavoritesLoading: false,
           });
         } catch (error) {
           console.error('获取我的收藏失败:', error);
-          set({ postsLoading: false });
+          set({ myFavoritesLoading: false });
         }
       },
 

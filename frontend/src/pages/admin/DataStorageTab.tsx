@@ -24,7 +24,7 @@ import { useAuthStore } from '@/stores';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { getProxyImageUrl } from '@/utils';
 import { Pagination, StatCard, StatsGrid, formatRelativeTime } from './shared';
 import { useTranslation } from 'react-i18next';

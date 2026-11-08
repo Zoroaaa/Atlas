@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -158,29 +158,6 @@ export const ToastContainer: React.FC = () => {
       ))}
     </div>
   );
-};
-
-export const useToast = () => {
-  const { addToast, removeToast, clearToasts } = useUIStore();
-  const toastRef = useRef<{ success: (title: string, message?: string) => void; error: (title: string, message?: string) => void; warning: (title: string, message?: string) => void; info: (title: string, message?: string) => void; show: (options: Parameters<typeof addToast>[0]) => void; remove: (id: string) => void; clear: () => void } | null>(null);
-
-  if (!toastRef.current) {
-    toastRef.current = {
-      success: (title: string, message?: string) =>
-        addToast({ type: 'success', title, message }),
-      error: (title: string, message?: string) =>
-        addToast({ type: 'error', title, message }),
-      warning: (title: string, message?: string) =>
-        addToast({ type: 'warning', title, message }),
-      info: (title: string, message?: string) =>
-        addToast({ type: 'info', title, message }),
-      show: (options: Parameters<typeof addToast>[0]) => addToast(options),
-      remove: (id: string) => removeToast(id),
-      clear: () => clearToasts(),
-    };
-  }
-
-  return toastRef.current;
 };
 
 export type { ToastType, ToastPosition };

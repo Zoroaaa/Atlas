@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, RefreshCw, Trash2, CheckCircle } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 
 interface CleanupResult {

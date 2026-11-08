@@ -195,9 +195,9 @@ adminRoutes.get('/users/stats', async (c) => {
  * GET /api/admin/users
  */
 adminRoutes.get('/users', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
   const search = c.req.query('search');
   const status = c.req.query('status');
   const roleId = c.req.query('roleId');
@@ -357,9 +357,9 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
  */
 adminRoutes.get('/users/:id/login-logs', async (c) => {
   const userId = c.req.param('id');
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
 
   try {
     const total = await countUserLoginActions(c.env.DB, userId);
@@ -396,7 +396,7 @@ adminRoutes.get('/users/:id/login-logs', async (c) => {
  */
 adminRoutes.get('/active-users', async (c) => {
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const limit = Math.min(parseInt(c.req.query('limit') || String(defaultPageSize)), maxPageSize);
+  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
   const days = parseInt(c.req.query('days') || '7');
 
   try {
@@ -662,9 +662,9 @@ adminRoutes.put('/users/:id/permissions', validateBody(schemas.admin.updateUserP
  * GET /api/admin/reports
  */
 adminRoutes.get('/reports', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
   const status = c.req.query('status') || 'pending';
 
   try {
@@ -849,9 +849,9 @@ adminRoutes.get('/logs/stats', async (c) => {
  * GET /api/admin/logs
  */
 adminRoutes.get('/logs', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxLogPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxLogPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxLogPageSize);
   const userId = c.req.query('userId');
   const username = c.req.query('username');
   const action = c.req.query('action');
@@ -966,9 +966,9 @@ adminRoutes.get('/sessions/stats', async (c) => {
  * GET /api/admin/sessions
  */
 adminRoutes.get('/sessions', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
   const userId = c.req.query('userId');
   const status = c.req.query('status');
 
@@ -1116,9 +1116,9 @@ adminRoutes.get('/analytics/stats', async (c) => {
  * GET /api/admin/analytics/events
  */
 adminRoutes.get('/analytics/events', async (c) => {
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || String(defaultPageSize)), maxPageSize);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
   const eventType = c.req.query('eventType');
   const userId = c.req.query('userId');
   const days = parseInt(c.req.query('days') || '7'); // 默认查询最近7天，避免全表扫描

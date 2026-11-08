@@ -13,7 +13,8 @@ const mockToast = {
   info: vi.fn(),
 };
 
-vi.mock('@/components/ui/Toast', () => ({
+vi.mock('@/hooks/useNotification', () => ({
+  useNotification: () => mockToast,
   useToast: () => mockToast,
 }));
 

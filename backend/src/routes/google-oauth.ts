@@ -18,7 +18,8 @@ import {
   logUserAction,
   recordSecurityEvent,
 } from '@/utils';
-import { CONFIG } from '@/constants';
+import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
+import { ConfigService } from '@/services';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 
 export const googleOAuthRoutes = new Hono<{ Bindings: Env }>();
@@ -254,6 +255,9 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
     }
 
     const now = Date.now();
+    // 新用户在建号 batch 中直接拿到 token；已有用户走下面统一签发
+    let token: string | null = null;
+    let isNewUser = false;
 
     if (!user) {
       // 注册风控：OAuth 自动注册与邮箱注册共用同一 IP 配额（IPv6 按 /64 聚合）。
@@ -272,19 +276,30 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
       }
 
       // 自动注册新用户
+      const enableRegistration = await new ConfigService(c.env).getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true);
+      if (!enableRegistration) {
+        return c.redirect(`${frontendBase}/auth/google/callback?error=registration_disabled`, 302);
+      }
+
       const baseName = gUser.name || gUser.given_name || email.split('@')[0];
       const username = await resolveUsername(c.env.DB, baseName);
       const userId = generateId();
       // OAuth 用户不需要密码，存储随机不可逆哈希占位
       const randomPasswordHash = await hashPassword(generateId() + generateId());
+      const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
+      const newUserToken = await generateToken(userId, username, c.env.JWT_SECRET, expiryDays, 'user');
+      const newUserTokenHash = await hashToken(newUserToken);
+      const newUserSessionId = generateId();
+      const newUserSessionExpiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-      await c.env.DB.prepare(`
-        INSERT INTO users
-          (id, username, email, password_hash, google_id, google_username,
-           created_at, updated_at, permissions, settings, is_active, login_count, email_verified)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-        .bind(
+      // 建号与建会话必须同时成功，避免会话写入失败后留下孤儿用户
+      await c.env.DB.batch([
+        c.env.DB.prepare(`
+          INSERT INTO users
+            (id, username, email, password_hash, google_id, google_username,
+             created_at, updated_at, permissions, settings, is_active, last_login, login_count, email_verified)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
           userId,
           username,
           email,
@@ -296,10 +311,27 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
           JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]),
           JSON.stringify({}),
           1,
-          0,
+          now,
+          1,
           1 // Google 已验证邮箱视为已验证
-        )
-        .run();
+        ),
+        c.env.DB.prepare(`
+          INSERT INTO user_sessions
+            (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          newUserSessionId,
+          userId,
+          newUserTokenHash,
+          newUserSessionExpiresAt,
+          now,
+          now,
+          clientIP,
+          userAgent
+        ),
+      ]);
+      token = newUserToken;
+      isNewUser = true;
 
       await logUserAction(
         c.env,
@@ -328,30 +360,28 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
       return c.redirect(`${frontendBase}/login?error=account_disabled`, 302);
     }
 
-    // 更新登录记录
-    await c.env.DB.prepare(
-      'UPDATE users SET last_login = ?, login_count = login_count + 1, updated_at = ? WHERE id = ?'
-    )
-      .bind(now, now, user.id)
-      .run();
-
-    // 生成 JWT
     const userRole = user.role_name || 'user';
-    const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
-    const token = await generateToken(user.id, user.username, c.env.JWT_SECRET, expiryDays, userRole);
 
-    // 创建 session
-    const tokenHash = await hashToken(token);
-    const sessionId = generateId();
-    const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
+    // 已有用户：登录记录与会话写入同一个 batch
+    if (!token) {
+      const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
+      const existingToken = await generateToken(user.id, user.username, c.env.JWT_SECRET, expiryDays, userRole);
+      const tokenHash = await hashToken(existingToken);
+      const sessionId = generateId();
+      const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-    await c.env.DB.prepare(`
-      INSERT INTO user_sessions
-        (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-      .bind(sessionId, user.id, tokenHash, expiresAt, now, now, clientIP, userAgent)
-      .run();
+      await c.env.DB.batch([
+        c.env.DB.prepare(
+          'UPDATE users SET last_login = ?, login_count = login_count + 1, updated_at = ? WHERE id = ?'
+        ).bind(now, now, user.id),
+        c.env.DB.prepare(`
+          INSERT INTO user_sessions
+            (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(sessionId, user.id, tokenHash, expiresAt, now, now, clientIP, userAgent),
+      ]);
+      token = existingToken;
+    }
 
     await logUserAction(c.env, user.id, 'login', { method: 'google', ip: clientIP }, c);
     await recordSecurityEvent(c.env.DB, {
@@ -374,7 +404,7 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
         emailVerified: true,
         createdAt: user.created_at,
         lastLogin: now,
-        loginCount: user.login_count + 1,
+        loginCount: isNewUser ? user.login_count : user.login_count + 1,
         role: userRole,
         roleDisplayName: user.role_display_name || '普通用户',
       })

@@ -59,7 +59,7 @@ dataStorageRoutes.get('/stats', async (c) => {
       c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records WHERE first_seen_at > ?').bind(now - monthMs),
       c.env.DB.prepare("SELECT COUNT(*) as cnt FROM data_records WHERE status = 'hidden'"),
       c.env.DB.prepare(
-        `SELECT date(first_seen_at / 1000, 'unixepoch') as d, COUNT(*) as cnt
+        `SELECT date(first_seen_at / 1000, 'unixepoch', '+8 hours') as d, COUNT(*) as cnt
          FROM data_records
          WHERE first_seen_at > ?
          GROUP BY d ORDER BY d ASC`
@@ -84,27 +84,31 @@ dataStorageRoutes.get('/stats', async (c) => {
     const completed = detailCompletedResult.results?.[0]?.completed || 0;
     const detailTotal = detailCompletedResult.results?.[0]?.total || 0;
 
-    // 标签统计：tags 字段是 JSON 数组字符串，D1/SQLite 无原生 JSON 展开，这里拉取后在应用层聚合
-    const tagsRows = await c.env.DB.prepare(
-      `SELECT tags FROM data_records WHERE tags IS NOT NULL AND tags != '[]'`
-    ).all<{ tags: string }>();
+    // 标签统计：JSON 数组交给 SQLite JSON1 聚合，避免全表拉到应用层解析
+    const [jsonTagRows, legacyTagRows] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT j.value AS tag, COUNT(*) AS cnt
+         FROM data_records d,
+              json_each(CASE WHEN json_valid(d.tags) AND json_type(d.tags) = 'array' THEN d.tags ELSE '[]' END) j
+         WHERE d.tags IS NOT NULL AND d.tags != '[]' AND j.value != ''
+         GROUP BY j.value ORDER BY cnt DESC LIMIT 30`
+      ).all<{ tag: string; cnt: number }>(),
+      // 兼容逗号分隔的旧数据（数量有限，仍需应用层拆分）
+      c.env.DB.prepare(
+        `SELECT tags FROM data_records
+         WHERE tags IS NOT NULL AND tags != '[]' AND NOT json_valid(tags)`
+      ).all<{ tags: string }>(),
+    ]);
     const tagCountMap = new Map<string, number>();
-    for (const r of tagsRows.results || []) {
-      try {
-        const arr = JSON.parse(r.tags) as string[];
-        if (Array.isArray(arr)) {
-          for (const t of arr) {
-            if (t) tagCountMap.set(t, (tagCountMap.get(t) || 0) + 1);
-          }
-        }
-      } catch {
-        // 忽略非 JSON（逗号分隔的旧数据）
-        String(r.tags)
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .forEach((t) => tagCountMap.set(t, (tagCountMap.get(t) || 0) + 1));
-      }
+    for (const r of jsonTagRows.results || []) {
+      tagCountMap.set(r.tag, r.cnt);
+    }
+    for (const r of legacyTagRows.results || []) {
+      String(r.tags)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((t) => tagCountMap.set(t, (tagCountMap.get(t) || 0) + 1));
     }
     const topTags = Array.from(tagCountMap.entries())
       .map(([tag, count]) => ({ tag, count }))
@@ -147,7 +151,7 @@ dataStorageRoutes.get('/trends', async (c) => {
 
     const [overTimeResult, byTypeOverTimeResult] = (await c.env.DB.batch([
       c.env.DB.prepare(
-        `SELECT date(first_seen_at / 1000, 'unixepoch') as d, COUNT(*) as cnt
+        `SELECT date(first_seen_at / 1000, 'unixepoch', '+8 hours') as d, COUNT(*) as cnt
          FROM data_records
          WHERE first_seen_at > ?
          GROUP BY d ORDER BY d ASC`

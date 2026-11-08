@@ -14,7 +14,7 @@ import {
 import { Card, Button, Modal, Loading, EmptyState, Badge, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 
 const STATUS_CONFIG: Record<string, { labelKey: string; value: string }> = {
   all: { labelKey: 'statusAll', value: '' },
@@ -36,7 +36,8 @@ export const MyPostsTab: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const {
     myPosts,
-    postsLoading,
+    myPostsTotal,
+    myPostsLoading,
     userStats,
     fetchMyPosts,
     fetchUserStats,
@@ -47,7 +48,7 @@ export const MyPostsTab: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [editModal, setEditModal] = useState<{ open: boolean; post: any }>({ open: false, post: null });
-  const [editForm, setEditForm] = useState({ caption: '', tags: [] as string[] });
+  const [editForm, setEditForm] = useState({ caption: '' });
 
   // 合并初始加载、状态筛选变化、分页为单个 effect，避免重复请求
   useEffect(() => {
@@ -68,10 +69,7 @@ export const MyPostsTab: React.FC = () => {
   };
 
   const openEdit = (post: any) => {
-    setEditForm({
-      caption: post.caption || '',
-      tags: Array.isArray(post.tags) ? post.tags.map((t: any) => typeof t === 'string' ? t : t.id || t.tagName || t.name) : [],
-    });
+    setEditForm({ caption: post.caption || '' });
     setEditModal({ open: true, post });
   };
 
@@ -80,7 +78,6 @@ export const MyPostsTab: React.FC = () => {
     try {
       await updatePost(editModal.post.id, {
         caption: editForm.caption,
-        tags: editForm.tags,
       });
       toast.success(t('communityPages:myPosts.updateSuccess'));
       setEditModal({ open: false, post: null });
@@ -163,7 +160,7 @@ export const MyPostsTab: React.FC = () => {
       </div>
 
       {/* 帖子列表 */}
-      {postsLoading && myPosts.length === 0 ? (
+      {myPostsLoading && myPosts.length === 0 ? (
         <div className="flex justify-center py-12"><Loading /></div>
       ) : myPosts.length === 0 ? (
         <EmptyState
@@ -260,7 +257,7 @@ export const MyPostsTab: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={myPosts.length < 20}
+              disabled={page * 20 >= myPostsTotal}
               onClick={() => setPage(p => p + 1)}
             >{t('communityPages:myPosts.nextPage')}</Button>
           </div>
