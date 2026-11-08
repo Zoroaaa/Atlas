@@ -236,7 +236,7 @@ export class JavProvider implements SearchProvider {
       categoryId: ctx.categoryId,
       userId: ctx.user?.userId || '',
     });
-    return toSourceCards(filterEnabledSources(sources, ctx.enabledSources ?? null), keyword);
+    return toSourceCards(filterEnabledSources(sources, ctx.disabledSources ?? null), keyword);
   }
 
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {

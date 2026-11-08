@@ -37,7 +37,7 @@ export class NovelProvider implements SearchProvider {
       userId: ctx.user?.userId || '',
     });
     result.results = toSourceCards(
-      filterEnabledSources(sources, ctx.enabledSources ?? null),
+      filterEnabledSources(sources, ctx.disabledSources ?? null),
       keyword
     );
 
