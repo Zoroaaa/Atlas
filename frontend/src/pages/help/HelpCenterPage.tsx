@@ -22,10 +22,9 @@ interface HelpSectionContent {
   categoryId: string;
   title: string;
   summary: string;
-  paragraphs: string[];
+  features: string[];
   steps: string[];
-  bullets: string[];
-  note: string;
+  caveats: string[];
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => unknown;
@@ -73,10 +72,9 @@ export const HelpCenterPage: React.FC = () => {
     categoryId: HELP_SECTION_CATEGORY[id],
     title: String(translate(`help:sections.${id}.title`)),
     summary: String(translate(`help:sections.${id}.summary`)),
-    paragraphs: readArray(translate, `help:sections.${id}.paragraphs`),
+    features: readArray(translate, `help:sections.${id}.features`),
     steps: readArray(translate, `help:sections.${id}.steps`),
-    bullets: readArray(translate, `help:sections.${id}.bullets`),
-    note: String(translate(`help:sections.${id}.note`)),
+    caveats: readArray(translate, `help:sections.${id}.caveats`),
   }));
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -87,10 +85,9 @@ export const HelpCenterPage: React.FC = () => {
       [
         section.title,
         section.summary,
-        ...section.paragraphs,
+        ...section.features,
         ...section.steps,
-        ...section.bullets,
-        section.note,
+        ...section.caveats,
       ]
         .join(' ')
         .toLowerCase()
@@ -240,11 +237,19 @@ export const HelpCenterPage: React.FC = () => {
             </p>
           ) : null}
 
-          {section.paragraphs.length > 0 ? (
-            <div className="mt-3 space-y-2 text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-              {section.paragraphs.map((paragraph, index) => (
-                <p key={`${section.id}-p-${index}`}>{paragraph}</p>
-              ))}
+          {section.features.length > 0 ? (
+            <div className="mt-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                {t('help:page.features')}
+              </h3>
+              <ul className="space-y-2">
+                {section.features.map((feature, index) => (
+                  <li key={`${section.id}-feature-${index}`} className="flex gap-2.5 text-sm leading-relaxed text-stone-600 dark:text-stone-300">
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500/80" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 
@@ -266,21 +271,20 @@ export const HelpCenterPage: React.FC = () => {
             </div>
           ) : null}
 
-          {section.bullets.length > 0 ? (
-            <ul className="mt-4 space-y-2">
-              {section.bullets.map((bullet, index) => (
-                <li key={`${section.id}-bullet-${index}`} className="flex gap-2.5 text-sm leading-relaxed text-stone-600 dark:text-stone-300">
-                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500/80" />
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {section.note ? (
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200/70 bg-amber-50/80 px-3.5 py-3 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">{section.note}</p>
+          {section.caveats.length > 0 ? (
+            <div className="mt-4 rounded-xl border border-amber-200/70 bg-amber-50/80 px-3.5 py-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                {t('help:page.caveats')}
+              </h3>
+              <ul className="space-y-1.5">
+                {section.caveats.map((caveat, index) => (
+                  <li key={`${section.id}-caveat-${index}`} className="flex gap-2 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                    <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-amber-500/80" />
+                    <span>{caveat}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </article>
