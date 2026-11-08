@@ -2857,6 +2857,14 @@
     "unreadAria": "通知，{{count}} 条未读",
     "prev": "上一页",
     "next": "下一页",
+    "detail": {
+      "title": "通知详情",
+      "open": "查看详情",
+      "works": "作品列表",
+      "relatedPost": "相关帖子：{{title}}",
+      "viewPost": "查看帖子",
+      "searchCode": "搜索该番号"
+    },
     "page": {
       "subtitle": "收件箱与通知设置",
       "tabInbox": "收件箱",
