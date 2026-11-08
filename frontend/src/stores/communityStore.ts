@@ -10,7 +10,6 @@ import type {
   CreateCommentRequest,
   CommunityUserStats,
   CommunityStats,
-  CommunityNotification,
 } from '@/types';
 
 interface CommunityState {
@@ -42,10 +41,6 @@ interface CommunityState {
   // 社区统计
   communityStats: CommunityStats | null;
 
-  // 通知
-  notifications: CommunityNotification[];
-  notificationsUnread: number;
-
   // Actions - 帖子操作
   fetchPosts: (params?: { page?: number; pageSize?: number; postType?: string; tags?: string; sort?: string; search?: string }) => Promise<void>;
   fetchPost: (id: string) => Promise<void>;
@@ -72,9 +67,6 @@ interface CommunityState {
 
   // Actions - 统计数据
   fetchCommunityStats: () => Promise<void>;
-
-  // Actions - 通知
-  fetchNotifications: (params?: { page?: number; pageSize?: number }) => Promise<void>;
 
   // Actions - 筛选器
   setPostTypeFilter: (filter: 'all' | 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress') => void;
@@ -107,9 +99,6 @@ const initialState = {
   userStats: null,
 
   communityStats: null,
-
-  notifications: [],
-  notificationsUnread: 0,
 };
 
 export const useCommunityStore = create<CommunityState>()(
@@ -470,21 +459,6 @@ export const useCommunityStore = create<CommunityState>()(
           set({ communityStats: stats });
         } catch (error) {
           console.error('获取社区统计失败:', error);
-        }
-      },
-
-      // ==================== 通知 ====================
-
-      fetchNotifications: async (params) => {
-        try {
-          const response = await communityApi.getNotifications(params);
-
-          set({
-            notifications: response.items || [],
-            notificationsUnread: (response.items || []).filter((n) => !n.isRead).length,
-          });
-        } catch (error) {
-          console.error('获取通知列表失败:', error);
         }
       },
 

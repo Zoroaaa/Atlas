@@ -263,7 +263,17 @@ export const EMAIL = {
 
 export const NOTIFICATION = {
   MAX_PAGE_SIZE: 50,
-  TYPES: ['follow.new_work', 'follow.release_soon'] as const,
+  /** 公告在收件箱里的伪 ID 前缀（读时合并，不落 notifications 表） */
+  ANNOUNCEMENT_ID_PREFIX: 'announcement:',
+  TYPES: [
+    'follow.new_work',
+    'follow.release_soon',
+    'community.like',
+    'community.comment',
+    'community.favorite',
+    'community.report_resolved',
+    'site.announcement',
+  ] as const,
 } as const;
 
 // ==================================================================

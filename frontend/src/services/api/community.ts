@@ -13,7 +13,6 @@ import type {
   CommunityStats,
   PostsResponse,
   CommentsResponse,
-  NotificationsResponse,
 } from '@/types';
 
 export const communityApi = {
@@ -155,19 +154,6 @@ export const communityApi = {
 
   getUserStats: async (): Promise<CommunityUserStats> => {
     const response = await apiClient.get<{ success: boolean; data: CommunityUserStats }>('/community/user-stats');
-    return response.data;
-  },
-
-  // ==================== 通知管理 ====================
-
-  getNotifications: async (params?: { page?: number; pageSize?: number }): Promise<NotificationsResponse> => {
-    const queryParams = new URLSearchParams();
-    const page = params?.page ?? 1;
-    const pageSize = params?.pageSize ?? 20;
-    queryParams.append('page', String(page));
-    queryParams.append('pageSize', String(pageSize));
-
-    const response = await apiClient.get<{ success: boolean; data: NotificationsResponse }>(`/community/notifications?${queryParams.toString()}`);
     return response.data;
   },
 };

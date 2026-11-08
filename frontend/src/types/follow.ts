@@ -51,7 +51,17 @@ export interface NotificationItem {
     name?: string;
     count?: number;
     works?: NotificationWork[];
+    /** 社区互动事件 */
+    postId?: string;
+    postTitle?: string;
+    actorName?: string;
+    comment?: string;
+    /** 站点公告（读时合并） */
+    announcementId?: string;
+    level?: 'info' | 'success' | 'warning' | 'error';
   };
+  /** 收件箱来源：公告为读时合并，不落 notifications 表 */
+  source?: 'notification' | 'announcement';
   createdAt: number;
   isRead: boolean;
 }

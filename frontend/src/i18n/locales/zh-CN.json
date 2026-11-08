@@ -190,8 +190,7 @@
         "browse": "发现",
         "myPosts": "我的帖子",
         "myFavorites": "我的收藏",
-        "tags": "标签",
-        "notifications": "通知"
+        "tags": "标签"
       }
     }
   },
@@ -1729,31 +1728,6 @@
       "published": "分享成功！帖子已发布到社区",
       "publishFailed": "发布失败，请重试"
     },
-    "notifications": {
-      "types": {
-        "like": "点赞",
-        "comment": "评论",
-        "favorite": "收藏",
-        "reportResolved": "举报处理"
-      },
-      "loginRequired": "请先登录查看消息通知",
-      "title": "消息通知",
-      "filterAll": "全部消息",
-      "filterLike": "点赞通知",
-      "filterComment": "评论通知",
-      "filterFavorite": "收藏通知",
-      "filterReportResolved": "举报处理",
-      "refresh": "刷新",
-      "description": "当其他用户点赞、评论、收藏你的帖子，或举报被处理时，这里会显示相应通知。",
-      "emptyTitle": "暂无消息通知",
-      "emptyDescription": "在社区分享内容并获得互动后，通知将显示在这里",
-      "systemActor": "系统",
-      "postPrefix": "帖子：",
-      "justNow": "刚刚",
-      "minutesAgo": "{{count}}分钟前",
-      "hoursAgo": "{{count}}小时前",
-      "daysAgo": "{{count}}天前"
-    },
     "tags": {
       "searchPlaceholder": "搜索标签...",
       "cancel": "取消",
@@ -2849,6 +2823,10 @@
     "markAllRead": "全部已读",
     "empty": "暂无通知",
     "newWork": "{{name}} 有 {{count}} 部新作",
+    "communityLike": "{{name}} 点赞了你的帖子",
+    "communityComment": "{{name}} 评论了你的帖子",
+    "communityFavorite": "{{name}} 收藏了你的帖子",
+    "communityReport": "你帖子上的举报已处理",
     "unreadAria": "通知，{{count}} 条未读",
     "prev": "上一页",
     "next": "下一页",
@@ -2876,8 +2854,23 @@
       "channels": "通知渠道",
       "inApp": "站内",
       "email": "邮件",
+      "groups": {
+        "follow": "关注动态",
+        "community": "社区互动",
+        "site": "站点公告"
+      },
       "typeNewWork": "关注的女优有新作",
       "typeNewWorkDesc": "你关注的女优在 JavBus 上出现新作品时通知",
+      "typeCommunityLike": "我的帖子被点赞",
+      "typeCommunityLikeDesc": "别人点赞你的社区帖子时通知",
+      "typeCommunityComment": "我的帖子有新评论",
+      "typeCommunityCommentDesc": "别人评论你的社区帖子时通知",
+      "typeCommunityFavorite": "我的帖子被收藏",
+      "typeCommunityFavoriteDesc": "别人收藏你的社区帖子时通知",
+      "typeCommunityReport": "我的帖子举报有结果",
+      "typeCommunityReportDesc": "你帖子上的举报被管理员处理时通知",
+      "typeSiteAnnouncement": "站点公告",
+      "typeSiteAnnouncementDesc": "管理员发布新公告时通知",
       "muteHint": "想对某位女优不再提醒，可以在「我的关注」里静音，对站内和邮件都生效。",
       "hideDetails": "隐藏邮件详情",
       "hideDetailsDesc": "开启后邮件只显示条数，不含女优名和番号；邮件主题始终是中性的，也不含封面图",

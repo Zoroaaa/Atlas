@@ -42,6 +42,9 @@ export const NotificationBell: React.FC = () => {
     if (code) {
       setOpen(false);
       navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+    } else if (item.source === 'announcement' || item.type.startsWith('community.')) {
+      setOpen(false);
+      navigate('/dashboard/notifications');
     }
   };
 

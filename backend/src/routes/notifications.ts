@@ -11,6 +11,7 @@ import {
   getPreferences,
   getSettings,
   getUnreadCount,
+  isNotificationInAppEnabled,
   isNotificationType,
   setPreference,
   setSettings,
@@ -40,6 +41,40 @@ interface NotificationRow {
   read_at: number | null;
 }
 
+interface AnnouncementRow {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  created_at: number;
+  read_at: number | null;
+}
+
+/** 当前有效公告 + 当前用户的已读状态；unreadOnly 时只返回未读 */
+async function listActiveAnnouncements(
+  db: D1Database,
+  userId: string,
+  unreadOnly: boolean
+): Promise<AnnouncementRow[]> {
+  const now = Date.now();
+  const rows = await db
+    .prepare(
+      `SELECT a.id, a.title, a.content, a.type, a.created_at, r.read_at
+       FROM site_announcements a
+       LEFT JOIN user_announcement_reads r
+         ON r.announcement_id = a.id AND r.user_id = ?
+       WHERE a.is_active = 1
+         AND (a.start_time IS NULL OR a.start_time <= ?)
+         AND (a.end_time IS NULL OR a.end_time >= ?)
+         AND r.dismissed_at IS NULL
+         ${unreadOnly ? 'AND r.read_at IS NULL' : ''}
+       ORDER BY a.created_at DESC`
+    )
+    .bind(userId, now, now)
+    .all<AnnouncementRow>();
+  return rows.results || [];
+}
+
 function parsePayload(raw: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(raw);
@@ -61,28 +96,50 @@ notificationRoutes.get('/', async (c) => {
     );
     const unreadOnly = c.req.query('unreadOnly') === '1';
     const where = unreadOnly ? 'user_id = ? AND read_at IS NULL' : 'user_id = ?';
+    const offset = (page - 1) * pageSize;
 
-    const [rows, totalRow, unread] = await Promise.all([
+    // 公告数量少，全部取出后与通知做一次有序合并；通知只需取到当前页末尾
+    const [rows, totalRow, announcementsInApp, unread] = await Promise.all([
       c.env.DB.prepare(
         `SELECT id, type, title, body, payload, created_at, read_at FROM notifications
-         WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
-      ).bind(user.userId, pageSize, (page - 1) * pageSize).all<NotificationRow>(),
+         WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET 0`
+      ).bind(user.userId, offset + pageSize).all<NotificationRow>(),
       c.env.DB.prepare(`SELECT COUNT(*) AS count FROM notifications WHERE ${where}`)
         .bind(user.userId).first<{ count: number }>(),
+      isNotificationInAppEnabled(c.env.DB, user.userId, 'site.announcement'),
       getUnreadCount(c.env.DB, user.userId),
     ]);
+    const announcementRows = announcementsInApp
+      ? await listActiveAnnouncements(c.env.DB, user.userId, unreadOnly)
+      : [];
+
+    const announcementItems = announcementRows.map((r) => ({
+      id: `${NOTIFICATION.ANNOUNCEMENT_ID_PREFIX}${r.id}`,
+      type: 'site.announcement',
+      title: r.title,
+      body: r.content,
+      payload: { announcementId: r.id, level: r.type },
+      source: 'announcement' as const,
+      createdAt: r.created_at,
+      isRead: r.read_at !== null,
+    }));
+    const notificationItems = (rows.results || []).map((r) => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      body: r.body,
+      payload: parsePayload(r.payload),
+      source: 'notification' as const,
+      createdAt: r.created_at,
+      isRead: r.read_at !== null,
+    }));
+    const items = [...notificationItems, ...announcementItems]
+      .sort((a, b) => (b.createdAt - a.createdAt) || b.id.localeCompare(a.id))
+      .slice(offset, offset + pageSize);
 
     return c.json(success({
-      items: (rows.results || []).map((r) => ({
-        id: r.id,
-        type: r.type,
-        title: r.title,
-        body: r.body,
-        payload: parsePayload(r.payload),
-        createdAt: r.created_at,
-        isRead: r.read_at !== null,
-      })),
-      total: totalRow?.count ?? 0,
+      items,
+      total: (totalRow?.count ?? 0) + announcementRows.length,
       unread,
       page,
       pageSize,
@@ -111,18 +168,55 @@ notificationRoutes.post('/read', async (c) => {
     const body = await c.req.json<{ ids?: unknown }>().catch(() => ({} as { ids?: unknown }));
     const now = Date.now();
 
+    const prefix = NOTIFICATION.ANNOUNCEMENT_ID_PREFIX;
+
     if (Array.isArray(body.ids) && body.ids.length > 0) {
       const ids = body.ids.filter((id): id is string => typeof id === 'string').slice(0, 100);
-      if (ids.length > 0) {
-        const placeholders = ids.map(() => '?').join(',');
+      const announcementIds = ids
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => id.slice(prefix.length))
+        .filter(Boolean);
+      const notificationIds = ids.filter((id) => !id.startsWith(prefix));
+
+      if (notificationIds.length > 0) {
+        const placeholders = notificationIds.map(() => '?').join(',');
         await c.env.DB.prepare(
           `UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL AND id IN (${placeholders})`
-        ).bind(now, user.userId, ...ids).run();
+        ).bind(now, user.userId, ...notificationIds).run();
+      }
+      if (announcementIds.length > 0) {
+        await c.env.DB.batch(
+          announcementIds.map((id) =>
+            c.env.DB.prepare(
+              `INSERT INTO user_announcement_reads (user_id, announcement_id, read_at, dismissed_at)
+               SELECT ?, a.id, ?, NULL FROM site_announcements a WHERE a.id = ?
+               ON CONFLICT(user_id, announcement_id)
+               DO UPDATE SET read_at = COALESCE(user_announcement_reads.read_at, excluded.read_at)`
+            ).bind(user.userId, now, id)
+          )
+        );
       }
     } else {
       await c.env.DB.prepare(
         'UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL'
       ).bind(now, user.userId).run();
+
+      // 全部已读：把当前有效公告也标记为已读（保留已有删除状态）
+      if (await isNotificationInAppEnabled(c.env.DB, user.userId, 'site.announcement')) {
+        await c.env.DB.batch([
+          c.env.DB.prepare(
+            `INSERT OR IGNORE INTO user_announcement_reads (user_id, announcement_id, read_at, dismissed_at)
+             SELECT ?, a.id, ?, NULL
+             FROM site_announcements a
+             WHERE a.is_active = 1
+               AND (a.start_time IS NULL OR a.start_time <= ?)
+               AND (a.end_time IS NULL OR a.end_time >= ?)`
+          ).bind(user.userId, now, now, now),
+          c.env.DB.prepare(
+            'UPDATE user_announcement_reads SET read_at = ? WHERE user_id = ? AND read_at IS NULL'
+          ).bind(now, user.userId),
+        ]);
+      }
     }
 
     return c.json(success({ unread: await getUnreadCount(c.env.DB, user.userId) }));
@@ -146,9 +240,25 @@ notificationRoutes.delete('/read', async (c) => {
 
 notificationRoutes.delete('/:id', async (c) => {
   const user = c.get('user');
+  const id = c.req.param('id');
+  const prefix = NOTIFICATION.ANNOUNCEMENT_ID_PREFIX;
+
   try {
-    await c.env.DB.prepare('DELETE FROM notifications WHERE user_id = ? AND id = ?')
-      .bind(user.userId, c.req.param('id')).run();
+    if (id.startsWith(prefix)) {
+      const announcementId = id.slice(prefix.length);
+      const now = Date.now();
+      await c.env.DB.prepare(
+        `INSERT INTO user_announcement_reads (user_id, announcement_id, read_at, dismissed_at)
+         SELECT ?, a.id, ?, ? FROM site_announcements a WHERE a.id = ?
+         ON CONFLICT(user_id, announcement_id)
+         DO UPDATE SET
+           read_at = COALESCE(user_announcement_reads.read_at, excluded.read_at),
+           dismissed_at = excluded.dismissed_at`
+      ).bind(user.userId, now, now, announcementId).run();
+    } else {
+      await c.env.DB.prepare('DELETE FROM notifications WHERE user_id = ? AND id = ?')
+        .bind(user.userId, id).run();
+    }
     return c.json(success({ unread: await getUnreadCount(c.env.DB, user.userId) }));
   } catch (err) {
     console.error('Delete notification error:', err);

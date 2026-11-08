@@ -13,6 +13,8 @@ import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
 import { validateBody, schemas } from '@/validation';
+import { findPostNotificationTarget } from '@/repositories/community-repository';
+import { emitNotification } from '@/services/notification-service';
 import {
   listRoles,
   findRoleById,
@@ -713,6 +715,18 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
 
     if (status === 'resolved' && action === 'remove_source') {
       await hidePost(c.env.DB, { postId: report.post_id, now });
+    }
+
+    const target = await findPostNotificationTarget(c.env.DB, report.post_id);
+    if (target && target.user_id !== adminUser.userId) {
+      await emitNotification(c.env.DB, {
+        userId: target.user_id,
+        type: 'community.report_resolved',
+        title: '你帖子上的举报已处理',
+        body: `${target.title} · ${status === 'resolved' ? '已处理' : '已驳回'}`,
+        payload: { postId: report.post_id, postTitle: target.title, status, action: action || '' },
+        dedupKey: `community_report:${reportId}:${status}`,
+      }).catch((err) => console.error('Emit report notification error:', err));
     }
 
     await logUserAction(c.env, adminUser.userId, 'admin_handle_report', {

@@ -190,8 +190,7 @@
         "browse": "發現",
         "myPosts": "我的帖子",
         "myFavorites": "我的收藏",
-        "tags": "標籤",
-        "notifications": "通知"
+        "tags": "標籤"
       }
     }
   },
@@ -1729,31 +1728,6 @@
       "published": "分享成功！帖子已發布到社群",
       "publishFailed": "發布失敗，請重試"
     },
-    "notifications": {
-      "types": {
-        "like": "點讚",
-        "comment": "評論",
-        "favorite": "收藏",
-        "reportResolved": "舉報處理"
-      },
-      "loginRequired": "請先登入查看訊息通知",
-      "title": "訊息通知",
-      "filterAll": "全部訊息",
-      "filterLike": "點讚通知",
-      "filterComment": "評論通知",
-      "filterFavorite": "收藏通知",
-      "filterReportResolved": "舉報處理",
-      "refresh": "重新整理",
-      "description": "當其他使用者點讚、評論、收藏你的帖子，或舉報被處理時，這裡會顯示相應通知。",
-      "emptyTitle": "暫無訊息通知",
-      "emptyDescription": "在社群分享內容並獲得互動後，通知將顯示在這裡",
-      "systemActor": "系統",
-      "postPrefix": "帖子：",
-      "justNow": "剛剛",
-      "minutesAgo": "{{count}}分鐘前",
-      "hoursAgo": "{{count}}小時前",
-      "daysAgo": "{{count}}天前"
-    },
     "tags": {
       "searchPlaceholder": "搜尋標籤...",
       "cancel": "取消",
@@ -2849,6 +2823,10 @@
     "markAllRead": "全部已讀",
     "empty": "暫無通知",
     "newWork": "{{name}} 有 {{count}} 部新作",
+    "communityLike": "{{name}} 按讚了你的貼文",
+    "communityComment": "{{name}} 留言了你的貼文",
+    "communityFavorite": "{{name}} 收藏了你的貼文",
+    "communityReport": "你貼文上的檢舉已處理",
     "unreadAria": "通知，{{count}} 則未讀",
     "prev": "上一頁",
     "next": "下一頁",
@@ -2876,8 +2854,23 @@
       "channels": "通知管道",
       "inApp": "站內",
       "email": "郵件",
+      "groups": {
+        "follow": "關注動態",
+        "community": "社群互動",
+        "site": "站點公告"
+      },
       "typeNewWork": "關注的女優有新作",
       "typeNewWorkDesc": "你關注的女優在 JavBus 上出現新作品時通知",
+      "typeCommunityLike": "我的貼文被按讚",
+      "typeCommunityLikeDesc": "別人按讚你的社群貼文時通知",
+      "typeCommunityComment": "我的貼文有新留言",
+      "typeCommunityCommentDesc": "別人留言你的社群貼文時通知",
+      "typeCommunityFavorite": "我的貼文被收藏",
+      "typeCommunityFavoriteDesc": "別人收藏你的社群貼文時通知",
+      "typeCommunityReport": "我的貼文檢舉有結果",
+      "typeCommunityReportDesc": "你貼文上的檢舉被管理員處理時通知",
+      "typeSiteAnnouncement": "站點公告",
+      "typeSiteAnnouncementDesc": "管理員發布新公告時通知",
       "muteHint": "想對某位女優不再提醒，可以在「我的關注」裡靜音，對站內和郵件都生效。",
       "hideDetails": "隱藏郵件詳情",
       "hideDetailsDesc": "開啟後郵件只顯示則數，不含女優名和番號；郵件主旨始終是中性的，也不含封面圖",

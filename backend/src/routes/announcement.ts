@@ -8,6 +8,7 @@ import { Env, JwtPayload } from '@/types';
 import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
 import { checkIsAdmin } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
+import { enqueueAnnouncementEmail } from '@/services/notification-service';
 
 export const announcementRoutes = new Hono<{ Bindings: Env }>();
 
@@ -116,6 +117,15 @@ announcementRoutes.post('/admin', adminAuth, validateBody(schemas.announcement.c
       adminUser.userId,
       now, now
     ).run();
+
+    // 公告邮件默认关闭：只给已自行开启“站点公告 · 邮件”的用户入队
+    await enqueueAnnouncementEmail(c.env.DB, {
+      announcementId: id,
+      title: title.trim(),
+      body: content.trim(),
+      level: type || 'info',
+      createdAt: now,
+    }).catch((err) => console.error('Enqueue announcement email error:', err));
 
     await logUserAction(c.env, adminUser.userId, 'admin_create_announcement', { id, title: title.trim() }, c);
 

@@ -14,7 +14,20 @@ import { formatRelativeTime } from '@/utils/relativeTime';
 
 const PAGE_SIZE = 20;
 /** 设置页里展示的通知类型（follow.release_soon 等发售提醒上线后再加入） */
-const PREF_TYPES = ['follow.new_work'] as const;
+const PREF_GROUPS = [
+  { id: 'follow', types: ['follow.new_work'] },
+  { id: 'community', types: ['community.like', 'community.comment', 'community.favorite', 'community.report_resolved'] },
+  { id: 'site', types: ['site.announcement'] },
+] as const;
+const PREF_TYPES = PREF_GROUPS.flatMap((group) => group.types);
+const PREF_KEYS: Record<string, { label: string; desc: string }> = {
+  'follow.new_work': { label: 'typeNewWork', desc: 'typeNewWorkDesc' },
+  'community.like': { label: 'typeCommunityLike', desc: 'typeCommunityLikeDesc' },
+  'community.comment': { label: 'typeCommunityComment', desc: 'typeCommunityCommentDesc' },
+  'community.favorite': { label: 'typeCommunityFavorite', desc: 'typeCommunityFavoriteDesc' },
+  'community.report_resolved': { label: 'typeCommunityReport', desc: 'typeCommunityReportDesc' },
+  'site.announcement': { label: 'typeSiteAnnouncement', desc: 'typeSiteAnnouncementDesc' },
+};
 
 const Inbox: React.FC = () => {
   const { t, i18n } = useTranslation(['notify', 'search']);
@@ -179,39 +192,49 @@ const Preferences: React.FC = () => {
           <span className="w-11 text-center">{t('notify:prefs.inApp')}</span>
           <span className="w-11 text-center">{t('notify:prefs.email')}</span>
         </div>
-        <ul className="divide-y divide-surface-100 dark:divide-surface-800">
-          {PREF_TYPES.map((type) => {
-            const pref = prefOf(type);
-            const label = type === 'follow.new_work' ? t('notify:prefs.typeNewWork') : type;
-            const desc = type === 'follow.new_work' ? t('notify:prefs.typeNewWorkDesc') : '';
-            return (
-              <li key={type} className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-x-8 gap-y-3 py-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-surface-900 dark:text-surface-100">{label}</p>
-                  {desc ? <p className="mt-0.5 text-xs text-surface-500">{desc}</p> : null}
-                </div>
-                <div className="flex items-center justify-between sm:justify-center gap-3">
-                  <span className="text-xs text-surface-500 sm:hidden">{t('notify:prefs.inApp')}</span>
-                  <Switch
-                    aria-label={`${label} · ${t('notify:prefs.inApp')}`}
-                    checked={pref?.inApp ?? true}
-                    disabled={setPreference.isPending}
-                    onChange={(value) => setPreference.mutate({ type, inApp: value })}
-                  />
-                </div>
-                <div className="flex items-center justify-between sm:justify-center gap-3">
-                  <span className="text-xs text-surface-500 sm:hidden">{t('notify:prefs.email')}</span>
-                  <Switch
-                    aria-label={`${label} · ${t('notify:prefs.email')}`}
-                    checked={pref?.email ?? false}
-                    disabled={!email.verified || setPreference.isPending}
-                    onChange={(value) => setPreference.mutate({ type, email: value })}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-2 space-y-4">
+          {PREF_GROUPS.map((group) => (
+            <div key={group.id}>
+              <p className="pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-surface-500">
+                {t(`notify:prefs.groups.${group.id}`)}
+              </p>
+              <ul className="divide-y divide-surface-100 dark:divide-surface-800">
+                {group.types.map((type) => {
+                  const pref = prefOf(type);
+                  const meta = PREF_KEYS[type];
+                  const label = meta ? t(`notify:prefs.${meta.label}`) : type;
+                  const desc = meta ? t(`notify:prefs.${meta.desc}`) : '';
+                  return (
+                    <li key={type} className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-x-8 gap-y-3 py-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-surface-900 dark:text-surface-100">{label}</p>
+                        {desc ? <p className="mt-0.5 text-xs text-surface-500">{desc}</p> : null}
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-center gap-3">
+                        <span className="text-xs text-surface-500 sm:hidden">{t('notify:prefs.inApp')}</span>
+                        <Switch
+                          aria-label={`${label} · ${t('notify:prefs.inApp')}`}
+                          checked={pref?.inApp ?? true}
+                          disabled={setPreference.isPending}
+                          onChange={(value) => setPreference.mutate({ type, inApp: value })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-center gap-3">
+                        <span className="text-xs text-surface-500 sm:hidden">{t('notify:prefs.email')}</span>
+                        <Switch
+                          aria-label={`${label} · ${t('notify:prefs.email')}`}
+                          checked={pref?.email ?? false}
+                          disabled={!email.verified || setPreference.isPending}
+                          onChange={(value) => setPreference.mutate({ type, email: value })}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
         <p className="mt-2 text-xs text-surface-500">{t('notify:prefs.muteHint')}</p>
       </Card>
 

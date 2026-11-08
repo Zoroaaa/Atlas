@@ -190,8 +190,7 @@
         "browse": "Discover",
         "myPosts": "My Posts",
         "myFavorites": "My Favorites",
-        "tags": "Tags",
-        "notifications": "Notifications"
+        "tags": "Tags"
       }
     }
   },
@@ -1729,31 +1728,6 @@
       "published": "Shared successfully! Post published to the community.",
       "publishFailed": "Failed to publish. Please try again."
     },
-    "notifications": {
-      "types": {
-        "like": "Like",
-        "comment": "Comment",
-        "favorite": "Favorite",
-        "reportResolved": "Report resolved"
-      },
-      "loginRequired": "Please log in to view notifications",
-      "title": "Notifications",
-      "filterAll": "All messages",
-      "filterLike": "Like notifications",
-      "filterComment": "Comment notifications",
-      "filterFavorite": "Favorite notifications",
-      "filterReportResolved": "Report resolved",
-      "refresh": "Refresh",
-      "description": "When other users like, comment on, or favorite your posts, or when a report is processed, the corresponding notification will be shown here.",
-      "emptyTitle": "No notifications",
-      "emptyDescription": "After you share content in the community and receive interactions, notifications will appear here",
-      "systemActor": "System",
-      "postPrefix": "Post: ",
-      "justNow": "Just now",
-      "minutesAgo": "{{count}} minute(s) ago",
-      "hoursAgo": "{{count}} hour(s) ago",
-      "daysAgo": "{{count}} day(s) ago"
-    },
     "tags": {
       "searchPlaceholder": "Search tags...",
       "cancel": "Cancel",
@@ -2849,6 +2823,10 @@
     "markAllRead": "Mark all read",
     "empty": "No notifications",
     "newWork": "{{name}} has {{count}} new release(s)",
+    "communityLike": "{{name}} liked your post",
+    "communityComment": "{{name}} commented on your post",
+    "communityFavorite": "{{name}} favorited your post",
+    "communityReport": "A report on your post has been handled",
     "unreadAria": "Notifications, {{count}} unread",
     "prev": "Previous",
     "next": "Next",
@@ -2876,8 +2854,23 @@
       "channels": "Channels",
       "inApp": "In-app",
       "email": "Email",
+      "groups": {
+        "follow": "Follows",
+        "community": "Community",
+        "site": "Announcements"
+      },
       "typeNewWork": "New releases from actresses I follow",
       "typeNewWorkDesc": "Notify me when an actress I follow gets a new title on JavBus",
+      "typeCommunityLike": "Likes on my posts",
+      "typeCommunityLikeDesc": "Notify me when someone likes my community post",
+      "typeCommunityComment": "Comments on my posts",
+      "typeCommunityCommentDesc": "Notify me when someone comments on my community post",
+      "typeCommunityFavorite": "Favorites on my posts",
+      "typeCommunityFavoriteDesc": "Notify me when someone favorites my community post",
+      "typeCommunityReport": "Report outcomes on my posts",
+      "typeCommunityReportDesc": "Notify me when a report on my post is handled by a moderator",
+      "typeSiteAnnouncement": "Site announcements",
+      "typeSiteAnnouncementDesc": "Notify me when an admin publishes an announcement",
       "muteHint": "To stop alerts for one actress, mute her in My Follows — it applies to both in-app and email.",
       "hideDetails": "Hide details in emails",
       "hideDetailsDesc": "Emails will only show a count — no actress names or codes. Subjects are always neutral and emails never include cover images.",

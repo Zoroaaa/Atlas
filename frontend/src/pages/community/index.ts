@@ -6,7 +6,6 @@ export { BrowseTab } from './BrowseTab';
 export { MyPostsTab } from './MyPostsTab';
 export { FavoritesTab } from './FavoritesTab';
 export { TagsTab } from './TagsTab';
-export { NotificationsTab } from './NotificationsTab';
 
 // 核心展示组件
 export { PostCard } from './PostCard';

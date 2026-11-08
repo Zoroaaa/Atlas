@@ -9,6 +9,7 @@ import { Env } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
+import { emitNotification } from '@/services/notification-service';
 import {
   listActiveTags,
   findTagIdByName,
@@ -30,6 +31,7 @@ import {
   findPostById,
   updatePostFields,
   findPostOwnerId,
+  findPostNotificationTarget,
   postExists,
   deletePost,
   updatePostStatus,
@@ -47,8 +49,6 @@ import {
   queryCommunityStats,
   findUserCommunityStats,
   listUserRecentPosts,
-  listMyPostBriefs,
-  queryNotificationEvents,
 } from '@/repositories/community-repository';
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
@@ -671,6 +671,17 @@ communityRoutes.post('/posts/:id/like', async (c) => {
       // 点赞 — 触发器自动增加计数
       const likeId = generateId();
       await insertPostLike(c.env.DB, { id: likeId, postId, userId: user.userId, likeType: 'like', now: Date.now() });
+      const target = await findPostNotificationTarget(c.env.DB, postId);
+      if (target && target.user_id !== user.userId) {
+        await emitNotification(c.env.DB, {
+          userId: target.user_id,
+          type: 'community.like',
+          title: `${user.username} 点赞了你的帖子`,
+          body: target.title,
+          payload: { postId, postTitle: target.title, actorName: user.username },
+          dedupKey: `community_like:${likeId}`,
+        }).catch((err) => console.error('Emit like notification error:', err));
+      }
       return c.json(success({ liked: true }, '点赞成功'));
     }
   } catch (err) {
@@ -699,6 +710,17 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
     } else {
       const favId = generateId();
       await insertPostLike(c.env.DB, { id: favId, postId, userId: user.userId, likeType: 'favorite', now: Date.now() });
+      const target = await findPostNotificationTarget(c.env.DB, postId);
+      if (target && target.user_id !== user.userId) {
+        await emitNotification(c.env.DB, {
+          userId: target.user_id,
+          type: 'community.favorite',
+          title: `${user.username} 收藏了你的帖子`,
+          body: target.title,
+          payload: { postId, postTitle: target.title, actorName: user.username },
+          dedupKey: `community_favorite:${favId}`,
+        }).catch((err) => console.error('Emit favorite notification error:', err));
+      }
       return c.json(success({ favorited: true }, '收藏成功'));
     }
   } catch (err) {
@@ -777,6 +799,19 @@ communityRoutes.post('/comments', validateBody(schemas.community.createComment),
     const now = Date.now();
 
     await insertComment(c.env.DB, { id, postId, userId: user.userId, content: content.trim(), now });
+
+    const target = await findPostNotificationTarget(c.env.DB, postId);
+    if (target && target.user_id !== user.userId) {
+      const excerpt = content.trim().slice(0, 100);
+      await emitNotification(c.env.DB, {
+        userId: target.user_id,
+        type: 'community.comment',
+        title: `${user.username} 评论了你的帖子`,
+        body: excerpt,
+        payload: { postId, postTitle: target.title, actorName: user.username, comment: excerpt },
+        dedupKey: `community_comment:${id}`,
+      }).catch((err) => console.error('Emit comment notification error:', err));
+    }
 
     return c.json(success({
       id,
@@ -954,101 +989,5 @@ communityRoutes.get('/user-stats', async (c) => {
   } catch (err) {
     console.error('Get user stats error:', err);
     return c.json(error('SERVER_ERROR', '获取用户统计失败'), 500);
-  }
-});
-
-// ============================================================
-// 8. 通知
-// ============================================================
-
-/** 获取通知列表 */
-communityRoutes.get('/notifications', async (c) => {
-  const user = c.get('user');
-  const page = Math.max(1, parseInt(c.req.query('page') || '1'));
-  const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '20')));
-  const offset = (page - 1) * pageSize;
-
-  try {
-    // 获取用户发布的所有帖子
-    const myPosts = await listMyPostBriefs(c.env.DB, user.userId);
-
-    const myPostIds = myPosts.map(p => p.id);
-    const postInfoMap: Record<string, { title: string; coverImage: string }> = {};
-    myPosts.forEach(p => { postInfoMap[p.id] = { title: p.title, coverImage: p.cover_image }; });
-
-    if (myPostIds.length === 0) {
-      return c.json(success({
-        items: [],
-        total: 0,
-        page,
-        pageSize,
-        totalPages: 0,
-      }));
-    }
-
-    // 并行查询各类事件
-    const { likesResult, commentsResult, favoritesResult, reportsResult } =
-      await queryNotificationEvents(c.env.DB, { postIds: myPostIds, userId: user.userId });
-
-    const allNotifications = [
-      ...(likesResult.results || []).map(n => ({
-        id: `like_${n.id}`,
-        type: 'like' as const,
-        postId: n.post_id,
-        postTitle: postInfoMap[n.post_id]?.title || '',
-        postCoverImage: postInfoMap[n.post_id]?.coverImage || '',
-        actorName: n.actor_name || '匿名用户',
-        content: '点赞了你的帖子',
-        createdAt: n.created_at,
-        isRead: false,
-      })),
-      ...(commentsResult.results || []).map(n => ({
-        id: `comment_${n.id}`,
-        type: 'comment' as const,
-        postId: n.post_id,
-        postTitle: postInfoMap[n.post_id]?.title || '',
-        postCoverImage: postInfoMap[n.post_id]?.coverImage || '',
-        actorName: n.actor_name || '匿名用户',
-        content: `评论了你的帖子：${n.content.slice(0, 50)}${n.content.length > 50 ? '...' : ''}`,
-        createdAt: n.created_at,
-        isRead: false,
-      })),
-      ...(favoritesResult.results || []).map(n => ({
-        id: `favorite_${n.id}`,
-        type: 'favorite' as const,
-        postId: n.post_id,
-        postTitle: postInfoMap[n.post_id]?.title || '',
-        postCoverImage: postInfoMap[n.post_id]?.coverImage || '',
-        actorName: n.actor_name || '匿名用户',
-        content: '收藏了你的帖子',
-        createdAt: n.created_at,
-        isRead: false,
-      })),
-      ...(reportsResult.results || []).map(n => ({
-        id: `report_${n.id}`,
-        type: 'report_resolved' as const,
-        postId: n.post_id,
-        postTitle: postInfoMap[n.post_id]?.title || '',
-        postCoverImage: postInfoMap[n.post_id]?.coverImage || '',
-        actorName: undefined,
-        content: `对举报"${n.report_reason}"的处理结果：${n.status === 'resolved' ? '已解决' : '已驳回'}`,
-        createdAt: n.created_at,
-        isRead: false,
-      })),
-    ].sort((a, b) => b.createdAt - a.createdAt);
-
-    const total = allNotifications.length;
-    const items = allNotifications.slice(offset, offset + pageSize);
-
-    return c.json(success({
-      items,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    }));
-  } catch (err) {
-    console.error('Get notifications error:', err);
-    return c.json(error('SERVER_ERROR', '获取通知失败'), 500);
   }
 });

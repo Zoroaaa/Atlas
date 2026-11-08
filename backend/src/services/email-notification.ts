@@ -101,8 +101,8 @@ const TEXTS: Record<Lang, {
   testBody: string;
 }> = {
   'zh-CN': {
-    subject: (n) => `你关注的内容有 ${n} 条新动态`,
-    intro: (n) => `你关注的内容有 ${n} 条新动态：`,
+    subject: (n) => `你有 ${n} 条新通知`,
+    intro: (n) => `你有 ${n} 条新通知：`,
     hidden: '为保护隐私，邮件中不显示具体内容，请登录查看。',
     open: '打开 Atlas 查看',
     manage: '管理通知设置',
@@ -112,8 +112,8 @@ const TEXTS: Record<Lang, {
     testBody: '这是一封测试邮件。收到它说明邮件通知已经可以正常工作。',
   },
   'zh-TW': {
-    subject: (n) => `你關注的內容有 ${n} 則新動態`,
-    intro: (n) => `你關注的內容有 ${n} 則新動態：`,
+    subject: (n) => `你有 ${n} 則新通知`,
+    intro: (n) => `你有 ${n} 則新通知：`,
     hidden: '為保護隱私，郵件中不顯示具體內容，請登入查看。',
     open: '開啟 Atlas 查看',
     manage: '管理通知設定',
@@ -123,8 +123,8 @@ const TEXTS: Record<Lang, {
     testBody: '這是一封測試郵件。收到它代表郵件通知已經可以正常運作。',
   },
   en: {
-    subject: (n) => `${n} new update${n === 1 ? '' : 's'} from what you follow`,
-    intro: (n) => `${n} new update${n === 1 ? '' : 's'} from what you follow:`,
+    subject: (n) => `${n} new notification${n === 1 ? '' : 's'}`,
+    intro: (n) => `${n} new notification${n === 1 ? '' : 's'}:`,
     hidden: 'For your privacy, details are not shown in this email. Please sign in to view them.',
     open: 'Open Atlas',
     manage: 'Manage notification settings',
@@ -169,19 +169,22 @@ export function buildDigestEmail(input: DigestInput): { subject: string; text: s
   const t = TEXTS[input.lang];
   const count = input.items.length;
   const manageUrl = `${input.frontendUrl}/dashboard/notifications`;
-  const lines: Array<{ title: string; works: string[] }> = input.hideDetails
+  const lines: Array<{ title: string; details: string[] }> = input.hideDetails
     ? []
-    : input.items.map((item) => ({
-        title: item.title,
-        works: (item.payload.works ?? []).slice(0, 5).map((w) => `${w.code}${w.title ? ` ${w.title}` : ''}`),
-      }));
+    : input.items.map((item) => {
+        const works = (item.payload.works ?? []).slice(0, 5).map((w) => `${w.code}${w.title ? ` ${w.title}` : ''}`);
+        return {
+          title: item.title,
+          details: works.length > 0 ? works : (item.body ? [item.body] : []),
+        };
+      });
 
   const textParts = [t.intro(count)];
   if (input.hideDetails) {
     textParts.push('', t.hidden);
   } else {
     for (const line of lines) {
-      textParts.push('', `• ${line.title}`, ...line.works.map((w) => `    ${w}`));
+      textParts.push('', `• ${line.title}`, ...line.details.map((d) => `    ${d}`));
     }
   }
   textParts.push('', `${t.open}: ${input.frontendUrl}`, `${t.manage}: ${manageUrl}`, `${t.unsubscribe}: ${input.unsubscribeUrl}`, '', t.footer);
@@ -190,7 +193,7 @@ export function buildDigestEmail(input: DigestInput): { subject: string; text: s
     ? `<p style="color:#57534e">${escapeHtml(t.hidden)}</p>`
     : lines
         .map((line) => `<div style="margin:14px 0"><div style="font-weight:600;color:#1c1917">${escapeHtml(line.title)}</div>${
-          line.works.map((w) => `<div style="color:#57534e;font-size:13px;margin-top:2px">${escapeHtml(w)}</div>`).join('')
+          line.details.map((d) => `<div style="color:#57534e;font-size:13px;margin-top:2px">${escapeHtml(d)}</div>`).join('')
         }</div>`)
         .join('');
 

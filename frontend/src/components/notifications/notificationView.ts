@@ -20,5 +20,29 @@ export function describeNotification(item: NotificationItem, t: TFunction): Noti
       code: works[0]?.code,
     };
   }
+  if (item.type === 'community.like') {
+    return {
+      title: t('notify:communityLike', { name: item.payload.actorName ?? '' }),
+      body: item.payload.postTitle ?? '',
+    };
+  }
+  if (item.type === 'community.comment') {
+    return {
+      title: t('notify:communityComment', { name: item.payload.actorName ?? '' }),
+      body: item.payload.comment ?? item.payload.postTitle ?? '',
+    };
+  }
+  if (item.type === 'community.favorite') {
+    return {
+      title: t('notify:communityFavorite', { name: item.payload.actorName ?? '' }),
+      body: item.payload.postTitle ?? '',
+    };
+  }
+  if (item.type === 'community.report_resolved') {
+    return {
+      title: t('notify:communityReport'),
+      body: item.body || item.payload.postTitle || '',
+    };
+  }
   return { title: item.title, body: item.body, code: undefined };
 }

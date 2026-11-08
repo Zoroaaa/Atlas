@@ -94,12 +94,94 @@ export async function emitNotification(db: D1Database, input: NotificationInput)
   return result;
 }
 
-export async function getUnreadCount(db: D1Database, userId: string): Promise<number> {
+/** 某类型是否开启站内通知（无记录 = 默认开启） */
+export async function isNotificationInAppEnabled(
+  db: D1Database,
+  userId: string,
+  type: string
+): Promise<boolean> {
   const row = await db
-    .prepare('SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND read_at IS NULL')
-    .bind(userId)
+    .prepare('SELECT in_app FROM notification_preferences WHERE user_id = ? AND type = ?')
+    .bind(userId, type)
+    .first<{ in_app: number }>();
+  return !row || row.in_app !== 0;
+}
+
+/** 有效时间窗内的公告未读数（删除的公告、关闭站内开关均不计入） */
+export async function getUnreadAnnouncementCount(db: D1Database, userId: string): Promise<number> {
+  if (!(await isNotificationInAppEnabled(db, userId, 'site.announcement'))) return 0;
+  const now = Date.now();
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM site_announcements a
+       LEFT JOIN user_announcement_reads r
+         ON r.announcement_id = a.id AND r.user_id = ?
+       WHERE a.is_active = 1
+         AND (a.start_time IS NULL OR a.start_time <= ?)
+         AND (a.end_time IS NULL OR a.end_time >= ?)
+         AND r.read_at IS NULL
+         AND r.dismissed_at IS NULL`
+    )
+    .bind(userId, now, now)
     .first<{ count: number }>();
   return row?.count ?? 0;
+}
+
+export async function getUnreadCount(db: D1Database, userId: string): Promise<number> {
+  const [notificationRow, announcementUnread] = await Promise.all([
+    db
+      .prepare('SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND read_at IS NULL')
+      .bind(userId)
+      .first<{ count: number }>(),
+    getUnreadAnnouncementCount(db, userId),
+  ]);
+  return (notificationRow?.count ?? 0) + announcementUnread;
+}
+
+/**
+ * 公告发布时只给“已开启公告邮件”的用户入队，避免向全体用户扇出。
+ * 收件箱仍走读时合并，不写 notifications。
+ */
+export async function enqueueAnnouncementEmail(
+  db: D1Database,
+  opts: { announcementId: string; title: string; body: string; level: string; createdAt: number }
+): Promise<number> {
+  const users = await db
+    .prepare(
+      `SELECT u.id
+       FROM users u
+       JOIN notification_preferences p ON p.user_id = u.id
+       WHERE p.type = 'site.announcement' AND p.email = 1
+         AND u.email IS NOT NULL AND u.email_verified = 1`
+    )
+    .all<{ id: string }>();
+
+  const rows = users.results || [];
+  if (rows.length === 0) return 0;
+
+  const payload = JSON.stringify({ announcementId: opts.announcementId, level: opts.level });
+  const statements = rows.map((row) =>
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO email_queue (id, user_id, type, title, body, payload, dedup_key, status, created_at)
+         VALUES (?, ?, 'site.announcement', ?, ?, ?, ?, 'pending', ?)`
+      )
+      .bind(
+        generateId(),
+        row.id,
+        opts.title,
+        opts.body,
+        payload,
+        `announcement:${opts.announcementId}`,
+        opts.createdAt
+      )
+  );
+
+  for (let i = 0; i < statements.length; i += 50) {
+    await db.batch(statements.slice(i, i + 50));
+  }
+  return statements.length;
 }
 
 /** 每种类型的偏好（未设置的用默认：站内开、邮件关） */
