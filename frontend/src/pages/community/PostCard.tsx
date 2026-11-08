@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { Heart, Star, MessageSquare, Eye, Bookmark, Users, Film, Tv, BookOpen, Library, Download } from 'lucide-react';
 import { Card, Badge, ProxyImage } from '@/components/ui';
 import type { CommunityPost } from '@/types/community';
-import { getBackendBaseUrl } from '@/constants';
+import { normalizeImageUrl } from '@/utils/imageProxy';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -20,33 +20,6 @@ const POST_TYPE_CONFIG = {
   manga: { icon: BookOpen, color: 'bg-violet-500', badgeVariant: 'primary' as const },
   novel: { icon: Library, color: 'bg-emerald-500', badgeVariant: 'primary' as const },
   actress: { icon: Users, color: 'bg-pink-500', badgeVariant: 'accent' as const },
-};
-
-/**
- * 规范化并重新代理图片URL
- * 解决问题：数据库中可能存储了旧域名的代理URL，需要更新为新域名
- */
-const normalizeImageUrl = (url: string): string => {
-  if (!url) return '';
-
-  // 如果是代理URL（包含/api/jav/proxy-image），提取原始URL并重新代理
-  const proxyMatch = url.match(/[?&]url=([^&]+)/);
-  if (proxyMatch) {
-    const originalUrl = decodeURIComponent(proxyMatch[1]);
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-  }
-
-  // 如果是相对路径，直接返回
-  if (url.startsWith('/')) return url;
-
-  // 如果是完整的原始URL（非代理），添加代理
-  if (url.startsWith('http')) {
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
-  }
-
-  return url;
 };
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, onClick }) => {
@@ -238,7 +211,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           </div>
 
           <div className="flex items-center gap-1">
-            {/* 点赞按钮 */}
+            {/* 点赞按钮（未提供处理函数时不渲染，避免无效点击） */}
+            {onLike && (
             <button
               onClick={handleLike}
               className={clsx(
@@ -259,8 +233,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
               />
               <span className="ml-1 text-xs">{post.likeCount}</span>
             </button>
+            )}
 
-            {/* 收藏按钮 */}
+            {/* 收藏按钮（未提供处理函数时不渲染） */}
+            {onFavorite && (
             <button
               onClick={handleFavorite}
               className={clsx(
@@ -280,6 +256,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
                 )}
               />
             </button>
+            )}
           </div>
         </div>
       </div>

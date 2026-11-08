@@ -6,7 +6,7 @@ import type { AdminUser, AdminUserDetail, Role } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper, StatCard, StatsGrid } from './shared';
 

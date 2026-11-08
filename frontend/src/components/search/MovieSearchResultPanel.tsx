@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
   Wifi, RefreshCw, ChevronDown, ChevronUp,
@@ -129,7 +129,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   onLoginRequired,
 }) => {
   const { t } = useTranslation(['search']);
-  const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(data.results.length > 0 ? data.results[0] : null);
+  const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(data.results[0] ?? null);
   const [resourcePage, setResourcePage] = useState(1);
   const [showAllResources, setShowAllResources] = useState(false);
   const RES_PAGE_SIZE = 10;
@@ -137,14 +137,21 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));
   const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
 
+  // 换关键词/翻页后重置选中项与资源页码，避免沿用上一批数据的状态
+  useEffect(() => {
+    setSelectedItem(data.results[0] ?? null);
+    setResourcePage(1);
+    setShowAllResources(false);
+    setViewMode(hasGrouped ? 'grouped' : 'sources');
+  }, [data.keyword, data.page, data.results, hasGrouped]);
+
   const results = data.results ?? [];
   const resources = data.resources ?? [];
 
   const filteredResources = selectedItem
     ? resources.filter((resource) =>
         resource.title.toLowerCase().includes(selectedItem.title.toLowerCase()) ||
-        resource.title.toLowerCase().includes(selectedItem.originalTitle.toLowerCase()) ||
-        resources.length <= 5
+        resource.title.toLowerCase().includes(selectedItem.originalTitle.toLowerCase())
       )
     : resources;
 
@@ -321,7 +328,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onPageChange && results.length >= 18 ? (
+                  {onPageChange && (results.length >= 18 || data.page > 1) ? (
                     <div className="mt-2 flex justify-center gap-2">
                       <button
                         type="button"
@@ -334,8 +341,9 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                       <span className="type-micro flex items-center px-2 text-surface-500">{t('search:movie.pageNumber', { page: data.page })}</span>
                       <button
                         type="button"
+                        disabled={results.length < 18}
                         onClick={() => onPageChange(data.page + 1)}
-                        className="inline-flex h-8 items-center rounded-lg px-3 text-[11px] text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800"
+                        className="inline-flex h-8 items-center rounded-lg px-3 text-[11px] text-surface-500 hover:bg-surface-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-surface-800"
                       >
                         {t('search:movie.nextPage')}
                       </button>

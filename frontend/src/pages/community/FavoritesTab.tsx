@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Heart, RefreshCw, Compass } from 'lucide-react';
 import { Button, Loading, EmptyState } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
@@ -8,10 +9,11 @@ import { PostCard } from './PostCard';
 
 export const FavoritesTab: React.FC = () => {
   const { t } = useTranslation(['communityPages']);
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const {
     myFavorites,
-    postsLoading,
+    myFavoritesLoading,
     fetchMyFavorites,
     toggleFavorite,
   } = useCommunityStore();
@@ -45,7 +47,7 @@ export const FavoritesTab: React.FC = () => {
     );
   }
 
-  if (postsLoading && myFavorites.length === 0) {
+  if (myFavoritesLoading && myFavorites.length === 0) {
     return <div className="flex justify-center py-12"><Loading /></div>;
   }
 
@@ -74,7 +76,7 @@ export const FavoritesTab: React.FC = () => {
           title={t('communityPages:favorites.emptyTitle')}
           description={t('communityPages:favorites.emptyDescription')}
           action={
-            <Button variant="primary" onClick={() => window.location.hash = '#browse'}>
+            <Button variant="primary" onClick={() => navigate('/community')}>
               <Compass className="w-4 h-4 mr-1" />
               {t('communityPages:favorites.browseAction')}
             </Button>
@@ -87,7 +89,6 @@ export const FavoritesTab: React.FC = () => {
               <PostCard
                 key={post.id}
                 post={post}
-                onLike={() => {} /* 收藏页不处理点赞，可扩展 */}
                 onFavorite={(id) => handleUnfavorite(id)}
               />
             ))}

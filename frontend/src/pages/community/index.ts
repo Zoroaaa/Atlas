@@ -10,18 +10,10 @@ export { TagsTab } from './TagsTab';
 // 核心展示组件
 export { PostCard } from './PostCard';
 export { PostDetail } from './PostDetail';
+export { PostDetailPage } from './PostDetailPage';
 
 // 弹窗组件
 export { ShareToCommunityModal } from './ShareToCommunityModal';
 
 // 评论组件
 export { CommentsSection } from './CommentsSection';
-
-// 统计横幅
-export { StatsBanner } from './StatsBanner';
-
-// 共享工具组件（保留兼容）
-export { StarRating, Pagination, StatusBadge } from './shared';
-
-// 旧版导出（向后兼容）
-export { TrendingTab } from './TrendingTab';

@@ -6,7 +6,6 @@ import { CategoryManager } from './CategoryManager';
 import { FavoritesManager, HistoryManager } from './FavoritesHistoryManager';
 import { SettingsManager } from './SettingsManager';
 import { StatsManager } from './StatsManager';
-import { UserActivitiesPage } from './UserActivitiesPage';
 import { FollowsManager } from './FollowsManager';
 import { FollowFeedManager } from './FollowFeedManager';
 import { NotificationsManager } from './NotificationsManager';
@@ -53,10 +52,6 @@ export const DashboardPage: React.FC = () => {
 
   if (path.startsWith('/dashboard/settings')) {
     return <SettingsManager />;
-  }
-
-  if (path.startsWith('/dashboard/activities')) {
-    return <UserActivitiesPage />;
   }
 
   return <OverviewManager />;

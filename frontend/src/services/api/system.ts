@@ -67,21 +67,6 @@ export const systemApi = {
     }
   },
 
-  getApiInfo: async (): Promise<{ 
-    success: boolean; 
-    data: {
-      name: string;
-      version: string;
-      status: string;
-    } 
-  }> => {
-    return apiClient.get('/');
-  },
-
-  healthCheck: async (): Promise<{ status: string; timestamp: number }> => {
-    return apiClient.get('/health');
-  },
-
   getStats: async (): Promise<{ success: boolean; data: SystemStats }> => {
     const response = await apiClient.get<{ success: boolean; data: {
       users: number;

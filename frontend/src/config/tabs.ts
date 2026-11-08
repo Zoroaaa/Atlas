@@ -81,16 +81,8 @@ export const SEARCH_TABS: Record<SearchTabType, TabConfig> = {
   },
 };
 
-/** 搜索类 Tab 列表（排除 sources 浏览型） */
-export const SEARCH_ONLY_TABS: TabConfig[] = Object.values(SEARCH_TABS).filter(
-  (tab) => tab.majorCategoryId !== null
-);
-
 /** 所有 Tab 的有序列表（按定义顺序） */
 export const ALL_TABS: TabConfig[] = Object.values(SEARCH_TABS);
 
 /** 常驻主导航的 Tab 列表 */
 export const PINNED_TABS: TabConfig[] = ALL_TABS.filter((t) => t.pinned);
-
-/** 溢出到"更多"菜单的 Tab 列表 */
-export const OVERFLOW_TABS: TabConfig[] = ALL_TABS.filter((t) => !t.pinned);

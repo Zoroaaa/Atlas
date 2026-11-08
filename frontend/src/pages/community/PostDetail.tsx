@@ -24,8 +24,8 @@ import { Card, Button, Badge, Modal, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { CommentsSection } from './CommentsSection';
 import { PostCard } from './PostCard';
-import { useToast } from '@/components/ui/Toast';
-import { getBackendBaseUrl } from '@/constants';
+import { useToast } from '@/hooks/useNotification';
+import { normalizeImageUrl } from '@/utils/imageProxy';
 
 interface PostDetailProps {
   postId: string;
@@ -39,33 +39,6 @@ const POST_TYPE_CONFIG = {
   manga: { labelKey: 'communityPages:postDetail.types.manga', icon: BookOpen, color: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20' },
   novel: { labelKey: 'communityPages:postDetail.types.novel', icon: Library, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
   actress: { labelKey: 'communityPages:postDetail.types.actress', icon: Users, color: 'text-pink-500 bg-pink-50 dark:bg-pink-900/20' },
-};
-
-/**
- * 规范化并重新代理图片URL
- * 解决问题：数据库中可能存储了旧域名的代理URL，需要更新为新域名
- */
-const normalizeImageUrl = (url: string): string => {
-  if (!url) return '';
-
-  // 如果是代理URL（包含/api/jav/proxy-image），提取原始URL并重新代理
-  const proxyMatch = url.match(/[?&]url=([^&]+)/);
-  if (proxyMatch) {
-    const originalUrl = decodeURIComponent(proxyMatch[1]);
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-  }
-
-  // 如果是相对路径，直接返回
-  if (url.startsWith('/')) return url;
-
-  // 如果是完整的原始URL（非代理），添加代理
-  if (url.startsWith('http')) {
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
-  }
-
-  return url;
 };
 
 const formatDate = (timestamp: number) => {
@@ -536,7 +509,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   const toast = useToast();
   const {
     currentPost,
-    postsLoading,
+    postDetailLoading,
     posts,
     fetchPost,
     toggleLike,
@@ -565,7 +538,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
     }
   }, [currentPost, posts]);
 
-  if (postsLoading && !currentPost) {
+  if (postDetailLoading && !currentPost) {
     return (
       <div className="animate-pulse space-y-6">
         <div className="h-8 w-48 bg-stone-200 dark:bg-stone-700 rounded-xl" />

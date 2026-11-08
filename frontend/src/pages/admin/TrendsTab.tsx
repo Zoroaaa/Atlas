@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { adminApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { resolveActionLabel } from './shared';
 

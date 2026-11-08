@@ -10,7 +10,7 @@ import {
   ChevronRight, X,
 } from 'lucide-react';
 import { adminApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper, StatCard, StatsGrid, formatDate, formatRelativeTime } from './shared';
 

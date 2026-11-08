@@ -54,13 +54,6 @@ export const sourceApi = {
     return { success: false, data: [] };
   },
 
-  getMajorCategory: async (id: string): Promise<{ 
-    success: boolean; 
-    data: MajorCategory 
-  }> => {
-    return apiClient.get(`/search-sources/major-categories/${id}`);
-  },
-
   createMajorCategory: async (data: CreateMajorCategoryRequest): Promise<{ 
     success: boolean; 
     data: MajorCategory; 
@@ -129,13 +122,6 @@ export const sourceApi = {
     return { success: false, data: [] };
   },
 
-  getCategory: async (id: string): Promise<{ 
-    success: boolean; 
-    data: Category 
-  }> => {
-    return apiClient.get(`/search-sources/categories/${id}`);
-  },
-
   createCategory: async (data: CreateCategoryRequest): Promise<{ 
     success: boolean; 
     data: Category; 
@@ -153,31 +139,6 @@ export const sourceApi = {
 
   deleteCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/search-sources/categories/${id}`);
-  },
-
-  getSources: async (options?: {
-    categoryId?: string;
-    searchable?: boolean;
-    siteType?: string;
-    majorCategoryId?: string;
-  }): Promise<{ 
-    success: boolean; 
-    data: SearchSource[] 
-  }> => {
-    const params = new URLSearchParams();
-    if (options?.categoryId) params.append('categoryId', options.categoryId);
-    if (options?.searchable !== undefined) params.append('searchable', String(options.searchable));
-    if (options?.siteType) params.append('siteType', options.siteType);
-    if (options?.majorCategoryId) params.append('majorCategoryId', options.majorCategoryId);
-    const queryString = params.toString();
-    return apiClient.get(`/search-sources${queryString ? `?${queryString}` : ''}`);
-  },
-
-  getSource: async (id: string): Promise<{ 
-    success: boolean; 
-    data: SearchSource 
-  }> => {
-    return apiClient.get(`/search-sources/${id}`);
   },
 
   createSource: async (data: CreateSourceRequest): Promise<{ 
@@ -201,20 +162,6 @@ export const sourceApi = {
 
   incrementUsage: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post(`/search-sources/${id}/increment-usage`, {});
-  },
-
-  getPopularSources: async (limit = 20): Promise<{ 
-    success: boolean; 
-    data: SearchSource[] 
-  }> => {
-    return apiClient.get(`/search-sources/popular?limit=${limit}`);
-  },
-
-  searchSources: async (keyword: string): Promise<{ 
-    success: boolean; 
-    data: SearchSource[] 
-  }> => {
-    return apiClient.get(`/search-sources/search?keyword=${encodeURIComponent(keyword)}`);
   },
 
   getActiveSources: async (): Promise<{ 
@@ -269,13 +216,6 @@ export const sourceApi = {
       };
     }
     return { success: false, data: [] };
-  },
-
-  getUserSourceConfigs: async (): Promise<{ 
-    success: boolean; 
-    data: UserSourceConfig[] 
-  }> => {
-    return apiClient.get('/user/source-configs');
   },
 
   getSourcesWithUserConfig: async (): Promise<{ 
@@ -430,10 +370,6 @@ export const sourceApi = {
     return apiClient.post('/search-sources/user-configs/batch', data);
   },
 
-  deleteUserSourceConfig: async (sourceId: string): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete(`/user/source-configs/${sourceId}`);
-  },
-
   getSourceStats: async (): Promise<{ 
     success: boolean; 
     data: SourceStats 
@@ -451,7 +387,18 @@ export const sourceApi = {
     }
     
     const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/search-sources/export?${params.toString()}`);
+    const token = apiClient.getToken();
+    const response = await fetch(`${baseUrl}/search-sources/export?${params.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: 'omit',
+    });
+    if (!response.ok) {
+      // 不要把错误 JSON 当成 csv/opml 文件下载
+      const errorData = await response.json().catch(() => null);
+      throw new Error(
+        errorData?.error?.message || errorData?.message || `HTTP error! status: ${response.status}`
+      );
+    }
     return response.blob();
   },
 

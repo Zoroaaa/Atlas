@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { sourceApi } from '@/services/api';
-import type { MajorCategory, Category, SearchSource, UserSourceConfig } from '@/types';
 
 export const sourcesKeys = {
   majorCategories: ['sources', 'majorCategories'] as const,
@@ -16,7 +15,7 @@ export function useMajorCategories() {
       if (response.success && response.data) {
         return response.data;
       }
-      return [] as MajorCategory[];
+      throw new Error('获取大类失败');
     },
   });
 }
@@ -29,7 +28,7 @@ export function useCategories() {
       if (response.success && response.data) {
         return response.data;
       }
-      return [] as Category[];
+      throw new Error('获取分类失败');
     },
   });
 }
@@ -42,7 +41,7 @@ export function useSourcesWithUserConfig() {
       if (response.success && response.data) {
         return response.data;
       }
-      return [] as Array<SearchSource & { userConfig: UserSourceConfig | null }>;
+      throw new Error('获取搜索源失败');
     },
   });
 }

@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Tag as TagIcon, Plus, Search, Hash } from 'lucide-react';
 import { Card, Button, Input, Loading, EmptyState } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
-import { useToast } from '@/components/ui/Toast';
+import { communityApi, ApiError } from '@/services/api';
+import { useToast } from '@/hooks/useNotification';
 
 export const TagsTab: React.FC = () => {
-  const { t } = useTranslation(['communityPages']);
+  const { t } = useTranslation(['communityPages', 'errors']);
   const toast = useToast();
+  const navigate = useNavigate();
   const { tags, tagsLoading, fetchTags } = useCommunityStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#d4a853');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchTags();
@@ -35,18 +39,26 @@ export const TagsTab: React.FC = () => {
       toast.error(t('communityPages:tags.nameRequired'));
       return;
     }
-    // 这里可以调用创建标签API
-    // 暂时只做前端提示
-    toast.success(t('communityPages:tags.created', { name: newTagName }));
-    setNewTagName('');
-    setShowCreateForm(false);
+    setCreating(true);
+    try {
+      await communityApi.createTag({ name: newTagName.trim(), color: newTagColor });
+      toast.success(t('communityPages:tags.created', { name: newTagName.trim() }));
+      setNewTagName('');
+      setShowCreateForm(false);
+      await fetchTags();
+    } catch (error) {
+      const message = error instanceof ApiError && error.message
+        ? error.message
+        : t('errors:requestFailed');
+      toast.error(t('errors:requestFailed'), message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleTagClick = (_tagId: string, _tagName: string) => {
-    // 可以通过事件或回调通知父组件筛选帖子
-    // 这里简单实现：切换到浏览tab并设置筛选
-    window.location.hash = '#browse';
-    // 可以通过store或context传递筛选条件
+    // 标签筛选依赖社区浏览页，当前仅返回浏览 Tab（避免使用无效的 hash 跳转）
+    navigate('/community');
   };
 
   if (tagsLoading && tags.length === 0) {
@@ -103,7 +115,7 @@ export const TagsTab: React.FC = () => {
                   className="h-10 w-16 rounded-lg border border-stone-300 dark:border-stone-600 cursor-pointer"
                 />
               </div>
-              <Button variant="primary" onClick={handleCreateTag}>{t('communityPages:tags.create')}</Button>
+              <Button variant="primary" onClick={handleCreateTag} isLoading={creating} disabled={creating}>{t('communityPages:tags.create')}</Button>
             </div>
           </div>
         )}

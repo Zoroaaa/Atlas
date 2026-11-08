@@ -4,11 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { CheckCheck, Heart, RefreshCw, Rss } from 'lucide-react';
 import { Button, Card, EmptyState, Loading, Tabs } from '@/components/ui';
 import { Chip, MediaCard, Pagination } from '@/components/workbench';
-import { useFollows, useFollowFeed, useFollowActions } from '@/hooks';
+import { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import type { FollowFeedTab } from '@/types';
-
-const PAGE_SIZE = 20;
 
 /** 控制台 · 关注动态：全部关注女优的作品流，可按女优筛选，服务端分页 */
 export const FollowFeedManager: React.FC = () => {
@@ -25,11 +23,11 @@ export const FollowFeedManager: React.FC = () => {
 
   const { data: feed, isLoading, isFetching, refetch } = useFollowFeed(tab, page, follows.length > 0, {
     actress: actress || undefined,
-    pageSize: PAGE_SIZE,
+    pageSize: FOLLOW_FEED_PAGE_SIZE,
   });
   const items = feed?.items ?? [];
   const total = feed?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / FOLLOW_FEED_PAGE_SIZE));
 
   useEffect(() => { setPage(1); }, [tab, actress]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);

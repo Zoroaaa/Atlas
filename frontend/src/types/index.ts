@@ -3,6 +3,7 @@ export * from './source';
 export * from './search';
 export * from './community';
 export * from './common';
+export * from './toast';
 export * from './notification';
 export * from './jav';
 export * from './follow';

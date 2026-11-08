@@ -16,7 +16,7 @@ import { Card, Button, Input, Badge, Modal, Loading, EmptyState, Dropdown } from
 import { sourceApi } from '@/services/api';
 import { useMajorCategories, useCategories, sourcesKeys } from '@/hooks';
 import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useAuthStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
 import type {

@@ -26,8 +26,6 @@ if ('serviceWorker' in navigator) {
         scope: '/'
       });
 
-      console.log(i18next.t('sw:registerSuccess', { scope: registration.scope }));
-
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (newWorker) {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { followApi, ApiError } from '@/services/api';
 import { useAuthStore } from '@/stores';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import i18next from 'i18next';
 import type { FollowFeedTab } from '@/types';
 

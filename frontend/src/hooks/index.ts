@@ -1,5 +1,3 @@
-export { useAuth } from './useAuth';
-export { useSearch } from './useSearch';
 export { useSearchSuggestions } from './useSearchSuggestions';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
@@ -23,5 +21,4 @@ export { useFavoritesManager } from './useFavoritesManager';
 export { useSearchHistoryManager } from './useSearchHistoryManager';
 export { useJavSearchFlow } from './useJavSearchFlow';
 export { useSourceManager } from './useSourceManager';
-export { useDarkMode } from './useDarkMode';
 export { useActresses } from './useActresses';

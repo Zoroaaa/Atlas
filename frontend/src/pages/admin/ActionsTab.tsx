@@ -4,7 +4,7 @@ import { Search, RefreshCw, Clock, MapPin, Terminal, Activity, Zap, Users, LogIn
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { Pagination, TableWrapper, actionLabels, actionColors, StatCard, StatsGrid, resolveActionLabel } from './shared';
 import { useTranslation } from 'react-i18next';
 

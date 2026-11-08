@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, ExternalLink, Heart, RefreshCw, Download, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FavoriteRef } from '@/types';
@@ -136,6 +136,12 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   const [localPage, setLocalPage] = useState(1);
   const PAGE_SIZE = 10;
   const list = data.novels ?? [];
+
+  // 换关键词后重置本地分页，避免停留在上一批数据的页码
+  useEffect(() => {
+    setLocalPage(1);
+  }, [data.keyword, data.page]);
+
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const paged = list.slice((localPage - 1) * PAGE_SIZE, localPage * PAGE_SIZE);
   const isFavorited = (id: string) => favorites.some((favorite) => favorite.url?.includes(id));

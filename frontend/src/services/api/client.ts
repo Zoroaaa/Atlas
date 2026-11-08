@@ -15,6 +15,59 @@ const getApiBaseUrl = (): string => {
 
 const BASE_URL = getApiBaseUrl();
 
+// 登录/注册/刷新等接口本身返回 401 时不再尝试刷新，避免循环
+const SKIP_REFRESH_ENDPOINTS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/send-registration-code',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-code',
+];
+
+const shouldRefresh = (endpoint: string): boolean =>
+  !SKIP_REFRESH_ENDPOINTS.some((path) => endpoint.startsWith(path));
+
+// 并发 401 共享同一个刷新请求，避免重复轮换 token
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(baseUrl: string): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const token = useAuthStore.getState().token;
+      if (!token) return null;
+
+      try {
+        const response = await fetch(`${baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: 'omit',
+        });
+        if (!response.ok) return null;
+
+        const payload = await response.json().catch(() => null);
+        const nextToken = payload?.data?.token || payload?.token;
+        if (typeof nextToken !== 'string' || !nextToken) return null;
+
+        // 刷新期间用户可能已登出/切换账号，丢弃过期结果
+        if (useAuthStore.getState().token !== token) return null;
+
+        useAuthStore.getState().setToken(nextToken);
+        return nextToken;
+      } catch {
+        return null;
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
@@ -58,11 +111,10 @@ export class ApiClient {
     const { method = 'GET', headers: customHeaders, body, signal, timeout } = options;
 
     const url = `${this.baseUrl}${endpoint}`;
-    const headers = this.getHeaders(customHeaders);
 
     const config: RequestInit = {
       method,
-      headers,
+      headers: this.getHeaders(customHeaders),
       signal,
       credentials: 'omit',
     };
@@ -72,6 +124,7 @@ export class ApiClient {
     }
 
     let lastError: Error | null = null;
+    let didRefresh = false;
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -79,11 +132,16 @@ export class ApiClient {
         }
 
         const controller = timeout ? new AbortController() : null;
-        if (controller && timeout) {
-          setTimeout(() => controller.abort(), timeout);
-        }
+        const timeoutTimer = controller && timeout ? setTimeout(() => controller.abort(), timeout) : null;
 
-        const response = await fetch(url, controller ? { ...config, signal: controller.signal } : config);
+        let response: Response;
+        try {
+          // 刷新后重试时重新读取最新 token
+          config.headers = this.getHeaders(customHeaders);
+          response = await fetch(url, controller ? { ...config, signal: controller.signal } : config);
+        } finally {
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+        }
 
         if (response.ok) {
           const contentType = response.headers.get('content-type');
@@ -94,20 +152,36 @@ export class ApiClient {
         }
 
         if (response.status === 401) {
-          // 只有当前持有 token 时才视为"token 失效"并登出
-          // 避免匿名请求（如分析埋点）的 401 误触发 logout
+          const errorData = await response.json().catch(() => ({}));
+          const message = errorData?.message || errorData?.error?.message;
+          const code = errorData?.error?.code || errorData?.code;
+
+          // 持有 token 时先尝试静默刷新一次，刷新失败才登出
+          // 匿名请求（如分析埋点）不触发刷新/登出
+          if (this.getToken() && !didRefresh && shouldRefresh(endpoint)) {
+            didRefresh = true;
+            const nextToken = await refreshAccessToken(this.baseUrl);
+            if (nextToken) {
+              continue;
+            }
+          }
+
           if (this.getToken()) {
             useAuthStore.getState().logout();
           }
-          const authError = new Error(i18next.t('errors:authFailed'));
-          (authError as unknown as Record<string, unknown>).code = 'AUTH_FAILED';
-          throw authError;
+          throw new ApiError(message || i18next.t('errors:authFailed'), 401, errorData, code || 'AUTH_FAILED');
         }
 
         if (response.status === 403) {
-          const permError = new Error(i18next.t('errors:permissionDenied'));
-          (permError as unknown as Record<string, unknown>).code = 'PERMISSION_DENIED';
-          throw permError;
+          const errorData = await response.json().catch(() => ({}));
+          const message = errorData?.message || errorData?.error?.message;
+          const code = errorData?.error?.code || errorData?.code;
+          throw new ApiError(
+            message || i18next.t('errors:permissionDenied'),
+            403,
+            errorData,
+            code || 'PERMISSION_DENIED'
+          );
         }
 
         if (response.status === 429) {
@@ -117,12 +191,18 @@ export class ApiClient {
             await this.delay(waitTime);
             continue;
           }
-          const rateLimitError = new Error(i18next.t('errors:rateLimited'));
-          (rateLimitError as unknown as Record<string, unknown>).code = 'RATE_LIMITED';
-          throw rateLimitError;
+          const errorData = await response.json().catch(() => ({}));
+          const code = errorData?.error?.code || errorData?.code || 'RATE_LIMITED';
+          throw new ApiError(
+            errorData?.message || errorData?.error?.message || i18next.t('errors:rateLimited'),
+            429,
+            errorData,
+            code
+          );
         }
 
-        if (response.status >= 500 && attempt < this.maxRetries - 1) {
+        // 仅对幂等的 GET 请求做 5xx 重试，避免重复写入
+        if (method === 'GET' && response.status >= 500 && attempt < this.maxRetries - 1) {
           await this.delay(this.retryDelay * (attempt + 1));
           continue;
         }
@@ -139,7 +219,8 @@ export class ApiClient {
           throw new ApiError(i18next.t('errors:timeout'), 408, { timeout: true });
         }
 
-        if (((error as Error).name === 'TypeError' || (error as Error).message?.includes('fetch')) &&
+        if (method === 'GET' &&
+            ((error as Error).name === 'TypeError' || (error as Error).message?.includes('fetch')) &&
             attempt < this.maxRetries - 1) {
           await this.delay(this.retryDelay * (attempt + 1));
           continue;
@@ -175,12 +256,14 @@ export class ApiClient {
 export class ApiError extends Error {
   status: number;
   data: unknown;
+  code?: string;
 
-  constructor(message: string, status: number, data?: unknown) {
+  constructor(message: string, status: number, data?: unknown, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.data = data;
+    this.code = code;
   }
 }
 

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 import { useFavoriteIndex, useFavoritesPage, useAddFavorite, useRemoveFavorite, invalidateFavorites, FAVORITES_PAGE_SIZE } from '@/hooks';
 import { userApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import i18next from '@/i18n';
 import type { JavDetail } from '@/types/jav';
 import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem } from '@/types/search';

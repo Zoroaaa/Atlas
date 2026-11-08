@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface NavItem {
   id: string;
@@ -277,6 +278,7 @@ export const CommunityPanelLayout: React.FC = () => {
                 </Link>
               )}
 
+              <NotificationBell />
               <button onClick={toggleTheme} className="theme-toggle-btn">
                 {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>

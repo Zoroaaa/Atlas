@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { RefreshCw, MapPin, Monitor, XCircle, Users, Wifi, Clock, Smartphone, MonitorSmartphone, Zap } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper, StatCard, StatsGrid } from './shared';
 

@@ -60,6 +60,7 @@ export const BrowseTab: React.FC = () => {
 
   // 初始加载 & 筛选/排序变化时重新加载（合并为单个 effect 避免重复请求）
   useEffect(() => {
+    setPage(1);
     fetchPosts({ page: 1 });
   }, [postTypeFilter, sortBy, fetchPosts]);
 

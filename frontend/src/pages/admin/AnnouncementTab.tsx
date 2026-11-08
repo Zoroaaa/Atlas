@@ -7,7 +7,7 @@ import {
 import { announcementApi, type Announcement, type AnnouncementForm } from '@/services/api/announcement';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper, formatDate } from './shared';
 

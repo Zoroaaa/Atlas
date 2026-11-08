@@ -8,7 +8,7 @@ import { feedbackApi } from '@/services/api';
 import type { FeedbackItem, FeedbackStats } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
 import { Pagination, TableWrapper } from './shared';
 

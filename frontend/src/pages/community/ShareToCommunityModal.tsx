@@ -5,8 +5,8 @@ import { Film, Tv, Send, BookOpen, Users, Library } from 'lucide-react';
 import { Modal, Button, TextArea } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
-import { useToast } from '@/components/ui/Toast';
-import { getBackendBaseUrl } from '@/constants';
+import { useToast } from '@/hooks/useNotification';
+import { normalizeImageUrl } from '@/utils/imageProxy';
 
 interface ShareToCommunityModalProps {
   open: boolean;
@@ -27,29 +27,6 @@ const POST_TYPE_CONFIG = {
   manga: { icon: BookOpen, color: 'text-violet-500' },
   novel: { icon: Library, color: 'text-emerald-500' },
   actress: { icon: Users, color: 'text-pink-500' },
-};
-
-/**
- * 规范化并重新代理图片URL
- */
-const normalizeImageUrl = (url: string): string => {
-  if (!url) return '';
-
-  const proxyMatch = url.match(/[?&]url=([^&]+)/);
-  if (proxyMatch) {
-    const originalUrl = decodeURIComponent(proxyMatch[1]);
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-  }
-
-  if (url.startsWith('/')) return url;
-
-  if (url.startsWith('http')) {
-    const baseUrl = getBackendBaseUrl();
-    return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
-  }
-
-  return url;
 };
 
 export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
@@ -111,7 +88,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
 
     setSubmitting(true);
     try {
-      await createPost({
+      const post = await createPost({
         postType: initialData.postType,
         title: initialData.title,
         coverImage: initialData.coverImage,
@@ -124,10 +101,14 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
 
       toast.success(t('communityPages:shareModal.published'));
       onClose();
-      onSuccess?.({} as any); // 实际数据由store处理
+      onSuccess?.(post);
     } catch (error) {
       console.error('发布失败:', error);
-      toast.error(t('communityPages:shareModal.publishFailed'));
+      // 保留弹窗与已填内容，只提示真实失败原因
+      const message = error instanceof Error && error.message
+        ? error.message
+        : t('communityPages:shareModal.publishFailed');
+      toast.error(t('communityPages:shareModal.publishFailed'), message);
     } finally {
       setSubmitting(false);
     }

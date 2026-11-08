@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Bell, BellOff, ExternalLink, Search, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { Button, Card, Checkbox, EmptyState, Input, Loading, ProxyImage } from '@/components/ui';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useFollows, useFollowActions, followKeys } from '@/hooks';
 import { followApi } from '@/services/api';
 import { getProxyImageUrl } from '@/utils/imageProxy';

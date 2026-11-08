@@ -20,11 +20,6 @@ class ProxyService {
         await this.enableProxy();
       }
 
-      console.log('代理服务初始化完成', {
-        enabled: this.isProxyEnabled(),
-        status: this.currentStatus,
-      });
-
       return { success: true };
     } catch (error) {
       console.error('代理服务初始化失败:', error);
@@ -69,7 +64,6 @@ class ProxyService {
 
       this.dispatchStatusChange();
 
-      console.log('代理已启用', { responseTime: result.responseTime });
       return { success: true };
     } catch (error) {
       this.currentStatus = proxyConfig.status.ERROR;
@@ -86,7 +80,6 @@ class ProxyService {
 
       this.dispatchStatusChange();
 
-      console.log('代理已禁用');
       return { success: true };
     } catch (error) {
       console.error('禁用代理失败:', error);
@@ -138,7 +131,6 @@ class ProxyService {
 
   cleanup(): void {
     this.stopHealthCheck();
-    console.log('代理服务资源已清理');
   }
 
   private startHealthCheck(): void {

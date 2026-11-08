@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Search,
   Sparkles,
@@ -15,7 +15,6 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuthStore, useProxyStore } from '@/stores';
-import { Modal } from '@/components/ui';
 import { UnifiedNavBar } from '@/components/layout';
 import { useNavigate } from 'react-router-dom';
 import { useFeatureFlags } from '@/contexts';
@@ -28,7 +27,6 @@ export const HomePage: React.FC = () => {
   const { isAuthenticated, user } = useAuthStore();
   const { initializeProxy } = useProxyStore();
   const { enableRegistration } = useFeatureFlags();
-  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
   // 计算是否为管理员
   const isAdmin = isAuthenticated && user != null && (user.role === 'admin' || user.role === 'super_admin');
@@ -316,29 +314,6 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Help Modal */}
-      <Modal
-        isOpen={isHelpModalOpen}
-        onClose={() => setIsHelpModalOpen(false)}
-        title={t('home:helpModal.title')}
-      >
-        <div className="text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed">
-          <p className="mb-4">
-            {t('home:helpModal.intro')}
-          </p>
-          <p className="mb-4">
-            {t('home:helpModal.stepsTitle')}
-          </p>
-          <ol className="list-decimal pl-5 mb-4 space-y-2">
-            <li>{t('home:helpModal.step1')}</li>
-            <li>{t('home:helpModal.step2')}</li>
-            <li>{t('home:helpModal.step3')}</li>
-            <li>{t('home:helpModal.step4')}</li>
-            <li>{t('home:helpModal.step5')}</li>
-          </ol>
-        </div>
-      </Modal>
 
       {/* 反馈建议按钮 */}
       <FeedbackButton />

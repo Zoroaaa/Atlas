@@ -66,6 +66,7 @@ export const useUIStore = create<UIState>((set, get) => ({
       const oldestToast = toasts[0];
       if (oldestToast) {
         clearToastTimer(oldestToast.id);
+        oldestToast.onClose?.();
       }
       newToasts = [...toasts.slice(1), toast];
     } else {

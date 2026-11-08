@@ -2,9 +2,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchStore, useAuthStore } from '@/stores';
 import { useSearchMutation, useSearchHistory, useSearchSuggestions, searchHistoryKeys } from '@/hooks';
 import { userApi, analyticsApi } from '@/services/api';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useNotification';
 import { useQueryClient } from '@tanstack/react-query';
-import { isJavCodeLike } from '@codeseek/shared/utils';
+import { isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
+import { reportSourceUsage } from '@/utils/sourceUsage';
 import i18next from '@/i18n';
 import { SEARCH_TABS } from '@/config/tabs';
 import type { SearchTabType, JavSubMode } from '@/types/source';
@@ -61,6 +62,8 @@ export function useSearchFlow({
 
   // JAV详情提取成功后自动更新搜索历史（防循环：用 ref 跟踪已处理的 code）
   const updatedHistoryCodesRef = useRef<Set<string>>(new Set());
+  // 搜索请求序号：只接受最后一次请求的响应，避免旧响应覆盖新结果
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!isAuthenticated || !javEnrichedDetail || !searchHistory.length) return;
@@ -110,6 +113,7 @@ export function useSearchFlow({
       toast.warning(i18next.t('errors:hooks.search.keywordRequired'));
       return;
     }
+    const requestId = ++searchRequestIdRef.current;
     // 番号模式不再硬拦截：识别不了的输入由后端按标题/多源搜索回退
     setHasSearched(true);
     // 关闭搜索建议
@@ -137,6 +141,8 @@ export function useSearchFlow({
         page,
         javSubMode: activeTab === 'jav' ? effectiveSubMode : undefined,
       });
+      // 已有更新的搜索发起，丢弃本次过期响应
+      if (requestId !== searchRequestIdRef.current) return;
       if (response.success && response.data) {
         if ('resultType' in response.data && ['anime', 'movie', 'jav', 'manga', 'novel'].includes(response.data.resultType)) {
           setEnrichedData(response.data as EnrichedSearchData);
@@ -183,13 +189,14 @@ export function useSearchFlow({
                 description: r.description,
               }));
               setSearchResults(mapped);
+              reportSourceUsage(mapped.map((item) => item.sourceId));
             }
           } else {
             // Novel: 注入多源跳转卡片（与 JAV 机制一致）
             if (response.data.resultType === 'novel') {
               const novelData = response.data as NovelEnrichedData;
               if (novelData.results && novelData.results.length > 0) {
-                setSearchResults(novelData.results.map(r => ({
+                const mapped = novelData.results.map(r => ({
                   sourceId: r.id,
                   sourceName: r.name,
                   sourceIcon: r.icon,
@@ -198,7 +205,9 @@ export function useSearchFlow({
                   siteType: r.siteType,
                   category: r.category,
                   description: r.description,
-                })));
+                }));
+                setSearchResults(mapped);
+                reportSourceUsage(mapped.map((item) => item.sourceId));
               } else {
                 setSearchResults([]);
               }
@@ -228,13 +237,16 @@ export function useSearchFlow({
             description: r.description,
           }));
           setSearchResults(mappedResults);
+          reportSourceUsage(mappedResults.map((item) => item.sourceId));
           if (mappedResults.length === 0) {
             toast.info(i18next.t('errors:hooks.search.notFoundTitle'), i18next.t('errors:hooks.search.notFoundMessage'));
           }
         }
         const trimmed = query.trim();
         if (activeTab === 'jav' && isJavCodeLike(trimmed)) {
-          if (!javEnrichedDetail) {
+          // 只有当前详情不是本次番号时才重新拉取，避免沿用上一个番号的详情
+          const normalized = normalizeJavCode(trimmed);
+          if (!javEnrichedDetail || (normalized && javEnrichedDetail.code?.toUpperCase() !== normalized.toUpperCase())) {
             fetchJavDetail(trimmed);
           }
         } else {
@@ -243,10 +255,13 @@ export function useSearchFlow({
         }
       }
     } catch (err) {
+      if (requestId !== searchRequestIdRef.current) return;
       const errorMessage = err instanceof Error ? err.message : i18next.t('errors:hooks.search.searchFailedDefault');
       toast.error(i18next.t('errors:hooks.search.searchFailedTitle'), errorMessage);
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestIdRef.current) {
+        setSearching(false);
+      }
     }
   }, [keyword, toast, activeTab, javSubMode, fetchJavDetail, javEnrichedDetail, resetJavDetail, user?.id, searchMutation, setJavEnrichedDetail, setShowSuggestions, onSearch]);
 
@@ -267,6 +282,9 @@ export function useSearchFlow({
   };
 
   const resetResults = useCallback(() => {
+    // 使仍在途的搜索响应失效，避免切 Tab 后旧结果回填
+    searchRequestIdRef.current += 1;
+    setSearching(false);
     setSearchResults([]);
     setEnrichedData(null);
     setHasSearched(false);
