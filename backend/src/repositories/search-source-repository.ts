@@ -60,31 +60,32 @@ export async function listDefaultSources(
 }
 
 /**
- * 查询用户启用的搜索源 id 集合
- * @returns null 表示用户未做任何配置（视为全部启用）
+ * 查询用户显式禁用的搜索源 id 集合
+ *
+ * 启用语义为「黑名单」：没有配置行的源视为启用，只有 is_enabled = 0 的配置行才参与过滤。
+ * 这样后新增的系统源对老用户默认可见，不会因为历史配置行被永久挡住。
  */
-export async function listEnabledSourceIds(
+export async function listDisabledSourceIds(
   db: D1Database,
   userId: string
-): Promise<Set<string> | null> {
+): Promise<Set<string>> {
   const rows = await db
     .prepare(
       `SELECT source_id FROM user_search_source_configs 
-       WHERE user_id = ? AND is_enabled = 1`
+       WHERE user_id = ? AND is_enabled = 0`
     )
     .bind(userId)
     .all<{ source_id: string }>();
 
-  if (!rows.results || rows.results.length === 0) return null;
-  return new Set(rows.results.map(r => r.source_id));
+  return new Set((rows.results || []).map(r => r.source_id));
 }
 
-/** 按用户启用项过滤搜索源（enabled 为 null 时全部保留） */
+/** 过滤掉用户显式禁用的搜索源（disabled 为空时原样保留） */
 export function filterEnabledSources(
   sources: SearchSource[],
-  enabled: Set<string> | null
+  disabled: Set<string> | null
 ): SearchSource[] {
-  return enabled ? sources.filter(s => enabled.has(s.id)) : sources;
+  return disabled && disabled.size > 0 ? sources.filter(s => !disabled.has(s.id)) : sources;
 }
 
 /** 搜索源 → 结果卡片（替换 url 模板中的关键词占位符） */

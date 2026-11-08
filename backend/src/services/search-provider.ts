@@ -29,8 +29,8 @@ export interface SearchContext {
   categoryId: string;
   /** 子模式（如 JAV 的 code/title/actress） */
   subMode?: string;
-  /** 用户启用的搜索源 id 集合；null 表示未做任何配置（视为全部启用） */
-  enabledSources?: Set<string> | null;
+  /** 用户显式禁用的搜索源 id 集合；null 表示未登录（不额外过滤） */
+  disabledSources?: Set<string> | null;
   /** API Key 等外部依赖（如 TMDB_API_KEY） */
   apiKeys?: Record<string, string>;
 }

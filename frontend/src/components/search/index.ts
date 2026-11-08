@@ -5,6 +5,7 @@ export { SearchResultsPanel } from './SearchResultsPanel';
 export { SearchDock } from './SearchDock';
 export { SearchWorkspace } from './SearchWorkspace';
 export { SourcesSidebar, default } from './SourcesSidebar';
+export { SourceBoard } from './SourceBoard';
 export { AnimeSearchResultPanel } from './AnimeSearchResultPanel';
 export { MovieSearchResultPanel } from './MovieSearchResultPanel';
 export { MangaSearchResultPanel } from './MangaSearchResultPanel';

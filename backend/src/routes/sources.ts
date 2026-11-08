@@ -204,6 +204,28 @@ sourceRoutes.get('/stats', async (c) => {
       'SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1 AND searchable = 1 AND (is_system = 1 OR created_by = ?)'
     ).bind(user.userId).first<{ count: number }>();
 
+    // 启用语义：无配置行 = 启用，仅 is_enabled = 0 才禁用
+    const enabledSources = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM search_sources s
+      LEFT JOIN user_search_source_configs u ON u.source_id = s.id AND u.user_id = ?
+      WHERE s.is_active = 1
+        AND (s.is_system = 1 OR s.created_by = ?)
+        AND (u.is_enabled IS NULL OR u.is_enabled = 1)
+    `).bind(user.userId, user.userId).first<{ count: number }>();
+
+    // 可用性取最近一次探测结果
+    const availableSources = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count
+      FROM search_sources s
+      LEFT JOIN source_status_cache sc ON sc.id = (
+        SELECT id FROM source_status_cache WHERE source_id = s.id ORDER BY created_at DESC LIMIT 1
+      )
+      WHERE s.is_active = 1
+        AND (s.is_system = 1 OR s.created_by = ?)
+        AND sc.available = 1
+    `).bind(user.userId).first<{ count: number }>();
+
     const totalCategories = await c.env.DB.prepare(
       'SELECT COUNT(*) as count FROM search_source_categories WHERE is_active = 1'
     ).first<{ count: number }>();
@@ -239,6 +261,8 @@ sourceRoutes.get('/stats', async (c) => {
     return c.json(success({
       totalSources: totalSources?.count || 0,
       searchableSources: searchableSources?.count || 0,
+      enabledSources: enabledSources?.count || 0,
+      availableSources: availableSources?.count || 0,
       totalCategories: totalCategories?.count || 0,
       totalMajorCategories: totalMajorCategories?.count || 0,
       topUsedSources: topUsedSources.results || [],
@@ -423,19 +447,269 @@ sourceRoutes.get('/export-user-configs/:userId', async (c) => {
   }
 });
 
-sourceRoutes.get('/:id', async (c) => {
-  const sourceId = c.req.param('id');
+/**
+ * 源看板目录：服务端筛选 + 分页
+ * 返回源基础信息、分类路径名与当前用户配置；启用语义为「无配置行 = 启用」
+ * 注意：必须注册在 /:id 之前，否则会被动态参数路由吞掉
+ */
+sourceRoutes.get('/catalog', async (c) => {
+  const user = c.get('user');
 
   try {
-    const source = await c.env.DB.prepare(
-      'SELECT * FROM search_sources WHERE id = ? AND is_active = 1'
-    ).bind(sourceId).first<SearchSource>();
+    const keyword = (c.req.query('keyword') || '').trim();
+    const majorCategoryId = c.req.query('majorCategoryId');
+    const categoryId = c.req.query('categoryId');
+    const siteType = c.req.query('siteType');
+    const searchable = c.req.query('searchable');
+    // 范围：all（默认）/ mine（我创建的）/ enabled（已启用）/ searchable（仅可搜索）
+    const scope = c.req.query('scope') || 'all';
+    // 排序：default（分类顺序）/ name（名称）/ usage（曝光热度）
+    const sort = c.req.query('sort') || 'default';
+
+    const pageSize = Math.min(
+      Math.max(
+        1,
+        parseInt(c.req.query('pageSize') || String(R.PAGINATION.DEFAULT_PAGE_SIZE), 10)
+          || R.PAGINATION.DEFAULT_PAGE_SIZE
+      ),
+      R.PAGINATION.MAX_PAGE_SIZE
+    );
+    const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+    const offset = (page - 1) * pageSize;
+
+    const joins = `
+      FROM search_sources s
+      INNER JOIN search_source_categories c ON s.category_id = c.id
+      LEFT JOIN search_major_categories mc ON c.major_category_id = mc.id
+      LEFT JOIN user_search_source_configs u ON u.source_id = s.id AND u.user_id = ?
+      WHERE s.is_active = 1 AND (s.is_system = 1 OR s.created_by = ?)
+    `;
+    const conditions: string[] = [];
+    const params: (string | number)[] = [user.userId, user.userId];
+
+    if (keyword) {
+      conditions.push('(s.name LIKE ? OR s.subtitle LIKE ? OR s.description LIKE ?)');
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+    if (majorCategoryId) {
+      conditions.push('c.major_category_id = ?');
+      params.push(majorCategoryId);
+    }
+    if (categoryId) {
+      conditions.push('s.category_id = ?');
+      params.push(categoryId);
+    }
+    if (siteType) {
+      conditions.push('s.site_type = ?');
+      params.push(siteType);
+    }
+    if (searchable !== undefined) {
+      conditions.push('s.searchable = ?');
+      params.push(searchable === 'true' ? 1 : 0);
+    }
+    if (scope === 'mine') {
+      conditions.push('s.is_system = 0 AND s.created_by = ?');
+      params.push(user.userId);
+    } else if (scope === 'enabled') {
+      conditions.push('(u.is_enabled IS NULL OR u.is_enabled = 1)');
+    } else if (scope === 'searchable') {
+      conditions.push('s.searchable = 1');
+    }
+
+    const whereClause = conditions.length > 0 ? ` AND ${conditions.join(' AND ')}` : '';
+
+    const orderBy = sort === 'name'
+      ? 's.name ASC'
+      : sort === 'usage'
+        ? 's.usage_count DESC, s.name ASC'
+        : 'mc.display_order ASC, c.display_order ASC, s.search_priority DESC, s.display_order ASC';
+
+    const countRow = await c.env.DB.prepare(
+      `SELECT COUNT(*) as count ${joins}${whereClause}`
+    ).bind(...params).first<{ count: number }>();
+    const total = countRow?.count || 0;
+
+    const rows = await c.env.DB.prepare(`
+      SELECT
+        s.*,
+        c.name AS category_name,
+        c.icon AS category_icon,
+        c.color AS category_color,
+        c.major_category_id AS major_category_id,
+        mc.name AS major_category_name,
+        u.id AS config_id,
+        u.is_enabled AS config_is_enabled,
+        u.custom_priority AS config_custom_priority,
+        u.custom_name AS config_custom_name,
+        u.custom_subtitle AS config_custom_subtitle,
+        u.custom_icon AS config_custom_icon,
+        u.notes AS config_notes
+      ${joins}${whereClause}
+      ORDER BY ${orderBy}
+      LIMIT ? OFFSET ?
+    `).bind(...params, pageSize, offset).all<SearchSource & {
+      category_name: string;
+      category_icon: string | null;
+      category_color: string;
+      major_category_id: string | null;
+      major_category_name: string | null;
+      config_id: string | null;
+      config_is_enabled: number | null;
+      config_custom_priority: number | null;
+      config_custom_name: string | null;
+      config_custom_subtitle: string | null;
+      config_custom_icon: string | null;
+      config_notes: string | null;
+    }>();
+
+    const items = (rows.results || []).map(row => {
+      const {
+        category_name,
+        category_icon,
+        category_color,
+        major_category_id,
+        major_category_name,
+        config_id,
+        config_is_enabled,
+        config_custom_priority,
+        config_custom_name,
+        config_custom_subtitle,
+        config_custom_icon,
+        config_notes,
+        ...source
+      } = row;
+
+      return {
+        ...source,
+        categoryName: category_name,
+        categoryIcon: category_icon,
+        categoryColor: category_color,
+        majorCategoryId: major_category_id,
+        majorCategoryName: major_category_name,
+        // 无配置行视为启用，仅显式 is_enabled = 0 才禁用
+        enabled: config_is_enabled !== 0,
+        userConfig: config_id
+          ? {
+              id: config_id,
+              user_id: user.userId,
+              source_id: source.id,
+              is_enabled: config_is_enabled ?? 1,
+              custom_priority: config_custom_priority,
+              custom_name: config_custom_name,
+              custom_subtitle: config_custom_subtitle,
+              custom_icon: config_custom_icon,
+              notes: config_notes,
+            }
+          : null,
+      };
+    });
+
+    return c.json(success({
+      items,
+      total,
+      page,
+      pageSize,
+      hasMore: offset + items.length < total,
+    }));
+  } catch (err) {
+    console.error('Get source catalog error:', err);
+    return c.json(error('SERVER_ERROR', '获取源目录失败'), 500);
+  }
+});
+
+sourceRoutes.get('/:id', async (c) => {
+  const sourceId = c.req.param('id');
+  const user = c.get('user');
+
+  try {
+    const source = await c.env.DB.prepare(`
+      SELECT
+        s.*,
+        c.name AS category_name,
+        c.icon AS category_icon,
+        c.color AS category_color,
+        c.major_category_id AS major_category_id,
+        mc.name AS major_category_name
+      FROM search_sources s
+      LEFT JOIN search_source_categories c ON s.category_id = c.id
+      LEFT JOIN search_major_categories mc ON c.major_category_id = mc.id
+      WHERE s.id = ? AND s.is_active = 1
+    `).bind(sourceId).first<SearchSource & {
+      category_name: string | null;
+      category_icon: string | null;
+      category_color: string | null;
+      major_category_id: string | null;
+      major_category_name: string | null;
+    }>();
 
     if (!source) {
       return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
-    return c.json(success({ source }));
+    // 自定义源仅本人/管理员可见，避免通过 id 探测他人私有源
+    if (!source.is_system && source.created_by !== user.userId && !await checkIsAdmin(c)) {
+      return c.json(error('FORBIDDEN', '无权访问此搜索源'), 403);
+    }
+
+    const userConfig = await c.env.DB.prepare(
+      'SELECT * FROM user_search_source_configs WHERE user_id = ? AND source_id = ?'
+    ).bind(user.userId, sourceId).first<UserSearchSourceConfig>();
+
+    const statusCache = await c.env.DB.prepare(`
+      SELECT status, available, response_time, check_error, created_at
+      FROM source_status_cache
+      WHERE source_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).bind(sourceId).first<{
+      status: string;
+      available: number;
+      response_time: number;
+      check_error: string | null;
+      created_at: number;
+    }>();
+
+    const {
+      category_name,
+      category_icon,
+      category_color,
+      major_category_id,
+      major_category_name,
+      ...sourceFields
+    } = source;
+
+    const categoryPath = [
+      ...(major_category_id
+        ? [{ id: major_category_id, name: major_category_name || '', type: 'major' as const }]
+        : []),
+      ...(source.category_id
+        ? [{ id: source.category_id, name: category_name || '', type: 'category' as const }]
+        : []),
+    ];
+
+    return c.json(success({
+      source: {
+        ...sourceFields,
+        categoryName: category_name,
+        categoryIcon: category_icon,
+        categoryColor: category_color,
+        majorCategoryId: major_category_id,
+        majorCategoryName: major_category_name,
+      },
+      categoryPath,
+      // 无配置行视为启用，仅显式 is_enabled = 0 才禁用
+      enabled: userConfig ? userConfig.is_enabled !== 0 : true,
+      userConfig: userConfig || null,
+      status: statusCache
+        ? {
+            status: statusCache.status,
+            available: statusCache.available === 1,
+            responseTime: statusCache.response_time,
+            error: statusCache.check_error,
+            checkedAt: statusCache.created_at,
+          }
+        : null,
+    }));
   } catch (err) {
     console.error('Get source error:', err);
     return c.json(error('SERVER_ERROR', '获取搜索源失败'), 500);
@@ -1050,24 +1324,51 @@ sourceRoutes.post('/user-configs/batch', validateBody(schemas.sources.batchUpdat
     for (const config of configs) {
       const existingConfig = await c.env.DB.prepare(
         'SELECT id FROM user_search_source_configs WHERE user_id = ? AND source_id = ?'
-      ).bind(user.userId, config.sourceId).first();
+      ).bind(user.userId, config.sourceId).first<{ id: string }>();
 
       if (existingConfig) {
-        await c.env.DB.prepare(`
-          UPDATE user_search_source_configs 
-          SET is_enabled = ?, custom_priority = ?, custom_name = ?, 
-              custom_subtitle = ?, custom_icon = ?, notes = ?, updated_at = ?
-          WHERE id = ?
-        `).bind(
-          config.isEnabled !== false ? 1 : 0,
-          config.customPriority ? Math.min(Math.max(config.customPriority, 1), 10) : null,
-          config.customName?.trim() || null,
-          config.customSubtitle?.trim() || null,
-          config.customIcon?.trim() || null,
-          config.notes?.trim() || null,
-          now,
-          existingConfig.id
-        ).run();
+        // 局部更新：只写入请求中出现的字段，避免批量启停时清空用户自定义名称/备注
+        const updates: string[] = [];
+        const params: (string | number | null)[] = [];
+
+        if (config.isEnabled !== undefined) {
+          updates.push('is_enabled = ?');
+          params.push(config.isEnabled ? 1 : 0);
+        }
+        if (config.customPriority !== undefined) {
+          updates.push('custom_priority = ?');
+          params.push(
+            config.customPriority === null
+              ? null
+              : Math.min(Math.max(config.customPriority, 1), 10)
+          );
+        }
+        if (config.customName !== undefined) {
+          updates.push('custom_name = ?');
+          params.push(config.customName?.trim() || null);
+        }
+        if (config.customSubtitle !== undefined) {
+          updates.push('custom_subtitle = ?');
+          params.push(config.customSubtitle?.trim() || null);
+        }
+        if (config.customIcon !== undefined) {
+          updates.push('custom_icon = ?');
+          params.push(config.customIcon?.trim() || null);
+        }
+        if (config.notes !== undefined) {
+          updates.push('notes = ?');
+          params.push(config.notes?.trim() || null);
+        }
+
+        if (updates.length > 0) {
+          updates.push('updated_at = ?');
+          params.push(now, existingConfig.id);
+          await c.env.DB.prepare(`
+            UPDATE user_search_source_configs
+            SET ${updates.join(', ')}
+            WHERE id = ?
+          `).bind(...params).run();
+        }
       } else {
         const configId = generateId();
         await c.env.DB.prepare(`
@@ -1079,8 +1380,10 @@ sourceRoutes.post('/user-configs/batch', validateBody(schemas.sources.batchUpdat
           configId,
           user.userId,
           config.sourceId,
-          config.isEnabled !== false ? 1 : 0,
-          config.customPriority ? Math.min(Math.max(config.customPriority, 1), 10) : null,
+          config.isEnabled === false ? 0 : 1,
+          config.customPriority !== undefined && config.customPriority !== null
+            ? Math.min(Math.max(config.customPriority, 1), 10)
+            : null,
           config.customName?.trim() || null,
           config.customSubtitle?.trim() || null,
           config.customIcon?.trim() || null,

@@ -37,7 +37,7 @@ import { persistDataRecord } from '@/services/data-storage';
 import {
   listSourcesByCategory,
   listDefaultSources,
-  listEnabledSourceIds,
+  listDisabledSourceIds,
   filterEnabledSources,
   toSourceCards,
 } from '@/repositories/search-source-repository';
@@ -122,8 +122,8 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
       });
     }
 
-    const enabledSources = userPayload
-      ? await listEnabledSourceIds(c.env.DB, userPayload.userId)
+    const disabledSources = userPayload
+      ? await listDisabledSourceIds(c.env.DB, userPayload.userId)
       : null;
 
     // ── Provider 分发模式：通过 Registry 查找匹配的搜索引擎 ──
@@ -180,7 +180,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
             user: userPayload,
             categoryId: majorCategoryId,
             subMode: javSubMode,
-            enabledSources,
+            disabledSources,
             apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
           })) as unknown as Record<string, unknown>;
 
@@ -236,7 +236,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
       : await listDefaultSources(c.env.DB, userPayload?.userId || '');
 
     const searchResults = toSourceCards(
-      filterEnabledSources(sources, enabledSources),
+      filterEnabledSources(sources, disabledSources),
       trimmedKeyword
     );
 

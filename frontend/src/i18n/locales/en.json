@@ -118,6 +118,16 @@
     "mobileNav": {
       "ariaLabel": "Main navigation"
     },
+    "mobileMore": {
+      "open": "More",
+      "title": "More",
+      "close": "Close",
+      "sources": "Source Directory",
+      "active": "Current",
+      "theme": "Theme",
+      "themeLight": "Light mode",
+      "themeDark": "Dark mode"
+    },
     "github": {
       "title": "GitHub"
     },
@@ -195,6 +205,105 @@
     "novel":    { "label": "Novel Search",     "short": "Novel",  "placeholder": "Enter book title, author, or keywords...",     "description": "Search Anna's Archive ebook resources" },
     "sources":  { "label": "Sources Access",   "short": "Sources","placeholder": "Browse all available resource sites...",      "description": "Quick access to browse-type resource sites" },
     "community":{ "label": "Community",        "short": "Community","placeholder": "Enter community...",                          "description": "Discover great content and interact with like-minded people" }
+  },
+
+  "sourceBoard": {
+    "title": "Sources Catalog",
+    "subtitle": "Browse cataloged resource sites and categories. The board is read-only and does not affect search.",
+    "manage": "Manage Sources",
+    "refresh": "Refresh",
+    "backToSearch": "Back to search",
+    "uncategorized": "Uncategorized",
+    "stats": {
+      "total": "Total Sources",
+      "categories": "Categories",
+      "enabled": "My Enabled",
+      "available": "Recently Available"
+    },
+    "filters": {
+      "keywordPlaceholder": "Search source name or description...",
+      "keyword": "Keyword",
+      "majorCategory": "Category",
+      "category": "Subcategory",
+      "siteType": "Site Type",
+      "scope": "Scope",
+      "sort": "Sort",
+      "allMajorCategories": "All Categories",
+      "allCategories": "All Subcategories",
+      "allSiteTypes": "All Types",
+      "scopeAll": "All Scopes",
+      "scopeMine": "My Sources",
+      "scopeEnabled": "Enabled",
+      "scopeSearchable": "Searchable Only",
+      "sortDefault": "Default Order",
+      "sortName": "By Name",
+      "sortUsage": "By Impressions",
+      "reset": "Reset"
+    },
+    "list": {
+      "total": "{{count}} sources",
+      "empty": "No matching sources",
+      "emptyMine": "You have not created any custom sources yet",
+      "loadMore": "Load more",
+      "loading": "Loading...",
+      "error": "Failed to load source catalog"
+    },
+    "actions": {
+      "open": "Open",
+      "check": "Health Check",
+      "enable": "Enable",
+      "disable": "Disable"
+    },
+    "batch": {
+      "selected": "{{count}} selected",
+      "enable": "Enable Selected",
+      "disable": "Disable Selected",
+      "clear": "Clear Selection",
+      "select": "Select {{name}}"
+    },
+    "badges": {
+      "custom": "Custom",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "searchable": "Searchable"
+    },
+    "usage": "{{count}} impressions",
+    "detail": {
+      "title": "Source Details",
+      "close": "Close",
+      "siteType": "Site Type",
+      "usage": "Popularity",
+      "usageValue": "{{count}} impressions",
+      "status": "Latest Status",
+      "statusAvailable": "Available",
+      "statusUnavailable": "Unavailable",
+      "statusUnknown": "No check record",
+      "availability": "24h Availability",
+      "availabilityLoading": "Calculating...",
+      "availabilityValue": "{{rate}}% ({{count}} checks)",
+      "availabilityNone": "No check record",
+      "urlTemplate": "URL Template",
+      "homepage": "Homepage",
+      "notes": "My Notes",
+      "notesPlaceholder": "Add usage notes for this source",
+      "customize": "Custom Info",
+      "customName": "Custom Name",
+      "customSubtitle": "Custom Subtitle",
+      "save": "Save Custom Info",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "description": "Description",
+      "check": "Check Availability",
+      "checking": "Checking...",
+      "visit": "Visit Site",
+      "manage": "Manage Sources"
+    },
+    "siteTypes": {
+      "search": "Search",
+      "browse": "Browse",
+      "reference": "Reference",
+      "enriched": "Metadata"
+    }
   },
 
   "auth": {
@@ -2197,6 +2306,7 @@
       "exportCsv": "Export as CSV",
       "exportOpml": "Export as OPML",
       "addSource": "Add Source",
+      "viewBoard": "View Source Board",
       "statsTotalSources": "Total Sources",
       "statsEnabled": "Enabled",
       "statsCategories": "Categories",
