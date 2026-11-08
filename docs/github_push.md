@@ -1,6 +1,6 @@
 # GitHub 推送指南
 
-本文档说明如何将CodeSeek项目推送到GitHub仓库。
+本文档说明如何将 Atlas 项目推送到 GitHub 仓库（默认分支 `main`，当前版本 `v1.6.0`）。
 
 ---
 
@@ -20,7 +20,7 @@
 
 1. 登录 [GitHub](https://github.com/)
 2. 点击右上角 `+` → `New repository`
-3. 输入仓库名（建议：`codeseek`）
+3. 输入仓库名（建议：`Atlas`）
 4. **不要勾选** "Initialize this repository with a README"（避免创建冲突）
 5. 点击 `Create repository`
 
@@ -28,26 +28,26 @@
 
 ```bash
 # 进入项目目录
-cd /path/to/codeseek
+cd /path/to/Atlas
 
 # 初始化Git仓库
 git init
 
-# 添加所有文件到暂存区
+# 添加所有文件到暂存区（确认 .gitignore 已排除 node_modules / .dev.vars / dist）
 git add .
 
 # 提交到本地仓库
-git commit -m "Initial commit: CodeSeek v2.0.0"
+git commit -m "chore(release): 初始化 Atlas v1.6.0"
 ```
 
 ### 3. 关联远程仓库
 
 ```bash
 # 使用HTTPS方式（简单）
-git remote add origin https://github.com/你的用户名/codeseek.git
+git remote add origin https://github.com/你的用户名/Atlas.git
 
 # 或使用SSH方式（推荐，更安全）
-git remote add origin git@github.com:你的用户名/codeseek.git
+git remote add origin git@github.com:你的用户名/Atlas.git
 
 # 验证远程仓库
 git remote -v
@@ -196,10 +196,9 @@ git reset --soft HEAD~1
 
 # 撤销最近一次提交（丢弃修改）
 git reset --hard HEAD~1
-
-# 已推送到远程，需要强制推送（谨慎使用）
-git push --force
 ```
+
+已推送到远程时，优先用新的修复提交覆盖错误，而不是重写历史。多人协作或 `main` 受保护时禁止 force push；确需重写时先确认没有其他人基于该提交工作，并让仓库管理员临时解除保护。
 
 ---
 
@@ -300,15 +299,23 @@ git branch -d feature/amazing-feature
 # 在Cloudflare Dashboard中设置secrets
 
 # 如果不小心提交了敏感信息
-# 1. 立即更改密钥
-# 2. 从Git历史中移除
-git filter-branch --force --index-filter \
-  "git rm --cached --ignore-unmatch path/to/sensitive-file" \
-  --prune-empty --tag-name-filter cat -- --all
-
-# 3. 强制推送
-git push --force --all
+# 1. 立即在对应平台轮换/吊销密钥（最重要）
+# 2. 从当前版本移除：git rm --cached path/to/sensitive-file 并提交
+# 3. 历史记录清理需评估影响范围，由仓库管理员执行并通知所有协作者重新克隆
 ```
+
+本项目敏感配置应放在 `backend/.dev.vars`（本地）或 Cloudflare Secrets（生产），两者都不进入版本库。
+
+---
+
+## 版本发布流程
+
+1. 确认 `git status`、当前分支与远端（`git status -sb`、`git remote -v`、`git log -1 --oneline`）
+2. 同步版本号：根 `package.json`、`backend/package.json`、`frontend/package.json`、`packages/shared/package.json`、`backend/wrangler.toml` 的 `APP_VERSION`、前后端版本常量、README 徽章与 `docs/CHANGELOG.md`
+3. 在 `docs/CHANGELOG.md` 按「新增 / 修改 / 修复 / 优化」补版本章节
+4. 按功能分组提交（例如 `feat(help): ...`、`fix(community): ...`、`docs: ...`、`chore(release): ...`）
+5. 普通推送：`git push origin main`。不要 force push，不要跳过 hook
+6. 推送后确认 GitHub Actions 的 `Deploy to Cloudflare Workers` 运行成功
 
 ---
 
@@ -322,8 +329,8 @@ git push --force --all
 
 ### 触发条件
 
-- 推送到 `main` 分支
-- 手动触发
+- 推送到 `main` 分支且改动 `backend/**`
+- 手动触发（`workflow_dispatch`）
 
 ### 所需Secrets
 
@@ -331,8 +338,10 @@ git push --force --all
 
 | Secret名称 | 说明 |
 |-----------|------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare账户ID |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token（后端部署） |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID（后端部署） |
+| `ATLAS_RANKING_IMPORT_URL` | 榜单导入接口完整地址（`${BACKEND_URL}/api/internal/rankings/import`） |
+| `RANKINGS_IMPORT_SECRET` | 榜单导入共享密钥，与 Worker Secret 保持一致 |
 
 ### 创建API Token
 

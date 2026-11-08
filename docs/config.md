@@ -1,243 +1,275 @@
 # 配置说明
 
-> **适用版本**: v1.5.0+
->
-> CodeSeek 使用 Cloudflare Workers Secrets + 环境变量进行配置管理。
+> 适用版本：v1.6.0+
+> 配置分为三层：`backend/wrangler.toml` 的 `[vars]`（非敏感部署配置）、Cloudflare Secrets（敏感凭据）、D1 `system_config`（运行时动态配置）
 
 ---
 
-## 目录
+## 一、配置分层
 
-- [环境变量总览](#环境变量总览)
-- [认证配置](#认证配置)
-- [搜索源配置](#搜索源配置)
-- [存储配置](#存储配置)
-- [安全配置](#安全配置)
-- [功能开关](#功能开关)
-- [新增搜索类别的配置流程](#新增搜索类别的配置流程)
-
----
-
-## 环境变量总览
-
-### 必填项
-
-| 变量名 | 说明 | 示例 |
-|--------|------|------|
-| `GITHUB_CLIENT_ID` | GitHub OAuth App Client ID | `Ov23li...` |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App Client Secret | `abc123...` |
-| `JWT_SECRET` | JWT 签名密钥（>=32字符随机字符串） | `rand0m-s3cr3t-k3y-32chars!!` |
-| `D1_DATABASE_ID` | Cloudflare D1 数据库 ID | `xxxxxx...` |
-
-### 可选项（按搜索类别）
-
-| 变量名 | 类别 | 说明 | 默认值 |
-|--------|------|------|--------|
-| `DMM_API_ID` | JAV | DMM Affiliate ID | - |
-| `DMM_API_KEY` | JAV | DMM Affiliate Key | - |
-| `TMDB_API_KEY` | 影视 | TMDB API Key | - |
-| `BANGUMI_API_KEY` | 动漫 | Bangumi API Key（可选） | - |
-
-### 系统配置
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `APP_VERSION` | 应用版本号 | `1.5.0` |
-| `NODE_ENV` | 运行环境 | `production` |
-| `CORS_ORIGIN` | CORS 允许的源 | `https://atlas.wort.uk` |
-| `ADMIN_GITHUB_IDS` | 管理员 GitHub ID 列表（逗号分隔） | `` |
+| 层级 | 位置 | 适用场景 | 修改后是否需要重新部署 |
+|------|------|----------|------------------------|
+| 部署配置 | `backend/wrangler.toml` → `[vars]` | 站点地址、发件人、功能默认值 | 是 |
+| 敏感凭据 | `wrangler secret put` / 本地 `backend/.dev.vars` | JWT、OAuth、邮件 API Key | 是（Secrets 即时生效） |
+| 运行时配置 | D1 `system_config` 表 | 注册开关、社区开关、限流与保留策略 | 否，管理后台即时生效 |
+| 代码常量 | `backend/src/constants.ts` | CORS 白名单、上限、缓存 TTL | 是 |
 
 ---
 
-## 认证配置
+## 二、部署配置（wrangler.toml）
+
+`backend/wrangler.toml` 的 `[vars]` 中维护以下非敏感变量：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `APP_VERSION` | `1.6.0` | 版本号，`/api/system/version` 与前端显示使用 |
+| `APP_ENV` | `production` | 运行环境标识 |
+| `SITE_URL` | `https://atlas.example.com` | 站点主地址，用于邮件与绝对链接 |
+| `FRONTEND_URL` | `https://atlas.example.com` | 前端地址，用于邮件中的跳转链接 |
+| `BACKEND_URL` | `https://api-atlas.example.com` | 后端地址，用于 OAuth 回调与公告链接 |
+| `DEFAULT_FROM_EMAIL` | `noreply@atlas.example.com` | 默认发件邮箱（需与 Resend 已验证域名一致） |
+| `DEFAULT_FROM_NAME` | `Atlas` | 默认发件人名称 |
+| `JWT_EXPIRY_DAYS` | `30` | 登录令牌有效期（天） |
+| `ENABLE_ACTION_LOGGING` | `true` | 是否记录用户行为日志 |
+
+> CORS 白名单不在环境变量中，位于 `backend/src/constants.ts` 的 `ALLOWED_ORIGINS`。新增前端域名后需要重新构建并部署后端。
+
+---
+
+## 三、敏感凭据（Secrets）
+
+本地开发写入 `backend/.dev.vars`（已被 `.gitignore` 忽略）；生产环境使用 `wrangler secret put`。
+
+```bash
+cd backend
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RANKINGS_IMPORT_SECRET
+```
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `JWT_SECRET` | 是 | JWT 签名密钥，建议 32 字节以上随机字符串 |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | 是 | GitHub OAuth App |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 否 | Google OAuth，未配置时 Google 登录不可用 |
+| `RESEND_API_KEY` | 邮件功能必填 | Resend API Key；未配置时验证码/通知邮件发送失败并写入 `email_send_logs` |
+| `RANKINGS_IMPORT_SECRET` | 否 | JavDB 榜单导入接口的共享密钥（`/api/internal/rankings/import`） |
+| `TMDB_API_KEY` | 否 | TMDB 影视元数据增强；不配置时回退到搜索源聚合结果 |
+
+> 搜索源以 D1 `search_sources` 为准，不需要 DMM/FANZA 的 API Key。
+
+---
+
+## 四、D1 数据库绑定
+
+`backend/wrangler.toml`：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "codeseek"
+database_id = "<创建 D1 后返回的 database_id>"
+```
+
+- 建库：`npx wrangler d1 create codeseek`
+- 全新库初始化脚本顺序见 [部署指南](./deploy.md)，必须从 `01` 执行到 `19`
+- 本地开发使用 `--local`，生产使用 `--remote`，两者数据互不影响
+
+---
+
+## 五、OAuth 配置
 
 ### GitHub OAuth
 
-1. 访问 https://github.com/settings/developers 创建 OAuth App
-2. 设置回调地址：`https://atlasapi.wort.uk/api/auth/github/callback`
-3. 将获得的 Client ID 和 Secret 填入环境变量
+1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
+2. Homepage URL：`FRONTEND_URL`
+3. Authorization callback URL：`${BACKEND_URL}/api/auth/github/callback`
+4. 将 Client ID / Secret 写入 Secrets（见上）
 
-### JWT 配置
+### Google OAuth
 
-- **算法**: HS256
-- **有效期**: Access Token 24h / Refresh Token 7d
-- **JWT_SECRET**: 使用 `openssl rand -base64 32` 生成
+1. Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID
+2. Authorized redirect URI：`${BACKEND_URL}/api/auth/google/callback`
+3. 将 Client ID / Secret 写入 Secrets
 
-### 管理员配置
-
-在 `ADMIN_GITHUB_IDS` 中填写管理员数字 ID（逗号分隔），例如：
-
-```
-ADMIN_GITHUB_IDS=123456,789012
-```
+> OAuth 回调域名必须与 `BACKEND_URL` 完全一致（协议、域名、端口均需匹配）。
 
 ---
 
-## 搜索源配置
+## 六、JWT 与登录安全
 
-### v1.1.0 三层架构下的配置方式
-
-搜索源的配置分为两层：
-
-#### Layer 1 & 2: Provider 内置（代码层面）
-
-每个 Provider 在代码中声明自己支持的分类：
-
-```typescript
-// backend/src/providers/anime-provider.ts
-export const animeProvider: SearchProvider = {
-  category: 'anime',
-  name: '动漫搜索',
-  classifications: ['bangumi', 'mikan', 'nyaa', 'showrss'],
-  // ...
-};
-```
-
-**无需额外配置**，注册 Provider 即生效。
-
-#### Layer 3: 数据库驱动（运行层面）
-
-具体搜索源实例通过 `search_sources` 表管理：
-
-```sql
--- 通过后台管理界面或 SQL 插入
-INSERT INTO search_sources (name, category, classification, base_url, type, priority, config)
-VALUES ('Bangumi API', 'anime', 'bangumi', 'https://api.bgm.tv', 'api', 10,
-        '{"apiKey": "your_bangumi_key"}');
-```
-
-或通过 API 创建：
-
-```bash
-curl -X POST https://atlasapi.wort.uk/api/search-sources \
-  -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Bangumi API",
-    "category": "anime",
-    "classification": "bangumi",
-    "baseUrl": "https://api.bgm.tv",
-    "type": "api",
-    "priority": 10,
-    "config": { "apiKey": "your_key" }
-  }'
-```
-
-### 各类别所需的外部 API Key
-
-| 类别 | API | 获取地址 | 是否必须 |
-|------|-----|---------|---------|
-| 动漫 | Bangumi | https://bgm.tv/dev/app | 推荐（无 Key 限流更严） |
-| 影视 | TMDB | https://www.themoviedb.org/settings/api | **必须** |
-| JAV | DMM Affiliate | https://affiliate.dmm.com/ | **必须** |
+- `JWT_SECRET` 至少 32 字节，轮换后所有已签发令牌立即失效
+- 登录失败锁定读取 `system_config.max_login_attempts`（默认 5）与 `lockout_duration_ms`（默认 15 分钟）
+- 锁定记录写入 `security_lockouts`，按 `identifier_hash` 匹配（手机号/邮箱/IP 统一哈希）
+- 修改密码、找回密码成功后会使该用户全部已有会话失效
 
 ---
 
-## 存储配置
+## 七、邮件配置
+
+### Resend
+
+1. 在 Resend 添加并验证发件域名
+2. 配置 `RESEND_API_KEY`、`DEFAULT_FROM_EMAIL`、`DEFAULT_FROM_NAME`
+3. 本地可用 Resend 测试地址，但只能发送到账号绑定邮箱
+
+### 发送策略
+
+- 事务邮件（注册验证码、找回密码、修改邮箱、反馈回复）不受通知偏好与退订控制
+- 通知邮件（关注动态、社区互动、站点公告）受用户偏好控制；邮箱未验证时不能开启
+- 用户每小时/每天发信上限由 `system_config.email_rate_limit_per_hour` / `email_rate_limit_per_day` 控制
+- 所有发送结果写入 `email_send_logs`（类型、状态、用户、IP、限流键、错误信息）
+- 通知摘要任务写入 `email_queue`，后台可查看 pending / sent / skipped / failed
+- 发布公告时公告邮件入队；删除公告会清理对应的待发送任务
+- 用户之后开启公告邮件时，会将最近 7 天内最多 20 条有效公告补发入队（按用户去重）
+- 测试邮件入口：通知偏好页，限流为每人每分钟 1 次
+
+### 退订
+
+通知邮件底部包含带签名的退订链接，命中 `email_unsubscribe_tokens`；事务邮件不提供退订。
 
 ---
 
-## 安全配置
+## 八、限流配置
 
-### CORS
+| 场景 | 限制 |
+|------|------|
+| 搜索（档位 1 基础） | 5 次/分钟、20 次/小时、100 次/天 |
+| 搜索（档位 2 活跃） | 6 次/分钟、30 次/小时、150 次/天 |
+| 搜索（档位 3 常驻） | 7 次/分钟、50 次/小时、250 次/天 |
+| 搜索（档位 4 核心） | 8 次/分钟、80 次/小时、400 次/天 |
+| 搜索建议 | 30 次/分钟 |
+| 热门/榜单 | 20 次/分钟 |
+| 推荐 | 30 次/分钟 |
+| 收藏操作 | 5 次/分钟 |
+| 注册 | 每 IP 5 次/分钟、10 次/小时、20 次/天 |
+| 测试邮件 | 1 次/分钟/用户 |
 
-```bash
-CORS_ORIGIN=https://atlas.wort.uk,https://www.atlas.wort.uk
+档位规则定义在 `backend/src/services/search-tier.ts`：账号年龄、活跃天数、累计搜索次数满足条件后自动升级；档位数据在 `search_tier` 相关表中维护，每日刷新。
+
+---
+
+## 九、运行时配置（system_config）
+
+管理后台 → 系统配置可修改以下键（`database/06_data_system.sql` 初始化）：
+
+| 键 | 默认 | 说明 |
+|----|------|------|
+| `site_name` | `Atlas` | 站点名称 |
+| `site_description` | `搜索全网资源，一步直达` | 站点描述 |
+| `enable_registration` | `1` | 是否开放注册 |
+| `community_enabled` | `1` | 是否启用社区（关闭后发帖/评论/举报接口返回不可用） |
+| `max_login_attempts` | `5` | 最大登录失败次数 |
+| `lockout_duration_ms` | `900000` | 锁定时长（毫秒） |
+| `max_verification_attempts` | `5` | 验证码最大尝试次数 |
+| `password_reset_max_attempts` | `5` | 找回密码最大尝试次数 |
+| `password_reset_lockout_duration` | `3600000` | 找回密码锁定时长（毫秒） |
+| `email_rate_limit_per_hour` | `5` | 每用户每小时发信上限 |
+| `email_rate_limit_per_day` | `20` | 每用户每天发信上限 |
+| `verification_code_expiry` | `900000` | 验证码有效期（毫秒） |
+| `reset_password_code_expiry` | `1800000` | 找回密码验证码有效期（毫秒） |
+| `password_reset_log_retention_days` | `30` | 找回密码日志保留天数 |
+| `user_actions_retention_days` | `90` | 用户行为日志保留天数 |
+| `security_event_retention_days` | `90` | 安全事件保留天数 |
+
+> `is_public = 0` 的配置不会出现在公开接口中；非管理员读取敏感配置会被拒绝。
+
+---
+
+## 十、搜索源配置
+
+搜索源完全由数据库驱动，不需要改代码：
+
+| 层级 | 表 | 说明 |
+|------|----|------|
+| 大类 | `search_major_categories` | JAV / 动漫 / 影视 / 漫画 / 小说 |
+| 分类 | `search_source_categories` | 资料站、在线播放、磁力、社区等 |
+| 搜索源 | `search_sources` | `url_template` 使用 `{keyword}` 占位符 |
+
+相关接口：
+
+- `GET /api/search-sources/major-categories` — 大类列表
+- `GET /api/search-sources/categories?majorCategoryId=<id>` — 分类列表
+- `GET /api/search-sources` — 搜索源列表（非管理员仅返回公开项）
+
+新增一个搜索类别（以 `novel` 为例）：
+
+1. 在 `database/07_data_search_sources.sql` 追加大类、分类、搜索源（使用 `INSERT OR IGNORE`）
+2. 在前端 `frontend/src/constants.ts` 的 `SEARCH_CATEGORIES` 中添加对应配置
+3. 在 `frontend/src/i18n/locales/{zh-CN,zh-TW,en}/*.ts` 补充三语文案
+4. 执行 `npx wrangler d1 execute codeseek --remote --file=database/07_data_search_sources.sql`
+
+---
+
+## 十一、Monorepo 共享包解析
+
+`@codeseek/shared` 的解析分两侧：
+
+- **前端**：`frontend/tsconfig.json` 的 `paths` 与 `frontend/vite.config.ts` 的 `alias` 都直接指向 `packages/shared/src`，不依赖 `node_modules` 中的软链接。
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@codeseek/shared": ["../packages/shared/src/index.ts"],
+      "@codeseek/shared/types": ["../packages/shared/src/types/index.ts"],
+      "@codeseek/shared/utils": ["../packages/shared/src/utils/index.ts"]
+    }
+  }
+}
 ```
 
-支持逗号分隔的多域名，开发时可加入 `http://localhost:5173`。
-
-### Rate Limiting（内置，无需配置）
-
-| 接口类别 | 限制 |
-|---------|------|
-| 搜索 | 30 次/分钟/IP |
-| 认证 | 10 次/分钟/IP |
-| 写操作 | 20 次/分钟/IP |
-
-### 安全头（自动添加）
-
-- `X-Frame-Options: DENY`
-- `X-Content-Type-Options: nosniff`
-- `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-
----
-
-## 功能开关
-
-当前版本暂不支持通过环境变量控制功能开关。所有功能默认启用。
-
-如需禁用某个搜索类别，可通过以下方式：
-
-1. **禁用整个类别**：注释掉 `index.ts` 中的 `providerRegistry.register()` 行
-2. **禁用特定分类**：从对应 Provider 的 `classifications` 数组中移除
-3. **禁用单个源**：将 `search_sources.is_active` 设为 `false`
-
----
-
-## 新增搜索类别的配置流程
-
-以新增「音乐搜索」为例：
-
-### Step 1: 创建 Provider
-
-```typescript
-// backend/src/providers/music-provider.ts
-export const musicProvider: SearchProvider = {
-  category: 'music',
-  name: '音乐搜索',
-  classifications: ['spotify', 'netease'],
-  async search(classification, params) {
-    // 实现搜索逻辑
+```ts
+resolve: {
+  alias: {
+    '@codeseek/shared/types': path.resolve(__dirname, '../packages/shared/src/types/index.ts'),
+    '@codeseek/shared/utils': path.resolve(__dirname, '../packages/shared/src/utils/index.ts'),
+    '@codeseek/shared': path.resolve(__dirname, '../packages/shared/src/index.ts'),
   },
-};
+}
 ```
 
-### Step 2: 注册 Provider
+- **后端**：`packages/shared/package.json` 通过 `main` / `types` / `exports` 指向 `src`，由 npm workspaces 建立 `node_modules/@codeseek/shared` 链接；Wrangler/esbuild 打包时按 `exports` 解析。若该链接损坏，重新执行 `npm install`。
 
-```typescript
-// backend/src/index.ts
-import { musicProvider } from '@/providers/music-provider';
-providerRegistry.register(musicProvider);  // ← 一行搞定
-```
-
-### Step 3: 添加搜索源到数据库
-
-```sql
-INSERT INTO search_sources (name, category, classification, base_url, type, priority)
-VALUES ('Spotify API', 'music', 'spotify', 'https://api.spotify.com', 'api', 10),
-       ('网易云音乐', 'music', 'netease', 'https://music.163.com', 'scrape', 8);
-```
-
-### Step 4: 前端添加 Tab 和 Panel
-
-- SearchPage 添加「音乐」Tab
-- 创建 MusicSearchResultPanel 组件
-- 添加对应的 TypeScript 类型
-
-### Step 5: 配置 API Key（如需要）
-
-```bash
-# wrangler secret put SPOTIFY_CLIENT_ID
-# wrangler secret put SPOTIFY_CLIENT_SECRET
-```
+新增或修改共享类型后无需单独构建 `packages/shared`，前端即时生效；如果编辑器仍提示找不到模块，重启 TS Server 即可。
 
 ---
 
-## 配置验证
+## 十二、推荐缓存
 
-部署后访问以下端点验证配置：
+| 数据 | 缓存时长 | 位置 |
+|------|----------|------|
+| 推荐画像 | 5 分钟 | `backend/src/services/recommendation.ts` |
+| 热度信号 | 1 小时 | `backend/src/services/hot-signals.ts` |
+| JAV 榜单 / 热门女优 | 6 小时 | `backend/src/routes/jav.ts` |
+| 收藏/历史统计 | 服务端聚合 | `backend/src/routes/user.ts` |
+| 榜单数据 | 前端请求缓存 | `frontend/src/hooks/useJavRankings.ts` |
+
+---
+
+## 十三、配置验证
 
 ```bash
-# 健康检查（返回配置摘要）
-curl https://atlasapi.wort.uk/api/health
+# 版本与公开站点配置（appVersion / siteName / allowRegistration / communityEnabled）
+curl ${BACKEND_URL}/api/system/public-config
 
-# 搜索源状态
-curl -H "Authorization: Bearer <token>" \
-  https://atlasapi.wort.uk/api/search-sources?includeStats=true
+# 健康检查（含 version）
+curl ${BACKEND_URL}/api/health
 
-# 分类列表验证
-curl https://atlasapi.wort.uk/api/search-sources/classifications/anime
-curl https://atlasapi.wort.uk/api/search-sources/classifications/movie
-curl https://atlasapi.wort.uk/api/search-sources/classifications/jav
+# 公开配置项（仅 is_public = 1）
+curl ${BACKEND_URL}/api/config/public
+```
+
+日志排查：
+
+```bash
+cd backend
+npx wrangler tail
+npx wrangler d1 execute codeseek --remote --command "SELECT * FROM email_send_logs ORDER BY created_at DESC LIMIT 20"
+npx wrangler d1 execute codeseek --remote --command "SELECT status, COUNT(*) FROM email_queue GROUP BY status"
 ```

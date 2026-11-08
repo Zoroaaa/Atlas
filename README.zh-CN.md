@@ -7,7 +7,7 @@
 **开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -47,7 +47,7 @@
 |------|------|------|
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、**v1.5.0（一体化工作台+三语国际化+榜单与推荐）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、**v1.6.0（帮助中心+统一通知收件箱+邮件投递）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -85,6 +85,10 @@
 - **完整邮箱验证**: 注册验证、密码重置、邮箱更改、账户删除，全流程邮箱确认
 - **多层安全机制**: 登录失败锁定、验证码频率限制、临时邮箱黑名单、安全事件日志
 - **RBAC 权限系统**: 四级角色权限（超级管理员/管理员/用户/访客），细粒度权限控制
+
+#### 5. 通知与内置帮助（v1.6.0）
+- **统一通知中心**: 社区互动、关注女优动态与站点公告共用一个收件箱、一个未读角标和一套站内/邮件偏好
+- **内置帮助中心**: `/help` 覆盖所有用户可见模块，每类均含功能介绍、使用步骤与注意事项
 
 ### 技术亮点
 
@@ -132,7 +136,7 @@ Resend                → 现代邮件服务、高送达率、实时追踪
 
 | 类别 | 数据源 | 说明 |
 |------|--------|------|
-| **JAV** | DMM/FANZA / JavBus / JavDB / **JavBus（女优资料，v1.4.0 新增）** | 成人影片元数据 + 磁力聚合 + 女优资料搜索 |
+| **JAV** | DMM/FANZA / JavBus / JavDB / **JavBus（女优资料，v1.4.0 新增）** | 成人影片元数据 + 磁力聚合 + 女优资料搜索（统一称「JAV搜索」） |
 | **动漫** | Bangumi / Mikan / ShowRSS | 番剧元数据 + 字幕组（nyaa 源因部署环境限制已禁用，v1.4.0 调整） |
 | **影视** | TMDB / YTS / EZTV / TPB | 电影剧集元数据 + 种子资源 |
 | **漫画** | MangaDex / 13个搜索源 | 漫画元数据 + 资源聚合 |
@@ -216,6 +220,15 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **搜索历史**: 自动记录搜索历史（含封面缩略图），支持清空和删除
 - **数据同步**: 跨设备同步收藏、历史、设置
 - **数据导出**: 支持导出个人数据（JSON 格式）
+- **收藏/历史分页（v1.6.0）**: 改为服务端分页并返回总数，控制台统计走服务端聚合
+
+#### 通知中心（v1.6.0）
+- **统一收件箱**: 关注女优动态（`follow.new_work` / `follow.release_soon`）、社区点赞/评论/收藏/举报处理结果、站点公告统一进入 `/dashboard/notifications`
+- **公告读时合并**: 公告仍存放在 `site_announcements`，收件箱读取时合并，仅用 `user_announcement_reads` 记录每个用户的已读/删除状态
+- **按类型偏好**: 每种通知类型独立控制「站内 / 邮件」开关；邮箱未验证时不能开启邮件通知
+- **邮箱验证入口**: 通知偏好页可直接发送并校验邮箱验证码，无需跳转
+- **收件箱操作**: 全部/未读筛选、标记已读、单条删除、清除全部已读，导航栏显示未读角标
+- **测试邮件**: 偏好页可发送测试邮件（每人每分钟 1 次）
 
 ### 3. 社区功能
 
@@ -229,6 +242,8 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **评论评分**: 对搜索源发表评价，帮助他人选择
 - **点赞收藏**: 为优质搜索源点赞，收藏到个人列表
 - **举报机制**: 发现违规内容可举报，管理员处理
+- **浏览去重（v1.6.0）**: 同一用户对同一帖子 24 小时内只计一次浏览量，作者本人访问不计数；依赖 `database/19_schema_community_post_views.sql`
+- **通知统一（v1.6.0）**: 点赞、评论、收藏、举报处理结果统一投递到通知收件箱；原社区通知 Tab 及旧接口已删除
 
 #### 贡献统计
 - **个人贡献**: 查看自己分享的搜索源数量、下载量、评分
@@ -259,6 +274,12 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **数据存储管理**: 搜索结果异步落库去重、多源合并，按类型查阅 / 隐藏 / 清理过期数据，含统计概览（v1.4.0 新增）
 - **社区审核**: 审核用户分享的搜索源
 - **举报处理**: 处理用户举报内容
+- **公告管理**: 发布 / 编辑 / 删除公告；发布时公告邮件入队，删除时同步清理待发送队列（v1.6.0）
+
+#### 邮件运维（v1.6.0）
+- **邮件发送日志**: 后台按类型/状态查看每封邮件的发送结果、用户、IP 与错误信息（`GET /api/config/email/logs`）
+- **邮件队列**: 查看 pending / sent / skipped / failed 的摘要任务及最近一次失败原因（`GET /api/config/email/queue`）
+- **统一发送器**: 事务邮件与通知邮件统一走同一发送器，接入 Resend、发送日志与限流元数据
 
 #### 系统监控
 - **仪表盘**: 一览系统运行状态、用户活跃度
@@ -279,9 +300,16 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **数据来源**: 支持多数据源聚合展示
 - **登录可见**: 需要用户登录认证后才能访问
 
+### 7. 帮助中心（v1.6.0）
+
+- **入口**: `/help`，主导航提供入口
+- **分类**: 快速上手、发现（为你推荐 / JAV榜单 / 热门女优）、搜索基础与各 Tab 差异、分类指南、详情页、社区、关注女优、通知与邮件、账号安全、通用注意事项、常见问题
+- **结构**: 每个章节统一为「功能介绍 + 使用步骤 + 注意事项」，另有独立的通用注意事项章节
+- **一致性**: 内容与线上功能保持同步；全站统一使用「JAV搜索」，不再使用「JAV番号搜索」
+
 ## 技术栈概览
 
-**前端层 (v1.5.0)**
+**前端层 (v1.6.0)**
 - React 19 + TypeScript
 - Vite / Tailwind CSS / Zustand / React Router
 - AnimeSearchResultPanel / MovieSearchResultPanel
@@ -290,9 +318,11 @@ Category (大类)        Classification (分类)         Source (源实例)
 - JavActressResultsPanel + ActressesPanel（v1.4.0）
 - DataStorageTab（v1.4.0）
 - 工作台组件 + 三语国际化（v1.5.0）
+- HelpCenterPage + 帮助内容定义（v1.6.0）
+- 通知铃铛 / 收件箱 / 通知偏好页面（v1.6.0）
 - 部署：Cloudflare Pages
 
-**Provider 层 (v1.5.0)**
+**Provider 层 (v1.6.0)**
 - SearchProvider 接口 + ProviderRegistry 注册中心
 - anime-provider（Bangumi / Mikan / ShowRSS）
 - movie-provider（TMDB / YTS / EZTV / TPB）
@@ -301,7 +331,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - jav-provider（Metadata / Magnet + 女优子模式）
 - 推荐与榜单服务（v1.5.0）
 
-**后端服务层 (v1.5.0)**
+**后端服务层 (v1.6.0)**
 - Hono 框架 / TypeScript
 - Cloudflare Workers / D1
 - JWT Token 认证（jose）/ Resend
@@ -310,13 +340,15 @@ Category (大类)        Classification (分类)         Source (源实例)
 - 数据存储管理（v1.4.0）
 - opencc 简日转换（v1.4.0）
 - 搜索档位配额 + JavDB 榜单（v1.5.0）
+- 统一通知服务 + 关注动态 + 邮件发送器/队列/日志（v1.6.0）
+- Monorepo 共享包：TypeScript `paths` + Vite alias 直接指向 `packages/shared/src`（v1.6.0）
 
 ## 快速开始
 
 ### 环境要求
 
 - **Node.js**: >= 18.0.0
-- **pnpm**: >= 8.0.0
+- **npm**: >= 9（仓库使用 npm workspaces，根目录提交了 `package-lock.json`）
 - **Cloudflare 账号**: 用于部署 Workers 和 D1 数据库
 - **Wrangler CLI**: Cloudflare 开发工具 (>= 3.x)
 
@@ -327,26 +359,35 @@ Category (大类)        Classification (分类)         Source (源实例)
 git clone https://github.com/Zoroaaa/Atlas.git
 cd Atlas
 
-# 安装依赖
-pnpm install
+# 安装依赖（npm workspaces）
+npm install
 
-# 初始化数据库（含 v1.3.0 新增小说搜索源，v1.4.0 新增数据存储表）
-npx wrangler d1 create atlas-db
-npx wrangler d1 execute atlas-db --file=database/01_schema_core.sql
-npx wrangler d1 execute atlas-db --file=database/02_schema_search.sql
-npx wrangler d1 execute atlas-db --file=database/07_data_search_sources.sql
-npx wrangler d1 execute atlas-db --file=database/11_schema_data_storage.sql
+# 创建 D1 数据库，将返回的 database_id 填入 backend/wrangler.toml
+npx wrangler d1 create codeseek
 
-# 本地开发
-pnpm dev
+# 全新库按此顺序初始化（01 → 19）。所有脚本均可重复执行。
+for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
+         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
+         08_data_tags 09_indexes_triggers 10_schema_system_errors \
+         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
+         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
+         16_email_notifications 17_schema_announcement_reads \
+         18_backfill_community_notifications 19_schema_community_post_views; do
+  npx wrangler d1 execute codeseek --remote --file=database/$f.sql
+done
+
+# 本地开发（两个终端；前端运行在 :3000，并把 /api 代理到 :8787）
+npm run dev --workspace=backend
+npm run dev --workspace=frontend
 
 # 生产部署
-pnpm build && cd backend && npx wrangler deploy
+npm run build --workspace=frontend
+npm run deploy --workspace=backend
 ```
 
 [查看详细部署指南](docs/deploy.md)
 [查看配置说明](docs/config.md)
-[查看 v1.5.0 变更日志](docs/CHANGELOG.md)
+[查看 v1.6.0 变更日志](docs/CHANGELOG.md)
 
 ## 性能优化
 

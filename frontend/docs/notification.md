@@ -1,6 +1,8 @@
 # 通知组件 (Notification/Toast) 使用文档
 
-> 📖 [返回项目主页](../../readme.md) | [API接口文档](../docs/api/index.md) | [架构设计文档](../docs/backend-frontend-tree.md)
+> 📖 [返回项目主页](../../README.md) | [版本变更日志](../../docs/CHANGELOG.md) | [配置说明](../../docs/config.md)
+
+> 本文档描述的是全局 Toast 轻提示组件，不是站内通知收件箱。统一通知收件箱（社区互动 / 关注动态 / 站点公告）的实现与接口见 [v1.6.0 变更日志](../../docs/CHANGELOG.md)。
 
 ## 目录
 
