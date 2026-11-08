@@ -1,8 +1,8 @@
 /**
  * 统一通知服务
  *
- * 所有功能只调用 emitNotification：是否写入站内、以后是否发邮件，由偏好决定。
- * (user_id, dedup_key) 唯一，重复调用是安全的（幂等）。
+ * 所有功能只调用 emitNotification：写站内收件箱、入邮件队列，由用户的偏好决定。
+ * 站内 (user_id, dedup_key) 唯一、邮件 (user_id, dedup_key) 唯一，重复调用是安全的（幂等）。
  */
 import { generateId } from '@/utils';
 import { NOTIFICATION } from '@/constants';
@@ -24,36 +24,74 @@ export interface NotificationPreference {
   email: boolean;
 }
 
+export interface EmailInfo {
+  /** 脱敏后的邮箱，如 a***@example.com */
+  address: string;
+  verified: boolean;
+}
+
 export function isNotificationType(value: unknown): value is NotificationType {
   return typeof value === 'string' && (NOTIFICATION.TYPES as readonly string[]).includes(value);
 }
 
-/** 写入站内通知；用户关闭了该类型的站内通知则跳过。返回是否真正写入 */
-export async function emitNotification(db: D1Database, input: NotificationInput): Promise<boolean> {
+export function maskEmail(email: string): string {
+  const [name, domain] = email.split('@');
+  if (!domain) return email;
+  const head = name.slice(0, 1);
+  return `${head}***@${domain}`;
+}
+
+export interface EmitResult {
+  inApp: boolean;
+  email: boolean;
+}
+
+/**
+ * 发出一条通知：
+ * - 站内：偏好未关闭（默认开）就写入收件箱
+ * - 邮件：偏好开启（默认关）且邮箱已验证，就写入邮件队列，由定时任务合并发送
+ */
+export async function emitNotification(db: D1Database, input: NotificationInput): Promise<EmitResult> {
   const pref = await db
-    .prepare('SELECT in_app FROM notification_preferences WHERE user_id = ? AND type = ?')
+    .prepare('SELECT in_app, email FROM notification_preferences WHERE user_id = ? AND type = ?')
     .bind(input.userId, input.type)
-    .first<{ in_app: number }>();
-  if (pref && pref.in_app === 0) return false;
+    .first<{ in_app: number; email: number }>();
+  const wantsInApp = pref ? pref.in_app === 1 : true;
+  const wantsEmail = pref ? pref.email === 1 : false;
 
-  const result = await db
-    .prepare(
-      `INSERT OR IGNORE INTO notifications (id, user_id, type, title, body, payload, dedup_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      generateId(),
-      input.userId,
-      input.type,
-      input.title,
-      input.body ?? '',
-      JSON.stringify(input.payload ?? {}),
-      input.dedupKey,
-      Date.now()
-    )
-    .run();
+  const result: EmitResult = { inApp: false, email: false };
+  const now = Date.now();
+  const payload = JSON.stringify(input.payload ?? {});
 
-  return (result.meta?.changes ?? 0) > 0;
+  if (wantsInApp) {
+    const r = await db
+      .prepare(
+        `INSERT OR IGNORE INTO notifications (id, user_id, type, title, body, payload, dedup_key, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(generateId(), input.userId, input.type, input.title, input.body ?? '', payload, input.dedupKey, now)
+      .run();
+    result.inApp = (r.meta?.changes ?? 0) > 0;
+  }
+
+  if (wantsEmail) {
+    const user = await db
+      .prepare('SELECT email, email_verified FROM users WHERE id = ?')
+      .bind(input.userId)
+      .first<{ email: string | null; email_verified: number }>();
+    if (user?.email && user.email_verified === 1) {
+      const r = await db
+        .prepare(
+          `INSERT OR IGNORE INTO email_queue (id, user_id, type, title, body, payload, dedup_key, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+        )
+        .bind(generateId(), input.userId, input.type, input.title, input.body ?? '', payload, input.dedupKey, now)
+        .run();
+      result.email = (r.meta?.changes ?? 0) > 0;
+    }
+  }
+
+  return result;
 }
 
 export async function getUnreadCount(db: D1Database, userId: string): Promise<number> {
@@ -95,4 +133,58 @@ export async function setPreference(
     )
     .bind(userId, type, inApp ? 1 : 0, email ? 1 : 0, Date.now())
     .run();
+}
+
+export async function getEmailInfo(db: D1Database, userId: string): Promise<EmailInfo> {
+  const user = await db
+    .prepare('SELECT email, email_verified FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{ email: string | null; email_verified: number }>();
+  return {
+    address: user?.email ? maskEmail(user.email) : '',
+    verified: user?.email_verified === 1,
+  };
+}
+
+export async function getSettings(db: D1Database, userId: string): Promise<{ emailHideDetails: boolean }> {
+  const row = await db
+    .prepare('SELECT email_hide_details FROM notification_settings WHERE user_id = ?')
+    .bind(userId)
+    .first<{ email_hide_details: number }>();
+  return { emailHideDetails: row?.email_hide_details === 1 };
+}
+
+export async function setSettings(
+  db: D1Database,
+  userId: string,
+  patch: { emailHideDetails?: boolean }
+): Promise<void> {
+  const current = await getSettings(db, userId);
+  const hide = patch.emailHideDetails ?? current.emailHideDetails;
+  await db
+    .prepare(
+      `INSERT INTO notification_settings (user_id, email_hide_details, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET email_hide_details = excluded.email_hide_details, updated_at = excluded.updated_at`
+    )
+    .bind(userId, hide ? 1 : 0, Date.now())
+    .run();
+}
+
+/** 关闭该用户所有类型的邮件通知，并放弃队列里还没发的邮件（退订） */
+export async function disableAllEmail(db: D1Database, userId: string): Promise<void> {
+  const now = Date.now();
+  await db.batch([
+    ...NOTIFICATION.TYPES.map((type) =>
+      db
+        .prepare(
+          `INSERT INTO notification_preferences (user_id, type, in_app, email, updated_at)
+           VALUES (?, ?, 1, 0, ?)
+           ON CONFLICT(user_id, type) DO UPDATE SET email = 0, updated_at = excluded.updated_at`
+        )
+        .bind(userId, type, now)
+    ),
+    db
+      .prepare("UPDATE email_queue SET status = 'skipped' WHERE user_id = ? AND status = 'pending'")
+      .bind(userId),
+  ]);
 }

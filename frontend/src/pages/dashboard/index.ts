@@ -6,3 +6,6 @@ export { FavoritesManager } from './FavoritesHistoryManager';
 export { HistoryManager } from './FavoritesHistoryManager';
 export { SettingsManager } from './SettingsManager';
 export { UserActivitiesPage } from './UserActivitiesPage';
+export { FollowsManager } from './FollowsManager';
+export { FollowFeedManager } from './FollowFeedManager';
+export { NotificationsManager } from './NotificationsManager';

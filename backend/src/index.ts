@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, emailUnsubscribeRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
@@ -22,6 +22,7 @@ import { mangaProvider } from '@/providers/manga-provider';
 import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
 import { runWatchCheck } from '@/services/follow-service';
+import { runEmailDigest } from '@/services/email-notification';
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
@@ -90,6 +91,7 @@ app.route('/api/jav', javRoutes);
 app.route('/api/recommend', recommendRoutes);
 app.route('/api/notifications', notificationRoutes);
 app.route('/api/follows', followRoutes);
+app.route('/api/email', emailUnsubscribeRoutes);
 app.route('/api/internal/rankings', rankingsRoutes);
 app.route('/api/admin/data-storage', dataStorageRoutes);
 app.route('/api/feedback', feedbackRoutes);
@@ -156,6 +158,14 @@ export default {
         runWatchCheck(env.DB)
           .then((r) => { if (r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
           .catch((err) => console.error('[follow] watch check failed:', err))
+      );
+    }
+    if (event.cron === '*/15 * * * *') {
+      // 邮件通知合并发送：独立触发器，每轮最多 15 封（15 次子请求）
+      ctx.waitUntil(
+        runEmailDigest(env)
+          .then((r) => { if (r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })
+          .catch((err) => console.error('[email] digest failed:', err))
       );
     }
     if (event.cron === '0 * * * *') {

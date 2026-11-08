@@ -10,8 +10,8 @@ export const FOLLOW_FEED_PAGE_SIZE = 10;
 export const followKeys = {
   all: ['follows'] as const,
   list: (userId?: string) => ['follows', 'list', userId] as const,
-  feed: (userId: string | undefined, tab: FollowFeedTab, page: number) =>
-    ['follows', 'feed', userId, tab, page] as const,
+  feed: (userId: string | undefined, tab: FollowFeedTab, page: number, pageSize: number, actress: string) =>
+    ['follows', 'feed', userId, tab, page, pageSize, actress] as const,
 };
 
 /** 我的关注列表（≤100 条，体积很小） */
@@ -28,12 +28,19 @@ export function useFollows() {
 }
 
 /** 关注动态：服务端分页；没有关注任何人时不请求 */
-export function useFollowFeed(tab: FollowFeedTab, page: number, enabled: boolean) {
+export function useFollowFeed(
+  tab: FollowFeedTab,
+  page: number,
+  enabled: boolean,
+  opts: { actress?: string; pageSize?: number } = {}
+) {
   const userId = useAuthStore((s) => s.user?.id);
+  const pageSize = opts.pageSize ?? FOLLOW_FEED_PAGE_SIZE;
+  const actress = opts.actress ?? '';
 
   return useQuery({
-    queryKey: followKeys.feed(userId, tab, page),
-    queryFn: () => followApi.feed(tab, page, FOLLOW_FEED_PAGE_SIZE),
+    queryKey: followKeys.feed(userId, tab, page, pageSize, actress),
+    queryFn: () => followApi.feed(tab, page, pageSize, actress || undefined),
     enabled: enabled && !!userId,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,

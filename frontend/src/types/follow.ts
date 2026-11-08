@@ -63,3 +63,16 @@ export interface NotificationInboxData {
   page: number;
   pageSize: number;
 }
+
+export interface NotificationPreferenceItem {
+  type: string;
+  inApp: boolean;
+  email: boolean;
+}
+
+export interface NotificationPreferencesData {
+  preferences: NotificationPreferenceItem[];
+  /** 邮箱已脱敏；未验证时不能开启邮件通知 */
+  email: { address: string; verified: boolean };
+  settings: { emailHideDetails: boolean };
+}

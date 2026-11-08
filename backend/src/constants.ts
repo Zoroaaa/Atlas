@@ -243,6 +243,24 @@ export const FOLLOW = {
   FEED_MAX_PAGE_SIZE: 50,
 } as const;
 
+export const EMAIL = {
+  /** 每轮（每 15 分钟）最多处理几位用户的邮件：一封一次子请求，远低于 50 上限 */
+  DIGEST_BATCH_USERS: 15,
+  /** 最早一条待发通知攒够这么久才发，让同一批新作合并成一封 */
+  MIN_DELAY_MS: 10 * 60 * 1000,
+  /** 每人每 24 小时最多几封（超出的继续攒，合并进下一封） */
+  MAX_PER_USER_PER_DAY: 3,
+  /** 全站每 24 小时最多几封（Resend 免费版约 100/天，留余量） */
+  GLOBAL_DAILY_CAP: 90,
+  MAX_ITEMS_PER_EMAIL: 30,
+  /** 发送失败退避：30 分钟 × 2^失败次数（最多 32 倍）；连续失败达到上限就放弃这批 */
+  FAIL_BACKOFF_BASE_MS: 30 * 60 * 1000,
+  FAIL_BACKOFF_MAX_EXP: 5,
+  MAX_CONSECUTIVE_FAILURES: 5,
+  RETENTION_MS: 30 * 24 * 60 * 60 * 1000,
+  TEST_RATE_LIMIT_MS: 60 * 1000,
+} as const;
+
 export const NOTIFICATION = {
   MAX_PAGE_SIZE: 50,
   TYPES: ['follow.new_work', 'follow.release_soon'] as const,

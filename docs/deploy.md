@@ -101,6 +101,11 @@ npx wrangler d1 execute $D1_ID --file=database/12_schema_search_tier.sql
 # ③.6 通知系统 + 关注女优（新增表，可重复执行；存量库和新装库都需要执行）
 npx wrangler d1 execute $D1_ID --file=database/14_schema_notifications_follows.sql
 
+# ③.6b 邮件通知渠道（新增 3 张表，可重复执行；需要先执行上一条 14）
+#       还需要：已配置 RESEND_API_KEY（wrangler secret）、DEFAULT_FROM_EMAIL 所在域名已在 Resend 验证；
+#       wrangler.toml 新增了 */15 的定时触发器（共 3 个，免费套餐上限 5 个），部署后端时一并生效
+npx wrangler d1 execute $D1_ID --file=database/16_email_notifications.sql
+
 # ③.7 女优收藏 → 关注女优（一次性迁移，可重复执行）。先部署新版前后端，再执行；
 #      每位用户最多迁移 100 个，超出的留在收藏里，执行后按文件末尾的"遗留检查"确认
 npx wrangler d1 execute $D1_ID --file=database/15_migrate_actress_favorites_to_follows.sql

@@ -4,6 +4,7 @@ import type {
   FollowFeedData,
   FollowFeedTab,
   NotificationInboxData,
+  NotificationPreferencesData,
 } from '@/types';
 
 interface Envelope<T> {
@@ -30,11 +31,11 @@ export const followApi = {
     await apiClient.patch(`/follows/${encodeURIComponent(key)}`, { notifyInApp });
   },
 
-  feed: async (tab: FollowFeedTab, page: number, pageSize: number): Promise<FollowFeedData> => {
+  feed: async (tab: FollowFeedTab, page: number, pageSize: number, actress?: string): Promise<FollowFeedData> => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const res = await apiClient.get<Envelope<FollowFeedData>>(
-      `/follows/feed?tab=${tab}&page=${page}&pageSize=${pageSize}&today=${today}`
+      `/follows/feed?tab=${tab}&page=${page}&pageSize=${pageSize}&today=${today}${actress ? `&actress=${encodeURIComponent(actress)}` : ''}`
     );
     return res.data;
   },
@@ -45,8 +46,10 @@ export const followApi = {
 };
 
 export const notificationApi = {
-  list: async (page: number, pageSize: number): Promise<NotificationInboxData> => {
-    const res = await apiClient.get<Envelope<NotificationInboxData>>(`/notifications?page=${page}&pageSize=${pageSize}`);
+  list: async (page: number, pageSize: number, unreadOnly = false): Promise<NotificationInboxData> => {
+    const res = await apiClient.get<Envelope<NotificationInboxData>>(
+      `/notifications?page=${page}&pageSize=${pageSize}${unreadOnly ? '&unreadOnly=1' : ''}`
+    );
     return res.data;
   },
 
@@ -58,5 +61,34 @@ export const notificationApi = {
   markRead: async (ids?: string[]): Promise<number> => {
     const res = await apiClient.post<Envelope<{ unread: number }>>('/notifications/read', ids ? { ids } : {});
     return res.data.unread;
+  },
+
+  remove: async (id: string): Promise<number> => {
+    const res = await apiClient.delete<Envelope<{ unread: number }>>(`/notifications/${encodeURIComponent(id)}`);
+    return res.data.unread;
+  },
+
+  clearRead: async (): Promise<number> => {
+    const res = await apiClient.delete<Envelope<{ unread: number }>>('/notifications/read');
+    return res.data.unread;
+  },
+
+  preferences: async (): Promise<NotificationPreferencesData> => {
+    const res = await apiClient.get<Envelope<NotificationPreferencesData>>('/notifications/preferences');
+    return res.data;
+  },
+
+  setPreference: async (type: string, patch: { inApp?: boolean; email?: boolean }): Promise<NotificationPreferencesData> => {
+    const res = await apiClient.put<Envelope<NotificationPreferencesData>>('/notifications/preferences', { type, ...patch });
+    return res.data;
+  },
+
+  setSettings: async (emailHideDetails: boolean): Promise<NotificationPreferencesData> => {
+    const res = await apiClient.put<Envelope<NotificationPreferencesData>>('/notifications/settings', { emailHideDetails });
+    return res.data;
+  },
+
+  sendTestEmail: async (): Promise<void> => {
+    await apiClient.post('/notifications/email/test', {});
   },
 };

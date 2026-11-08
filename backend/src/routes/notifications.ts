@@ -7,11 +7,24 @@ import { success, error } from '@/utils';
 import { authMiddleware } from '@/middleware/auth';
 import { NOTIFICATION } from '@/constants';
 import {
+  getEmailInfo,
   getPreferences,
+  getSettings,
   getUnreadCount,
   isNotificationType,
   setPreference,
+  setSettings,
 } from '@/services/notification-service';
+import {
+  appUrls,
+  buildTestEmail,
+  createUnsubscribeToken,
+  pickLang,
+  sendEmail,
+  unsubscribeHeaders,
+} from '@/services/email-notification';
+import { checkRateLimitD1 } from '@/utils/rate-limit';
+import { EMAIL } from '@/constants';
 
 export const notificationRoutes = new Hono<{ Bindings: Env }>();
 
@@ -119,10 +132,43 @@ notificationRoutes.post('/read', async (c) => {
   }
 });
 
+// 清除已读通知
+notificationRoutes.delete('/read', async (c) => {
+  const user = c.get('user');
+  try {
+    await c.env.DB.prepare('DELETE FROM notifications WHERE user_id = ? AND read_at IS NOT NULL').bind(user.userId).run();
+    return c.json(success({ unread: await getUnreadCount(c.env.DB, user.userId) }));
+  } catch (err) {
+    console.error('Clear read notifications error:', err);
+    return c.json(error('SERVER_ERROR', '清除失败'), 500);
+  }
+});
+
+notificationRoutes.delete('/:id', async (c) => {
+  const user = c.get('user');
+  try {
+    await c.env.DB.prepare('DELETE FROM notifications WHERE user_id = ? AND id = ?')
+      .bind(user.userId, c.req.param('id')).run();
+    return c.json(success({ unread: await getUnreadCount(c.env.DB, user.userId) }));
+  } catch (err) {
+    console.error('Delete notification error:', err);
+    return c.json(error('SERVER_ERROR', '删除失败'), 500);
+  }
+});
+
+async function preferencesPayload(db: D1Database, userId: string) {
+  const [preferences, email, settings] = await Promise.all([
+    getPreferences(db, userId),
+    getEmailInfo(db, userId),
+    getSettings(db, userId),
+  ]);
+  return { preferences, email, settings };
+}
+
 notificationRoutes.get('/preferences', async (c) => {
   const user = c.get('user');
   try {
-    return c.json(success({ preferences: await getPreferences(c.env.DB, user.userId) }));
+    return c.json(success(await preferencesPayload(c.env.DB, user.userId)));
   } catch (err) {
     console.error('Get notification preferences error:', err);
     return c.json(error('SERVER_ERROR', '获取通知偏好失败'), 500);
@@ -137,13 +183,66 @@ notificationRoutes.put('/preferences', async (c) => {
     if (!isNotificationType(body.type)) {
       return c.json(error('VALIDATION_ERROR', '通知类型无效'), 400);
     }
+    // 邮箱未验证时不允许开启邮件通知：否则用户以为开了，实际永远收不到
+    if (body.email === true && !(await getEmailInfo(c.env.DB, user.userId)).verified) {
+      return c.json(error('EMAIL_NOT_VERIFIED', '请先验证邮箱后再开启邮件通知'), 400);
+    }
     await setPreference(c.env.DB, user.userId, body.type, {
       inApp: typeof body.inApp === 'boolean' ? body.inApp : undefined,
       email: typeof body.email === 'boolean' ? body.email : undefined,
     });
-    return c.json(success({ preferences: await getPreferences(c.env.DB, user.userId) }));
+    return c.json(success(await preferencesPayload(c.env.DB, user.userId)));
   } catch (err) {
     console.error('Set notification preference error:', err);
     return c.json(error('SERVER_ERROR', '保存通知偏好失败'), 500);
+  }
+});
+
+notificationRoutes.put('/settings', async (c) => {
+  const user = c.get('user');
+  try {
+    const body = await c.req.json<{ emailHideDetails?: unknown }>().catch(() => ({} as Record<string, unknown>));
+    if (typeof body.emailHideDetails !== 'boolean') {
+      return c.json(error('VALIDATION_ERROR', '参数无效'), 400);
+    }
+    await setSettings(c.env.DB, user.userId, { emailHideDetails: body.emailHideDetails });
+    return c.json(success(await preferencesPayload(c.env.DB, user.userId)));
+  } catch (err) {
+    console.error('Set notification settings error:', err);
+    return c.json(error('SERVER_ERROR', '保存失败'), 500);
+  }
+});
+
+// 发送测试邮件（立即发送，不经过队列；每人每分钟 1 次）
+notificationRoutes.post('/email/test', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const row = await c.env.DB
+      .prepare('SELECT email, email_verified, settings FROM users WHERE id = ?')
+      .bind(user.userId)
+      .first<{ email: string | null; email_verified: number; settings: string | null }>();
+    if (!row?.email || row.email_verified !== 1) {
+      return c.json(error('EMAIL_NOT_VERIFIED', '请先验证邮箱'), 400);
+    }
+
+    const limit = await checkRateLimitD1(c.env.DB, `notify-test:${user.userId}`, EMAIL.TEST_RATE_LIMIT_MS, 1);
+    if (!limit.allowed) {
+      return c.json(error('RATE_LIMITED', '操作太频繁，请稍后再试'), 429);
+    }
+
+    const urls = appUrls(c.env);
+    const unsubscribeUrl = `${urls.backend}/api/email/unsubscribe?token=${encodeURIComponent(await createUnsubscribeToken(c.env.JWT_SECRET, user.userId))}`;
+    const content = buildTestEmail(pickLang(row.settings), urls.frontend, unsubscribeUrl);
+    const result = await sendEmail(c.env, { to: row.email, ...content, headers: unsubscribeHeaders(unsubscribeUrl) });
+
+    if (!result.ok) {
+      console.error('Send test email failed:', result.error);
+      return c.json(error('SEND_FAILED', '邮件发送失败，请稍后重试'), 502);
+    }
+    return c.json(success({ sent: true }));
+  } catch (err) {
+    console.error('Test email error:', err);
+    return c.json(error('SERVER_ERROR', '发送失败'), 500);
   }
 });

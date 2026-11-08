@@ -205,18 +205,23 @@ followRoutes.get('/feed', async (c) => {
       ? 'w.release_date ASC, w.code ASC'
       : "COALESCE(w.release_date, '') DESC, w.first_detected_at DESC, w.code ASC";
 
+    // 可选：只看某一位女优（控制台"关注动态"的筛选）
+    const actressParam = c.req.query('actress') || '';
+    const actressFilter = KEY_PATTERN.test(actressParam);
+
     const base = `FROM actress_works w
        JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
        JOIN actress_watch a ON a.key = w.watch_key
-       WHERE ${cond}`;
+       WHERE ${cond}${actressFilter ? ' AND w.watch_key = ?' : ''}`;
+    const baseArgs: unknown[] = actressFilter ? [user.userId, today, actressParam] : [user.userId, today];
 
     const [rows, totalRow] = await Promise.all([
       c.env.DB.prepare(
         `SELECT w.code, w.title, w.cover, w.release_date, w.first_detected_at, w.watch_key,
                 a.name AS actress_name, f.last_viewed_at
          ${base} ORDER BY ${order} LIMIT ? OFFSET ?`
-      ).bind(user.userId, today, pageSize, (page - 1) * pageSize).all<FeedRow>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS count ${base}`).bind(user.userId, today).first<{ count: number }>(),
+      ).bind(...baseArgs, pageSize, (page - 1) * pageSize).all<FeedRow>(),
+      c.env.DB.prepare(`SELECT COUNT(*) AS count ${base}`).bind(...baseArgs).first<{ count: number }>(),
     ]);
 
     return c.json(success({

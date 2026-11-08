@@ -206,6 +206,9 @@ const App: React.FC = () => {
           <Route path="categories" element={<DashboardPage />} />
           <Route path="favorites" element={<DashboardPage />} />
           <Route path="history" element={<DashboardPage />} />
+          <Route path="follows" element={<DashboardPage />} />
+          <Route path="follow-feed" element={<DashboardPage />} />
+          <Route path="notifications" element={<DashboardPage />} />
           <Route path="settings" element={<DashboardPage />} />
           <Route path="activities" element={<UserActivitiesPage />} />
         </Route>
