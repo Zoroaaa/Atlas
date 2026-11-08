@@ -19,11 +19,13 @@ import {
   LockKeyhole,
   Activity,
   Zap,
+  LayoutGrid,
 } from 'lucide-react';
 import { Card, Button, Input, Badge, Modal, Loading, EmptyState, SourceIcon, Dropdown } from '@/components/ui';
 import { sourceApi } from '@/services/api';
 import { useNotification, useSourcesWithUserConfig, useMajorCategories, useCategories, sourcesKeys } from '@/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -59,6 +61,7 @@ export const SourceManager: React.FC = () => {
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const sourcesQuery = useSourcesWithUserConfig();
   const majorCategoriesQuery = useMajorCategories();
   const categoriesQuery = useCategories();
@@ -522,6 +525,14 @@ export const SourceManager: React.FC = () => {
               {t('dashboard:sources.disableAll')}
             </Button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/main?tab=sources')}
+            leftIcon={<LayoutGrid className="w-4 h-4" />}
+          >
+            {t('dashboard:sources.viewBoard')}
+          </Button>
           <Dropdown
             trigger={
               <Button variant="outline" leftIcon={<Download className="w-4 h-4" />}>
