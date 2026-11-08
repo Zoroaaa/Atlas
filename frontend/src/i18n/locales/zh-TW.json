@@ -2857,6 +2857,14 @@
     "unreadAria": "通知，{{count}} 則未讀",
     "prev": "上一頁",
     "next": "下一頁",
+    "detail": {
+      "title": "通知詳情",
+      "open": "查看詳情",
+      "works": "作品列表",
+      "relatedPost": "相關貼文：{{title}}",
+      "viewPost": "查看貼文",
+      "searchCode": "搜尋該番號"
+    },
     "page": {
       "subtitle": "收件匣與通知設定",
       "tabInbox": "收件匣",

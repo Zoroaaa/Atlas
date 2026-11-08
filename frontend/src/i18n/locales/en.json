@@ -2857,6 +2857,14 @@
     "unreadAria": "Notifications, {{count}} unread",
     "prev": "Previous",
     "next": "Next",
+    "detail": {
+      "title": "Notification details",
+      "open": "View details",
+      "works": "Works",
+      "relatedPost": "Related post: {{title}}",
+      "viewPost": "View post",
+      "searchCode": "Search this code"
+    },
     "page": {
       "subtitle": "Inbox and notification settings",
       "tabInbox": "Inbox",

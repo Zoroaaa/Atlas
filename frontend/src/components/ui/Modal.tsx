@@ -50,7 +50,6 @@ export const Modal: React.FC<ModalProps> = ({
         className={clsx(
           'relative w-full bg-white dark:bg-surface-800 rounded-t-2xl sm:rounded-xl shadow-soft-lg',
           'animate-scale-in max-h-[90vh] flex flex-col',
-          'sm:max-h-none',
           sizeStyles[size]
         )}
       >
@@ -71,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           </div>
         )}
-        <div className="px-4 sm:px-6 py-4 overflow-y-auto">{children}</div>
+        <div className="min-h-0 px-4 sm:px-6 py-4 overflow-y-auto">{children}</div>
         {footer && (
           <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/50 rounded-b-2xl sm:rounded-b-xl shrink-0">
             {footer}
