@@ -116,6 +116,18 @@ export async function updateUserPassword(
     .run();
 }
 
+/** 标记邮箱为已验证 */
+export async function markUserEmailVerified(
+  db: D1Database,
+  userId: string,
+  now: number
+): Promise<void> {
+  await db
+    .prepare('UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?')
+    .bind(now, userId)
+    .run();
+}
+
 /** 更新用户邮箱 */
 export async function updateUserEmail(
   db: D1Database,

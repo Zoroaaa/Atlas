@@ -8,7 +8,7 @@ import { EmailVerificationService, emailVerificationUtils, ConfigService } from 
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
-import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserPassword, updateUserEmail, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
+import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserPassword, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
 import { findVerificationByCode, findLatestVerificationByEmailType, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
 
 const R = VALIDATION_RULES;
@@ -20,6 +20,8 @@ authRoutes.use('/send-email-change-code', authMiddleware);
 authRoutes.use('/verify-email-change-code', authMiddleware);
 authRoutes.use('/cancel-email-change-request', authMiddleware);
 authRoutes.use('/send-account-delete-code', authMiddleware);
+authRoutes.use('/send-current-email-code', authMiddleware);
+authRoutes.use('/verify-current-email', authMiddleware);
 authRoutes.use('/user-verification-status', authMiddleware);
 
 authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
@@ -637,6 +639,96 @@ authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistr
   } catch (err) {
     console.error('Send registration code error:', err);
     return c.json(error('SERVER_ERROR', '发送验证码失败'), 500);
+  }
+});
+
+// 给已有账号补验证：向 users.email 当前地址发送验证码
+authRoutes.post('/send-current-email-code', async (c) => {
+  const payload = c.get('user');
+
+  try {
+    const user = await findUserById(c.env.DB, payload.userId);
+    if (!user?.email) {
+      return c.json(error('NOT_FOUND', '未设置邮箱'), 404);
+    }
+    if (user.email_verified === 1) {
+      return c.json(error('EMAIL_ALREADY_VERIFIED', '邮箱已验证'), 400);
+    }
+
+    const emailService = new EmailVerificationService(c.env);
+    const ipAddress = getClientIP(c);
+
+    try {
+      await emailService.checkEmailRateLimit(user.email, ipAddress);
+    } catch (rateLimitError) {
+      return c.json(error('RATE_LIMIT', (rateLimitError as Error).message), 429);
+    }
+
+    const verification = await emailService.createEmailVerification(
+      user.email,
+      'email_verify',
+      payload.userId,
+      { ipAddress }
+    );
+
+    const username = await findUsernameById(c.env.DB, payload.userId);
+
+    try {
+      await emailService.sendVerificationEmail(
+        user.email,
+        verification.code,
+        'email_verify',
+        { username: username || '用户' }
+      );
+    } catch (sendError) {
+      console.error('发送邮箱验证验证码失败:', sendError);
+      return c.json(error('SERVER_ERROR', '验证码发送失败，请稍后重试'), 500);
+    }
+
+    return c.json(success({
+      maskedEmail: emailVerificationUtils.maskEmail(user.email),
+      expiresIn: 900,
+    }, '验证码已发送'));
+  } catch (err) {
+    console.error('Send current email code error:', err);
+    return c.json(error('SERVER_ERROR', '发送验证码失败'), 500);
+  }
+});
+
+// 校验当前邮箱验证码，通过后把 users.email_verified 置 1
+authRoutes.post('/verify-current-email', validateBody(schemas.auth.verifyCurrentEmail), async (c) => {
+  const payload = c.get('user');
+  const { code } = c.get('validatedBody') as { code: string };
+
+  try {
+    const user = await findUserById(c.env.DB, payload.userId);
+    if (!user?.email) {
+      return c.json(error('NOT_FOUND', '未设置邮箱'), 404);
+    }
+    if (user.email_verified === 1) {
+      return c.json(success({ emailVerified: true }, '邮箱已验证'));
+    }
+
+    const verification = await findVerificationByCode(c.env.DB, {
+      email: user.email,
+      code,
+      type: 'email_verify',
+      now: Date.now(),
+      userId: payload.userId,
+    });
+
+    if (!verification) {
+      return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);
+    }
+
+    await deleteVerificationById(c.env.DB, verification.id);
+    await markUserEmailVerified(c.env.DB, payload.userId, Date.now());
+    await logUserAction(c.env, payload.userId, 'email_verify', { email: user.email }, c);
+
+    return c.json(success({ emailVerified: true }, '邮箱验证成功'));
+  } catch (err) {
+    console.error('Verify current email error:', err);
+    return c.json(error('SERVER_ERROR', '验证失败'), 500);
   }
 });
 

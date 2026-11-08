@@ -134,6 +134,30 @@ export const authApi = {
     }>('/auth/send-account-delete-code', {});
   },
 
+  sendCurrentEmailCode: async (): Promise<{ 
+    success: boolean; 
+    data?: { maskedEmail: string; expiresIn: number };
+    message?: string;
+  }> => {
+    return apiClient.post<{ 
+      success: boolean; 
+      data?: { maskedEmail: string; expiresIn: number };
+      message?: string;
+    }>('/auth/send-current-email-code', {});
+  },
+
+  verifyCurrentEmail: async (code: string): Promise<{ 
+    success: boolean; 
+    data?: { emailVerified: boolean };
+    message?: string;
+  }> => {
+    return apiClient.post<{ 
+      success: boolean; 
+      data?: { emailVerified: boolean };
+      message?: string;
+    }>('/auth/verify-current-email', { code });
+  },
+
   smartSendCode: async (data: SendVerificationCodeRequest): Promise<{ 
     success: boolean; 
     data?: { 

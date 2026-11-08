@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { notificationApi, ApiError } from '@/services/api';
+import { notificationApi, authApi, ApiError } from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import i18next from 'i18next';
 import { useAuthStore } from '@/stores';
@@ -137,5 +137,32 @@ export function useNotificationPreferenceActions() {
     },
   });
 
-  return { setPreference, setSettings, sendTestEmail };
+  const sendVerifyCode = useMutation({
+    mutationFn: () => authApi.sendCurrentEmailCode(),
+    onError: (err) => {
+      const code = errorCode(err);
+      toast.error(
+        code === 'RATE_LIMIT' ? i18next.t('notify:prefs.verifyRateLimited')
+        : code === 'EMAIL_ALREADY_VERIFIED' ? i18next.t('notify:prefs.verifyAlready')
+        : i18next.t('notify:prefs.verifySendFailed')
+      );
+    },
+  });
+
+  const verifyEmail = useMutation({
+    mutationFn: (code: string) => authApi.verifyCurrentEmail(code),
+    onSuccess: () => {
+      toast.success(i18next.t('notify:prefs.verifySuccess'));
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.prefs(userId) });
+    },
+    onError: (err) => {
+      toast.error(
+        errorCode(err) === 'VALIDATION_ERROR'
+          ? i18next.t('notify:prefs.verifyCodeInvalid')
+          : i18next.t('notify:prefs.verifyFailed')
+      );
+    },
+  });
+
+  return { setPreference, setSettings, sendTestEmail, sendVerifyCode, verifyEmail };
 }

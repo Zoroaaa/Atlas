@@ -87,6 +87,10 @@ export const schemas = {
       email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
     }),
 
+    verifyCurrentEmail: z.object({
+      code: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
+    }),
+
     sendEmailChangeCode: z.object({
       requestId: z.string().min(1, '请求ID不能为空'),
       emailType: z.enum(['old', 'new']),

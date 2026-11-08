@@ -11,6 +11,7 @@ export type VerificationType =
   | 'forgot_password'
   | 'email_change_old'
   | 'email_change_new'
+  | 'email_verify'
   | 'account_delete';
 
 export interface PendingVerification {
@@ -490,7 +491,9 @@ export class EmailVerificationService {
     const defaultFromName = this.env.DEFAULT_FROM_NAME || 'Atlas';
 
     const mappedTemplateType = this.getTemplateType(templateType);
-    const template = await this.getEmailTemplate(mappedTemplateType);
+    const template = (await this.getEmailTemplate(mappedTemplateType))
+      // 兼容尚未执行 06_data_system.sql 新增模板的存量库
+      ?? (templateType === 'email_verify' ? await this.getEmailTemplate('registration') : null);
 
     if (!template) {
       throw new Error(`邮件模板不存在: ${mappedTemplateType}`);
@@ -827,6 +830,7 @@ export class EmailVerificationService {
       forgot_password: 'forgot_password',
       email_change_old: 'email_change',
       email_change_new: 'email_change',
+      email_verify: 'email_verify',
       account_delete: 'account_delete',
     };
     return mapping[verificationType] || verificationType;

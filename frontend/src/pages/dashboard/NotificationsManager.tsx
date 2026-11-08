@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bell, CheckCheck, ExternalLink, Mail, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { Button, Card, EmptyState, Loading, Switch, Tabs } from '@/components/ui';
+import { Button, Card, EmptyState, Input, Loading, Switch, Tabs } from '@/components/ui';
 import { Pagination } from '@/components/workbench';
 import {
   useNotificationInbox, useMarkNotificationsRead, useRemoveNotifications,
-  useNotificationPreferences, useNotificationPreferenceActions,
+  useNotificationPreferences, useNotificationPreferenceActions, useToast,
 } from '@/hooks';
 import { describeNotification } from '@/components/notifications/notificationView';
 import { formatRelativeTime } from '@/utils/relativeTime';
@@ -147,9 +147,12 @@ const Inbox: React.FC = () => {
 
 const Preferences: React.FC = () => {
   const { t } = useTranslation(['notify']);
-  const navigate = useNavigate();
+  const toast = useToast();
   const { data, isLoading } = useNotificationPreferences();
-  const { setPreference, setSettings, sendTestEmail } = useNotificationPreferenceActions();
+  const { setPreference, setSettings, sendTestEmail, sendVerifyCode, verifyEmail } = useNotificationPreferenceActions();
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyMaskedEmail, setVerifyMaskedEmail] = useState('');
 
   if (isLoading || !data) {
     return <div className="flex items-center justify-center py-16"><Loading size="lg" /></div>;
@@ -158,6 +161,27 @@ const Preferences: React.FC = () => {
   const { email, settings } = data;
   const prefOf = (type: string) => data.preferences.find((p) => p.type === type);
   const anyEmailOn = PREF_TYPES.some((type) => prefOf(type)?.email);
+
+  const handleSendVerifyCode = async () => {
+    const response = await sendVerifyCode.mutateAsync().catch(() => null);
+    if (response?.success) {
+      setVerifyMaskedEmail(response.data?.maskedEmail ?? '');
+      setVerifyOpen(true);
+    }
+  };
+
+  const handleVerifyEmail = () => {
+    if (verifyCode.length !== 6) {
+      toast.error(t('notify:prefs.verifyCodePlaceholder'));
+      return;
+    }
+    verifyEmail.mutate(verifyCode, {
+      onSuccess: () => {
+        setVerifyOpen(false);
+        setVerifyCode('');
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -176,9 +200,58 @@ const Preferences: React.FC = () => {
               </span>
             </p>
             {!email.verified ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="mt-3 space-y-3">
                 <p className="text-sm text-amber-600 dark:text-amber-400">{t('notify:prefs.verifyHint')}</p>
-                <Button size="sm" variant="outline" onClick={() => navigate('/dashboard/settings')}>{t('notify:prefs.goSettings')}</Button>
+                {!verifyOpen ? (
+                  <Button
+                    size="sm" variant="outline"
+                    isLoading={sendVerifyCode.isPending}
+                    onClick={handleSendVerifyCode}
+                  >
+                    {t('notify:prefs.verifyEmail')}
+                  </Button>
+                ) : (
+                  <div className="max-w-sm space-y-2">
+                    <p className="text-xs text-surface-500">
+                      {t('notify:prefs.verifyCodeSentTo', { email: verifyMaskedEmail })}
+                    </p>
+                    <div className="flex items-start gap-2">
+                      <Input
+                        value={verifyCode}
+                        onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder={t('notify:prefs.verifyCodePlaceholder')}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        className="flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        isLoading={verifyEmail.isPending}
+                        disabled={verifyCode.length !== 6}
+                        onClick={handleVerifyEmail}
+                      >
+                        {t('notify:prefs.verifySubmit')}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <button
+                        type="button"
+                        className="text-primary-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={sendVerifyCode.isPending}
+                        onClick={handleSendVerifyCode}
+                      >
+                        {t('notify:prefs.verifyResend')}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-surface-500 hover:underline"
+                        onClick={() => { setVerifyOpen(false); setVerifyCode(''); }}
+                      >
+                        {t('notify:prefs.verifyCancel')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
