@@ -14,3 +14,4 @@ export { recommendRoutes } from './recommend';
 export { rankingsRoutes } from './rankings';
 export { notificationRoutes } from './notifications';
 export { followRoutes } from './follows';
+export { emailUnsubscribeRoutes } from './email-unsubscribe';

@@ -20,9 +20,13 @@ import {
   X,
   Activity,
   Globe,
+  UserCheck,
+  Rss,
+  Bell,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
+import { useUnreadCount } from '@/hooks';
 import { useTranslation } from 'react-i18next';
 
 interface NavItem {
@@ -47,6 +51,9 @@ const navItems: NavItem[] = [
   { id: 'stats',      label: 'nav:dashboard.items.stats',      icon: <BarChart2 className="w-[18px] h-[18px]" />,       path: '/dashboard/stats',      group: 'nav:dashboard.groups.personal' },
   { id: 'favorites',  label: 'nav:dashboard.items.favorites',  icon: <Heart className="w-[18px] h-[18px]" />,           path: '/dashboard/favorites',  group: 'nav:dashboard.groups.personal' },
   { id: 'history',    label: 'nav:dashboard.items.history',    icon: <History className="w-[18px] h-[18px]" />,         path: '/dashboard/history',    group: 'nav:dashboard.groups.personal' },
+  { id: 'follows',    label: 'nav:dashboard.items.follows',    icon: <UserCheck className="w-[18px] h-[18px]" />,        path: '/dashboard/follows',    group: 'nav:dashboard.groups.personal' },
+  { id: 'followFeed', label: 'nav:dashboard.items.followFeed', icon: <Rss className="w-[18px] h-[18px]" />,              path: '/dashboard/follow-feed', group: 'nav:dashboard.groups.personal' },
+  { id: 'notifications', label: 'nav:dashboard.items.notifications', icon: <Bell className="w-[18px] h-[18px]" />,       path: '/dashboard/notifications', group: 'nav:dashboard.groups.personal' },
   { id: 'activities', label: 'nav:dashboard.items.activities', icon: <Activity className="w-[18px] h-[18px]" />,        path: '/dashboard/activities', group: 'nav:dashboard.groups.personal' },
   { id: 'sources',    label: 'nav:dashboard.items.sources',    icon: <Database className="w-[18px] h-[18px]" />,        path: '/dashboard/sources',    group: 'nav:dashboard.groups.resources' },
   { id: 'settings',   label: 'nav:dashboard.items.settings',   icon: <Settings className="w-[18px] h-[18px]" />,        path: '/dashboard/settings',   group: 'nav:dashboard.groups.settings' },
@@ -76,6 +83,11 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  // 通知项显示未读数
+  const { data: unreadNotifications = 0 } = useUnreadCount();
+  const navItemsWithBadge = filteredNavItems.map((item) =>
+    item.id === 'notifications' && unreadNotifications > 0 ? { ...item, badge: unreadNotifications } : item
+  );
   const filteredNavGroups = navGroups.filter(group => {
     const groupItems = filteredNavItems.filter(i => i.group === group);
     return groupItems.length > 0;
@@ -131,7 +143,7 @@ export const DashboardLayout: React.FC = () => {
       {/* Nav */}
       <nav className="flex-1 py-4 px-2.5 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         {filteredNavGroups.map((group) => {
-          const groupItems = filteredNavItems.filter(i => i.group === group);
+          const groupItems = navItemsWithBadge.filter(i => i.group === group);
           if (groupItems.length === 0) return null;
           return (
             <div key={group} className="mb-5">

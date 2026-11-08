@@ -7,6 +7,9 @@ import { FavoritesManager, HistoryManager } from './FavoritesHistoryManager';
 import { SettingsManager } from './SettingsManager';
 import { StatsManager } from './StatsManager';
 import { UserActivitiesPage } from './UserActivitiesPage';
+import { FollowsManager } from './FollowsManager';
+import { FollowFeedManager } from './FollowFeedManager';
+import { NotificationsManager } from './NotificationsManager';
 
 export const DashboardPage: React.FC = () => {
   const location = useLocation();
@@ -36,6 +39,18 @@ export const DashboardPage: React.FC = () => {
     return <HistoryManager />;
   }
   
+  if (path.startsWith('/dashboard/follow-feed')) {
+    return <FollowFeedManager />;
+  }
+
+  if (path.startsWith('/dashboard/follows')) {
+    return <FollowsManager />;
+  }
+
+  if (path.startsWith('/dashboard/notifications')) {
+    return <NotificationsManager />;
+  }
+
   if (path.startsWith('/dashboard/settings')) {
     return <SettingsManager />;
   }

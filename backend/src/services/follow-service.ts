@@ -213,6 +213,7 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
 
 async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]): Promise<void> {
   const followers = await db
+    // notify_in_app 是"这位女优的提醒开关"（关闭 = 静音）；具体走站内还是邮件，由用户的通知偏好决定
     .prepare('SELECT user_id FROM user_follows WHERE watch_key = ? AND notify_in_app = 1')
     .bind(watch.key)
     .all<{ user_id: string }>();

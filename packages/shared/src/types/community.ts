@@ -138,18 +138,3 @@ export interface CommunityStats {
     createdAt: number;
   }>;
 }
-
-// ==================== 通知类型 ====================
-
-/** 社区通知 */
-export interface CommunityNotification {
-  id: string;
-  type: 'like' | 'comment' | 'favorite' | 'report_resolved';
-  postId: string;
-  postTitle: string;
-  postCoverImage: string;
-  actorName?: string;
-  content: string;
-  createdAt: number;
-  isRead: boolean;
-}

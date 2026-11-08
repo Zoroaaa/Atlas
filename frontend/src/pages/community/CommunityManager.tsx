@@ -8,9 +8,8 @@ import { MyPostsTab } from './MyPostsTab';
 import { FavoritesTab } from './FavoritesTab';
 import { TagsTab } from './TagsTab';
 import { ShareToCommunityModal } from './ShareToCommunityModal';
-import { NotificationsTab } from './NotificationsTab';
 
-type TabKey = 'browse' | 'my-posts' | 'favorites' | 'tags' | 'notifications';
+type TabKey = 'browse' | 'my-posts' | 'favorites' | 'tags';
 
 export const CommunityManager: React.FC = () => {
   const location = useLocation();
@@ -20,7 +19,6 @@ export const CommunityManager: React.FC = () => {
     if (pathname === '/community/my-shares') return 'my-posts';
     if (pathname === '/community/my-favorites') return 'favorites';
     if (pathname === '/community/tags') return 'tags';
-    if (pathname === '/community/reports') return 'notifications';
     return 'browse';
   };
 
@@ -88,7 +86,6 @@ export const CommunityManager: React.FC = () => {
         {activeTab === 'my-posts' && <MyPostsTab />}
         {activeTab === 'favorites' && <FavoritesTab />}
         {activeTab === 'tags' && <TagsTab />}
-        {activeTab === 'notifications' && <NotificationsTab />}
       </div>
 
       {shareInitialData && (

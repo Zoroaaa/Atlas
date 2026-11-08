@@ -17,3 +17,4 @@ export { userMenuItems, adminMenuItems, communityMenuItems } from './DropdownMen
 export { SourceIcon } from './SourceIcon';
 export { ProxyImage, ImageLightbox } from './ImagePreview';
 export { LanguageSwitcher } from './LanguageSwitcher';
+export { Switch } from './Switch';

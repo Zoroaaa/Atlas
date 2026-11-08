@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Pagination } from '@/components/workbench';
 import { useUnreadCount, useNotificationInbox, useMarkNotificationsRead } from '@/hooks';
 import type { NotificationItem } from '@/types';
+import { describeNotification } from './notificationView';
 
 const PAGE_SIZE = 10;
 
@@ -36,25 +37,17 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open]);
 
-  const render = (item: NotificationItem) => {
-    if (item.type === 'follow.new_work') {
-      const name = item.payload.name ?? '';
-      const count = item.payload.count ?? 1;
-      const works = item.payload.works ?? [];
-      return {
-        title: t('notify:newWork', { name, count }),
-        body: works.slice(0, 3).map((w) => w.code).join('、') + (count > 3 ? '…' : ''),
-        code: works[0]?.code,
-      };
-    }
-    return { title: item.title, body: item.body, code: undefined as string | undefined };
-  };
-
-  const handleItemClick = (item: NotificationItem, code?: string) => {
+  const handleItemClick = (item: NotificationItem, code?: string, postId?: string) => {
     if (!item.isRead) markRead.mutate([item.id]);
     if (code) {
       setOpen(false);
       navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+    } else if (postId) {
+      setOpen(false);
+      navigate(`/community/post/${postId}`);
+    } else if (item.source === 'announcement' || item.type.startsWith('community.')) {
+      setOpen(false);
+      navigate('/dashboard/notifications');
     }
   };
 
@@ -100,12 +93,12 @@ export const NotificationBell: React.FC = () => {
           ) : (
             <ul className="divide-y divide-surface-100 dark:divide-surface-800">
               {inbox.items.map((item) => {
-                const view = render(item);
+                const view = describeNotification(item, t);
                 return (
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => handleItemClick(item, view.code)}
+                      onClick={() => handleItemClick(item, view.code, view.postId)}
                       className="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50"
                     >
                       <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', item.isRead ? 'bg-transparent' : 'bg-rose-500')} />

@@ -13,7 +13,6 @@ import {
   FileText,
   Heart,
   Tag,
-  Bell,
   X,
   LayoutDashboard,
   Shield,
@@ -35,7 +34,6 @@ const navItems: NavItem[] = [
   { id: 'my-posts', label: 'nav:community.items.myPosts', icon: <FileText className="w-[18px] h-[18px]" />, path: '/community/my-shares' },
   { id: 'my-favorites', label: 'nav:community.items.myFavorites', icon: <Heart className="w-[18px] h-[18px]" />, path: '/community/my-favorites' },
   { id: 'tags', label: 'nav:community.items.tags', icon: <Tag className="w-[18px] h-[18px]" />, path: '/community/tags' },
-  { id: 'notifications', label: 'nav:community.items.notifications', icon: <Bell className="w-[18px] h-[18px]" />, path: '/community/reports' },
 ];
 
 export const CommunityPanelLayout: React.FC = () => {

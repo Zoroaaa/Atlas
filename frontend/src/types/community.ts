@@ -14,7 +14,6 @@ export type {
   ReportRequest,
   CommunityUserStats,
   CommunityStats,
-  CommunityNotification,
 } from '@codeseek/shared';
 
 // 前端特有的响应类型
@@ -29,12 +28,4 @@ export interface PostsResponse {
 export interface CommentsResponse {
   items: import('@codeseek/shared').CommunityComment[];
   total: number;
-}
-
-export interface NotificationsResponse {
-  items: import('@codeseek/shared').CommunityNotification[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }

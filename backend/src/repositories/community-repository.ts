@@ -361,6 +361,17 @@ export async function findPostOwnerId(db: D1Database, id: string): Promise<{ use
   return db.prepare('SELECT user_id FROM community_posts WHERE id = ?').bind(id).first<{ user_id: string }>();
 }
 
+/** 查询帖子通知目标（作者 + 标题），用于社区互动通知 */
+export async function findPostNotificationTarget(
+  db: D1Database,
+  id: string
+): Promise<{ user_id: string; title: string } | null> {
+  return db
+    .prepare('SELECT user_id, title FROM community_posts WHERE id = ?')
+    .bind(id)
+    .first<{ user_id: string; title: string }>();
+}
+
 /** 帖子是否存在 */
 export async function postExists(db: D1Database, id: string): Promise<boolean> {
   const row = await db.prepare('SELECT id FROM community_posts WHERE id = ?').bind(id).first();
@@ -590,70 +601,4 @@ export async function listUserRecentPosts(
     .bind(opts.userId, opts.limit)
     .all<Record<string, unknown>>();
   return rows.results || [];
-}
-
-// ===========================================================================
-// 通知
-// ===========================================================================
-
-/** 查询用户发布的帖子简要信息（id / 标题 / 封面） */
-export async function listMyPostBriefs(
-  db: D1Database,
-  userId: string
-): Promise<Array<{ id: string; title: string; cover_image: string }>> {
-  const rows = await db
-    .prepare('SELECT id, title, cover_image FROM community_posts WHERE user_id = ?')
-    .bind(userId)
-    .all<{ id: string; title: string; cover_image: string }>();
-  return rows.results || [];
-}
-
-/** 查询与用户帖子相关的各类事件（点赞/评论/收藏/举报处理，一次 batch） */
-export async function queryNotificationEvents(
-  db: D1Database,
-  opts: { postIds: string[]; userId: string }
-): Promise<{
-  likesResult: { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> };
-  commentsResult: { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; content: string; created_at: number }> };
-  favoritesResult: { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> };
-  reportsResult: { results: Array<{ id: string; post_id: string; status: string; report_reason: string; created_at: number }> };
-}> {
-  const inClause = opts.postIds.map(() => '?').join(',');
-
-  const [likesResult, commentsResult, favoritesResult, reportsResult] = await db.batch([
-    db.prepare(`
-        SELECT l.id, l.post_id, l.user_id as actor_id, u.username as actor_name, l.created_at
-        FROM community_likes l
-        LEFT JOIN users u ON l.user_id = u.id
-        WHERE l.post_id IN (${inClause}) AND l.like_type = 'like' AND l.user_id != ?
-        ORDER BY l.created_at DESC LIMIT 200
-      `).bind(...opts.postIds, opts.userId),
-    db.prepare(`
-        SELECT c.id, c.post_id, c.user_id as actor_id, u.username as actor_name, c.content, c.created_at
-        FROM community_comments c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.post_id IN (${inClause}) AND c.user_id != ?
-        ORDER BY c.created_at DESC LIMIT 200
-      `).bind(...opts.postIds, opts.userId),
-    db.prepare(`
-        SELECT f.id, f.post_id, f.user_id as actor_id, u.username as actor_name, f.created_at
-        FROM community_likes f
-        LEFT JOIN users u ON f.user_id = u.id
-        WHERE f.post_id IN (${inClause}) AND f.like_type = 'favorite' AND f.user_id != ?
-        ORDER BY f.created_at DESC LIMIT 200
-      `).bind(...opts.postIds, opts.userId),
-    db.prepare(`
-        SELECT r.id, r.post_id, r.status, r.report_reason, r.updated_at as created_at
-        FROM community_reports r
-        WHERE r.post_id IN (${inClause}) AND r.status != 'pending'
-        ORDER BY r.updated_at DESC LIMIT 100
-      `).bind(...opts.postIds),
-  ]) as unknown as [
-    { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> },
-    { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; content: string; created_at: number }> },
-    { results: Array<{ id: string; post_id: string; actor_id: string; actor_name: string; created_at: number }> },
-    { results: Array<{ id: string; post_id: string; status: string; report_reason: string; created_at: number }> },
-  ];
-
-  return { likesResult, commentsResult, reportsResult, favoritesResult };
 }

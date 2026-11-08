@@ -18,7 +18,7 @@ export const configRoutes = new Hono<{ Bindings: Env }>();
 configRoutes.get('/public', async (c) => {
   try {
     const configs = await c.env.DB.prepare(
-      `SELECT key, value, config_type FROM system_config WHERE is_public = 1`
+      `SELECT key, value, config_type FROM system_config WHERE is_public = 1 AND is_sensitive = 0`
     ).all<SystemConfig>();
 
     const result: Record<string, unknown> = {};
@@ -401,6 +401,62 @@ configRoutes.get('/email/logs', async (c) => {
   }
 });
 
+configRoutes.get('/email/queue', async (c) => {
+  if (!await checkIsAdmin(c)) {
+    return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
+  }
+
+  const page = Math.max(parseInt(c.req.query('page') || '1'), 1);
+  const pageSize = Math.min(parseInt(c.req.query('pageSize') || '50'), 200);
+  const status = c.req.query('status');
+  const type = c.req.query('type');
+
+  try {
+    let whereClause = 'WHERE 1=1';
+    const params: (string | number)[] = [];
+
+    if (status) {
+      whereClause += ' AND q.status = ?';
+      params.push(status);
+    }
+    if (type) {
+      whereClause += ' AND q.type = ?';
+      params.push(type);
+    }
+
+    const countResult = await c.env.DB.prepare(
+      `SELECT COUNT(*) as total FROM email_queue q ${whereClause}`
+    ).bind(...params).first<{ total: number }>();
+
+    const rows = await c.env.DB.prepare(`
+      SELECT q.*, u.username, u.email AS user_email,
+        CASE
+          WHEN q.status = 'skipped' THEN '邮箱未验证或通知偏好已关闭'
+          ELSE (
+            SELECT l.error FROM email_log l
+            WHERE l.user_id = q.user_id AND l.status = 'failed'
+            ORDER BY l.sent_at DESC LIMIT 1
+          )
+        END AS last_error
+      FROM email_queue q
+      LEFT JOIN users u ON q.user_id = u.id
+      ${whereClause}
+      ORDER BY q.created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(...params, pageSize, (page - 1) * pageSize).all();
+
+    return c.json(success({
+      items: rows.results || [],
+      total: countResult?.total || 0,
+      page,
+      pageSize,
+    }));
+  } catch (err) {
+    console.error('Get email queue error:', err);
+    return c.json(error('SERVER_ERROR', '获取邮件队列失败'), 500);
+  }
+});
+
 configRoutes.post('/import', validateBody(schemas.config.importConfig), async (c) => {
   const user = c.get('user');
   
@@ -638,6 +694,11 @@ configRoutes.get('/:key', async (c) => {
     ).bind(key).first<SystemConfig>();
 
     if (!config) {
+      return c.json(error('NOT_FOUND', '配置项不存在'), 404);
+    }
+
+    // 非管理员仅能读取公开且非敏感的配置，避免安全参数泄露
+    if (!(await checkIsAdmin(c)) && (config.is_public !== 1 || config.is_sensitive === 1)) {
       return c.json(error('NOT_FOUND', '配置项不存在'), 404);
     }
 
