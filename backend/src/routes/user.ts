@@ -203,25 +203,7 @@ userRoutes.post('/favorites', validateBody(schemas.user.addFavorite), async (c) 
     ).bind(user.userId, url).first<UserFavorite>();
 
     if (existing) {
-      return c.json(success({
-      id: existing.id,
-      userId: existing.user_id,
-      title: existing.title,
-      subtitle: existing.subtitle,
-      url: existing.url,
-      icon: existing.icon,
-      keyword: existing.keyword,
-      code: existing.code,
-      cover: existing.cover,
-      actors: existing.actors,
-      duration: existing.duration,
-      tags: existing.tags,
-      releaseDate: existing.release_date,
-      publisher: existing.publisher,
-      magnetLink: existing.magnet_link,
-      status: existing.status,
-      createdAt: existing.created_at,
-    }, '已收藏该链接'));
+      return c.json(success(mapFavorite(existing), '已收藏该链接'));
     }
 
     const maxFavorites = R.FAVORITES.MAX_COUNT;
@@ -263,6 +245,13 @@ userRoutes.post('/favorites', validateBody(schemas.user.addFavorite), async (c) 
 
     await logUserAction(c.env, user.userId, 'add_favorite', { title, url }, c);
 
+    // 并发插入可能突破上限，插入后兜底裁剪到最近的 N 条
+    await c.env.DB.prepare(
+      `DELETE FROM user_favorites WHERE user_id = ? AND id NOT IN (
+         SELECT id FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?
+       )`
+    ).bind(user.userId, user.userId, maxFavorites).run();
+
     return c.json(success({
       id: favoriteId,
       userId: user.userId,
@@ -297,7 +286,7 @@ userRoutes.delete('/favorites/:id', async (c) => {
       'DELETE FROM user_favorites WHERE id = ? AND user_id = ?'
     ).bind(favoriteId, user.userId).run();
 
-    if (!result.success) {
+    if (!result.success || (result.meta?.changes ?? 0) === 0) {
       return c.json(error('NOT_FOUND', '收藏不存在'), 404);
     }
 
@@ -441,20 +430,6 @@ userRoutes.post('/search-history', validateBody(schemas.user.addSearchHistory), 
 
     const maxHistory = R.SEARCH_HISTORY.MAX_COUNT;
 
-    const count = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_search_history WHERE user_id = ?'
-    ).bind(user.userId).first<{ count: number }>();
-
-    if (count && count.count >= maxHistory) {
-      const oldest = await c.env.DB.prepare(
-        'SELECT id FROM user_search_history WHERE user_id = ? ORDER BY created_at ASC LIMIT 1'
-      ).bind(user.userId).first<{ id: string }>();
-
-      if (oldest) {
-        await c.env.DB.prepare('DELETE FROM user_search_history WHERE id = ?').bind(oldest.id).run();
-      }
-    }
-
     const historyId = generateId();
     const now = Date.now();
 
@@ -478,6 +453,13 @@ userRoutes.post('/search-history', validateBody(schemas.user.addSearchHistory), 
       publisher || null,
       keyword || null
     ).run();
+
+    // 超限时一次性裁剪到最近的 N 条（原来只删 1 条，仍可能超限）
+    await c.env.DB.prepare(
+      `DELETE FROM user_search_history WHERE user_id = ? AND id NOT IN (
+         SELECT id FROM user_search_history WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?
+       )`
+    ).bind(user.userId, user.userId, maxHistory).run();
 
     return c.json(success({
       id: historyId,
@@ -695,21 +677,43 @@ userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSour
     const now = Date.now();
 
     if (existing) {
-      await c.env.DB.prepare(`
-        UPDATE user_search_source_configs 
-        SET is_enabled = ?, custom_priority = ?, custom_name = ?, custom_subtitle = ?, custom_icon = ?, notes = ?, updated_at = ?
-        WHERE user_id = ? AND source_id = ?
-      `).bind(
-        isEnabled !== undefined ? (isEnabled ? 1 : 0) : 1,
-        customPriority || null,
-        customName || null,
-        customSubtitle || null,
-        customIcon || null,
-        notes || null,
-        now,
-        user.userId,
-        sourceId
-      ).run();
+      const updates: string[] = [];
+      const params: (string | number | null)[] = [];
+
+      if (isEnabled !== undefined) {
+        updates.push('is_enabled = ?');
+        params.push(isEnabled ? 1 : 0);
+      }
+      if (customPriority !== undefined) {
+        updates.push('custom_priority = ?');
+        params.push(customPriority ?? null);
+      }
+      if (customName !== undefined) {
+        updates.push('custom_name = ?');
+        params.push(customName || null);
+      }
+      if (customSubtitle !== undefined) {
+        updates.push('custom_subtitle = ?');
+        params.push(customSubtitle || null);
+      }
+      if (customIcon !== undefined) {
+        updates.push('custom_icon = ?');
+        params.push(customIcon || null);
+      }
+      if (notes !== undefined) {
+        updates.push('notes = ?');
+        params.push(notes || null);
+      }
+
+      if (updates.length > 0) {
+        updates.push('updated_at = ?');
+        params.push(now, user.userId, sourceId);
+        await c.env.DB.prepare(`
+          UPDATE user_search_source_configs
+          SET ${updates.join(', ')}
+          WHERE user_id = ? AND source_id = ?
+        `).bind(...params).run();
+      }
     } else {
       const configId = generateId();
       await c.env.DB.prepare(`
@@ -720,7 +724,7 @@ userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSour
         user.userId,
         sourceId,
         isEnabled !== undefined ? (isEnabled ? 1 : 0) : 1,
-        customPriority || null,
+        customPriority ?? null,
         customName || null,
         customSubtitle || null,
         customIcon || null,

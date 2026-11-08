@@ -284,16 +284,20 @@ export const schemas = {
 
     createPost: z.object({
       postType: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'actress']),
-      title: z.string().min(1, '标题不能为空'),
-      coverImage: z.string().min(1, '封面图片不能为空'),
-      contentData: z.string().min(1, '内容数据不能为空'),
-      caption: z.string().optional(),
-      tags: z.array(z.string()).optional(),
+      title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
+      coverImage: z.string().min(1, '封面图片不能为空').max(200000, '封面图片过大'),
+      contentData: z.string().min(1, '内容数据不能为空').max(500000, '内容数据过大'),
+      caption: z.string().max(2000, '简介最多2000个字符').optional(),
+      tags: z.array(z.string().min(1).max(R.TAG.NAME_MAX_LENGTH))
+        .max(R.TAG.MAX_COUNT_PER_SOURCE, `最多${R.TAG.MAX_COUNT_PER_SOURCE}个标签`)
+        .optional(),
     }),
 
     updatePost: z.object({
-      caption: z.string().optional(),
-      tags: z.array(z.string()).optional(),
+      caption: z.string().max(2000, '简介最多2000个字符').optional(),
+      tags: z.array(z.string().min(1).max(R.TAG.NAME_MAX_LENGTH))
+        .max(R.TAG.MAX_COUNT_PER_SOURCE, `最多${R.TAG.MAX_COUNT_PER_SOURCE}个标签`)
+        .optional(),
     }),
 
     updatePostStatus: z.object({
@@ -311,41 +315,6 @@ export const schemas = {
 
     reportPost: z.object({
       reason: z.string().min(1, '请提供举报原因').max(R.REPORT.REASON_MAX_LENGTH, `举报原因最多${R.REPORT.REASON_MAX_LENGTH}个字符`),
-      details: z.string().max(R.REPORT.DETAILS_MAX_LENGTH).optional(),
-    }),
-
-    createSharedSource: z.object({
-      sourceName: z.string()
-        .min(R.SHARED_SOURCE.NAME_MIN_LENGTH, `搜索源名称至少${R.SHARED_SOURCE.NAME_MIN_LENGTH}个字符`)
-        .max(R.SHARED_SOURCE.NAME_MAX_LENGTH),
-      sourceSubtitle: z.string().max(R.SHARED_SOURCE.SUBTITLE_MAX_LENGTH).optional().nullable(),
-      sourceIcon: z.string().max(R.SOURCE.ICON_MAX_LENGTH).optional(),
-      sourceUrlTemplate: z.string()
-        .min(1, 'URL模板不能为空')
-        .max(R.SHARED_SOURCE.URL_MAX_LENGTH)
-        .regex(/^https?:\/\/.+/, 'URL模板格式不正确'),
-      sourceCategory: z.string().min(1, '分类不能为空'),
-      description: z.string().max(R.SHARED_SOURCE.DESCRIPTION_MAX_LENGTH).optional(),
-      tags: z.array(z.string()).max(R.TAG.MAX_COUNT_PER_SOURCE, `最多${R.TAG.MAX_COUNT_PER_SOURCE}个标签`).optional(),
-    }),
-
-    updateSharedSource: z.object({
-      sourceName: z.string().min(R.SHARED_SOURCE.NAME_MIN_LENGTH).max(R.SHARED_SOURCE.NAME_MAX_LENGTH).optional(),
-      sourceSubtitle: z.string().max(R.SHARED_SOURCE.SUBTITLE_MAX_LENGTH).optional().nullable(),
-      sourceIcon: z.string().max(R.SOURCE.ICON_MAX_LENGTH).optional(),
-      description: z.string().max(R.SHARED_SOURCE.DESCRIPTION_MAX_LENGTH).optional(),
-      tags: z.array(z.string()).max(R.TAG.MAX_COUNT_PER_SOURCE).optional(),
-      sourceCategory: z.string().optional(),
-    }),
-
-    createReview: z.object({
-      sharedSourceId: z.string().min(1, '搜索源ID不能为空'),
-      rating: z.number().int().min(1, '评分最低1分').max(5, '评分最高5分'),
-      comment: z.string().max(R.REVIEW.COMMENT_MAX_LENGTH, `评论最多${R.REVIEW.COMMENT_MAX_LENGTH}个字符`).optional(),
-    }),
-
-    reportSource: z.object({
-      reason: z.string().min(1, '举报原因不能为空').max(R.REPORT.REASON_MAX_LENGTH, `举报原因最多${R.REPORT.REASON_MAX_LENGTH}个字符`),
       details: z.string().max(R.REPORT.DETAILS_MAX_LENGTH).optional(),
     }),
   },
@@ -416,11 +385,15 @@ export const schemas = {
     }),
 
     recordAnalyticsEvent: z.object({
-      userId: z.string().optional(),
-      sessionId: z.string().optional().nullable(),
-      eventType: z.string().min(1, '事件类型不能为空'),
+      userId: z.string().max(100).optional(),
+      sessionId: z.string().max(200).optional().nullable(),
+      eventType: z.enum(['page_view', 'login', 'search'], { error: '不支持的事件类型' }),
       eventData: z.unknown().optional(),
-      referer: z.string().optional().nullable(),
+      referer: z.string().max(500).optional().nullable(),
+    }).superRefine((val, ctx) => {
+      if (val.eventData !== undefined && JSON.stringify(val.eventData).length > 4096) {
+        ctx.addIssue({ code: 'custom', message: 'eventData 不能超过 4KB' });
+      }
     }),
 
     batchUpdateConfig: z.object({

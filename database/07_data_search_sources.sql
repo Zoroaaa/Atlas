@@ -10,7 +10,7 @@
 -- 1. 搜索源大类初始化数据
 -- ===============================================
 
-INSERT OR REPLACE INTO search_major_categories (
+INSERT OR IGNORE INTO search_major_categories (
     id, name, description, icon, color,
     display_order, is_system, is_active, created_at, updated_at
 ) VALUES
@@ -24,7 +24,7 @@ INSERT OR REPLACE INTO search_major_categories (
 -- 2. 搜索源分类初始化数据
 -- ===============================================
 
-INSERT OR REPLACE INTO search_source_categories (
+INSERT OR IGNORE INTO search_source_categories (
     id, major_category_id, name, description, icon, color, display_order,
     is_system, is_active, default_searchable, default_site_type, search_priority,
     created_by, created_at, updated_at
@@ -49,7 +49,7 @@ INSERT OR REPLACE INTO search_source_categories (
 -- 3. 搜索源初始化数据 - 番号资料站
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -63,7 +63,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 4. 搜索源初始化数据 - 在线播放平台
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -94,7 +94,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 5. 搜索源初始化数据 - 磁力搜索（浏览站点）
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -119,7 +119,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 6. 搜索源初始化数据 - 社区论坛（浏览站点）
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -145,7 +145,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 7. 动漫搜索源 - 番剧资料站
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -163,7 +163,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 8. 动漫搜索源 - 动漫种子
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -178,7 +178,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 9. 动漫搜索源 - 在线观看
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -196,7 +196,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 10. 动漫搜索源 - 漫画资源
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -207,7 +207,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 11. 影视搜索源 - 影视资料站
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -225,7 +225,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 12. 影视搜索源 - 影视磁力
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -237,7 +237,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 13. 影视搜索源 - 在线观看
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -255,7 +255,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 14. 漫画搜索源 - 漫画资料站 (is_system=0)
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -270,7 +270,7 @@ INSERT OR REPLACE INTO search_sources (
 -- 15. 漫画搜索源 - 漫画资源 (is_system=0)
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
@@ -290,7 +290,7 @@ INSERT OR REPLACE INTO search_sources (
 --    以下源用于多源跳转卡片（SearchResultsPanel），与 JAV 的多源机制一致
 -- ===============================================
 
-INSERT OR REPLACE INTO search_sources (
+INSERT OR IGNORE INTO search_sources (
     id, category_id, name, subtitle, description, icon, url_template, homepage_url,
     site_type, searchable, search_priority, is_system, is_active,
     display_order, usage_count, last_used_at, created_by, created_at, updated_at

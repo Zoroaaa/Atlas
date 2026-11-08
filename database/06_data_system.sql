@@ -48,19 +48,19 @@ INSERT OR IGNORE INTO system_config (key, value, description, config_type, confi
     -- ====================
     -- 安全配置 - 安全策略需要动态调整
     -- ====================
-    ('max_login_attempts', '5', '最大登录尝试次数', 'integer', 'security', 1, 20, '{"min": 3, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('lockout_duration_ms', '900000', '账户锁定时长（毫秒，默认15分钟）', 'integer', 'security', 1, 21, '{"min": 60000, "max": 3600000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('max_verification_attempts', '5', '最大验证尝试次数', 'integer', 'security', 1, 22, '{"min": 1, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('password_reset_max_attempts', '5', '密码重置最大尝试次数', 'integer', 'security', 1, 23, '{"min": 1, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('password_reset_lockout_duration', '3600000', '密码重置锁定持续时间（毫秒，默认1小时）', 'integer', 'security', 1, 24, '{"min": 300000, "max": 86400000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('max_login_attempts', '5', '最大登录尝试次数', 'integer', 'security', 0, 20, '{"min": 3, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('lockout_duration_ms', '900000', '账户锁定时长（毫秒，默认15分钟）', 'integer', 'security', 0, 21, '{"min": 60000, "max": 3600000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('max_verification_attempts', '5', '最大验证尝试次数', 'integer', 'security', 0, 22, '{"min": 1, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('password_reset_max_attempts', '5', '密码重置最大尝试次数', 'integer', 'security', 0, 23, '{"min": 1, "max": 10}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('password_reset_lockout_duration', '3600000', '密码重置锁定持续时间（毫秒，默认1小时）', 'integer', 'security', 0, 24, '{"min": 300000, "max": 86400000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     
     -- ====================
     -- 邮件配置 - 防滥用需要动态调整
     -- ====================
     ('email_rate_limit_per_hour', '5', '每小时最大发送邮件数', 'integer', 'email', 0, 40, '{"min": 1, "max": 20}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     ('email_rate_limit_per_day', '20', '每天最大发送邮件数', 'integer', 'email', 0, 41, '{"min": 1, "max": 100}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('verification_code_expiry', '900000', '验证码过期时间（毫秒，默认15分钟）', 'integer', 'email', 1, 42, '{"min": 60000, "max": 3600000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
-    ('reset_password_code_expiry', '1800000', '重置密码验证码过期时间（毫秒，默认30分钟）', 'integer', 'email', 1, 43, '{"min": 600000, "max": 7200000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('verification_code_expiry', '900000', '验证码过期时间（毫秒，默认15分钟）', 'integer', 'email', 0, 42, '{"min": 60000, "max": 3600000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
+    ('reset_password_code_expiry', '1800000', '重置密码验证码过期时间（毫秒，默认30分钟）', 'integer', 'email', 0, 43, '{"min": 600000, "max": 7200000}', strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000),
     
     -- ====================
     -- 数据清理 - 运维需要动态调整
@@ -107,7 +107,19 @@ INSERT OR IGNORE INTO email_templates (
 
     ('tpl_account_delete', 'account_delete', 'account_delete',  
      '确认删除您的{{siteName}}账户',
-     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>账户删除确认</title></head><body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><div style="background: linear-gradient(135deg, #e84393 0%, #d63031 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;"><h1 style="margin: 0; font-size: 28px;">账户删除确认</h1></div><div style="background: white; padding: 40px; border: 1px solid #eee; border-top: none; border-radius: 0 0 10px 10px;"><p style="font-size: 16px; line-height: 1.6; color: #333;">您好 <strong>{{username}}</strong>，</p><p style="font-size: 16px; line-height: 1.6; color: #333;">我们收到了删除您账户的申请。这将<strong>永久删除</strong>您的所有数据，包括收藏、历史记录等。</p><p style="font-size: 16px; line-height: 1.6; color: #333;">如果您确认要删除账户，请使用以下验证码：</p><div style="background: #f8f9fa; border: 2px dashed #e84393; border-radius: 8px; padding: 20px. text-align: center; margin: 30px 0;"><span style="font-size: 32px; font-weight: bold; color: #e84393; letter-spacing: 5px; font-family: monospace;">{{verificationCode}}</span></div><p style="font-size: 14px; color: #666; text-align: center;">验证码将在 <strong>{{expiryMinutes}} 分钟</strong> 后过期</p><div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;"><p style="font-size: 14px; color: #856404; margin: 0;"><strong>重要提醒：</strong>账户删除后无法恢复，请谨慎操作！</p></div><p style="font-size: 16px; line-height: 1.6; color: #333;">如果您不想删除账户，请忽略此邮件。</p><hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;"><p style="font-size: 12px; color: #999; text-align: center;">此邮件由系统自动发送，请勿回复。<br>{{siteName}} - 让搜索更简单</p></div></body></html>',
+     '<!DOCTYPE html><html><head><meta charset="utf-8"><title>账户删除确认</title></head><body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><div style="background: linear-gradient(135deg, #e84393 0%, #d63031 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;"><h1 style="margin: 0; font-size: 28px;">账户删除确认</h1></div><div style="background: white; padding: 40px; border: 1px solid #eee; border-top: none; border-radius: 0 0 10px 10px;"><p style="font-size: 16px; line-height: 1.6; color: #333;">您好 <strong>{{username}}</strong>，</p><p style="font-size: 16px; line-height: 1.6; color: #333;">我们收到了删除您账户的申请。这将<strong>永久删除</strong>您的所有数据，包括收藏、历史记录等。</p><p style="font-size: 16px; line-height: 1.6; color: #333;">如果您确认要删除账户，请使用以下验证码：</p><div style="background: #f8f9fa; border: 2px dashed #e84393; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;"><span style="font-size: 32px; font-weight: bold; color: #e84393; letter-spacing: 5px; font-family: monospace;">{{verificationCode}}</span></div><p style="font-size: 14px; color: #666; text-align: center;">验证码将在 <strong>{{expiryMinutes}} 分钟</strong> 后过期</p><div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;"><p style="font-size: 14px; color: #856404; margin: 0;"><strong>重要提醒：</strong>账户删除后无法恢复，请谨慎操作！</p></div><p style="font-size: 16px; line-height: 1.6; color: #333;">如果您不想删除账户，请忽略此邮件。</p><hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;"><p style="font-size: 12px; color: #999; text-align: center;">此邮件由系统自动发送，请勿回复。<br>{{siteName}} - 让搜索更简单</p></div></body></html>',
      '确认删除您的{{siteName}}账户\n\n您好 {{username}}，\n\n我们收到了删除您账户的申请。这将永久删除您的所有数据。\n\n如果您确认要删除账户，验证码是：{{verificationCode}}\n\n此验证码将在 {{expiryMinutes}} 分钟后过期。\n\n重要提醒：账户删除后无法恢复，请谨慎操作！\n\n如果您不想删除账户，请忽略此邮件。\n\n{{siteName}}',
      '["username", "siteName", "verificationCode", "expiryMinutes"]',
      strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
+
+-- 安全/验证码参数不应公开展示，修正历史库中误标 is_public=1 的记录
+UPDATE system_config SET is_public = 0
+WHERE key IN (
+    'max_login_attempts',
+    'lockout_duration_ms',
+    'max_verification_attempts',
+    'password_reset_max_attempts',
+    'password_reset_lockout_duration',
+    'verification_code_expiry',
+    'reset_password_code_expiry'
+);

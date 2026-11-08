@@ -172,6 +172,12 @@ export default {
       ctx.waitUntil(
         env.DB.prepare('DELETE FROM user_sessions WHERE expires_at < ?').bind(Date.now()).run()
       );
+      // 清理 7 天前的验证码记录（含 used/expired，避免永久堆积）
+      ctx.waitUntil(
+        env.DB.prepare('DELETE FROM email_verifications WHERE created_at < ?')
+          .bind(Date.now() - 7 * 24 * 60 * 60 * 1000)
+          .run()
+      );
       ctx.waitUntil(
         enrichPendingJavRecords(env.DB).catch((err) =>
           console.error('[ranking-enrichment] cron failed:', err)

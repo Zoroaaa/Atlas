@@ -5,7 +5,7 @@
  * 日期：2024
  */
 import { SecurityLockout, UserSecurityEvent, Env } from '@/types';
-import { generateId } from '@/utils';
+import { generateId, hashToken } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 
@@ -34,9 +34,10 @@ export async function checkLockout(
   identifier: string
 ): Promise<LockoutCheckResult> {
   try {
+    const identifierHash = await hashToken(identifier);
     const lockout = await db.prepare(
-      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier = ? AND locked_until > ?'
-    ).bind(lockoutType, identifier, Date.now()).first<SecurityLockout>();
+      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier_hash = ? AND locked_until > ?'
+    ).bind(lockoutType, identifierHash, Date.now()).first<SecurityLockout>();
 
     if (lockout) {
       return {
@@ -47,8 +48,8 @@ export async function checkLockout(
     }
 
     const attemptRecord = await db.prepare(
-      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier = ?'
-    ).bind(lockoutType, identifier).first<SecurityLockout>();
+      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier_hash = ?'
+    ).bind(lockoutType, identifierHash).first<SecurityLockout>();
 
     if (attemptRecord) {
       return {
@@ -76,6 +77,7 @@ export async function recordFailedAttempt(
   const configService = new ConfigService(env);
   const db = env.DB;
   const now = Date.now();
+  const identifierHash = await hashToken(identifier);
   
   const securityConfig = await configService.getGroup('security');
   
@@ -96,8 +98,8 @@ export async function recordFailedAttempt(
 
   try {
     const existing = await db.prepare(
-      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier = ?'
-    ).bind(lockoutType, identifier).first<SecurityLockout>();
+      'SELECT * FROM security_lockouts WHERE lockout_type = ? AND identifier_hash = ?'
+    ).bind(lockoutType, identifierHash).first<SecurityLockout>();
 
     if (existing) {
       if (existing.locked_until > now) {
@@ -139,10 +141,10 @@ export async function recordFailedAttempt(
     const id = generateId();
     await db.prepare(`
       INSERT INTO security_lockouts (
-        id, lockout_type, identifier, attempt_count, max_attempts, lockout_duration,
+        id, lockout_type, identifier, identifier_hash, attempt_count, max_attempts, lockout_duration,
         first_attempt_at, last_attempt_at, locked_until, created_at, ip_address, user_agent
-      ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(id, lockoutType, identifier, max, duration, now, now, 0, now, ipAddress || null, userAgent || null).run();
+      ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, lockoutType, identifier, identifierHash, max, duration, now, now, 0, now, ipAddress || null, userAgent || null).run();
 
     return {
       isLocked: false,
@@ -160,9 +162,10 @@ export async function clearLockout(
   identifier: string
 ): Promise<void> {
   try {
+    const identifierHash = await hashToken(identifier);
     await db.prepare(
-      'DELETE FROM security_lockouts WHERE lockout_type = ? AND identifier = ?'
-    ).bind(lockoutType, identifier).run();
+      'DELETE FROM security_lockouts WHERE lockout_type = ? AND identifier_hash = ?'
+    ).bind(lockoutType, identifierHash).run();
   } catch (err) {
     console.error('Clear lockout error:', err);
   }
@@ -223,17 +226,19 @@ export async function recordPasswordResetLog(
 ): Promise<string> {
   const id = generateId();
   const now = Date.now();
+  const emailHash = await hashToken(params.email);
 
   try {
     await db.prepare(`
       INSERT INTO password_reset_logs (
-        id, user_id, email, request_type, request_status, ip_address, user_agent,
+        id, user_id, email, email_hash, request_type, request_status, ip_address, user_agent,
         verification_code_sent, verification_attempts, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `).bind(
       id,
       params.userId || null,
       params.email,
+      emailHash,
       params.requestType,
       params.requestStatus || 'initiated',
       params.ipAddress || null,

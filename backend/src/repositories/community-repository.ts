@@ -90,7 +90,7 @@ export async function updateTagFields(
 /** 统计使用某标签的帖子数（按 LIKE 模式匹配 tags 字段） */
 export async function countPostsByTagPattern(db: D1Database, pattern: string): Promise<number> {
   const row = await db
-    .prepare('SELECT COUNT(*) as cnt FROM community_posts WHERE tags LIKE ?')
+    .prepare("SELECT COUNT(*) as cnt FROM community_posts WHERE tags LIKE ? ESCAPE '\\'")
     .bind(pattern)
     .first<{ cnt: number }>();
   return row?.cnt || 0;

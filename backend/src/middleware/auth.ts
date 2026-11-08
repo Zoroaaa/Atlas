@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+﻿import { Context, Next } from 'hono';
 import { Env, JwtPayload, Role } from '@/types';
 import { verifyToken, error, hashToken } from '@/utils';
 
@@ -169,77 +169,6 @@ export const adminMiddleware = async (c: Context<{ Bindings: Env }>, next: Next)
 
   if (roleName !== 'admin' && roleName !== 'super_admin') {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
-  }
-
-  await next();
-};
-
-/**
- * 超级管理员中间件 - 读取 authMiddleware 缓存的角色（零额外查询）
- * 必须在 authMiddleware 之后使用
- */
-export const superAdminMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
-  const user = c.get('user');
-
-  if (!user) {
-    return c.json(error('UNAUTHORIZED', '未认证'), 401);
-  }
-
-  if ((c.get('userRole')?.name || 'user') !== 'super_admin') {
-    return c.json(error('FORBIDDEN', '需要超级管理员权限'), 403);
-  }
-
-  await next();
-};
-
-/**
- * 权限检查中间件工厂函数
- * 使用方式：app.use('/api/admin/*', permissionMiddleware('admin:read'))
- * 读取 authMiddleware 缓存的 userRole.permissions（零额外查询）
- */
-export const permissionMiddleware = (requiredPermission: string) => {
-  return async (c: Context<{ Bindings: Env }>, next: Next) => {
-    const user = c.get('user');
-
-    if (!user) {
-      return c.json(error('UNAUTHORIZED', '未认证'), 401);
-    }
-
-    const permissions = JSON.parse(c.get('userRole')?.permissions || '[]') as string[];
-
-    // 通配符权限（超级管理员）
-    if (permissions.includes('*')) {
-      await next();
-      return;
-    }
-
-    // 模块通配符权限 (如 user:* 匹配 user:read)
-    const moduleWildcard = requiredPermission.split(':')[0] + ':*';
-    if (permissions.includes(moduleWildcard)) {
-      await next();
-      return;
-    }
-
-    // 精确权限
-    if (permissions.includes(requiredPermission)) {
-      await next();
-      return;
-    }
-
-    return c.json(error('FORBIDDEN', `需要权限: ${requiredPermission}`), 403);
-  };
-};
-
-export const optionalAuthMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
-  const authHeader = c.req.header('Authorization');
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    const payload = await verifyToken(token, c.env.JWT_SECRET);
-
-    if (payload) {
-      c.set('user', payload);
-    }
   }
 
   await next();

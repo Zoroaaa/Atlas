@@ -6,8 +6,10 @@
 -- 执行顺序: 10
 --
 -- 注意：
---   - 全新部署：01_schema_core.sql 已包含 google_id 字段，无需执行本文件第 2 部分
---   - 已部署升级：执行本文件即可，ALTER TABLE 会在列已存在时报错，可忽略
+--   - 全新部署：01_schema_core.sql 已包含 google_id / google_username 字段及唯一索引
+--   - 已部署升级：SQLite / D1 不支持 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`，
+--     重复执行 ALTER 会报 `duplicate column name` 并中断脚本；因此本文件不再执行 ALTER，
+--     改为 pragma 校验并在缺失时给出补列语句，脚本可安全、重复执行
 -- ===============================================
 
 -- ===============================================
@@ -42,10 +44,23 @@ CREATE INDEX IF NOT EXISTS idx_system_errors_source ON system_errors(source);
 CREATE INDEX IF NOT EXISTS idx_system_errors_user_id ON system_errors(user_id);
 
 -- ===============================================
--- 2. users 表新增 Google OAuth 字段（已部署环境升级用）
--- 全新部署已在 01_schema_core.sql 包含，以下语句在列已存在时会报错，可忽略
+-- 2. users 表 Google OAuth 字段校验（已部署环境升级用）
+-- 全新部署已在 01_schema_core.sql 包含，这里仅做幂等校验
+-- 校验结果说明：
+--   google_columns_count = 2  -> 两列均已存在，无需处理
+--   google_columns_count < 2  -> 存量库缺列，请手动执行：
+--       ALTER TABLE users ADD COLUMN google_id TEXT;
+--       ALTER TABLE users ADD COLUMN google_username TEXT;
+--       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id
+--           ON users(google_id) WHERE google_id IS NOT NULL;
+--     补列后再重新执行本文件确认状态为 OK。
 -- ===============================================
 
-ALTER TABLE users ADD COLUMN google_id TEXT;
-ALTER TABLE users ADD COLUMN google_username TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
+SELECT
+    COUNT(*) AS google_columns_count,
+    CASE WHEN COUNT(*) = 2
+         THEN 'OK: google_id / google_username 已存在'
+         ELSE 'MISSING: 请按文件头部说明手动补列'
+    END AS google_columns_status
+FROM pragma_table_info('users')
+WHERE name IN ('google_id', 'google_username');
