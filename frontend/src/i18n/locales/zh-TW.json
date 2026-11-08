@@ -118,6 +118,16 @@
     "mobileNav": {
       "ariaLabel": "主導覽"
     },
+    "mobileMore": {
+      "open": "更多",
+      "title": "更多",
+      "close": "關閉",
+      "sources": "源站收錄",
+      "active": "目前",
+      "theme": "主題切換",
+      "themeLight": "淺色模式",
+      "themeDark": "深色模式"
+    },
     "github": {
       "title": "GitHub"
     },
@@ -195,6 +205,105 @@
     "novel":    { "label": "小說搜尋",     "short": "小說", "placeholder": "輸入書名、作者、關鍵字...", "description": "搜尋 Anna's Archive 電子書資源" },
     "sources":  { "label": "搜尋源存取",   "short": "源站", "placeholder": "瀏覽所有可用資源站點...",   "description": "快速存取各類瀏覽型資源站點" },
     "community":{ "label": "社群",         "short": "社群", "placeholder": "進入社群...",                 "description": "發現精彩內容，與同好交流互動" }
+  },
+
+  "sourceBoard": {
+    "title": "源站收錄",
+    "subtitle": "瀏覽已收錄的資源站點與分類；看板僅做展示，不改變現有搜尋鏈路",
+    "manage": "管理源與分類",
+    "refresh": "重新整理",
+    "backToSearch": "返回搜尋",
+    "uncategorized": "未分類",
+    "stats": {
+      "total": "收錄源",
+      "categories": "分類數",
+      "enabled": "我的啟用",
+      "available": "最近可用"
+    },
+    "filters": {
+      "keywordPlaceholder": "搜尋源名稱、描述...",
+      "keyword": "關鍵字",
+      "majorCategory": "大類",
+      "category": "子分類",
+      "siteType": "站點類型",
+      "scope": "範圍",
+      "sort": "排序",
+      "allMajorCategories": "全部大類",
+      "allCategories": "全部子分類",
+      "allSiteTypes": "全部類型",
+      "scopeAll": "全部範圍",
+      "scopeMine": "我的源",
+      "scopeEnabled": "已啟用",
+      "scopeSearchable": "僅可搜尋",
+      "sortDefault": "預設排序",
+      "sortName": "依名稱",
+      "sortUsage": "依曝光熱度",
+      "reset": "重設"
+    },
+    "list": {
+      "total": "共 {{count}} 個源",
+      "empty": "沒有符合的源",
+      "emptyMine": "你還沒有建立自訂源，可前往管理頁新增",
+      "loadMore": "載入更多",
+      "loading": "載入中...",
+      "error": "載入源目錄失敗"
+    },
+    "actions": {
+      "open": "開啟",
+      "check": "健康檢查",
+      "enable": "啟用",
+      "disable": "禁用"
+    },
+    "batch": {
+      "selected": "已選 {{count}} 個",
+      "enable": "啟用選中",
+      "disable": "禁用選中",
+      "clear": "清除選擇",
+      "select": "選擇 {{name}}"
+    },
+    "badges": {
+      "custom": "自訂",
+      "enabled": "已啟用",
+      "disabled": "已禁用",
+      "searchable": "可搜尋"
+    },
+    "usage": "曝光 {{count}} 次",
+    "detail": {
+      "title": "源詳情",
+      "close": "關閉",
+      "siteType": "站點類型",
+      "usage": "展示熱度",
+      "usageValue": "曝光 {{count}} 次",
+      "status": "最近狀態",
+      "statusAvailable": "可用",
+      "statusUnavailable": "不可用",
+      "statusUnknown": "暫無檢測記錄",
+      "availability": "24h 可用性",
+      "availabilityLoading": "統計中...",
+      "availabilityValue": "{{rate}}%（{{count}} 次檢測）",
+      "availabilityNone": "暫無檢測記錄",
+      "urlTemplate": "URL 模板",
+      "homepage": "首頁",
+      "notes": "我的備註",
+      "notesPlaceholder": "記錄這個源的用途或注意事項",
+      "customize": "自訂資訊",
+      "customName": "自訂名稱",
+      "customSubtitle": "自訂副標題",
+      "save": "儲存自訂資訊",
+      "saving": "儲存中...",
+      "saved": "已儲存",
+      "description": "簡介",
+      "check": "檢測可用性",
+      "checking": "檢測中...",
+      "visit": "存取站點",
+      "manage": "管理源與分類"
+    },
+    "siteTypes": {
+      "search": "搜尋型",
+      "browse": "瀏覽型",
+      "reference": "資料型",
+      "enriched": "中繼資料型"
+    }
   },
 
   "auth": {
@@ -2197,6 +2306,7 @@
       "exportCsv": "匯出為 CSV",
       "exportOpml": "匯出為 OPML",
       "addSource": "新增搜尋源",
+      "viewBoard": "查看源看板",
       "statsTotalSources": "總搜尋源",
       "statsEnabled": "已啟用",
       "statsCategories": "分類數",

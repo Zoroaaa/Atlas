@@ -13,8 +13,96 @@ import type {
   UpdateSourceRequest,
   UpdateUserSourceConfigRequest,
   BatchUpdateUserSourceConfigRequest,
-  SourceStats,
+  SourceBoardStats,
+  SourceCatalogItem,
+  SourceCatalogPage,
+  SourceCatalogParams,
+  SourceDetailPayload,
 } from '@/types';
+
+/** catalog 接口原始行（后端返回 snake_case + 少量 camelCase 别名） */
+interface RawCatalogItem {
+  id: string;
+  category_id: string;
+  name: string;
+  subtitle: string | null;
+  description: string | null;
+  icon: string | null;
+  url_template: string;
+  homepage_url: string | null;
+  site_type: string;
+  searchable: number;
+  usage_count: number;
+  is_system: number;
+  categoryName: string | null;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  majorCategoryId: string | null;
+  majorCategoryName: string | null;
+  enabled: boolean;
+  userConfig: {
+    id: string;
+    user_id: string;
+    source_id: string;
+    is_enabled: number;
+    custom_priority: number | null;
+    custom_name: string | null;
+    custom_subtitle: string | null;
+    custom_icon: string | null;
+    notes: string | null;
+  } | null;
+}
+
+interface RawUserConfig {
+  id: string;
+  user_id: string;
+  source_id: string;
+  is_enabled: number;
+  custom_priority: number | null;
+  custom_name: string | null;
+  custom_subtitle: string | null;
+  custom_icon: string | null;
+  notes: string | null;
+}
+
+function mapUserConfig(config: RawUserConfig | null): UserSourceConfig | null {
+  if (!config) return null;
+  return {
+    id: config.id,
+    userId: config.user_id,
+    sourceId: config.source_id,
+    isEnabled: config.is_enabled === 1,
+    customPriority: config.custom_priority,
+    customName: config.custom_name,
+    customSubtitle: config.custom_subtitle,
+    customIcon: config.custom_icon,
+    notes: config.notes,
+  };
+}
+
+function mapCatalogItem(item: RawCatalogItem): SourceCatalogItem {
+  return {
+    id: item.id,
+    categoryId: item.category_id,
+    name: item.name,
+    subtitle: item.subtitle || undefined,
+    description: item.description || undefined,
+    icon: item.icon || undefined,
+    urlTemplate: item.url_template,
+    homepageUrl: item.homepage_url || undefined,
+    siteType: item.site_type as 'search' | 'browse' | 'reference',
+    searchable: item.searchable === 1,
+    usageCount: item.usage_count,
+    isSystem: item.is_system === 1,
+    categoryName: item.categoryName || undefined,
+    categoryIcon: item.categoryIcon || undefined,
+    categoryColor: item.categoryColor || undefined,
+    majorCategoryId: item.majorCategoryId || undefined,
+    majorCategoryName: item.majorCategoryName || undefined,
+    enabled: item.enabled,
+    userConfig: mapUserConfig(item.userConfig),
+  };
+}
 
 export const sourceApi = {
   getMajorCategories: async (): Promise<{ 
@@ -370,9 +458,105 @@ export const sourceApi = {
     return apiClient.post('/search-sources/user-configs/batch', data);
   },
 
+  getSourceCatalog: async (params: SourceCatalogParams = {}): Promise<{
+    success: boolean;
+    data: SourceCatalogPage;
+  }> => {
+    const qs = new URLSearchParams();
+    if (params.keyword) qs.append('keyword', params.keyword);
+    if (params.majorCategoryId) qs.append('majorCategoryId', params.majorCategoryId);
+    if (params.categoryId) qs.append('categoryId', params.categoryId);
+    if (params.siteType) qs.append('siteType', params.siteType);
+    if (params.searchable !== undefined) qs.append('searchable', params.searchable ? 'true' : 'false');
+    if (params.scope && params.scope !== 'all') qs.append('scope', params.scope);
+    if (params.sort && params.sort !== 'default') qs.append('sort', params.sort);
+    if (params.page) qs.append('page', String(params.page));
+    if (params.pageSize) qs.append('pageSize', String(params.pageSize));
+
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { items: RawCatalogItem[]; total: number; page: number; pageSize: number; hasMore: boolean };
+    }>(`/search-sources/catalog?${qs.toString()}`);
+
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          items: (response.data.items || []).map(mapCatalogItem),
+          total: response.data.total,
+          page: response.data.page,
+          pageSize: response.data.pageSize,
+          hasMore: response.data.hasMore,
+        },
+      };
+    }
+    return { success: false, data: { items: [], total: 0, page: 1, pageSize: 0, hasMore: false } };
+  },
+
+  getSourceById: async (id: string): Promise<{ success: boolean; data: SourceDetailPayload }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        source: RawCatalogItem & { is_active: number };
+        categoryPath: Array<{ id: string; name: string; type: 'major' | 'category' }>;
+        enabled: boolean;
+        userConfig: RawUserConfig | null;
+        status: SourceDetailPayload['status'];
+      };
+    }>(`/search-sources/${id}`);
+
+    if (response.success && response.data) {
+      const { source, categoryPath, enabled, userConfig, status } = response.data;
+      return {
+        success: true,
+        data: {
+          source: {
+            id: source.id,
+            categoryId: source.category_id,
+            name: source.name,
+            subtitle: source.subtitle || undefined,
+            description: source.description || undefined,
+            icon: source.icon || undefined,
+            urlTemplate: source.url_template,
+            homepageUrl: source.homepage_url || undefined,
+            siteType: source.site_type as 'search' | 'browse' | 'reference',
+            searchable: source.searchable === 1,
+            searchPriority: 0,
+            isSystem: source.is_system === 1,
+            isActive: source.is_active === 1,
+            usageCount: source.usage_count,
+            displayOrder: 0,
+            createdAt: '',
+            updatedAt: '',
+            status: 'active',
+            categoryName: source.categoryName || undefined,
+            categoryIcon: source.categoryIcon || undefined,
+            categoryColor: source.categoryColor || undefined,
+            majorCategoryId: source.majorCategoryId || undefined,
+            majorCategoryName: source.majorCategoryName || undefined,
+          },
+          categoryPath: categoryPath || [],
+          enabled,
+          userConfig: mapUserConfig(userConfig),
+          status: status || null,
+        },
+      };
+    }
+    return {
+      success: false,
+      data: {
+        source: {} as SourceDetailPayload['source'],
+        categoryPath: [],
+        enabled: true,
+        userConfig: null,
+        status: null,
+      },
+    };
+  },
+
   getSourceStats: async (): Promise<{ 
     success: boolean; 
-    data: SourceStats 
+    data: SourceBoardStats 
   }> => {
     return apiClient.get('/search-sources/stats');
   },

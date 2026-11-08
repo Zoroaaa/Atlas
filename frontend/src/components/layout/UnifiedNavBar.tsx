@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   Shield,
   Loader2,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
@@ -294,13 +296,14 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   user,
   isAdmin,
 }) => {
-  const { t } = useTranslation(['nav']);
+  const { t } = useTranslation(['nav', 'tabs']);
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy } = useProxyStore();
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isProxyConfirmOpen, setIsProxyConfirmOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const getProxyButtonClass = () => {
     if (isProxyEnabled) return 'proxy-toggle-btn enabled';
@@ -322,6 +325,21 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
     [onTabChange]
   );
 
+  // 移动端“更多”抽屉：Esc 关闭并锁定背景滚动
+  useEffect(() => {
+    if (!isMoreOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMoreOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMoreOpen]);
+
   return (
     <>
       {/* ── 桌面端/平板端导航栏 ── */}
@@ -335,16 +353,34 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
               {/* Tab 切换器 - 桌面端显示，登录后可见 */}
               {isAuthenticated && (
-              <nav role="tablist" className="hidden md:flex items-center gap-1">
-                {PINNED_TABS.map((tab) => (
-                  <TabButton
-                    key={tab.id}
-                    tab={tab as (typeof SEARCH_TABS)[SearchTabType]}
-                    isActive={activeTab === tab.id}
-                    onClick={() => handleTabChange(tab.id)}
-                  />
-                ))}
-              </nav>
+              <div className="hidden md:flex items-center gap-1">
+                <nav role="tablist" className="flex items-center gap-1">
+                  {PINNED_TABS.map((tab) => (
+                    <TabButton
+                      key={tab.id}
+                      tab={tab as (typeof SEARCH_TABS)[SearchTabType]}
+                      isActive={activeTab === tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                    />
+                  ))}
+                </nav>
+
+                {/* 独立"源站"入口：不属于 tablist，避免成为第六个 tab */}
+                <div className="mx-1 h-5 w-px bg-stone-200 dark:bg-stone-700" />
+                <button
+                  onClick={() => handleTabChange('sources')}
+                  title={t('tabs:sources.label')}
+                  className={clsx(
+                    'flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200',
+                    activeTab === 'sources'
+                      ? 'border-teal-300 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                      : 'border-stone-200 text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800'
+                  )}
+                >
+                  <span>{SEARCH_TABS.sources.icon}</span>
+                  <span>{t('tabs:sources.short')}</span>
+                </button>
+              </div>
               )}
             </div>
 
@@ -382,9 +418,19 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 {/* 通知 */}
                 <NotificationBell />
 
-                {/* 主题切换 */}
-                <button onClick={toggleTheme} className="theme-toggle-btn sm:p-2 p-1.5" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
+                {/* 主题切换 - 移动端收进“更多”抽屉 */}
+                <button onClick={toggleTheme} className="theme-toggle-btn hidden sm:flex sm:p-2" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+
+                {/* 更多 - 仅移动端 */}
+                <button
+                  onClick={() => setIsMoreOpen(true)}
+                  className="md:hidden p-1.5 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
+                  aria-label={t('nav:mobileMore.open')}
+                  title={t('nav:mobileMore.open')}
+                >
+                  <MoreHorizontal className="w-4 h-4" />
                 </button>
               </div>
               )}
@@ -459,6 +505,74 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
           ))}
         </div>
       </nav>
+      )}
+
+      {/* ── 移动端“更多”底部抽屉 ── */}
+      {isAuthenticated && isMoreOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[60]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('nav:mobileMore.title')}
+        >
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMoreOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border-t border-stone-200 bg-white shadow-2xl safe-area-inset-bottom dark:border-stone-700 dark:bg-stone-900">
+            <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3 dark:border-stone-800">
+              <span className="text-sm font-semibold text-stone-700 dark:text-stone-200">
+                {t('nav:mobileMore.title')}
+              </span>
+              <button
+                onClick={() => setIsMoreOpen(false)}
+                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800"
+                aria-label={t('nav:mobileMore.close')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-2">
+              <button
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  handleTabChange('sources');
+                }}
+                className={clsx(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
+                  activeTab === 'sources'
+                    ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                    : 'text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800'
+                )}
+              >
+                <span className="text-lg leading-none">{SEARCH_TABS.sources.icon}</span>
+                <span>{t('nav:mobileMore.sources')}</span>
+                {activeTab === 'sources' ? (
+                  <span className="ml-auto rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-800/50 dark:text-teal-300">
+                    {t('nav:mobileMore.active')}
+                  </span>
+                ) : null}
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+              >
+                {resolvedTheme === 'dark' ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+                <span>{t('nav:mobileMore.theme')}</span>
+                <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">
+                  {resolvedTheme === 'dark'
+                    ? t('nav:mobileMore.themeDark')
+                    : t('nav:mobileMore.themeLight')}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── 帮助入口：简短提示 + 前往帮助中心 ── */}

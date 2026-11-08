@@ -118,6 +118,16 @@
     "mobileNav": {
       "ariaLabel": "主导航"
     },
+    "mobileMore": {
+      "open": "更多",
+      "title": "更多",
+      "close": "关闭",
+      "sources": "源站收录",
+      "active": "当前",
+      "theme": "主题切换",
+      "themeLight": "浅色模式",
+      "themeDark": "深色模式"
+    },
     "github": {
       "title": "GitHub"
     },
@@ -195,6 +205,105 @@
     "novel":    { "label": "小说搜索",     "short": "小说", "placeholder": "输入书名、作者、关键词...", "description": "搜索 Anna's Archive 电子书资源" },
     "sources":  { "label": "搜索源访问",   "short": "源站", "placeholder": "浏览所有可用资源站点...",     "description": "快速访问各类浏览型资源站点" },
     "community":{ "label": "社区",         "short": "社区", "placeholder": "进入社区...",                 "description": "发现精彩内容，与同好交流互动" }
+  },
+
+  "sourceBoard": {
+    "title": "源站收录",
+    "subtitle": "浏览已收录的资源站点与分类；看板只做展示，不改变现有搜索链路",
+    "manage": "管理源与分类",
+    "refresh": "刷新",
+    "backToSearch": "返回搜索",
+    "uncategorized": "未分类",
+    "stats": {
+      "total": "收录源",
+      "categories": "分类数",
+      "enabled": "我的启用",
+      "available": "最近可用"
+    },
+    "filters": {
+      "keywordPlaceholder": "搜索源名称、描述...",
+      "keyword": "关键词",
+      "majorCategory": "大类",
+      "category": "子分类",
+      "siteType": "站点类型",
+      "scope": "范围",
+      "sort": "排序",
+      "allMajorCategories": "全部大类",
+      "allCategories": "全部子分类",
+      "allSiteTypes": "全部类型",
+      "scopeAll": "全部范围",
+      "scopeMine": "我的源",
+      "scopeEnabled": "已启用",
+      "scopeSearchable": "仅可搜索",
+      "sortDefault": "默认排序",
+      "sortName": "按名称",
+      "sortUsage": "按曝光热度",
+      "reset": "重置"
+    },
+    "list": {
+      "total": "共 {{count}} 个源",
+      "empty": "没有匹配的源",
+      "emptyMine": "你还没有创建自定义源，可前往管理页添加",
+      "loadMore": "加载更多",
+      "loading": "加载中...",
+      "error": "加载源目录失败"
+    },
+    "actions": {
+      "open": "打开",
+      "check": "健康检查",
+      "enable": "启用",
+      "disable": "禁用"
+    },
+    "batch": {
+      "selected": "已选 {{count}} 个",
+      "enable": "启用选中",
+      "disable": "禁用选中",
+      "clear": "清除选择",
+      "select": "选择 {{name}}"
+    },
+    "badges": {
+      "custom": "自定义",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "searchable": "可搜索"
+    },
+    "usage": "曝光 {{count}} 次",
+    "detail": {
+      "title": "源详情",
+      "close": "关闭",
+      "siteType": "站点类型",
+      "usage": "展示热度",
+      "usageValue": "曝光 {{count}} 次",
+      "status": "最近状态",
+      "statusAvailable": "可用",
+      "statusUnavailable": "不可用",
+      "statusUnknown": "暂无检测记录",
+      "availability": "24h 可用性",
+      "availabilityLoading": "统计中...",
+      "availabilityValue": "{{rate}}%（{{count}} 次检测）",
+      "availabilityNone": "暂无检测记录",
+      "urlTemplate": "URL 模板",
+      "homepage": "主页",
+      "notes": "我的备注",
+      "notesPlaceholder": "记录这个源的用途或注意事项",
+      "customize": "自定义信息",
+      "customName": "自定义名称",
+      "customSubtitle": "自定义副标题",
+      "save": "保存自定义信息",
+      "saving": "保存中...",
+      "saved": "已保存",
+      "description": "简介",
+      "check": "检测可用性",
+      "checking": "检测中...",
+      "visit": "访问站点",
+      "manage": "管理源与分类"
+    },
+    "siteTypes": {
+      "search": "搜索型",
+      "browse": "浏览型",
+      "reference": "资料型",
+      "enriched": "元数据型"
+    }
   },
 
   "auth": {
@@ -2197,6 +2306,7 @@
       "exportCsv": "导出为 CSV",
       "exportOpml": "导出为 OPML",
       "addSource": "添加搜索源",
+      "viewBoard": "查看源看板",
       "statsTotalSources": "总搜索源",
       "statsEnabled": "已启用",
       "statsCategories": "分类数",

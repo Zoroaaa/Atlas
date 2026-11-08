@@ -11,7 +11,7 @@ import {
   SearchWorkspace,
   SearchHistoryPanel,
   FavoritesPanel,
-  SourcesSidebar,
+  SourceBoard,
   QuickActionsPanel,
 } from '@/components/search';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
@@ -27,7 +27,6 @@ import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
 import { useSourceManager } from '@/hooks/useSourceManager';
 import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
-import { getSiteTypeBadge, getSiteTypeLabel } from '@/utils/siteType';
 import { useTranslation } from 'react-i18next';
 
 export const MainSearchPage: React.FC = () => {
@@ -184,6 +183,17 @@ export const MainSearchPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFlow.resetResults]);
 
+  // 记录进入源看板前的搜索 Tab，供"返回搜索"回退（深链默认 jav）
+  const lastSearchTabRef = useRef<SearchTabType>('jav');
+  useEffect(() => {
+    if (activeTab !== 'sources' && activeTab !== 'community') {
+      lastSearchTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+  const handleBackToSearch = useCallback(() => {
+    handleTabChange(lastSearchTabRef.current);
+  }, [handleTabChange]);
+
   const showIdleHint = activeTab !== 'jav'
     && activeTab !== 'sources'
     && (!isAuthenticated || historyManager.searchHistory.length === 0);
@@ -226,26 +236,7 @@ export const MainSearchPage: React.FC = () => {
           ) : null}
 
           {activeTab === 'sources' ? (
-            <SourcesSidebar
-              show={true}
-              layoutMode="panel"
-              collapsible={false}
-              defaultExpanded={true}
-              allSources={sourceManager.allSources}
-              majorCategoriesWithCategories={sourceManager.getMajorCategoriesWithCategories()}
-              expandedMajorCategories={sourceManager.expandedMajorCategories}
-              expandedCategories={sourceManager.expandedCategories}
-              batchCheckResults={sourceManager.batchCheckResults}
-              isBatchChecking={sourceManager.isBatchChecking}
-              isProxyEnabled={isProxyEnabled}
-              onToggle={() => {}}
-              onToggleMajorCategory={sourceManager.toggleMajorCategory}
-              onToggleCategory={sourceManager.toggleCategory}
-              onBatchCheck={sourceManager.handleBatchCheckSources}
-              onCheckSingle={sourceManager.handleCheckSingleSource}
-              getSiteTypeBadge={getSiteTypeBadge}
-              getSiteTypeLabel={getSiteTypeLabel}
-            />
+            <SourceBoard onBackToSearch={handleBackToSearch} />
           ) : searchFlow.hasSearched ? (
             <SearchWorkspace
               activeTab={activeTab}
