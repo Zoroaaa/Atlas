@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiError } from '../client';
+import {
+  ApiClient,
+  ApiError,
+  getInflightRequestCount,
+  waitForInflightRequests,
+} from '../client';
 
 // Mock authStore — must be at top level for vitest hoisting
 const mockLogout = vi.fn();
@@ -207,6 +212,51 @@ describe('ApiClient', () => {
           body: JSON.stringify({ name: 'test' }),
         })
       );
+    });
+  });
+
+  describe('inflight tracking', () => {
+    const createResponse = () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: () => Promise.resolve({ data: 'ok' }),
+    });
+
+    it('在请求进行中计数为 1，结束后回到 0', async () => {
+      let release: (value: unknown) => void = () => {};
+      fetchSpy.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+
+      const pending = client.get('/slow');
+      await Promise.resolve();
+      expect(getInflightRequestCount()).toBe(1);
+
+      release(createResponse());
+      await pending;
+      expect(getInflightRequestCount()).toBe(0);
+    });
+
+    it('waitForInflightRequests 在请求结束后才 resolve', async () => {
+      let release: (value: unknown) => void = () => {};
+      fetchSpy.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+
+      const pending = client.get('/slow');
+      await Promise.resolve();
+
+      let resolved = false;
+      const waiter = waitForInflightRequests(5000, 10).then(() => { resolved = true; });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(resolved).toBe(false);
+
+      release(createResponse());
+      await pending;
+      await waiter;
+      expect(resolved).toBe(true);
+      expect(getInflightRequestCount()).toBe(0);
+    });
+
+    it('空闲时 waitForInflightRequests 立即 resolve', async () => {
+      await expect(waitForInflightRequests(1000, 10)).resolves.toBeUndefined();
     });
   });
 

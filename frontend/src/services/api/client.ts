@@ -32,6 +32,31 @@ const shouldRefresh = (endpoint: string): boolean =>
 // 并发 401 共享同一个刷新请求，避免重复轮换 token
 let refreshPromise: Promise<string | null> | null = null;
 
+/**
+ * 在途 API 请求计数。
+ * 用于 PWA 更新提示：用户确认更新时若仍有请求在执行，
+ * 先把新 SW 的接管与页面刷新推迟到请求结束，避免打断后端操作。
+ */
+let inflightRequests = 0;
+
+export const getInflightRequestCount = (): number => inflightRequests;
+
+/** 等待在途请求清零；超过 maxWaitMs 仍未结束则放行，避免无限等待 */
+export const waitForInflightRequests = (maxWaitMs = 60_000, pollMs = 250): Promise<void> =>
+  new Promise((resolve) => {
+    if (inflightRequests === 0) {
+      resolve();
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (inflightRequests === 0 || Date.now() - startedAt >= maxWaitMs) {
+        clearInterval(timer);
+        resolve();
+      }
+    }, pollMs);
+  });
+
 async function refreshAccessToken(baseUrl: string): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
@@ -108,6 +133,15 @@ export class ApiClient {
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    inflightRequests += 1;
+    try {
+      return await this.executeRequest<T>(endpoint, options);
+    } finally {
+      inflightRequests = Math.max(0, inflightRequests - 1);
+    }
+  }
+
+  private async executeRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { method = 'GET', headers: customHeaders, body, signal, timeout } = options;
 
     const url = `${this.baseUrl}${endpoint}`;

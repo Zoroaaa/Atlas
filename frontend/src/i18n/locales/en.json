@@ -612,9 +612,27 @@
   },
 
   "sw": {
-    "updatePrompt": "New version detected. Update now?",
     "registerSuccess": "Service Worker registered successfully: {{scope}}",
-    "registerFailed": "Service Worker registration failed: {{error}}"
+    "registerFailed": "Service Worker registration failed: {{error}}",
+    "updateTitle": "New version available",
+    "updateDescription": "Updating reloads the page to apply the new version. In-flight requests will finish first.",
+    "updateNow": "Update now",
+    "updateLater": "Later",
+    "updateDismissLabel": "Skip this version",
+    "updateWaitingTitle": "Waiting for current activity to finish",
+    "updateWaitingDescription": "The page will refresh automatically once running requests complete.",
+    "updateApplyingTitle": "Updating",
+    "updateApplyingDescription": "The page is about to refresh."
+  },
+
+  "pwa": {
+    "installTitle": "Install Atlas",
+    "installDescription": "Add to your home screen for faster launches and an app-like experience.",
+    "installAction": "Install",
+    "installDismissLabel": "Don't ask again",
+    "iosTitle": "Add Atlas to your home screen",
+    "iosDescription": "In Safari, tap the Share button, then choose \u201cAdd to Home Screen\u201d.",
+    "iosAction": "Got it"
   },
 
   "notifications": {

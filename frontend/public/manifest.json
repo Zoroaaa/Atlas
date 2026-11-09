@@ -1,63 +1,84 @@
 {
+  "id": "/",
   "name": "Atlas - 开源聚合搜索引擎 | JAV/动漫/影视/漫画/小说",
   "short_name": "Atlas",
   "description": "极速、安全的开源聚合搜索引擎，支持JAV/动漫/影视/漫画/小说多源聚合搜索",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#0a0a0b",
   "theme_color": "#0a0a0b",
-  "orientation": "portrait-primary",
-  "scope": "/",
   "lang": "zh-CN",
+  "dir": "ltr",
   "categories": ["utilities", "search"],
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
@@ -81,11 +102,12 @@
       "name": "搜索",
       "short_name": "搜索",
       "description": "快速搜索资源",
-      "url": "/?action=search",
+      "url": "/",
       "icons": [
         {
           "src": "/icons/shortcut-search.png",
-          "sizes": "96x96"
+          "sizes": "96x96",
+          "type": "image/png"
         }
       ]
     },
@@ -93,11 +115,12 @@
       "name": "收藏",
       "short_name": "收藏",
       "description": "查看我的收藏",
-      "url": "/dashboard?tab=favorites",
+      "url": "/dashboard/favorites",
       "icons": [
         {
           "src": "/icons/shortcut-favorites.png",
-          "sizes": "96x96"
+          "sizes": "96x96",
+          "type": "image/png"
         }
       ]
     }

@@ -7,7 +7,6 @@ const API_CACHE_NAME = `atlas-api-${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/favicon.ico',
   '/logo.svg',
   '/og-image.png'
@@ -135,16 +134,21 @@ async function staleWhileRevalidate(request, cacheName) {
 }
 
 self.addEventListener('install', (event) => {
+  // 不在这里 skipWaiting：新版本安装完成后保持 waiting，
+  // 由页面在用户确认后发送 SKIP_WAITING，避免使用中页面被强制换掉。
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
+      // 单个资源失败不应导致整个 SW 安装失败
+      .then(cache => Promise.allSettled(
+        STATIC_ASSETS.map(asset => cache.add(asset).catch(() => null))
+      ))
   );
 });
 
 const CURRENT_CACHES = [STATIC_CACHE_NAME, ASSETS_CACHE_NAME, DYNAMIC_CACHE_NAME, API_CACHE_NAME];
 
-// ... later in activate:
+// 历史缓存前缀：codeseek- 为项目更名前的遗留命名
+const STALE_CACHE_PREFIXES = ['atlas-', 'codeseek-'];
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -152,7 +156,8 @@ self.addEventListener('activate', (event) => {
       .then(cacheNames => {
         return Promise.all(
           cacheNames
-            .filter(name => name.startsWith('codeseek-') && !CURRENT_CACHES.includes(name))
+            .filter(name => STALE_CACHE_PREFIXES.some(prefix => name.startsWith(prefix)))
+            .filter(name => !CURRENT_CACHES.includes(name))
             .map(name => caches.delete(name))
         );
       })
@@ -186,6 +191,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // manifest 必须网络优先：缓存优先会让修改后的清单（如 orientation）永远不生效
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(networkFirst(request, STATIC_CACHE_NAME));
+    return;
+  }
+
   // 静态资源（不含 index.html）用 cacheFirst
   if (STATIC_ASSETS.some(asset => url.pathname === asset && asset !== '/' && asset !== '/index.html')) {
     event.respondWith(cacheFirst(request, STATIC_CACHE_NAME));
@@ -207,9 +218,25 @@ self.addEventListener('fetch', (event) => {
   }
   
   if (request.headers.get('accept')?.includes('text/html')) {
+    // 导航请求：网络优先，失败时回退到缓存页面，最终回退到内置离线页
     event.respondWith(
-      networkFirst(request, DYNAMIC_CACHE_NAME)
-        .catch(() => caches.match('/index.html'))
+      networkFirst(request, DYNAMIC_CACHE_NAME).then(async (response) => {
+        if (response.status !== 503) return response;
+        const cached = await caches.match(request) || await caches.match('/index.html');
+        if (cached) return cached;
+        return new Response(
+          '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">' +
+          '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">' +
+          '<title>Atlas - 离线</title></head>' +
+          '<body style="margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;' +
+          'background:#0a0a0b;color:#e7e5e4;font-family:system-ui,sans-serif;text-align:center;padding:24px">' +
+          '<div><h1 style="font-size:20px;margin:0 0 8px">当前处于离线状态</h1>' +
+          '<p style="font-size:14px;color:#a8a29e;margin:0 0 16px">请检查网络连接后重试</p>' +
+          '<button onclick="location.reload()" style="padding:10px 20px;border:0;border-radius:10px;' +
+          'background:#d4a853;color:#1c1917;font-weight:600;cursor:pointer">重新加载</button></div></body></html>',
+          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        );
+      })
     );
     return;
   }
@@ -220,6 +247,11 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+
+  // 供页面识别 waiting 中的版本号，用于「同一版本只提示一次」的持久化
+  if (event.data && event.data.type === 'GET_VERSION' && event.ports && event.ports[0]) {
+    event.ports[0].postMessage({ version: CACHE_VERSION });
   }
   
   if (event.data && event.data.type === 'CLEAR_CACHE') {

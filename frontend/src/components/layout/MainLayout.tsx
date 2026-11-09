@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MainLayout - 主布局
  * 视觉优化：玻璃态导航栏，精美页脚，保持全部功能逻辑不变
  */
@@ -20,7 +20,7 @@ export const MainLayout: React.FC = () => {
     <div className="min-h-screen bg-stone-50 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 dark:bg-stone-950">
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-40 glass">
+      <header className="sticky top-0 z-40 glass safe-area-inset-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
