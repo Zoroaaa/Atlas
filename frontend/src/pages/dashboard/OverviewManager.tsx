@@ -216,6 +216,30 @@ export const OverviewManager: React.FC = () => {
     }
   };
 
+  // 活动标题：后端 action 种类多，未覆盖时必须回退成可读文本，不能把原始 key 直接展示给用户
+  const getActivityText = (action: string, target: string) => {
+    if (action === 'search') return t('dashboard:overview.activityMessage.search', { target });
+    if (action === 'favorite') return t('dashboard:overview.activityMessage.favorite', { target });
+    if (action === 'login') return t('dashboard:overview.activityMessage.login');
+    return t(`dashboard:overview.activityLabels.${action}`, {
+      defaultValue: action.replace(/[_-]+/g, ' '),
+    });
+  };
+
+  // 徽标只表达类别，避免与标题重复展示同一条 action
+  const getActivityBadge = (
+    action: string
+  ): { label: string; variant: 'primary' | 'error' | 'success' | 'default' } => {
+    if (action === 'search') return { label: t('dashboard:overview.activityBadge.search'), variant: 'primary' };
+    if (action.includes('favorite')) return { label: t('dashboard:overview.activityBadge.favorite'), variant: 'error' };
+    if (action === 'login') return { label: t('dashboard:overview.activityBadge.login'), variant: 'success' };
+    if (action.startsWith('admin_')) return { label: t('dashboard:overview.activityBadge.admin'), variant: 'default' };
+    if (['register', 'logout', 'login_failed', 'forgot_password', 'reset_password', 'change_password', 'email_verify', 'email_change', 'email_change_cancelled', 'update_settings'].includes(action)) {
+      return { label: t('dashboard:overview.activityBadge.account'), variant: 'default' };
+    }
+    return { label: t('dashboard:overview.activityBadge.other'), variant: 'default' };
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -302,7 +326,7 @@ export const OverviewManager: React.FC = () => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="p-6 lg:col-span-2 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
+        <Card className="p-6 lg:col-span-2 min-w-0 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
@@ -321,34 +345,27 @@ export const OverviewManager: React.FC = () => {
           
           {recentActivities.length > 0 ? (
             <div className="space-y-4">
-              {recentActivities.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getActivityColor(activity.action)}`}>
-                    {getActivityIcon(activity.action)}
+              {recentActivities.slice(0, 5).map((activity) => {
+                const badge = getActivityBadge(activity.action);
+                return (
+                  <div key={activity.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors">
+                    <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${getActivityColor(activity.action)}`}>
+                      {getActivityIcon(activity.action)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate">
+                        {getActivityText(activity.action, activity.target)}
+                      </p>
+                      <p className="text-xs text-surface-500 dark:text-surface-400">
+                        {formatTimeAgo(activity.createdAt)}
+                      </p>
+                    </div>
+                    <Badge variant={badge.variant} className="shrink-0">
+                      {badge.label}
+                    </Badge>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-surface-900 dark:text-surface-100 truncate">
-                      {activity.action === 'search' && t('dashboard:overview.activityMessage.search', { target: activity.target })}
-                      {activity.action === 'favorite' && t('dashboard:overview.activityMessage.favorite', { target: activity.target })}
-                      {activity.action === 'login' && t('dashboard:overview.activityMessage.login')}
-                      {!['search', 'favorite', 'login'].includes(activity.action) && activity.action}
-                    </p>
-                    <p className="text-xs text-surface-500 dark:text-surface-400">
-                      {formatTimeAgo(activity.createdAt)}
-                    </p>
-                  </div>
-                  <Badge variant={
-                    activity.action === 'search' ? 'primary' :
-                    activity.action === 'favorite' ? 'error' :
-                    'default'
-                  }>
-                    {activity.action === 'search' && t('dashboard:overview.activityBadge.search')}
-                    {activity.action === 'favorite' && t('dashboard:overview.activityBadge.favorite')}
-                    {activity.action === 'login' && t('dashboard:overview.activityBadge.login')}
-                    {!['search', 'favorite', 'login'].includes(activity.action) && activity.action}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -358,7 +375,7 @@ export const OverviewManager: React.FC = () => {
           )}
         </Card>
 
-        <Card className="p-6 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
+        <Card className="p-6 min-w-0 border-surface-200/50 dark:border-surface-700/50 shadow-lg">
           <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-4 flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
               <Zap className="w-4 h-4 text-accent-600 dark:text-accent-400" />

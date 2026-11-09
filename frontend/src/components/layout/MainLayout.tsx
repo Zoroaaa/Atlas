@@ -5,8 +5,8 @@
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { User, Moon, Sun, Menu, X } from 'lucide-react';
-import { useAuthStore, useThemeStore, useUIStore } from '@/stores';
+import { User, Moon, Sun } from 'lucide-react';
+import { useAuthStore, useThemeStore } from '@/stores';
 import { Button } from '@/components/ui';
 import { useTranslation } from 'react-i18next';
 
@@ -14,7 +14,6 @@ export const MainLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { isAuthenticated, user } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
-  const { isSidebarOpen, setSidebarOpen } = useUIStore();
   const navigate = useNavigate();
 
   return (
@@ -83,12 +82,6 @@ export const MainLayout: React.FC = () => {
                 </div>
               )}
 
-              <button
-                onClick={() => setSidebarOpen(!isSidebarOpen)}
-                className="md:hidden p-2 rounded-xl text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
-              >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
             </div>
           </div>
         </div>

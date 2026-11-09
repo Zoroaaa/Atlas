@@ -56,7 +56,8 @@ export const MobileTabBar: React.FC = () => {
       to: '/me',
       icon: User,
       label: t('nav:mobileNav.me'),
-      active: pathname.startsWith('/me'),
+      // 管理后台入口挂在「我的」页，进入后仍保持「我的」高亮
+      active: pathname.startsWith('/me') || pathname.startsWith('/admin-panel'),
     },
   ];
 

@@ -39,6 +39,12 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('link', { name: '个人中心' })).not.toHaveAttribute('aria-current');
   });
 
+  it('管理后台路由仍高亮「我的」', () => {
+    renderAt('/admin-panel/users');
+
+    expect(screen.getByRole('link', { name: '我的' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('高亮完全由路由推导：社区与首页', () => {
     const { unmount } = renderAt('/community');
     expect(screen.getByRole('link', { name: '社区' })).toHaveAttribute('aria-current', 'page');
