@@ -38,7 +38,6 @@ import {
   postExists,
   deletePost,
   updatePostStatus,
-  updatePostFeatured,
   findPostLike,
   insertPostLike,
   deletePostLikeById,
@@ -49,8 +48,7 @@ import {
   deleteComment,
   findPendingReport,
   insertReport,
-  queryCommunityStats,
-  findUserCommunityStats,
+  getUserCommunityStats,
   listUserRecentPosts,
 } from '@/repositories/community-repository';
 
@@ -324,9 +322,7 @@ communityRoutes.get('/posts/my-posts', async (c) => {
         likeCount: p.like_count,
         commentCount: p.comment_count,
         favoriteCount: p.favorite_count,
-        shareCount: p.share_count,
         status: p.status,
-        isFeatured: !!p.is_featured,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
       })),
@@ -371,9 +367,7 @@ communityRoutes.get('/posts/my-favorites', async (c) => {
         likeCount: p.like_count,
         commentCount: p.comment_count,
         favoriteCount: p.favorite_count,
-        shareCount: p.share_count,
         status: p.status,
-        isFeatured: !!p.is_featured,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
         isFavorited: true,
@@ -435,9 +429,7 @@ communityRoutes.get('/posts', async (c) => {
       likeCount: p.like_count,
       commentCount: p.comment_count,
       favoriteCount: p.favorite_count,
-      shareCount: p.share_count,
       status: p.status,
-      isFeatured: !!p.is_featured,
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       isLiked: likedSet.has(p.id as string),
@@ -506,9 +498,7 @@ communityRoutes.get('/posts/:id', async (c) => {
       likeCount: post.like_count,
       commentCount: post.comment_count,
       favoriteCount: post.favorite_count,
-      shareCount: post.share_count,
       status: post.status,
-      isFeatured: !!post.is_featured,
       createdAt: post.created_at,
       updatedAt: post.updated_at,
       isLiked: interaction.liked,
@@ -535,7 +525,7 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
     const now = Date.now();
     const contentDataStr = typeof contentData === 'string' ? contentData : JSON.stringify(contentData);
 
-    // 执行 INSERT（触发器 update_user_stats_after_post 自动更新用户统计）
+    // 执行 INSERT（用户统计在读取时聚合，无需同步维护）
     await insertPost(c.env.DB, {
       id,
       userId: user.userId,
@@ -558,12 +548,10 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
       caption: caption?.trim() || '',
       tags: tags || [],
       status: 'active' as const,
-      isFeatured: false,
       viewCount: 0,
       likeCount: 0,
       commentCount: 0,
       favoriteCount: 0,
-      shareCount: 0,
       createdAt: now,
       updatedAt: now,
     }, '发布成功'));
@@ -667,32 +655,6 @@ communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePo
   } catch (err) {
     console.error('Update post status error:', err);
     return c.json(error('SERVER_ERROR', '更新状态失败'), 500);
-  }
-});
-
-/** 设置/取消推荐（管理员） */
-communityRoutes.put('/posts/:id/feature', validateBody(schemas.community.featurePost), async (c) => {
-  const postId = c.req.param('id');
-  const body = c.get('validatedBody') as z.infer<typeof schemas.community.featurePost>;
-  const { isFeatured } = body;
-
-  if (!await checkIsAdmin(c)) {
-    return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
-  }
-
-  try {
-    const exists = await postExists(c.env.DB, postId);
-
-    if (!exists) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
-    }
-
-    await updatePostFeatured(c.env.DB, { postId, isFeatured, now: Date.now() });
-
-    return c.json(success({ postId, isFeatured }, isFeatured ? '已设为推荐' : '已取消推荐'));
-  } catch (err) {
-    console.error('Feature post error:', err);
-    return c.json(error('SERVER_ERROR', '操作失败'), 500);
   }
 });
 
@@ -955,69 +917,20 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
 // 7. 统计
 // ============================================================
 
-/** 社区统计（实时查询，社区数据变化频繁不适合缓存） */
-communityRoutes.get('/stats', async (c) => {
-  try {
-    const {
-      totalPostsResult,
-      totalUsersResult,
-      totalCommentsResult,
-      totalLikesResult,
-      totalFavoritesResult,
-      postsByTypeResult,
-      recentActivityResult,
-    } = await queryCommunityStats(c.env.DB);
-
-    const totalPosts = totalPostsResult.results?.[0]?.count || 0;
-    const totalUsers = totalUsersResult.results?.[0]?.count || 0;
-    const totalComments = totalCommentsResult.results?.[0]?.count || 0;
-    const totalLikes = totalLikesResult.results?.[0]?.total || 0;
-    const totalFavorites = totalFavoritesResult.results?.[0]?.total || 0;
-    const averageEngagement = totalPosts > 0
-      ? Math.round(((totalLikes + totalFavorites + totalComments) / totalPosts) * 100) / 100
-      : 0;
-
-    return c.json(success({
-      totalPosts,
-      totalUsers,
-      totalComments,
-      totalLikes,
-      totalFavorites,
-      averageEngagement,
-      postsByType: (postsByTypeResult.results || []).map(item => ({
-        type: (item as Record<string, unknown>).post_type || '',
-        count: (item as Record<string, unknown>).count || 0,
-      })),
-      recentActivity: (recentActivityResult.results || []).map(item => ({
-        id: item.id,
-        type: item.post_type || '',
-        title: item.title || '',
-        createdAt: item.created_at,
-      })),
-    }));
-  } catch (err) {
-    console.error('Get community stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取社区统计失败'), 500);
-  }
-});
-
-/** 当前用户统计（由触发器自动维护 community_user_stats 表） */
+/** 当前用户统计（读时聚合，口径：仅统计 active 帖子与其收到的互动） */
 communityRoutes.get('/user-stats', async (c) => {
   const user = c.get('user');
 
   try {
-    // 直接读取触发器维护的统计表
-    const stats = await findUserCommunityStats(c.env.DB, user.userId);
+    const stats = await getUserCommunityStats(c.env.DB, user.userId);
 
     const recentPosts = await listUserRecentPosts(c.env.DB, { userId: user.userId, limit: 5 });
 
     return c.json(success({
-      postsCount: (stats?.posts_count as number) || 0,
-      likesReceived: (stats?.likes_received as number) || 0,
-      favoritesReceived: (stats?.favorites_received as number) || 0,
-      commentsCount: (stats?.comments_count as number) || 0,
-      reputationScore: (stats?.reputation_score as number) || 0,
-      contributionLevel: (stats?.contribution_level as string) || 'beginner',
+      postsCount: stats.posts_count,
+      likesReceived: stats.likes_received,
+      favoritesReceived: stats.favorites_received,
+      commentsCount: stats.comments_count,
       recentPosts: recentPosts.map(p => ({
         id: p.id,
         userId: p.user_id,
@@ -1030,9 +943,7 @@ communityRoutes.get('/user-stats', async (c) => {
         likeCount: p.like_count,
         commentCount: p.comment_count,
         favoriteCount: p.favorite_count,
-        shareCount: p.share_count,
         status: p.status,
-        isFeatured: !!p.is_featured,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
       })),

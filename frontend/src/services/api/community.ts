@@ -10,7 +10,6 @@ import type {
   CreateCommentRequest,
   ReportRequest,
   CommunityUserStats,
-  CommunityStats,
   PostsResponse,
   CommentsResponse,
 } from '@/types';
@@ -146,11 +145,6 @@ export const communityApi = {
   },
 
   // ==================== 统计数据 ====================
-
-  getCommunityStats: async (): Promise<CommunityStats> => {
-    const response = await apiClient.get<{ success: boolean; data: CommunityStats }>('/community/stats');
-    return response.data;
-  },
 
   getUserStats: async (): Promise<CommunityUserStats> => {
     const response = await apiClient.get<{ success: boolean; data: CommunityUserStats }>('/community/user-stats');

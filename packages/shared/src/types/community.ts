@@ -32,9 +32,7 @@ export interface CommunityPost {
   likeCount: number;
   commentCount: number;
   favoriteCount: number;
-  shareCount: number;
   status: PostStatus;
-  isFeatured: boolean;
   createdAt: number;
   updatedAt: number;
   // 可选的客户端字段
@@ -120,21 +118,4 @@ export interface CommunityUserStats {
   favoritesReceived: number;
   commentsCount: number;
   recentPosts: CommunityPost[];
-}
-
-/** 社区整体统计 */
-export interface CommunityStats {
-  totalPosts: number;
-  totalUsers: number;
-  totalComments: number;
-  totalLikes: number;
-  totalFavorites: number;
-  averageEngagement: number;
-  postsByType: { type: string; count: number }[];
-  recentActivity: Array<{
-    id: string;
-    type: string;
-    title: string;
-    createdAt: number;
-  }>;
 }
