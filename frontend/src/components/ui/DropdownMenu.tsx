@@ -140,12 +140,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [isClosing, setIsClosing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // 过滤出可交互的菜单项（排除分隔线）
   const interactiveItems = items.filter(item => !item.divider);
@@ -154,24 +152,17 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   const openMenu = useCallback(() => {
     if (isOpen) return;
     setIsOpen(true);
-    setIsClosing(false);
     setActiveIndex(-1);
     onOpenChange?.(true);
   }, [isOpen, onOpenChange]);
 
-  // 关闭菜单（带动画）
+  // 关闭菜单：直接卸载，避免“退出动画 + 定时卸载”导致的重绘闪烁
   const closeMenu = useCallback(() => {
-    if (!isOpen || isClosing) return; // 防止重复调用导致多个 setTimeout
-    setIsClosing(true);
+    if (!isOpen) return;
+    setIsOpen(false);
+    setActiveIndex(-1);
     onOpenChange?.(false);
-
-    // 动画结束后完全关闭
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-      setActiveIndex(-1);
-    }, 100);
-  }, [isOpen, isClosing, onOpenChange]);
+  }, [isOpen, onOpenChange]);
 
   // 切换菜单
   const toggleMenu = useCallback(() => {
@@ -275,7 +266,6 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
     };
   }, []);
 
@@ -339,28 +329,21 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
         )}
       </div>
 
-      {/* 下拉菜单 */}
-      {(isOpen || isClosing) && (
+      {/* 下拉菜单：显式锚定在触发器下方，避免绝对定位在 flex 容器内落到触发器上方 */}
+      {isOpen && (
         <div
           ref={menuRef}
           role="menu"
           aria-orientation="vertical"
           className={clsx(
-            'absolute z-50 mt-2 min-w-[200px] max-h-[400px] overflow-y-auto py-1.5',
+            'absolute top-full z-50 mt-2 min-w-[200px] max-h-[400px] overflow-y-auto py-1.5',
             'rounded-xl border shadow-lg backdrop-blur-md',
             'bg-white/95 dark:bg-stone-900/95',
             'border-stone-200/60 dark:border-stone-700/60',
-            // 动画
-            isClosing
-              ? 'animate-fade-out animate-slide-up'
-              : 'animate-fade-in animate-slide-down',
+            'animate-scale-in origin-top',
             // 对齐方式
-            align === 'right' ? 'right-0 translate-x-2' : 'left-0'
+            align === 'right' ? 'right-0' : 'left-0'
           )}
-          style={{
-            animationDuration: isClosing ? '100ms' : '150ms',
-            animationTimingFunction: isClosing ? 'ease-in' : 'ease-out',
-          }}
         >
           {items.map((item, index) => (
             <DropdownMenuItem
@@ -402,7 +385,6 @@ export default DropdownMenu;
 import {
   LayoutDashboard,
   Heart,
-  Clock,
   Settings,
   LogOut,
   ShieldAlert,
@@ -416,55 +398,66 @@ import { type TFunction } from 'i18next';
 
 /**
  * 用户操作菜单
+ * 管理员入口只在调用方判定为管理员时才注入，非管理员完全不会渲染该菜单项
  */
 export const userMenuItems = (
   t: TFunction,
   navigate: NavigateFunction,
   logout: () => void,
-  _username?: string
-): MenuItem[] => [
-  {
-    id: 'dashboard',
-    label: t('ui:menu.dashboard'),
-    icon: <LayoutDashboard className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard'),
-  },
-  {
-    id: 'divider-1',
-    label: '',
-    divider: true,
-  },
-  {
-    id: 'favorites',
-    label: t('ui:menu.favorites'),
-    icon: <Heart className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard/favorites'),
-  },
-  {
-    id: 'history',
-    label: t('ui:menu.history'),
-    icon: <Clock className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard/history'),
-  },
-  {
-    id: 'settings',
-    label: t('ui:menu.settings'),
-    icon: <Settings className="w-4 h-4" />,
-    onClick: () => navigate('/dashboard/settings'),
-  },
-  {
-    id: 'divider-2',
-    label: '',
-    divider: true,
-  },
-  {
-    id: 'logout',
-    label: t('ui:menu.logout'),
-    icon: <LogOut className="w-4 h-4" />,
-    danger: true,
-    onClick: logout,
-  },
-];
+  options: { isAdmin?: boolean } = {}
+): MenuItem[] => {
+  const items: MenuItem[] = [
+    {
+      id: 'dashboard',
+      label: t('ui:menu.dashboard'),
+      icon: <LayoutDashboard className="w-4 h-4" />,
+      onClick: () => navigate('/dashboard'),
+    },
+    {
+      id: 'community',
+      label: t('nav:userMenu.community'),
+      icon: <Globe className="w-4 h-4" />,
+      onClick: () => navigate('/community'),
+    },
+  ];
+
+  if (options.isAdmin) {
+    items.push({
+      id: 'admin-panel',
+      label: t('nav:adminPanel.title'),
+      icon: <ShieldAlert className="w-4 h-4" />,
+      onClick: () => navigate('/admin-panel'),
+    });
+  }
+
+  items.push(
+    {
+      id: 'divider-1',
+      label: '',
+      divider: true,
+    },
+    {
+      id: 'settings',
+      label: t('ui:menu.settings'),
+      icon: <Settings className="w-4 h-4" />,
+      onClick: () => navigate('/dashboard/settings'),
+    },
+    {
+      id: 'divider-2',
+      label: '',
+      divider: true,
+    },
+    {
+      id: 'logout',
+      label: t('ui:menu.logout'),
+      icon: <LogOut className="w-4 h-4" />,
+      danger: true,
+      onClick: logout,
+    }
+  );
+
+  return items;
+};
 
 /**
  * 管理员菜单
