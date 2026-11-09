@@ -2060,6 +2060,18 @@
       "reasonRankingMonthly": "Monthly #{{rank}}",
       "refresh": "Refresh recommendations"
     },
+    "genreRec": {
+      "title": "Recommended tags",
+      "intro": "Picked from your favorites and searches",
+      "introRandom": "Random picks for you",
+      "badgeFrequent": "Frequent",
+      "refreshTags": "New tag batch",
+      "refreshWorks": "New batch",
+      "badgeFavorited": "Favorited",
+      "empty": "No works yet",
+      "retry": "Retry",
+      "noMore": "No more"
+    },
     "actresses": {
       "title": "Trending actresses",
       "refresh": "Refresh trending actresses",

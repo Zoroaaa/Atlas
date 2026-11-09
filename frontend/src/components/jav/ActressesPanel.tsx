@@ -50,25 +50,33 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
               <p className="type-micro">{t('jav:actresses.loadingActresses')}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="divide-y divide-surface-100 dark:divide-surface-800/70">
               {items.map((actress, index) => (
-                <div key={actress.name} className="relative">
-                <button
-                  type="button"
-                  onClick={() => onActressClick(actress.name)}
-                  className="min-h-16 w-full rounded-[10px] bg-surface-50/60 px-2.5 py-2 pr-8 text-left transition-colors hover:bg-surface-100 dark:bg-surface-900/40 dark:hover:bg-surface-800/60"
-                  title={t('jav:actresses.viewWorksTitle', { name: actress.name })}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className="type-micro w-4 shrink-0 text-right tabular-nums text-surface-400">{index + 1}</span>
-                    <span className="truncate text-[12px] font-semibold text-surface-800 dark:text-surface-200">{actress.name}</span>
-                  </span>
-                  <span className="type-micro mt-1 flex items-center gap-2 pl-5 text-surface-500">
-                    <span>{t('jav:actresses.followers', { count: actress.followers })}</span>
-                    <span>{t('jav:actresses.works', { count: actress.works })}</span>
-                  </span>
-                </button>
-                <FollowButton name={actress.name} variant="icon" className="absolute right-1 top-1" />
+                <div key={actress.name} className="flex items-center gap-2.5 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => onActressClick(actress.name)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                    title={t('jav:actresses.viewWorksTitle', { name: actress.name })}
+                  >
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-100 text-[12px] font-semibold text-surface-500 dark:bg-surface-800 dark:text-surface-300"
+                      aria-hidden="true"
+                    >
+                      {actress.name.trim().charAt(0) || index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] font-semibold text-surface-800 dark:text-surface-200">
+                        {actress.name}
+                      </span>
+                      <span className="type-micro mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-surface-500">
+                        <span className="tabular-nums text-surface-400">#{index + 1}</span>
+                        <span className="whitespace-nowrap">{t('jav:actresses.followers', { count: actress.followers })}</span>
+                        <span className="whitespace-nowrap">{t('jav:actresses.works', { count: actress.works })}</span>
+                      </span>
+                    </span>
+                  </button>
+                  <FollowButton name={actress.name} variant="icon" className="shrink-0" />
                 </div>
               ))}
             </div>

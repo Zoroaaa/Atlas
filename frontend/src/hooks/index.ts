@@ -4,6 +4,9 @@ export { useNotification, useToast } from './useNotification';
 export { useJavDetail } from './useJavDetail';
 export { useJavRankings } from './useJavRankings';
 export { useJavRecommendations } from './useJavRecommendations';
+export { useGenreRecommendations } from './useGenreRecommendations';
+export { useGenreWorks } from './useGenreWorks';
+export type { GenreWorksError } from './useGenreWorks';
 export { useCacheSync } from './useCacheSync';
 export { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys } from './useFollows';
 export {

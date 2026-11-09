@@ -2060,6 +2060,18 @@
       "reasonRankingMonthly": "月榜 #{{rank}}",
       "refresh": "刷新推荐"
     },
+    "genreRec": {
+      "title": "推荐标签",
+      "intro": "按你的收藏与搜索记录挑选",
+      "introRandom": "为你随机挑选",
+      "badgeFrequent": "常看",
+      "refreshTags": "换一批标签",
+      "refreshWorks": "换一批作品",
+      "badgeFavorited": "已收藏",
+      "empty": "暂无作品",
+      "retry": "重试",
+      "noMore": "没有更多了"
+    },
     "actresses": {
       "title": "热门女优榜",
       "refresh": "刷新热门女优",
