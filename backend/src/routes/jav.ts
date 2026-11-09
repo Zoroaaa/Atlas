@@ -22,6 +22,7 @@ import { JAV_RANKING } from '@/constants';
 import { getJavRankingSnapshot } from '@/services/ranking-snapshot';
 import { getHotActressRanking } from '@/services/actress-ranking';
 import { enrichDataRecordFromDetail } from '@/services/data-storage';
+import { getLibraryJavDetail } from '@/services/library-detail';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
@@ -253,6 +254,17 @@ interface MagnetItem {
 // JavDetail 类型已由 parseJavDetail 的返回值替代（定义在 services/jav-utils.ts）
 
 // extractGidUc / parseMagnets / parseDetail 已提取至 services/jav-utils.ts，此处从该模块导入
+
+// 本地库详情（只读）：收藏分享到社区时用它补齐磁力链接等信息，不访问外部站点
+javRoutes.get('/library/:code', async (c) => {
+  try {
+    const result = await getLibraryJavDetail(c.env.DB, c.req.param('code'));
+    return c.json({ success: true, data: result });
+  } catch (err) {
+    console.error('Get library jav detail error:', err);
+    return c.json({ success: false, error: { code: 'SERVER_ERROR', message: '读取本地库失败' } }, 500);
+  }
+});
 
 javRoutes.get('/detail', async (c) => {
   const rawCode = (c.req.query('code') ?? '').trim();

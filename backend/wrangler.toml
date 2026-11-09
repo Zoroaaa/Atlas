@@ -60,4 +60,4 @@ database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
 enabled = true
 
 [triggers]
-crons = ["0 * * * *", "*/30 * * * *", "*/15 * * * *"]
+crons = ["0 * * * *", "*/30 * * * *"]

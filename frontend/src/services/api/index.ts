@@ -14,6 +14,7 @@ export { announcementApi } from './announcement';
 export type { Announcement, AnnouncementForm } from './announcement';
 export { recommendApi } from './recommend';
 export { followApi, notificationApi } from './follow';
+export { libraryApi } from './library';
 export type {
   ApiResponse,
   ApiOkResponse,

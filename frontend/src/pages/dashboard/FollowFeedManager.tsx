@@ -6,6 +6,7 @@ import { Button, Card, EmptyState, Loading, Tabs } from '@/components/ui';
 import { Chip, MediaCard, Pagination } from '@/components/workbench';
 import { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { FollowWorkShareButton } from '@/components/follow/FollowWorkShareButton';
 import type { FollowFeedTab } from '@/types';
 
 /** 控制台 · 关注动态：全部关注女优的作品流，可按女优筛选，服务端分页 */
@@ -131,6 +132,7 @@ export const FollowFeedManager: React.FC = () => {
                       </span>
                     }
                     onSelect={() => openCode(item.code)}
+                    actions={<FollowWorkShareButton item={item} />}
                     coverSize="sm"
                   />
                 ))}

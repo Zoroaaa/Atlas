@@ -153,15 +153,13 @@ export default {
   fetch: app.fetch,
   scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     if (event.cron === '*/30 * * * *') {
-      // 关注女优新作检测：独立触发器，独占一次调用的 50 次子请求额度
+      // 每 30 分钟：关注女优新作检测（≤20 次子请求）+ 邮件通知合并发送（≤15 次子请求）。
+      // 两项合计 ≤35，低于 Workers 每次调用 50 次子请求的上限，所以共用一个触发器
       ctx.waitUntil(
         runWatchCheck(env.DB)
           .then((r) => { if (r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
           .catch((err) => console.error('[follow] watch check failed:', err))
       );
-    }
-    if (event.cron === '*/15 * * * *') {
-      // 邮件通知合并发送：独立触发器，每轮最多 15 封（15 次子请求）
       ctx.waitUntil(
         runEmailDigest(env)
           .then((r) => { if (r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })

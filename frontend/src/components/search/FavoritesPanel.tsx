@@ -8,6 +8,7 @@ import type { FavoriteItem } from '@/types';
 import { userApi } from '@/services/api/search';
 import { useToast } from '@/hooks/useNotification';
 import { getBackendBaseUrl } from '@/constants';
+import { FavoriteShareButton, isShareableFavorite } from './FavoriteShareButton';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -183,6 +184,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </button>
+                      {isShareableFavorite(item) ? <FavoriteShareButton item={item} /> : null}
                       <button
                         type="button"
                         onClick={() => {
