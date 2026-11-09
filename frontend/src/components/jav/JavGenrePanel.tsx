@@ -13,6 +13,7 @@ import {
   CountBadge,
   IconAction,
 } from '@/components/workbench';
+import { Tooltip } from '@/components/ui';
 import type { GenreRecTag } from '@/types';
 
 interface JavGenrePanelProps {
@@ -73,7 +74,12 @@ export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick }) => 
         icon={<Tags className="h-4 w-4" />}
         title={t('jav:genreRec.title')}
         count={tags.length > 0 ? <CountBadge>{tags.length}</CountBadge> : undefined}
-        meta={isNewUser ? t('jav:genreRec.introRandom') : t('jav:genreRec.intro')}
+        info={
+          <Tooltip
+            content={isNewUser ? t('jav:genreRec.introRandom') : t('jav:genreRec.intro')}
+            label={t('jav:panelInfo.show')}
+          />
+        }
         onToggle={() => setExpanded((value) => !value)}
         expanded={expanded}
         ariaControls="main-jav-genres"
@@ -107,7 +113,7 @@ export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick }) => 
                     key={tag.key}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => setActiveTag(tag)}
+                    onClick={() => setActiveTag((prev) => (prev?.key === tag.key ? null : tag))}
                     className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                   >
                     <Chip

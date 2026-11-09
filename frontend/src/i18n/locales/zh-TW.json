@@ -1751,7 +1751,6 @@
       "anonymous": "匿名使用者",
       "favorite": "收藏",
       "share": "分享",
-      "report": "舉報",
       "relatedPosts": "相關推薦",
       "copyLink": "複製連結",
       "copied": "已複製!",
@@ -2914,7 +2913,9 @@
       "resultCount": "{{count}}條",
       "durationMinutes": "{{count}}分鐘",
       "clearHistory": "清空歷史",
-      "empty": "暫無搜尋歷史"
+      "empty": "暫無搜尋歷史",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁"
     },
     "results": {
       "title": "搜尋結果",

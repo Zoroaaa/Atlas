@@ -1751,7 +1751,6 @@
       "anonymous": "匿名用户",
       "favorite": "收藏",
       "share": "分享",
-      "report": "举报",
       "relatedPosts": "相关推荐",
       "copyLink": "复制链接",
       "copied": "已复制!",
@@ -2914,7 +2913,9 @@
       "resultCount": "{{count}}条",
       "durationMinutes": "{{count}}分钟",
       "clearHistory": "清空历史",
-      "empty": "暂无搜索历史"
+      "empty": "暂无搜索历史",
+      "prevPage": "上一页",
+      "nextPage": "下一页"
     },
     "results": {
       "title": "搜索结果",

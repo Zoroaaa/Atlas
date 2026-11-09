@@ -6,6 +6,7 @@ import { useActresses } from '@/hooks';
 import { JAV_ACTRESSES_DISPLAY } from '@/types';
 import { FollowButton } from '@/components/follow/FollowButton';
 import { PanelSection, PanelHeader, IconAction, CountBadge } from '@/components/workbench';
+import { Tooltip } from '@/components/ui';
 
 interface ActressesPanelProps {
   onActressClick: (name: string) => void;
@@ -25,7 +26,12 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick }
         icon={<Flame className="h-4 w-4 text-accent-500" />}
         title={t('jav:actresses.title')}
         count={items.length > 0 ? <CountBadge>{items.length}</CountBadge> : undefined}
-        meta={t('jav:actresses.footerHint')}
+        info={
+          <Tooltip
+            content={t('jav:actresses.footerHint')}
+            label={t('jav:panelInfo.show')}
+          />
+        }
         onToggle={() => setExpanded((value) => !value)}
         expanded={expanded}
         ariaControls="main-actresses"

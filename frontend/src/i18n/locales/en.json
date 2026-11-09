@@ -1751,7 +1751,6 @@
       "anonymous": "Anonymous",
       "favorite": "Favorite",
       "share": "Share",
-      "report": "Report",
       "relatedPosts": "Related recommendations",
       "copyLink": "Copy link",
       "copied": "Copied!",
@@ -2914,7 +2913,9 @@
       "resultCount": "{{count}} results",
       "durationMinutes": "{{count}} min",
       "clearHistory": "Clear history",
-      "empty": "No search history"
+      "empty": "No search history",
+      "prevPage": "Previous",
+      "nextPage": "Next"
     },
     "results": {
       "title": "Search Results",
