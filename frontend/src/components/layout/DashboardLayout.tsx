@@ -19,7 +19,6 @@ import {
   Shield,
   X,
   Activity,
-  Globe,
   UserCheck,
   Rss,
   Bell,
@@ -115,7 +114,6 @@ export const DashboardLayout: React.FC = () => {
             </div>
             <div>
               <span className="font-bold text-base gradient-text display-font">{t('nav:userMenu.dashboard')}</span>
-              <p className="text-[10px] text-stone-500 dark:text-stone-400">Dashboard</p>
             </div>
           </div>
         ) : (
@@ -316,23 +314,6 @@ export const DashboardLayout: React.FC = () => {
                 </Link>
               )}
 
-              <Link to="/main" className="mobile-header-btn md:hidden" title={t('nav:search')}>
-                <Search className="w-5 h-5" />
-              </Link>
-              <Link to="/dashboard" className="mobile-header-btn md:hidden" title={t('nav:userMenu.dashboard')}>
-                <LayoutDashboard className="w-5 h-5" />
-              </Link>
-              {communityEnabled && (
-                <Link to="/community" className="mobile-header-btn md:hidden" title={t('nav:userMenu.community')}>
-                  <Globe className="w-5 h-5" />
-                </Link>
-              )}
-              {isAdmin && (
-                <Link to="/admin-panel" className="mobile-header-btn md:hidden text-red-500 hover:text-red-600" title={t('nav:adminPanel.title')}>
-                  <Shield className="w-5 h-5" />
-                </Link>
-              )}
-
               <button onClick={toggleTheme} className="theme-toggle-btn">
                 {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -340,7 +321,7 @@ export const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="dashboard-main">
+        <main className="dashboard-main pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-6">
           <Outlet />
         </main>
       </div>

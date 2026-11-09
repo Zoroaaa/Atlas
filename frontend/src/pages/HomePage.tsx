@@ -81,7 +81,7 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b] overflow-hidden pb-16 md:pb-0">
+    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b] overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
 
       {/* ── Ambient background orbs ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">

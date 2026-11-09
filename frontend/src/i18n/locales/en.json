@@ -73,7 +73,7 @@
       "register": "Sign up",
       "profile": "Profile",
       "settings": "Settings",
-      "dashboard": "Dashboard",
+      "dashboard": "Account Center",
       "community": "Community",
       "admin": "Admin Panel",
       "logout": "Log out"
@@ -116,7 +116,16 @@
       "confirm": "Confirm Enable"
     },
     "mobileNav": {
-      "ariaLabel": "Main navigation"
+      "ariaLabel": "Main navigation",
+      "home": "Home",
+      "community": "Community",
+      "dashboard": "Account Center",
+      "me": "Me",
+      "searchTabs": "Search categories"
+    },
+    "me": {
+      "title": "Me",
+      "settings": "Settings"
     },
     "mobileMore": {
       "open": "More",
@@ -126,7 +135,9 @@
       "active": "Current",
       "theme": "Theme",
       "themeLight": "Light mode",
-      "themeDark": "Dark mode"
+      "themeDark": "Dark mode",
+      "help": "Help Center",
+      "github": "GitHub"
     },
     "github": {
       "title": "GitHub"
@@ -2130,7 +2141,7 @@
       "regionLabel": "Notification region"
     },
     "menu": {
-      "dashboard": "Dashboard",
+      "dashboard": "Account Center",
       "favorites": "My favorites",
       "history": "Search history",
       "settings": "Settings",
@@ -3118,7 +3129,7 @@
           "Choose a category in the top navigation, or enter a keyword on the home page.",
           "Sign in when you need synced data; browsing and searching also work without signing in.",
           "Open a source from the results, view details, or favorite works you like.",
-          "Manage history, favorites, follows, and notifications from the dashboard."
+          "Manage history, favorites, follows, and notifications from the Account Center."
         ],
         "caveats": [
           "Some features depend on site configuration, such as whether registration or the community is enabled. If an entry point is missing, the feature is probably turned off.",
@@ -3199,7 +3210,7 @@
           "Find “Trending actresses” on the JAV home page.",
           "Browse the ranking and click follow to subscribe to actresses you like.",
           "Click a name to open her works in search results.",
-          "Check new and upcoming releases later under Dashboard → Follow feed."
+          "Check new and upcoming releases later under Account Center → Follow feed."
         ],
         "caveats": [
           "The ranking combines ranked works across all four lists with follower counts, so it changes over time.",
@@ -3295,17 +3306,17 @@
       },
       "history-favorites": {
         "title": "Search history and favorites",
-        "summary": "After signing in, the home right rail and the dashboard record search history and favorites, with bulk management.",
+        "summary": "After signing in, the home right rail and the Account Center record search history and favorites, with bulk management.",
         "features": [
           "Search history is grouped by Today / Yesterday / date and shows covers and basic information.",
           "Supports selecting individual items, selecting a whole day, bulk deletion, clearing all history, and pagination.",
           "Favorites support “Want to watch / Watched” status switching, pagination, deletion, and export.",
           "Favorite entries can open the original source; with the proxy enabled they open through it.",
-          "The dashboard History and Favorites pages offer the same management."
+          "The Account Center History and Favorites pages offer the same management."
         ],
         "steps": [
           "Sign in and run a search; history is recorded automatically.",
-          "Click an entry in the home right rail or Dashboard → History to fill in the keyword again.",
+          "Click an entry in the home right rail or Account Center → History to fill in the keyword again.",
           "Click the heart on a result or detail page to favorite a work.",
           "Use the Favorites page to switch status, export, or delete."
         ],
@@ -3363,7 +3374,7 @@
         "features": [
           "Manga: chapters, update status, and source links.",
           "Novels: author, publisher, category, chapters, and source links.",
-          "Favorites: sign in to favorite entries and manage them from the dashboard."
+          "Favorites: sign in to favorite entries and manage them from the Account Center."
         ],
         "steps": [
           "Choose the manga or novel category.",
@@ -3378,19 +3389,19 @@
       },
       "sources": {
         "title": "Search sources",
-        "summary": "The “Sources” Tab shows every source site indexed by Atlas; the dashboard Sources page lets you enable, test, and manage sources.",
+        "summary": "The “Sources” Tab shows every source site indexed by Atlas; the Account Center Sources page lets you enable, test, and manage sources.",
         "features": [
           "Expand by major category → category → source to see the source name, site type, and enabled status.",
           "Run a health check on a single source; results show online, restricted, timeout, offline, or error with response time.",
           "Run a check on all sources, check one source, or open the source site externally.",
-          "The dashboard Sources page supports enabling/disabling by source, category, or major category, adding custom sources, editing or deleting custom sources, and exporting JSON / CSV / OPML.",
+          "The Account Center Sources page supports enabling/disabling by source, category, or major category, adding custom sources, editing or deleting custom sources, and exporting JSON / CSV / OPML.",
           "Disabled sources are not used in later searches."
         ],
         "steps": [
           "Switch to “Sources” at the top of the home page to view the directory.",
           "Expand major categories and categories to find the target source.",
           "Click the check button for a health check, or the external-link icon to open the site.",
-          "To change which sources participate in search, use the dashboard Sources page."
+          "To change which sources participate in search, use the Account Center Sources page."
         ],
         "caveats": [
           "Availability is controlled by third-party sites; restricted or timed-out does not necessarily mean permanently down.",
@@ -3487,9 +3498,9 @@
       },
       "follow-actress": {
         "title": "Follow actresses",
-        "summary": "Follow actresses from the actress list, a work detail page, or Dashboard → My follows.",
+        "summary": "Follow actresses from the actress list, a work detail page, or Account Center → My follows.",
         "features": [
-          "Where to follow: the follow button in actress lists or detail pages, or add a name manually in the dashboard.",
+          "Where to follow: the follow button in actress lists or detail pages, or add a name manually in the Account Center.",
           "Limit: follow up to 100 actresses.",
           "View works: click an actress name to jump to her search results.",
           "Unfollow: remove one follow on the management page, or select several and remove them in bulk."
@@ -3497,7 +3508,7 @@
         "steps": [
           "Open the actress list or a work detail page.",
           "Click follow to subscribe to an actress.",
-          "Review and adjust follows under Dashboard → My follows.",
+          "Review and adjust follows under Account Center → My follows.",
           "Click an actress name to view her works."
         ],
         "caveats": [
@@ -3510,7 +3521,7 @@
         "title": "Follow feed and alerts",
         "summary": "The follow feed collects new releases and upcoming works, with mute and mark-as-read support.",
         "features": [
-          "Where to find it: “Follow feed” on the JAV home page and in the dashboard.",
+          "Where to find it: “Follow feed” on the JAV home page and in the Account Center.",
           "Feed types: new releases and upcoming releases.",
           "Unread badge: shows the unread count; mark everything as read in one click.",
           "Per-actress alerts: mute or restore alerts for an actress under “My follows”; this applies to in-app and email at once.",
@@ -3518,7 +3529,7 @@
         ],
         "steps": [
           "Follow at least one actress.",
-          "Open “Follow feed” on the JAV home page or in the dashboard.",
+          "Open “Follow feed” on the JAV home page or in the Account Center.",
           "Switch between new and upcoming releases.",
           "Mute specific actresses when you want fewer alerts."
         ],
@@ -3530,7 +3541,7 @@
       },
       "notification-center": {
         "title": "Notification center",
-        "summary": "Use the top-right bell for recent notifications. The dashboard Notifications page provides the full inbox and notification settings.",
+        "summary": "Use the top-right bell for recent notifications. The Account Center Notifications page provides the full inbox and notification settings.",
         "features": [
           "The bell shows the unread count, loads recent notifications page by page, and supports mark-all-read.",
           "Clicking a notification with a code opens the work by code; community notifications with a post go straight to the post detail; announcements and other notifications open the notification center.",
@@ -3540,7 +3551,7 @@
         "steps": [
           "Click the top-right bell to view recent notifications.",
           "Click a notification to jump to the matching place.",
-          "Open Dashboard → Notifications for the full list.",
+          "Open Account Center → Notifications for the full list.",
           "Filter or delete in the inbox, and adjust channels in notification settings."
         ],
         "caveats": [
@@ -3558,7 +3569,7 @@
           "The code has a countdown; you can resend after it ends."
         ],
         "steps": [
-          "Go to Dashboard → Notifications → Notification settings.",
+          "Go to Account Center → Notifications → Notification settings.",
           "Click “Verify email” on the email card.",
           "Enter the 6-digit code you received and submit.",
           "After verification, enable the email notifications you need."
@@ -3580,7 +3591,7 @@
           "Test email: after verification, send a test email to confirm delivery."
         ],
         "steps": [
-          "Go to Dashboard → Notifications → Notification settings.",
+          "Go to Account Center → Notifications → Notification settings.",
           "Verify your email first.",
           "Turn in-app and email channels on or off by type.",
           "Enable “Hide email details” or send a test email when needed."
@@ -3598,7 +3609,7 @@
           "From email: click “Unsubscribe from email notifications” at the bottom and confirm.",
           "Email only: unsubscribing does not affect in-app notifications.",
           "Resubscribe: turn the matching email toggle back on in notification settings.",
-          "Expired link: if the unsubscribe link is invalid, sign in and disable email notifications from the dashboard."
+          "Expired link: if the unsubscribe link is invalid, sign in and disable email notifications from the Account Center."
         ],
         "steps": [
           "Open any notification email.",
@@ -3656,13 +3667,13 @@
         "title": "Change email and password",
         "summary": "Changing your email requires your current password and a code sent to the new address; changing your password signs you out.",
         "features": [
-          "Change email: Dashboard → Settings → Profile → “Change” next to email.",
+          "Change email: Account Center → Settings → Profile → “Change” next to email.",
           "The new email needs a 6-digit code, and you must enter your current password.",
-          "Change password: Dashboard → Settings → Security → Change password.",
+          "Change password: Account Center → Settings → Security → Change password.",
           "You are signed out after the change and must sign in with the new credentials."
         ],
         "steps": [
-          "Open the Profile section in Dashboard → Settings.",
+          "Open the Profile section in Account Center → Settings.",
           "Click “Change” next to email and enter the new email and current password.",
           "Enter the code sent to the new address to finish.",
           "To change your password, enter the current and new passwords."
@@ -3697,12 +3708,12 @@
         "title": "Delete your account",
         "summary": "Deleting your account permanently removes its data and cannot be undone.",
         "features": [
-          "Entry: Dashboard → Settings → Security → Danger zone → Delete account.",
+          "Entry: Account Center → Settings → Security → Danger zone → Delete account.",
           "You must read the impact, enter a confirmation text, and provide an email code.",
           "Profile, favorites, search history, custom sources, and other account data are deleted."
         ],
         "steps": [
-          "Go to Dashboard → Settings → Security.",
+          "Go to Account Center → Settings → Security.",
           "Find the danger zone and click Delete account.",
           "Read the impact and confirm to continue.",
           "Enter the confirmation text and email code, then submit."
@@ -3726,7 +3737,7 @@
           "Check the laws and regulations where you live and your personal usage boundaries.",
           "Set a unique password for your account and keep your email secure.",
           "Review notification settings and email verification status regularly.",
-          "Delete data or your account from the dashboard when you need to clean up."
+          "Delete data or your account from the Account Center when you need to clean up."
         ],
         "caveats": [
           "Follow local laws and regulations and use this site only for lawful personal information retrieval.",
@@ -3742,7 +3753,7 @@
         "caveats": [
           "Change mode: if a JAV code finds nothing, try title or actress mode.",
           "Change category: make sure the top Tab matches the content type you want.",
-          "Check sources: run a health check in “Sources” or Dashboard → Sources, and confirm the source is online and enabled.",
+          "Check sources: run a health check in “Sources” or Account Center → Sources, and confirm the source is online and enabled.",
           "Wait for quota: if the quota is exhausted, wait for the reset as prompted and avoid repeated searches.",
           "Change keywords: try a shorter keyword, an alias, or remove extra symbols."
         ]
