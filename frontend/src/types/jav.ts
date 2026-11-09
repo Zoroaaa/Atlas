@@ -61,6 +61,58 @@ export const JAV_CACHE_TTL = 6 * 60 * 60 * 1000;
 export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v5';
 export const ACTRESSES_CACHE_TTL = 6 * 60 * 60 * 1000;
 
+// ── 推荐标签 ───────────────────────────────────────────────────────────
+
+export type GenreSection = 'censored' | 'uncensored';
+export type GenreTagSource = 'personal' | 'random';
+
+export interface GenreRecTag {
+  key: string;
+  name: string;
+  section: GenreSection;
+  source: GenreTagSource;
+  score: number;
+}
+
+export interface GenreCoverage {
+  favorites: number;
+  favoritesWithTags: number;
+  history: number;
+  historyWithTags: number;
+}
+
+export interface GenreRecommendationResult {
+  tags: GenreRecTag[];
+  isNewUser: boolean;
+  coverage: GenreCoverage;
+}
+
+export interface GenreWorkItem {
+  code: string;
+  title: string;
+  cover?: string;
+  actors: string[];
+  date?: string;
+  tags: string[];
+  isFavorite: boolean;
+}
+
+export interface GenreWorksResult {
+  genre: {
+    key: string;
+    name: string;
+    section: GenreSection;
+    url: string;
+  };
+  page: number;
+  maxPage: number;
+  hasMore: boolean;
+  items: GenreWorkItem[];
+}
+
+/** 推荐标签沿用"为你推荐"的 30 分钟本地缓存口径 */
+export const GENRE_REC_CACHE_TTL = 30 * 60 * 1000;
+
 // ── 详情 & 磁力 ──────────────────────────────────────────────────────
 
 export interface MagnetItem {

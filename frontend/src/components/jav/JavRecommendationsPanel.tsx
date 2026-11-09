@@ -6,6 +6,7 @@ import type { TFunction } from 'i18next';
 import { useJavRecommendations } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { PanelSection, PanelHeader, MediaCard, Chip, CountBadge, IconAction } from '@/components/workbench';
+import { Tooltip } from '@/components/ui';
 import type { JavRecommendationItem, JavRecommendationSeed } from '@/types';
 
 interface JavRecommendationsPanelProps {
@@ -77,7 +78,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
         icon={<Sparkles className="h-4 w-4" />}
         title={title}
         count={items.length > 0 ? <CountBadge>{items.length}</CountBadge> : undefined}
-        meta={intro}
+        info={<Tooltip content={intro} label={t('jav:panelInfo.show')} />}
         onToggle={() => setExpanded((value) => !value)}
         expanded={expanded}
         ariaControls="main-jav-recommendations"

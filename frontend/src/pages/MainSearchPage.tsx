@@ -15,7 +15,7 @@ import {
   QuickActionsPanel,
 } from '@/components/search';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
-import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel } from '@/components/jav';
+import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
@@ -264,10 +264,10 @@ export const MainSearchPage: React.FC = () => {
                         <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
                       </LazyMount>
                       <LazyMount minHeight={200}>
-                        <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
+                        <JavGenrePanel onCodeClick={searchFlow.handleCodeClick} />
                       </LazyMount>
                       <LazyMount minHeight={200}>
-                        <ActressesPanel onActressClick={handleActressClick} />
+                        <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
                       </LazyMount>
                     </>
                   ) : null}
@@ -284,6 +284,15 @@ export const MainSearchPage: React.FC = () => {
                 </div>
 
                 <PanelRail className="min-w-0">
+                  {activeTab === 'jav' ? (
+                    isAuthenticated ? (
+                      <LazyMount minHeight={0}>
+                        <ActressesPanel onActressClick={handleActressClick} />
+                      </LazyMount>
+                    ) : (
+                      <ActressesPanel onActressClick={handleActressClick} />
+                    )
+                  ) : null}
                   {isAuthenticated ? (
                     <SearchHistoryPanel
                       history={historyManager.searchHistory}

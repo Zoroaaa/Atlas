@@ -13,6 +13,8 @@ export type { FeedbackSubmit, FeedbackItem, FeedbackStats, AdminHandleFeedback }
 export { announcementApi } from './announcement';
 export type { Announcement, AnnouncementForm } from './announcement';
 export { recommendApi } from './recommend';
+export { javApi } from './jav';
+export type { JavApiResponse } from './jav';
 export { followApi, notificationApi } from './follow';
 export { libraryApi } from './library';
 export type {

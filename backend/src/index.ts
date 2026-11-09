@@ -23,6 +23,7 @@ import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
 import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
+import { syncGenreDictionary } from '@/services/genre-dictionary';
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
@@ -180,6 +181,12 @@ export default {
         enrichPendingJavRecords(env.DB).catch((err) =>
           console.error('[ranking-enrichment] cron failed:', err)
         )
+      );
+      // 推荐标签词典每周同步一次（未到期时只查 2 次 D1，无外部请求）
+      ctx.waitUntil(
+        syncGenreDictionary(env.DB)
+          .then((r) => { if (r.updated > 0) console.log(`[genre-dict] updated=${r.updated}`); })
+          .catch((err) => console.error('[genre-dict] cron failed:', err))
       );
     }
   },

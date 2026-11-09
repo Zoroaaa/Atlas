@@ -26,6 +26,8 @@ interface PanelHeaderProps {
   title: React.ReactNode;
   count?: React.ReactNode;
   meta?: React.ReactNode;
+  /** 标题旁的说明入口（如问号气泡），与标题一起放在左侧，不参与折叠点击 */
+  info?: React.ReactNode;
   actions?: React.ReactNode;
   onToggle?: () => void;
   expanded?: boolean;
@@ -38,6 +40,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
   title,
   count,
   meta,
+  info,
   actions,
   onToggle,
   expanded,
@@ -64,19 +67,22 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
 
   return (
     <header className={clsx('panel-header', className)}>
-      {onToggle ? (
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-controls={contentId}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-        >
-          {titleNode}
-        </button>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">{titleNode}</div>
-      )}
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {onToggle ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            className="flex min-w-0 items-center gap-2.5 text-left"
+          >
+            {titleNode}
+          </button>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2.5">{titleNode}</div>
+        )}
+        {info ? <span className="shrink-0">{info}</span> : null}
+      </div>
       {actions ? (
         <div
           className="flex shrink-0 items-center gap-1"

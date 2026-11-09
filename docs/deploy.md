@@ -136,7 +136,8 @@ $scripts = @(
   '11_schema_data_storage','12_schema_search_tier','13_backfill_search_tier',
   '14_schema_notifications_follows','15_migrate_actress_favorites_to_follows',
   '16_email_notifications','17_schema_announcement_reads',
-  '18_backfill_community_notifications','19_schema_community_post_views'
+  '18_backfill_community_notifications','19_schema_community_post_views',
+  '20_fix_community_user_stats','21_schema_jav_genres'
 )
 foreach ($s in $scripts) {
   npx wrangler d1 execute codeseek --remote --file="../database/$s.sql"
@@ -155,8 +156,10 @@ foreach ($s in $scripts) {
 | `17_schema_announcement_reads` | 公告已读表 | 必需 |
 | `18_backfill_community_notifications` | 历史社区互动补写通知 | 可选（新库无数据） |
 | `19_schema_community_post_views` | 帖子浏览 24 小时去重表 | 必需 |
+| `20_fix_community_user_stats` | 社区统计改为实时聚合，删除冗余列/表/触发器 | 必需（一次性，勿重复执行） |
+| `21_schema_jav_genres` | 推荐标签词典与标签分页状态表 | 必需 |
 
-所有脚本均可重复执行。`08` 与 `12` 已修复跨版本重复加列问题，`13`/`18` 为空表时无副作用。
+除 `20` 外，表结构脚本均可重复执行；`20` 是有损修复脚本（`DROP COLUMN`/`DROP TABLE`），重复执行会因对象不存在报错，只需执行一次。`08` 与 `12` 已修复跨版本重复加列问题，`13`/`18` 为空表时无副作用。
 
 ### 6. 本地开发
 
@@ -230,6 +233,13 @@ npx wrangler d1 execute codeseek --remote --file=../database/18_backfill_communi
 npx wrangler d1 execute codeseek --remote --file=../database/19_schema_community_post_views.sql
 ```
 
+已经部署过 v1.6.0 的库，再按顺序补执行 `20_fix_community_user_stats.sql`（一次性，勿重复）与 `21_schema_jav_genres.sql`（幂等）：
+
+```bash
+npx wrangler d1 execute codeseek --remote --file=../database/20_fix_community_user_stats.sql
+npx wrangler d1 execute codeseek --remote --file=../database/21_schema_jav_genres.sql
+```
+
 升级注意事项：
 
 - `18` 会把历史社区互动补写为通知，数据量大时建议在低峰执行
@@ -241,14 +251,50 @@ npx wrangler d1 execute codeseek --remote --file=../database/19_schema_community
 
 ## 五、Cron Triggers
 
-`backend/wrangler.toml` 已配置三个触发器：
+`backend/wrangler.toml` 已配置两个触发器，`backend/src/index.ts` 的 `scheduled` 按 `event.cron` 精确匹配分发；传入其他 cron 字符串不会执行任何任务。
 
 | Cron | 频率 | 任务 |
 |------|------|------|
-| `0 * * * *` | 每小时 | 清理过期会话、7 天前验证码、过期通知/浏览记录等 |
+| `0 * * * *` | 每小时 | 清理过期会话、7 天前验证码、补全待处理 JAV 记录、推荐标签词典同步（7 天到期判断） |
 | `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（≤20 次子请求）+ 邮件摘要合并发送（≤15 封），合计低于 50 次子请求上限 |
 
-三个任务相互独立，避免共用同一次调用的子请求额度。
+各任务相互独立，避免共用同一次调用的子请求额度。
+
+### 手动触发
+
+**方式一：本地 `/__scheduled`（只影响本地模拟 D1）**
+
+```bash
+cd backend
+npx wrangler dev --test-scheduled
+```
+
+另开终端，按 cron 字符串触发：
+
+```bash
+curl "http://127.0.0.1:8787/__scheduled?cron=0+*+*+*+*"    # 每小时任务组（含词典同步）
+curl "http://127.0.0.1:8787/__scheduled?cron=*/30+*+*+*+*" # 30 分钟任务组（关注检测 + 邮件）
+```
+
+`+` 会被解码为空格，cron 必须与配置完全一致。一次触发会执行该 cron 下的**全部**任务，不只是词典同步；本地触发只写本地模拟 D1。
+
+**方式二：管理员接口（生产可用）**
+
+```bash
+curl -X POST "https://<api-domain>/api/admin/data-storage/genre-dict/sync" \
+  -H "Authorization: Bearer <管理员 JWT>"
+```
+
+- 仅 `admin` / `super_admin` 可调用：未登录 401，非管理员 403
+- 同一用户 60 秒 1 次，超限 429 并返回 `Retry-After`
+- 沿用 7 天到期判断：未到期时返回 `updated: 0`、各 section 为 `skipped`，不发起外部请求
+- 返回 `{ updated, sections }`，不包含外部页面内容
+
+**风险提示**
+
+- 不要用 `wrangler dev --remote --test-scheduled` 做日常验证：它会连接**生产 D1** 并执行该 cron 下的全部任务。确需使用时先确认本地代码与线上一致，避免误清理会话或误写生产数据。
+- 手动触发 `0 * * * *` 组无法只跑词典同步，会同时执行会话/验证码清理与记录补全。
+- 词典同步没有 force 参数，同一 section 未到期不会重复抓取，重复触发只会得到 `skipped`。
 
 ---
 

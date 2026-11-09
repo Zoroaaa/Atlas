@@ -1420,6 +1420,9 @@
       "viewRecords": "資料瀏覽",
       "refresh": "重新整理",
       "cleanupHidden": "清理隱藏",
+      "genreSync": "同步標籤詞典",
+      "genreSyncToast": "同步完成：更新 {{updated}} 個 section（{{detail}}）",
+      "genreSyncFailed": "同步失敗",
       "loading": "載入中...",
       "stat": {
         "total": "總記錄數",
@@ -1748,7 +1751,6 @@
       "anonymous": "匿名使用者",
       "favorite": "收藏",
       "share": "分享",
-      "report": "舉報",
       "relatedPosts": "相關推薦",
       "copyLink": "複製連結",
       "copied": "已複製!",
@@ -2059,6 +2061,21 @@
       "reasonRankingWeekly": "週榜 #{{rank}}",
       "reasonRankingMonthly": "月榜 #{{rank}}",
       "refresh": "重新整理推薦"
+    },
+    "genreRec": {
+      "title": "推薦標籤",
+      "intro": "依你的收藏與搜尋紀錄挑選",
+      "introRandom": "為你隨機挑選",
+      "badgeFrequent": "常看",
+      "refreshTags": "換一批標籤",
+      "refreshWorks": "換一批作品",
+      "badgeFavorited": "已收藏",
+      "empty": "暫無作品",
+      "retry": "重試",
+      "noMore": "沒有更多了"
+    },
+    "panelInfo": {
+      "show": "查看說明"
     },
     "actresses": {
       "title": "熱門女優榜",
@@ -2896,7 +2913,9 @@
       "resultCount": "{{count}}條",
       "durationMinutes": "{{count}}分鐘",
       "clearHistory": "清空歷史",
-      "empty": "暫無搜尋歷史"
+      "empty": "暫無搜尋歷史",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁"
     },
     "results": {
       "title": "搜尋結果",

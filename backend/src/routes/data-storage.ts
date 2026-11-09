@@ -7,10 +7,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env } from '@/types';
-import { success, error } from '@/utils';
+import { success, error, checkRateLimitD1 } from '@/utils';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { CONFIG } from '@/constants';
 import { validateBody, schemas } from '@/validation';
+import { syncGenreDictionary } from '@/services/genre-dictionary';
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
 
@@ -361,6 +362,38 @@ dataStorageRoutes.post('/cleanup', async (c) => {
   } catch (err) {
     console.error('[data-storage] cleanup error:', err);
     return c.json(error('SERVER_ERROR', '清理失败'), 500);
+  }
+});
+
+// ============================================================
+// 8. 手动同步 JAV 推荐标签词典
+// ============================================================
+
+dataStorageRoutes.post('/genre-dict/sync', async (c) => {
+  const userId = c.get('user')?.userId ?? 'unknown';
+
+  // 同一管理员 60 秒内只允许触发一次，避免误点造成重复抓取
+  const limit = await checkRateLimitD1(
+    c.env.DB,
+    `genre-dict-sync:${userId}`,
+    60 * 1000,
+    1
+  );
+  if (!limit.allowed) {
+    if (limit.retryAfter) c.header('Retry-After', String(limit.retryAfter));
+    return c.json(error('RATE_LIMITED', '同步操作过于频繁，请稍后再试'), 429);
+  }
+
+  try {
+    // 内部按 7 天到期判断：未到期时不发起外部请求，直接返回 skipped
+    const result = await syncGenreDictionary(c.env.DB);
+    return c.json(success(
+      result,
+      result.updated > 0 ? '词典已同步' : '词典未到期，已跳过'
+    ));
+  } catch (err) {
+    console.error('[data-storage] genre dict sync error:', err);
+    return c.json(error('SERVER_ERROR', '同步失败'), 500);
   }
 });
 
