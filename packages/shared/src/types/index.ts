@@ -16,7 +16,7 @@ export type { PostStatus, PostType, LikeType,
   CommunityPost, CommunityTag, CommunityComment,
   CreatePostRequest, UpdatePostRequest, CreateCommentRequest,
   CreateTagRequest, UpdateTagRequest, ReportRequest,
-  CommunityUserStats, CommunityStats } from './community';
+  CommunityUserStats } from './community';
 
 export type { ApiError, ApiSuccess, ApiResponse,
   PaginatedResponse, PaginationParams } from './common';

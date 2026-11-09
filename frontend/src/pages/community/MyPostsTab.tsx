@@ -94,6 +94,7 @@ export const MyPostsTab: React.FC = () => {
       await deletePost(postId);
       toast.success(t('communityPages:myPosts.deleted'));
       handleRefresh();
+      fetchUserStats();
     } catch (error) {
       console.error('删除失败:', error);
       toast.error(t('communityPages:myPosts.deleteFailed'));

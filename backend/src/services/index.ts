@@ -20,7 +20,6 @@ export {
   getCachedSourceStatus,
   isCacheValid,
   saveSingleStatusToCache,
-  updateUserStatsAfterDelete,
 } from './source-status';
 export type {
   SourceStatusCheckOptions,

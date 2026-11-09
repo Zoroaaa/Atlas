@@ -272,18 +272,6 @@ export interface CommunityReport {
   updated_at: number;
 }
 
-export interface CommunityUserStats {
-  user_id: string;
-  posts_count: number;
-  likes_received: number;
-  favorites_received: number;
-  comments_count: number;
-  reputation_score: number;
-  contribution_level: string;
-  created_at: number;
-  updated_at: number;
-}
-
 export interface EmailVerification {
   id: string;
   user_id: string | null;

@@ -13,7 +13,6 @@ export type {
   UpdateTagRequest,
   ReportRequest,
   CommunityUserStats,
-  CommunityStats,
 } from '@codeseek/shared';
 
 // 前端特有的响应类型

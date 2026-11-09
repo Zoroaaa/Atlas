@@ -2,11 +2,10 @@
  * 社区数据访问层
  *
  * 收口 community_tags / community_posts / community_comments / community_likes /
- * community_reports / community_user_stats 的读写，使 community 路由不再直接持有 SQL。
+ * community_reports 的读写，使 community 路由不再直接持有 SQL。
+ * 用户社区统计在读取时从上述源表聚合，不再维护 community_user_stats。
  * 需要原子性的多语句操作（batch）在此整体提供，避免拆分后丢失原子性。
  */
-import type { CommunityUserStats } from '@/types';
-
 /** 帖子行（community_posts 查询结果；联表查询时可附带作者 username） */
 export type CommunityPostRow = Record<string, unknown> & { userName?: string | null };
 
@@ -344,8 +343,8 @@ export async function insertPost(
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO community_posts (id, user_id, post_type, title, cover_image, content_data, caption, tags, view_count, like_count, comment_count, favorite_count, share_count, status, is_featured, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 'active', 0, ?, ?)`
+      `INSERT INTO community_posts (id, user_id, post_type, title, cover_image, content_data, caption, tags, view_count, like_count, comment_count, favorite_count, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'active', ?, ?)`
     )
     .bind(
       params.id,
@@ -413,17 +412,6 @@ export async function updatePostStatus(
   await db
     .prepare('UPDATE community_posts SET status = ?, updated_at = ? WHERE id = ?')
     .bind(opts.status, opts.now, opts.postId)
-    .run();
-}
-
-/** 设置/取消帖子推荐 */
-export async function updatePostFeatured(
-  db: D1Database,
-  opts: { postId: string; isFeatured: boolean; now: number }
-): Promise<void> {
-  await db
-    .prepare('UPDATE community_posts SET is_featured = ?, updated_at = ? WHERE id = ?')
-    .bind(opts.isFeatured ? 1 : 0, opts.now, opts.postId)
     .run();
 }
 
@@ -543,70 +531,49 @@ export async function insertReport(
 }
 
 // ===========================================================================
-// 统计
+// 用户社区统计（读时聚合）
 // ===========================================================================
 
-/** 社区总览统计（一次 batch：帖子/用户/评论/点赞/收藏/类型分布/最近动态） */
-export async function queryCommunityStats(db: D1Database): Promise<{
-  totalPostsResult: { results: Array<{ count: number }> };
-  totalUsersResult: { results: Array<{ count: number }> };
-  totalCommentsResult: { results: Array<{ count: number }> };
-  totalLikesResult: { results: Array<{ total: number }> };
-  totalFavoritesResult: { results: Array<{ total: number }> };
-  postsByTypeResult: { results: Array<{ post_type: string; count: number }> };
-  recentActivityResult: { results: Array<{ id: string; post_type: string; title: string; created_at: number }> };
-}> {
-  const [
-    totalPostsResult,
-    totalUsersResult,
-    totalCommentsResult,
-    totalLikesResult,
-    totalFavoritesResult,
-    postsByTypeResult,
-    recentActivityResult,
-  ] = await db.batch([
-    db.prepare("SELECT COUNT(*) as count FROM community_posts WHERE status = 'active'"),
-    db.prepare("SELECT COUNT(DISTINCT user_id) as count FROM community_posts WHERE status = 'active'"),
-    db.prepare('SELECT COUNT(*) as count FROM community_comments'),
-    db.prepare('SELECT COALESCE(SUM(like_count), 0) as total FROM community_posts'),
-    db.prepare('SELECT COALESCE(SUM(favorite_count), 0) as total FROM community_posts'),
-    db.prepare(`
-          SELECT post_type, COUNT(*) as count
-          FROM community_posts WHERE status = 'active'
-          GROUP BY post_type ORDER BY count DESC
-        `),
-    db.prepare(`
-          SELECT id, post_type, title, created_at
-          FROM community_posts WHERE status = 'active'
-          ORDER BY created_at DESC LIMIT 10
-        `),
-  ]) as unknown as [
-    { results: Array<{ count: number }> },
-    { results: Array<{ count: number }> },
-    { results: Array<{ count: number }> },
-    { results: Array<{ total: number }> },
-    { results: Array<{ total: number }> },
-    { results: Array<{ post_type: string; count: number }> },
-    { results: Array<{ id: string; post_type: string; title: string; created_at: number }> },
-  ];
-
-  return {
-    totalPostsResult,
-    totalUsersResult,
-    totalCommentsResult,
-    totalLikesResult,
-    totalFavoritesResult,
-    postsByTypeResult,
-    recentActivityResult,
-  };
+/** 用户社区统计聚合结果 */
+export interface UserCommunityStatsAggregate {
+  posts_count: number;
+  likes_received: number;
+  favorites_received: number;
+  comments_count: number;
 }
 
-/** 查询用户社区统计行（由触发器维护） */
-export async function findUserCommunityStats(
+/**
+ * 读取时聚合用户统计，唯一事实来源是 community_posts / community_likes / community_comments。
+ * 口径：帖子与收赞/收收藏只统计 status = 'active' 的帖子；评论数统计当前仍存在的评论。
+ * 不再依赖 community_user_stats 与触发器，删除/取消/隐藏操作不会产生漂移。
+ */
+export async function getUserCommunityStats(
   db: D1Database,
   userId: string
-): Promise<CommunityUserStats | null> {
-  return db.prepare('SELECT * FROM community_user_stats WHERE user_id = ?').bind(userId).first<CommunityUserStats>();
+): Promise<UserCommunityStatsAggregate> {
+  const row = await db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM community_posts
+           WHERE user_id = ? AND status = 'active') AS posts_count,
+         (SELECT COUNT(*) FROM community_likes l
+            JOIN community_posts p ON p.id = l.post_id
+           WHERE p.user_id = ? AND p.status = 'active' AND l.like_type = 'like') AS likes_received,
+         (SELECT COUNT(*) FROM community_likes l
+            JOIN community_posts p ON p.id = l.post_id
+           WHERE p.user_id = ? AND p.status = 'active' AND l.like_type = 'favorite') AS favorites_received,
+         (SELECT COUNT(*) FROM community_comments
+           WHERE user_id = ?) AS comments_count`
+    )
+    .bind(userId, userId, userId, userId)
+    .first<UserCommunityStatsAggregate>();
+
+  return {
+    posts_count: Number(row?.posts_count) || 0,
+    likes_received: Number(row?.likes_received) || 0,
+    favorites_received: Number(row?.favorites_received) || 0,
+    comments_count: Number(row?.comments_count) || 0,
+  };
 }
 
 /** 查询用户最近的活跃帖子 */

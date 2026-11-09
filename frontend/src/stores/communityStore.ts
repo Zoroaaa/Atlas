@@ -9,7 +9,6 @@ import type {
   UpdatePostRequest,
   CreateCommentRequest,
   CommunityUserStats,
-  CommunityStats,
 } from '@/types';
 
 interface CommunityState {
@@ -42,9 +41,6 @@ interface CommunityState {
   myFavoritesLoading: boolean;
   userStats: CommunityUserStats | null;
 
-  // 社区统计
-  communityStats: CommunityStats | null;
-
   // Actions - 帖子操作
   fetchPosts: (params?: { page?: number; pageSize?: number; postType?: string; tags?: string; sort?: string; search?: string }) => Promise<void>;
   fetchPost: (id: string) => Promise<void>;
@@ -68,9 +64,6 @@ interface CommunityState {
   fetchMyPosts: (params?: { page?: number; pageSize?: number; status?: string }) => Promise<void>;
   fetchMyFavorites: (params?: { page?: number; pageSize?: number }) => Promise<void>;
   fetchUserStats: () => Promise<void>;
-
-  // Actions - 统计数据
-  fetchCommunityStats: () => Promise<void>;
 
   // Actions - 筛选器
   setPostTypeFilter: (filter: 'all' | 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress') => void;
@@ -105,8 +98,6 @@ const initialState = {
   myFavorites: [],
   myFavoritesLoading: false,
   userStats: null,
-
-  communityStats: null,
 };
 
 export const useCommunityStore = create<CommunityState>()(
@@ -461,17 +452,6 @@ export const useCommunityStore = create<CommunityState>()(
           set({ userStats: stats });
         } catch (error) {
           console.error('获取用户统计失败:', error);
-        }
-      },
-
-      // ==================== 统计数据 ====================
-
-      fetchCommunityStats: async () => {
-        try {
-          const stats = await communityApi.getCommunityStats();
-          set({ communityStats: stats });
-        } catch (error) {
-          console.error('获取社区统计失败:', error);
         }
       },
 

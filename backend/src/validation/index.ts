@@ -304,10 +304,6 @@ export const schemas = {
       status: z.enum(['active', 'pending', 'rejected', 'hidden']),
     }),
 
-    featurePost: z.object({
-      isFeatured: z.boolean(),
-    }),
-
     createComment: z.object({
       postId: z.string().min(1, '帖子ID不能为空'),
       content: z.string().min(1, '评论内容不能为空').max(1000, '评论内容最多1000个字符'),
