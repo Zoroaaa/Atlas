@@ -20,12 +20,14 @@ const ProgressBarStyles: Record<ToastType, string> = {
 };
 
 const PositionStyles: Record<ToastPosition, string> = {
-  'top-right': 'top-4 right-4',
-  'top-left': 'top-4 left-4',
-  'bottom-right': 'bottom-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'top-center': 'top-4 left-1/2 -translate-x-1/2',
-  'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
+  // 移动端顶部 toast 需要避开 64px 吸顶导航，否则会盖住右上角按钮导致点不到
+  'top-right': 'top-[4.5rem] right-4 sm:top-4',
+  'top-left': 'top-[4.5rem] left-4 sm:top-4',
+  // 移动端底部 toast 需要避开 56px 底部主导航
+  'bottom-right': 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 sm:bottom-4',
+  'bottom-left': 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-4 sm:bottom-4',
+  'top-center': 'top-[4.5rem] left-1/2 -translate-x-1/2 sm:top-4',
+  'bottom-center': 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 sm:bottom-4',
 };
 
 interface ToastItemProps {

@@ -693,17 +693,17 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           </div>
 
           {/* 互动操作栏 */}
-          <div className="flex items-center gap-4 pt-4 border-t border-stone-100 dark:border-stone-800">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-4 border-t border-stone-100 dark:border-stone-800">
             <div className="flex items-center gap-4 text-sm text-stone-500">
               <span className="flex items-center gap-1"><Eye className="w-4 h-4" />{currentPost.viewCount.toLocaleString()}</span>
               <span className="flex items-center gap-1"><MessageSquare className="w-4 h-4" />{currentPost.commentCount}</span>
             </div>
-            <div className="flex-1" />
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:block flex-1" />
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => toggleLike(currentPost.id)}
                 className={clsx(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all',
+                  'flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition-all',
                   currentPost.isLiked
                     ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
                     : 'text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
@@ -715,7 +715,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               <button
                 onClick={() => toggleFavorite(currentPost.id)}
                 className={clsx(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all',
+                  'flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition-all',
                   currentPost.isFavorited
                     ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
                     : 'text-stone-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
@@ -726,14 +726,14 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               </button>
               <button
                 onClick={handleShare}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
+                className="flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
               >
                 <Share2 className="w-4 h-4" />
                 分享
               </button>
               <button
                 onClick={() => setReportModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                className="flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
               >
                 <Flag className="w-4 h-4" />
                 举报

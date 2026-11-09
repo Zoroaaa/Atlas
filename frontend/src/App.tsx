@@ -10,6 +10,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AdminPanelLayout } from '@/components/layout/AdminPanelLayout';
 import { CommunityPanelLayout } from '@/components/layout/CommunityPanelLayout';
+import { MobileTabBar } from '@/components/layout/MobileTabBar';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useFeatureFlags } from '@/contexts';
 import { HomePage } from '@/pages/HomePage';
@@ -21,6 +22,7 @@ import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
 import { AdminManager, AdminPanelOverview } from '@/pages/admin';
 import { CommunityManager, PostDetailPage } from '@/pages/community';
 import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage, GoogleCallbackPage } from '@/pages/auth';
+import { MePage } from '@/pages/MePage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface GuardRouteProps {
@@ -172,6 +174,7 @@ const App: React.FC = () => {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/help" element={<HelpCenterPage />} />
+          <Route path="/me" element={<GuardRoute><MePage /></GuardRoute>} />
         </Route>
         <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
         <Route path="/register" element={<AuthRedirect><RegisterPage /></AuthRedirect>} />
@@ -247,6 +250,8 @@ const App: React.FC = () => {
         </Route>
       </Routes>
         </ErrorBoundary>
+      {/* 移动端底部主导航：高亮由路由推导，桌面端隐藏 */}
+      <MobileTabBar />
       <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>

@@ -263,21 +263,6 @@ export const CommunityPanelLayout: React.FC = () => {
                 </Link>
               )}
 
-              <Link to="/main" className="mobile-header-btn md:hidden" title={t('nav:search')}>
-                <Search className="w-5 h-5" />
-              </Link>
-              <Link to="/dashboard" className="mobile-header-btn md:hidden" title={t('nav:userMenu.dashboard')}>
-                <LayoutDashboard className="w-5 h-5" />
-              </Link>
-              <Link to="/community" className="mobile-header-btn md:hidden" title={t('nav:userMenu.community')}>
-                <Globe className="w-5 h-5" />
-              </Link>
-              {isAdmin && (
-                <Link to="/admin-panel" className="mobile-header-btn md:hidden text-red-500 hover:text-red-600" title={t('nav:adminPanel.title')}>
-                  <Shield className="w-5 h-5" />
-                </Link>
-              )}
-
               <NotificationBell />
               <button onClick={toggleTheme} className="theme-toggle-btn">
                 {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -286,7 +271,7 @@ export const CommunityPanelLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 md:pb-6 lg:p-8 overflow-auto">
           <Outlet />
         </main>
       </div>

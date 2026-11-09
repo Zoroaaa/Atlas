@@ -95,9 +95,12 @@ const BarChart: React.FC<{
         const barHeight = max > 0 && val > 0
           ? Math.max((val / max) * chartHeight, 4)
           : 0;
+        // 悬浮提示：两端各取 3 根柱靠边对齐，其余居中，避免超出视口把页面撑宽
+        const tipAlign =
+          i < 3 ? 'left-0' : i >= data.length - 3 ? 'right-0' : 'left-1/2 -translate-x-1/2';
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group relative">
-            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+            <div className={`absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none ${tipAlign}`}>
               <div className="bg-surface-900 dark:bg-surface-100 text-surface-100 dark:text-surface-900 text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
                 {t('dashboard:stats.barTooltip', { label: labels[i], count: val })}
               </div>
@@ -119,8 +122,8 @@ const BarChart: React.FC<{
 };
 
 // 热力格子
-const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabel?: string; t: TFunc }> = ({
-  value, max, label, sublabel, t,
+const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabel?: string; align?: 'left' | 'right' | 'center'; t: TFunc }> = ({
+  value, max, label, sublabel, align = 'center', t,
 }) => {
   const intensity = max > 0 ? value / max : 0;
   const bg =
@@ -130,15 +133,17 @@ const HeatmapCell: React.FC<{ value: number; max: number; label: string; sublabe
     : intensity < 0.75 ? 'bg-primary-400 dark:bg-primary-600/80 border-primary-400 dark:border-primary-600'
     : 'bg-primary-600 dark:bg-primary-500 border-primary-600 dark:border-primary-500';
   const text = intensity > 0.5 ? 'text-white' : 'text-surface-700 dark:text-surface-300';
+  const tipAlign =
+    align === 'left' ? 'left-0' : align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2';
 
   return (
-    <div className={`flex-1 rounded-lg border p-3 flex flex-col items-center gap-1 transition-all hover:scale-105 cursor-default ${bg} group relative`}>
-      <div className={`absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none`}>
+    <div className={`flex-1 min-w-0 rounded-lg border p-1.5 sm:p-3 flex flex-col items-center gap-1 transition-all hover:scale-105 cursor-default ${bg} group relative`}>
+      <div className={`absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none ${tipAlign}`}>
         <div className="bg-surface-900 dark:bg-surface-100 text-surface-100 dark:text-surface-900 text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
           {t('dashboard:stats.heatmapTooltip', { label, count: value })}
         </div>
       </div>
-      <span className={`text-xs font-medium ${text}`}>{label}</span>
+      <span className={`text-[10px] sm:text-xs font-medium ${text}`}>{label}</span>
       <span className={`text-lg font-bold ${text}`}>{value}</span>
       {sublabel && <span className={`text-[9px] ${text} opacity-70`}>{sublabel}</span>}
     </div>
@@ -454,7 +459,14 @@ export const StatsManager: React.FC = () => {
         </div>
         <div className="flex gap-2">
           {last7Days.map((val, i) => (
-            <HeatmapCell key={i} value={val} max={maxWeek} label={week7Labels[i]} t={t} />
+            <HeatmapCell
+              key={i}
+              value={val}
+              max={maxWeek}
+              label={week7Labels[i]}
+              align={i === 0 ? 'left' : i === last7Days.length - 1 ? 'right' : 'center'}
+              t={t}
+            />
           ))}
         </div>
       </Card>
@@ -524,7 +536,7 @@ export const StatsManager: React.FC = () => {
             {topKeywords.slice(0, 10).map((kw, i) => (
               <div
                 key={kw.keyword}
-                className="flex items-center gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-800/50 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer group"
+                className="flex min-w-0 items-center gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-800/50 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer group"
                 onClick={() => navigate(`/?q=${encodeURIComponent(kw.keyword)}`)}
               >
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${

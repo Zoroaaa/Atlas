@@ -120,7 +120,7 @@ export const BrowseTab: React.FC = () => {
           {/* 类型筛选 + 排序 + 视图切换 */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* 类型筛选 */}
-            <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-800 rounded-xl p-1">
+            <div className="no-scrollbar flex w-full min-w-0 items-center gap-1 overflow-x-auto rounded-xl bg-stone-100 p-1 sm:w-auto dark:bg-stone-800">
               {TYPE_FILTERS.map((filter) => (
                 <button
                   key={filter.key}
@@ -129,7 +129,7 @@ export const BrowseTab: React.FC = () => {
                     setPage(1);
                   }}
                   className={clsx(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                    'flex flex-none items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
                     postTypeFilter === filter.key
                       ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm'
                       : 'text-stone-500 hover:text-stone-700 dark:hover:text-stone-300'

@@ -105,60 +105,17 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
 
 TabButton.displayName = 'TabButton';
 
-/** 移动端底部导航 Tab 按钮 */
-interface MobileTabProps {
-  tab: (typeof SEARCH_TABS)[SearchTabType];
-  isActive: boolean;
-  onClick: () => void;
-}
-
-const MobileTab: React.FC<MobileTabProps> = memo(({ tab, isActive, onClick }) => {
-  const { t } = useTranslation(['tabs']);
-  const isCommunity = tab.id === 'community';
-  return (
-    <button
-      onClick={onClick}
-      className={clsx(
-        'flex flex-col items-center justify-center py-1.5 px-2 flex-1 transition-all duration-200',
-        isCommunity
-          ? [
-              isActive
-                ? 'text-orange-500 scale-105'
-                : 'text-orange-400 scale-100',
-              'relative',
-            ]
-          : isActive
-            ? 'text-amber-700 dark:text-amber-400 scale-105'
-            : 'text-stone-500 dark:text-stone-400'
-      )}
-      style={isActive ? { animation: 'bounceGentle 0.3s ease' } : undefined}
-    >
-      {isCommunity && (
-        <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
-      )}
-      <span className={clsx(
-        'text-lg sm:text-xl',
-        isCommunity && 'drop-shadow-sm'
-      )}>{tab.icon}</span>
-      <span className="text-[10px] xs:text-xs mt-0.5 font-medium leading-tight">
-        {t(tab.shortLabelKey)}
-      </span>
-    </button>
-  );
-});
-
-MobileTab.displayName = 'MobileTab';
-
 /** 用户下拉菜单触发器 */
 interface UserDropdownProps {
   isAuthenticated: boolean;
   user?: { username?: string; role?: string } | null;
+  isAdmin: boolean;
   navigate: NavigateFunction;
   handleLogout: () => void;
 }
 
 const UserDropdown: React.FC<UserDropdownProps> = memo(
-  ({ isAuthenticated, user, navigate, handleLogout }) => {
+  ({ isAuthenticated, user, isAdmin, navigate, handleLogout }) => {
     const { t } = useTranslation(['nav']);
     return (
       <DropdownMenu
@@ -182,7 +139,7 @@ const UserDropdown: React.FC<UserDropdownProps> = memo(
         }
         items={
           isAuthenticated
-            ? userMenuItems(t, navigate, handleLogout, user?.username)
+            ? userMenuItems(t, navigate, handleLogout, { isAdmin })
             : [
                 { id: 'login', label: t('nav:userMenu.login'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/login') },
                 { id: 'register', label: t('nav:userMenu.register'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/register') },
@@ -197,22 +154,6 @@ const UserDropdown: React.FC<UserDropdownProps> = memo(
 );
 
 UserDropdown.displayName = 'UserDropdown';
-
-/** 管理员入口 */
-const AdminLink: React.FC = memo(() => {
-  const { t } = useTranslation(['nav']);
-  return (
-    <Link
-      to="/admin-panel"
-      className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
-      title={t('nav:adminLink.title')}
-    >
-      <ShieldAlert className="w-4 h-4" />
-    </Link>
-  );
-});
-
-AdminLink.displayName = 'AdminLink';
 
 /** 工具按钮行 */
 interface ToolButtonsProps {
@@ -466,46 +407,49 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 </a>
               </div>
 
-              {/* 管理员入口 - 登录后可见，移动端隐藏 */}
-              {isAuthenticated && (
-              <div className="hidden sm:flex items-center gap-0.5">
-                {isAdmin && (
-                  <AdminLink />
-                )}
-              </div>
-              )}
-
-              {/* 用户菜单 - 移动端紧凑显示 */}
+              {/* 用户菜单 - 移动端紧凑显示；管理员看板入口在菜单内按权限注入 */}
               <UserDropdown
                 isAuthenticated={isAuthenticated}
                 user={user}
+                isAdmin={isAdmin}
                 navigate={navigate}
                 handleLogout={handleLogout}
               />
             </div>
           </div>
         </div>
-      </header>
 
-      {/* ── 移动端底部导航栏 - 登录后可见 ── */}
-      {isAuthenticated && (
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom border-t border-stone-200/60 dark:border-stone-700/60"
-        role="navigation"
-        aria-label={t('nav:mobileNav.ariaLabel')}
-      >
-        <div className="flex items-stretch justify-between h-14 max-w-lg mx-auto">
-          {PINNED_TABS.map((tab) => (
-            <MobileTab
-              key={tab.id}
-              tab={tab as (typeof SEARCH_TABS)[SearchTabType]}
-              isActive={activeTab === tab.id}
-              onClick={() => handleTabChange(tab.id)}
-            />
-          ))}
-        </div>
-      </nav>
-      )}
+        {/* ── 移动端搜索分类：底部栏改为站点导航后，分类切换就近收进页头 ── */}
+        {isAuthenticated && (
+          <div
+            className="md:hidden border-t border-stone-200/60 dark:border-stone-700/60"
+            role="navigation"
+            aria-label={t('nav:mobileNav.searchTabs')}
+          >
+            <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-1.5 no-scrollbar">
+              {PINNED_TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    aria-pressed={isActive}
+                    className={clsx(
+                      'flex flex-none items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200',
+                      isActive
+                        ? clsx('bg-gradient-to-br text-white shadow-sm', tab.gradient)
+                        : 'bg-stone-100/80 text-stone-600 hover:bg-stone-200/80 dark:bg-stone-800/70 dark:text-stone-300 dark:hover:bg-stone-700/70'
+                    )}
+                  >
+                    <span className="text-sm leading-none">{tab.icon}</span>
+                    <span>{t(tab.shortLabelKey)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* ── 移动端“更多”底部抽屉 ── */}
       {isAuthenticated && isMoreOpen && (
@@ -570,6 +514,26 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                     : t('nav:mobileMore.themeLight')}
                 </span>
               </button>
+              <button
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  setIsHelpModalOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>{t('nav:mobileMore.help')}</span>
+              </button>
+              <a
+                href="https://github.com/Zoroaaa/codeseek"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMoreOpen(false)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+              >
+                <Github className="h-4 w-4" />
+                <span>{t('nav:mobileMore.github')}</span>
+              </a>
             </div>
           </div>
         </div>

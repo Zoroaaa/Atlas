@@ -4,3 +4,4 @@ export { AdminPanelLayout } from './AdminPanelLayout';
 export { CommunityPanelLayout } from './CommunityPanelLayout';
 export { UnifiedNavBar } from './UnifiedNavBar';
 export type { UnifiedNavBarProps } from './UnifiedNavBar';
+export { MobileTabBar } from './MobileTabBar';

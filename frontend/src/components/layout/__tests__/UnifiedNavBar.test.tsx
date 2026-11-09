@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('UnifiedNavBar 移动端入口', () => {
-  it('底部导航保持 5 个 Tab，且“更多”抽屉提供源站收录与主题切换', () => {
+  it('移动端页头保留 5 个搜索分类入口，且“更多”抽屉提供源站收录与主题切换', () => {
     render(
       <UnifiedNavBar
         activeTab="jav"
@@ -62,8 +62,8 @@ describe('UnifiedNavBar 移动端入口', () => {
       />
     );
 
-    const mobileNav = screen.getByRole('navigation', { name: '主导航' });
-    expect(within(mobileNav).getAllByRole('button')).toHaveLength(5);
+    const mobileTabStrip = screen.getByRole('navigation', { name: '搜索分类' });
+    expect(within(mobileTabStrip).getAllByRole('button')).toHaveLength(5);
 
     // 桌面端 tablist 保持 5 个 tab，源站入口独立于 tablist
     const tablist = screen.getByRole('tablist');
@@ -77,6 +77,8 @@ describe('UnifiedNavBar 移动端入口', () => {
     const dialog = screen.getByRole('dialog', { name: '更多' });
     expect(within(dialog).getByText('源站收录')).toBeInTheDocument();
     expect(within(dialog).getByText('主题切换')).toBeInTheDocument();
+    expect(within(dialog).getByText('帮助中心')).toBeInTheDocument();
+    expect(within(dialog).getByText('GitHub')).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByText('源站收录'));
     expect(onTabChange).toHaveBeenCalledWith('sources');
