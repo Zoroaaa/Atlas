@@ -15,7 +15,7 @@
    │
    └─ Cloudflare Workers（backend，Hono）
          ├─ D1（绑定名 DB，database_name = codeseek）
-         ├─ Cron Triggers（每小时清理 / 30 分钟关注检测 / 15 分钟邮件摘要）
+         ├─ Cron Triggers（每小时清理 / 每 30 分钟关注检测 + 邮件摘要）
          └─ 外部服务（GitHub OAuth / Google OAuth / Resend / 搜索源）
 ```
 
@@ -246,8 +246,7 @@ npx wrangler d1 execute codeseek --remote --file=../database/19_schema_community
 | Cron | 频率 | 任务 |
 |------|------|------|
 | `0 * * * *` | 每小时 | 清理过期会话、7 天前验证码、过期通知/浏览记录等 |
-| `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（`follow.new_work` / `follow.release_soon`） |
-| `*/15 * * * *` | 每 15 分钟 | 邮件摘要合并发送（每轮最多 15 封） |
+| `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（≤20 次子请求）+ 邮件摘要合并发送（≤15 封），合计低于 50 次子请求上限 |
 
 三个任务相互独立，避免共用同一次调用的子请求额度。
 

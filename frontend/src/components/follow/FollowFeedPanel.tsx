@@ -6,6 +6,7 @@ import {
   PanelSection, PanelHeader, IconAction, CountBadge, Segmented, EmptyBlock, MediaCard, Pagination, Chip,
 } from '@/components/workbench';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { FollowWorkShareButton } from './FollowWorkShareButton';
 import { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE } from '@/hooks';
 import type { FollowFeedTab } from '@/types';
 
@@ -146,6 +147,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                         </span>
                       }
                       onSelect={() => onCodeClick(item.code)}
+                      actions={<FollowWorkShareButton item={item} />}
                       coverSize="sm"
                     />
                   ))}

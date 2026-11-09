@@ -2116,7 +2116,8 @@
 
   "community": {
     "share": {
-      "toCommunity": "Share to community"
+      "toCommunity": "Share to community",
+      "noMagnetsInLibrary": "No magnet links for this title in your local library yet — sharing with the info saved in your favorites"
     }
   },
 
@@ -3030,7 +3031,7 @@
       "muteHint": "To stop alerts for one actress, mute her in My Follows — it applies to both in-app and email.",
       "hideDetails": "Hide details in emails",
       "hideDetailsDesc": "Emails will only show a count — no actress names or codes. Subjects are always neutral and emails never include cover images.",
-      "digestHint": "Emails are batched: updates are held for about 10 minutes and sent as one email, at most 3 per day (extras roll into the next one). Every email has a one-click unsubscribe link.",
+      "digestHint": "Emails are batched: we check every 30 minutes and send the updates from that window as one email, at most 3 per day (extras roll into the next one). Every email has a one-click unsubscribe link.",
       "testEmail": "Send a test email",
       "testNeedsEmailOn": "Turn on email notifications above first",
       "testSent": "Test email sent — check your inbox (and spam folder)",
@@ -3575,7 +3576,7 @@
           "Types: new works from followed actresses, post likes / comments / favorites, report outcomes, and site announcements.",
           "Channel toggles: every type has separate “In-app” and “Email” switches.",
           "Hide email details: emails show only counts, without actress names or codes, and use a neutral subject.",
-          "Batching: new feed items are combined into one email about every 10 minutes, up to 3 emails per day; extras are deferred.",
+          "Batching: new feed items are combined into one email every 30 minutes, up to 3 emails per day; extras are deferred.",
           "Test email: after verification, send a test email to confirm delivery."
         ],
         "steps": [
