@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
@@ -245,7 +245,7 @@ export const AdminPanelLayout: React.FC = () => {
         'flex-1 flex flex-col transition-all duration-300 min-w-0',
         sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
       )}>
-        <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-[#111113]/80 backdrop-blur-xl border-b border-stone-200/70 dark:border-stone-800">
+        <header className="sticky top-0 z-20 h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-white/80 dark:bg-[#111113]/80 backdrop-blur-xl border-b border-stone-200/70 dark:border-stone-800">
           <div className="flex items-center justify-between h-full px-4 sm:px-6">
             <div className="flex items-center gap-3">
               <button

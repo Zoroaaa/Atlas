@@ -215,6 +215,7 @@
   html {
     @apply scroll-smooth;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
     font-feature-settings: "cv02","cv03","cv04","cv11","ss01";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -225,6 +226,9 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     @apply bg-stone-50 text-stone-900 dark:bg-[#0a0a0b] dark:text-stone-100;
     letter-spacing: -0.01em;
+    /* 横屏 / 刘海屏：整体内容让出左右安全区，避免被圆角与刘海裁切 */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   ::selection { background: rgba(212,168,83,0.22); color: inherit; }
@@ -550,11 +554,16 @@
     @apply transition-all duration-300 ease-in-out;
   }
   .dashboard-header {
-    @apply sticky top-0 z-30 h-14 sm:h-16;
+    @apply sticky top-0 z-30;
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     @apply border-b border-stone-200/60 dark:border-stone-800;
+  }
+  @media (min-width: 640px) {
+    .dashboard-header { height: calc(4rem + env(safe-area-inset-top)); }
   }
   .dashboard-main { @apply flex-1 p-4 sm:p-6; }
 
@@ -616,7 +625,7 @@
            border-l border-stone-200/60 dark:border-stone-700/60
            rounded-r-2xl overflow-hidden
            transition-all duration-300 ease-in-out flex flex-col
-           max-h-[calc(100vh-120px)] self-start sticky top-[88px];
+           max-h-[calc(100dvh-120px)] self-start sticky top-[88px];
   }
 
   .sources-sidebar.expanded {
@@ -644,7 +653,7 @@
 
   .sidebar-content {
     @apply overflow-y-auto px-3 py-2 flex-1;
-    max-height: calc(100vh - 220px);
+    max-height: calc(100dvh - 220px);
   }
 
   .sidebar-toggle-btn {
@@ -885,6 +894,11 @@
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .safe-area-inset-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-area-inset-top { padding-top: env(safe-area-inset-top); }
+  /* 横屏 / 刘海屏：左右安全区，避免内容被圆角与刘海裁切 */
+  .safe-area-inset-x {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
   .touch-manipulation { touch-action: manipulation; }
   .will-change-transform { will-change: transform; }
   .backface-hidden { backface-visibility: hidden; }
@@ -954,6 +968,13 @@
   .btn-gradient:hover { transform: none; }
   .search-btn:hover { transform: none; }
   .search-input:focus { transform: none; }
+}
+
+/* 安装为浏览器应用（独立窗口）后的视口与滚动适配 */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html, body { overscroll-behavior-y: none; }
+  /* 独立窗口没有浏览器地址栏，避免回弹把吸顶导航拉离顶部 */
+  body { min-height: 100dvh; }
 }
 
 /* --- Mobile Touch Optimization --- */

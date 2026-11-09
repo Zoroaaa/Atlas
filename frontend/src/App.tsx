@@ -12,6 +12,7 @@ import { AdminPanelLayout } from '@/components/layout/AdminPanelLayout';
 import { CommunityPanelLayout } from '@/components/layout/CommunityPanelLayout';
 import { MobileTabBar } from '@/components/layout/MobileTabBar';
 import { ToastContainer } from '@/components/ui/Toast';
+import { PwaPrompts } from '@/components/pwa/PwaPrompts';
 import { useFeatureFlags } from '@/contexts';
 import { HomePage } from '@/pages/HomePage';
 import { MainSearchPage } from '@/pages/MainSearchPage';
@@ -253,6 +254,7 @@ const App: React.FC = () => {
       {/* 移动端底部主导航：高亮由路由推导，桌面端隐藏 */}
       <MobileTabBar />
       <ToastContainer />
+      <PwaPrompts />
       </BrowserRouter>
     </QueryClientProvider>
   );

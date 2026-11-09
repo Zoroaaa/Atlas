@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UnifiedNavBar - 统一导航栏组件
  * 整合 Logo、核心 Tab 切换器、下拉菜单和工具按钮
  * 支持桌面端和移动端响应式布局
@@ -78,6 +78,8 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       onClick={onClick}
       role="tab"
       aria-selected={isActive}
+      aria-label={t(tab.labelKey)}
+      title={t(tab.labelKey)}
       className={clsx(
         'px-3 xl:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
         isCommunity && !isActive && [
@@ -98,7 +100,7 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       )}
     >
       <span className="tab-icon">{tab.icon}</span>
-      <span className="tab-label hidden md:inline ml-1.5">{t(tab.labelKey)}</span>
+      <span className="tab-label hidden lg:inline ml-1.5">{t(tab.labelKey)}</span>
     </button>
   );
 });
@@ -284,7 +286,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   return (
     <>
       {/* ── 桌面端/平板端导航栏 ── */}
-      <header className="sticky top-0 z-40 glass">
+      <header className="sticky top-0 z-40 glass safe-area-inset-top">
         <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 min-w-0">
 
@@ -319,7 +321,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   )}
                 >
                   <span>{SEARCH_TABS.sources.icon}</span>
-                  <span>{t('tabs:sources.short')}</span>
+                  <span className="hidden lg:inline">{t('tabs:sources.short')}</span>
                 </button>
               </div>
               )}
@@ -360,14 +362,14 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 <NotificationBell />
 
                 {/* 主题切换 - 移动端收进“更多”抽屉 */}
-                <button onClick={toggleTheme} className="theme-toggle-btn hidden sm:flex sm:p-2" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
+                <button onClick={toggleTheme} className="theme-toggle-btn hidden sm:flex sm:p-2 xl:hidden" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
 
-                {/* 更多 - 仅移动端 */}
+                {/* 更多 - <1280px（平板/窄屏）承载次要入口 */}
                 <button
                   onClick={() => setIsMoreOpen(true)}
-                  className="md:hidden p-1.5 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
+                  className="xl:hidden p-1.5 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
                   aria-label={t('nav:mobileMore.open')}
                   title={t('nav:mobileMore.open')}
                 >
@@ -381,11 +383,13 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-1" />
               )}
 
-              {/* 以下按钮移动端隐藏，避免溢出 */}
-              <div className="hidden sm:flex items-center gap-0.5">
-                {/* 语言切换 */}
+              {/* 语言切换：紧凑图标，全尺寸可见 */}
+              <div className="flex items-center">
                 <LanguageSwitcher />
+              </div>
 
+              {/* 帮助 / GitHub：<1280px 收进“更多”抽屉，避免平板宽度溢出 */}
+              <div className="hidden xl:flex items-center gap-0.5">
                 {/* 帮助按钮 */}
                 <button
                   onClick={() => setIsHelpModalOpen(true)}
@@ -451,10 +455,10 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         )}
       </header>
 
-      {/* ── 移动端“更多”底部抽屉 ── */}
+      {/* ── “更多”底部抽屉：<1280px 承载次要入口，避免导航栏横向溢出 ── */}
       {isAuthenticated && isMoreOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[60]"
+          className="xl:hidden fixed inset-0 z-[60]"
           role="dialog"
           aria-modal="true"
           aria-label={t('nav:mobileMore.title')}
