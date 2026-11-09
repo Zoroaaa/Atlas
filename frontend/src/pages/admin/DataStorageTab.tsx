@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Tags,
 } from 'lucide-react';
 import { dataStorageApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
@@ -80,6 +81,7 @@ export const DataStorageTab: React.FC = () => {
 
   const [detail, setDetail] = useState<DataRecordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [genreSyncing, setGenreSyncing] = useState(false);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -173,6 +175,21 @@ export const DataStorageTab: React.FC = () => {
     }
   };
 
+  const handleGenreSync = async () => {
+    setGenreSyncing(true);
+    try {
+      const r = await dataStorageApi.syncGenreDictionary();
+      const detailText = Object.entries(r.sections)
+        .map(([section, status]) => `${section}: ${status}`)
+        .join(' / ');
+      toast.success(t('admin:dataStorage.genreSyncToast', { updated: r.updated, detail: detailText }));
+    } catch {
+      toast.error(t('admin:dataStorage.genreSyncFailed'));
+    } finally {
+      setGenreSyncing(false);
+    }
+  };
+
   // 磁力链接复制到剪贴板（magnet: 协议浏览器无法直接打开，供用户粘贴到下载工具）
   const copyToClipboard = async (text: string, label = t('admin:dataStorage.copyDefaultLabel')) => {
     try {
@@ -204,6 +221,10 @@ export const DataStorageTab: React.FC = () => {
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleGenreSync} disabled={genreSyncing}>
+            <Tags className="w-3.5 h-3.5" />
+            <span className="ml-1">{t('admin:dataStorage.genreSync')}</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={activeView === 'overview' ? loadStats : loadRecords}>
             <RefreshCw className="w-3.5 h-3.5" />
             <span className="ml-1">{t('admin:dataStorage.refresh')}</span>

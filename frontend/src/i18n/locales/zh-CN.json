@@ -1420,6 +1420,9 @@
       "viewRecords": "数据浏览",
       "refresh": "刷新",
       "cleanupHidden": "清理隐藏",
+      "genreSync": "同步标签词典",
+      "genreSyncToast": "同步完成：更新 {{updated}} 个 section（{{detail}}）",
+      "genreSyncFailed": "同步失败",
       "loading": "加载中...",
       "stat": {
         "total": "总记录数",
@@ -2071,6 +2074,9 @@
       "empty": "暂无作品",
       "retry": "重试",
       "noMore": "没有更多了"
+    },
+    "panelInfo": {
+      "show": "查看说明"
     },
     "actresses": {
       "title": "热门女优榜",

@@ -1420,6 +1420,9 @@
       "viewRecords": "資料瀏覽",
       "refresh": "重新整理",
       "cleanupHidden": "清理隱藏",
+      "genreSync": "同步標籤詞典",
+      "genreSyncToast": "同步完成：更新 {{updated}} 個 section（{{detail}}）",
+      "genreSyncFailed": "同步失敗",
       "loading": "載入中...",
       "stat": {
         "total": "總記錄數",
@@ -2071,6 +2074,9 @@
       "empty": "暫無作品",
       "retry": "重試",
       "noMore": "沒有更多了"
+    },
+    "panelInfo": {
+      "show": "查看說明"
     },
     "actresses": {
       "title": "熱門女優榜",

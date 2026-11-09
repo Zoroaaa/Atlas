@@ -1420,6 +1420,9 @@
       "viewRecords": "Browse",
       "refresh": "Refresh",
       "cleanupHidden": "Clean hidden",
+      "genreSync": "Sync tag dictionary",
+      "genreSyncToast": "Sync finished: {{updated}} section(s) updated ({{detail}})",
+      "genreSyncFailed": "Sync failed",
       "loading": "Loading...",
       "stat": {
         "total": "Total records",
@@ -2071,6 +2074,9 @@
       "empty": "No works yet",
       "retry": "Retry",
       "noMore": "No more"
+    },
+    "panelInfo": {
+      "show": "View description"
     },
     "actresses": {
       "title": "Trending actresses",

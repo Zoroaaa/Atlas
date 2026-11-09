@@ -792,4 +792,12 @@ export const dataStorageApi = {
     );
     return response.data;
   },
+
+  syncGenreDictionary: async (): Promise<{ updated: number; sections: Record<string, string> }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { updated: number; sections: Record<string, string> };
+    }>('/admin/data-storage/genre-dict/sync', {});
+    return response.data;
+  },
 };
