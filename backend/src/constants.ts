@@ -250,8 +250,44 @@ export const NOTIFICATION = {
 } as const;
 
 // ==================================================================
-// 推荐系统常量 — 代码级固定规则，改了需重新部署
+// 推荐标签（JavBus 类别词典 + 类别作品）常量
 // ==================================================================
+
+export const GENRE_DICT = {
+  CENSORED_URL: 'https://www.javbus.com/genre',
+  UNCENSORED_URL: 'https://www.javbus.com/uncensored/genre',
+  /** 单个 section 解析结果低于该值时放弃更新，保留旧行（防页面改版/拦截清空词典） */
+  MIN_TAGS_PER_SECTION: 50,
+  /** 词典同步周期：每周一次 */
+  SYNC_INTERVAL_MS: 7 * 24 * 60 * 60 * 1000,
+  FETCH_TIMEOUT_MS: 15000,
+} as const;
+
+export const GENRE_REC = {
+  MAX_TAGS: 10,
+  /** 收藏与历史都有信号时的权重；占比口径，避免记录量级差异导致单向主导 */
+  FAVORITE_WEIGHT: 0.7,
+  HISTORY_WEIGHT: 0.3,
+  FAVORITE_LIMIT: 1000,
+  HISTORY_LIMIT: 200,
+  PROFILE_CACHE_TTL: 5 * 60,
+  RATE_LIMIT_PER_MINUTE: 30,
+} as const;
+
+export const GENRE_WORKS = {
+  /** 每次返回的作品数 */
+  PAGE_SIZE: 12,
+  /** 分页硬上限（站点总页数不可知，用上限兜底） */
+  MAX_PAGE: 30,
+  /** 扩张探测步长：每次向后推 8 页 */
+  PROBE_STEP: 8,
+  /** 每个标签最多每 24 小时探测一次 */
+  PROBE_INTERVAL_MS: 24 * 60 * 60 * 1000,
+  /** 整页解析结果缓存 1 小时（抽样在缓存之后，避免所有用户看到同一批） */
+  CACHE_TTL_SECONDS: 3600,
+  FETCH_TIMEOUT_MS: 15000,
+  RATE_LIMIT_PER_MINUTE: 20,
+} as const;
 
 export const RECOMMEND = {
   DIM_WEIGHTS: {

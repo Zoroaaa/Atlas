@@ -18,11 +18,17 @@ import {
   JAV_HEADERS,
 } from '@/services/jav-utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
-import { JAV_RANKING } from '@/constants';
+import { JAV_RANKING, GENRE_REC, GENRE_WORKS } from '@/constants';
 import { getJavRankingSnapshot } from '@/services/ranking-snapshot';
 import { getHotActressRanking } from '@/services/actress-ranking';
 import { enrichDataRecordFromDetail } from '@/services/data-storage';
 import { getLibraryJavDetail } from '@/services/library-detail';
+import { success, error } from '@/utils';
+import { checkRateLimitD1 } from '@/utils/rate-limit';
+import { checkIsAdmin } from '@/middleware/auth';
+import { getGenreByKey } from '@/repositories/genre-repository';
+import { getGenreRecommendations } from '@/services/genre-recommendation';
+import { getGenreWorks } from '@/services/genre-works';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
@@ -195,6 +201,88 @@ javRoutes.get('/proxy-image', async (c) => {
 });
 
 javRoutes.use('*', authMiddleware);
+
+// ─────────────────────────────────────────────
+// 推荐标签：按收藏/搜索画像挑选 + 随机补位
+// GET /api/jav/genre-recommendations?refresh=0|1
+// ─────────────────────────────────────────────
+
+javRoutes.get('/genre-recommendations', async (c) => {
+  c.header('Cache-Control', 'no-store');
+  const user = c.get('user');
+
+  if (!(await checkIsAdmin(c))) {
+    const rl = await checkRateLimitD1(
+      c.env.DB, `genre-rec:${user.userId}`, 60_000, GENRE_REC.RATE_LIMIT_PER_MINUTE
+    );
+    if (!rl.allowed) {
+      return c.json(error('RATE_LIMITED', '标签请求过于频繁，请稍后再试'), 429);
+    }
+  }
+
+  try {
+    const data = await getGenreRecommendations(
+      c.env.DB,
+      user.userId,
+      c.req.query('refresh') === '1'
+    );
+    return c.json(success(data));
+  } catch (err) {
+    console.error('[genre-rec] get error:', err);
+    return c.json(error('SERVER_ERROR', '获取推荐标签失败'), 500);
+  }
+});
+
+// ─────────────────────────────────────────────
+// 标签作品：随机页 + 随机抽样
+// GET /api/jav/genre-works?genre=<name_key>&refresh=0|1&prevPage=<n>
+// ─────────────────────────────────────────────
+
+javRoutes.get('/genre-works', async (c) => {
+  c.header('Cache-Control', 'no-store');
+  const user = c.get('user');
+
+  if (!(await checkIsAdmin(c))) {
+    const rl = await checkRateLimitD1(
+      c.env.DB, `genre-works:${user.userId}`, 60_000, GENRE_WORKS.RATE_LIMIT_PER_MINUTE
+    );
+    if (!rl.allowed) {
+      return c.json(error('RATE_LIMITED', '作品请求过于频繁，请稍后再试'), 429);
+    }
+  }
+
+  const genreKey = (c.req.query('genre') ?? '').trim().toLowerCase();
+  if (!genreKey) {
+    return c.json(error('INVALID_GENRE', '缺少标签参数'), 400);
+  }
+
+  const prevRaw = Number.parseInt(c.req.query('prevPage') ?? '', 10);
+  const prevPage = Number.isFinite(prevRaw) && prevRaw >= 1 && prevRaw <= GENRE_WORKS.MAX_PAGE
+    ? prevRaw
+    : undefined;
+
+  try {
+    const genre = await getGenreByKey(c.env.DB, genreKey);
+    if (!genre) {
+      return c.json(error('INVALID_GENRE', '标签不存在'), 400);
+    }
+
+    const outcome = await getGenreWorks(c.env.DB, user.userId, genre, {
+      refresh: c.req.query('refresh') === '1',
+      prevPage,
+      waitUntil: (promise) => c.executionCtx.waitUntil(promise),
+    });
+
+    if (!outcome.ok) {
+      return c.json(error('SOURCE_BLOCKED', '来源暂时不可用，请稍后重试'), 502);
+    }
+
+    return c.json(success(outcome.data));
+  } catch (err) {
+    console.error('[genre-works] get error:', err);
+    return c.json(error('SERVER_ERROR', '获取标签作品失败'), 500);
+  }
+});
 
 // ─────────────────────────────────────────────
 // 榜单：JavDB 周榜 / 月榜（只读最近快照，不删除历史）

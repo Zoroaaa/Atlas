@@ -136,7 +136,8 @@ $scripts = @(
   '11_schema_data_storage','12_schema_search_tier','13_backfill_search_tier',
   '14_schema_notifications_follows','15_migrate_actress_favorites_to_follows',
   '16_email_notifications','17_schema_announcement_reads',
-  '18_backfill_community_notifications','19_schema_community_post_views'
+  '18_backfill_community_notifications','19_schema_community_post_views',
+  '20_fix_community_user_stats','21_schema_jav_genres'
 )
 foreach ($s in $scripts) {
   npx wrangler d1 execute codeseek --remote --file="../database/$s.sql"
@@ -155,8 +156,10 @@ foreach ($s in $scripts) {
 | `17_schema_announcement_reads` | 公告已读表 | 必需 |
 | `18_backfill_community_notifications` | 历史社区互动补写通知 | 可选（新库无数据） |
 | `19_schema_community_post_views` | 帖子浏览 24 小时去重表 | 必需 |
+| `20_fix_community_user_stats` | 社区统计改为实时聚合，删除冗余列/表/触发器 | 必需（一次性，勿重复执行） |
+| `21_schema_jav_genres` | 推荐标签词典与标签分页状态表 | 必需 |
 
-所有脚本均可重复执行。`08` 与 `12` 已修复跨版本重复加列问题，`13`/`18` 为空表时无副作用。
+除 `20` 外，表结构脚本均可重复执行；`20` 是有损修复脚本（`DROP COLUMN`/`DROP TABLE`），重复执行会因对象不存在报错，只需执行一次。`08` 与 `12` 已修复跨版本重复加列问题，`13`/`18` 为空表时无副作用。
 
 ### 6. 本地开发
 
@@ -228,6 +231,13 @@ cd backend
 npx wrangler d1 execute codeseek --remote --file=../database/17_schema_announcement_reads.sql
 npx wrangler d1 execute codeseek --remote --file=../database/18_backfill_community_notifications.sql
 npx wrangler d1 execute codeseek --remote --file=../database/19_schema_community_post_views.sql
+```
+
+已经部署过 v1.6.0 的库，再按顺序补执行 `20_fix_community_user_stats.sql`（一次性，勿重复）与 `21_schema_jav_genres.sql`（幂等）：
+
+```bash
+npx wrangler d1 execute codeseek --remote --file=../database/20_fix_community_user_stats.sql
+npx wrangler d1 execute codeseek --remote --file=../database/21_schema_jav_genres.sql
 ```
 
 升级注意事项：
