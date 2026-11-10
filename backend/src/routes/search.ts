@@ -139,8 +139,13 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
         // 子模式（如 JAV 的 code/title/actress）结果完全不同，必须纳入缓存键，否则互相串数据
         const subModeKey = javSubMode ? `&sub=${encodeURIComponent(javSubMode)}` : '';
         const userKey = isUserScoped ? `&u=${encodeURIComponent(userPayload?.userId || 'anonymous')}` : '';
+        // 用户禁用源必须进入缓存键：否则关闭某个源后，TTL 内的旧缓存仍会返回该源的结果，
+        // 表现为「源管理设置不生效」。排序保证同一集合生成同一个键。
+        const sourceKey = isUserScoped && disabledSources && disabledSources.size > 0
+          ? `&ds=${encodeURIComponent([...disabledSources].sort().join(','))}`
+          : '';
         const cacheKey = new Request(
-          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}`
+          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}${sourceKey}`
         );
         // 用户态响应不得声明为 public：真实请求 URL /api/search 不含用户标识，
         // 一旦被中间层按公共 URL 缓存就会跨用户泄露。
