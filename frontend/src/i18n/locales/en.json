@@ -2011,6 +2011,9 @@
       "goToWebtor": "Open WebTor",
       "magnetExtract": "Magnet extractor",
       "magnetsCount": "{{count}} magnets",
+      "magnetsCountShort": "{{count}} magnets",
+      "favorited": "Saved",
+      "favoriteShort": "Save",
       "unfavorite": "Remove from favorites",
       "favorite": "Add to favorites",
       "favoriteHint": "Tap to add to favorites~",
@@ -2150,6 +2153,7 @@
   "community": {
     "share": {
       "toCommunity": "Share to community",
+      "compact": "Share",
       "noMagnetsInLibrary": "No magnet links for this title in your local library yet — sharing with the info saved in your favorites"
     }
   },

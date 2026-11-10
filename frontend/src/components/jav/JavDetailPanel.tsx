@@ -13,7 +13,7 @@ import {
   copyToClipboard,
 } from '@/utils/magnet';
 import { ProxyImage, Modal } from '@/components/ui';
-import { PanelSection, PanelHeader, ResourceRow, Chip, CountBadge, EmptyBlock, LoadingBlock } from '@/components/workbench';
+import { PanelSection, ResourceRow, Chip, CountBadge, EmptyBlock, LoadingBlock } from '@/components/workbench';
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { clsx } from 'clsx';
@@ -280,33 +280,52 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
 
   return (
     <PanelSection>
-      <PanelHeader
-        icon={<Magnet className="h-4 w-4 text-accent-500" />}
-        title={t('jav:detail.magnetExtract')}
-        count={
-          detail ? (
-            <div className="flex items-center gap-1.5">
+      {/* 窄屏：标题独占一行（仅保留关闭），操作按钮另起一行；桌面恢复单行原布局 */}
+      <header className="panel-header flex-wrap gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-100 text-primary-600 dark:bg-surface-800 dark:text-primary-300">
+            <Magnet className="h-4 w-4 text-accent-500" />
+          </span>
+          <span className="type-section-title min-w-0 truncate text-surface-900 dark:text-surface-100">
+            {t('jav:detail.magnetExtract')}
+          </span>
+          {detail ? (
+            // 桌面：番号与磁力数量留在标题行；窄屏移到第二行与操作并列
+            <span className="hidden items-center gap-1.5 sm:flex">
               <Chip tone="accent">{detail.code}</Chip>
               {status === 'success' ? (
                 <CountBadge>{t('jav:detail.magnetsCount', { count: detail.magnets.length })}</CountBadge>
               ) : null}
-            </div>
-          ) : undefined
-        }
-        actions={
-          <>
+            </span>
+          ) : null}
+        </div>
+
+        <div className="order-3 flex w-full min-w-0 items-center gap-1.5 sm:order-none sm:w-auto">
+          {/* 窄屏第二行：番号 + 磁力数量（简写）靠左，操作靠右；桌面回收进标题行 */}
+          {detail ? (
+            <span className="flex min-w-0 items-center gap-1 sm:hidden">
+              <Chip tone="accent">{detail.code}</Chip>
+              {status === 'success' ? (
+                <CountBadge>{t('jav:detail.magnetsCountShort', { count: detail.magnets.length })}</CountBadge>
+              ) : null}
+            </span>
+          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:ml-0">
             {onFavorite && detail && status === 'success' ? (
               <button
                 type="button"
                 onClick={() => onFavorite(detail)}
                 aria-label={isFavorited ? t('jav:detail.unfavorite') : t('jav:detail.favorite')}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                className={`flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors sm:h-8 sm:w-8 sm:justify-center sm:px-0 ${
                   isFavorited
                     ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
-                    : 'text-surface-400 hover:bg-error-50 hover:text-error-500 dark:hover:bg-error-900/20'
+                    : 'text-surface-500 hover:bg-error-50 hover:text-error-500 dark:text-surface-400 dark:hover:bg-error-900/20'
                 }`}
               >
-                <Heart className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
+                <Heart className={`h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 ${isFavorited ? 'fill-current' : ''}`} />
+                <span className="whitespace-nowrap sm:hidden">
+                  {isFavorited ? t('jav:detail.favorited') : t('jav:detail.favoriteShort')}
+                </span>
               </button>
             ) : null}
             {detail && status === 'success' ? (
@@ -339,19 +358,22 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 isAuthenticated={isAuthenticated}
                 onLoginRequired={onLoginRequired}
                 size="small"
+                compactLabel={t('community:share.compact')}
+                className="h-7 shrink-0 whitespace-nowrap sm:h-auto"
               />
             ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={t('jav:detail.actions')}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </>
-        }
-      />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('jav:detail.actions')}
+          className="order-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:hover:bg-surface-800 dark:hover:text-surface-200 sm:order-none"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </header>
 
       <Modal
         isOpen={playModalOpen && !!playCode}

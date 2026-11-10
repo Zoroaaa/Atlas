@@ -18,6 +18,8 @@ export interface ShareToCommunityButtonProps {
   resolvePostData?: () => Promise<SharePostData | null>;
   className?: string;
   size?: 'small' | 'medium' | 'large';
+  /** 窄屏下使用的短文案（如「分享」），默认与完整文案一致 */
+  compactLabel?: string;
   /** button：带文字的渐变按钮（默认）；icon：只有图标的小按钮，用于竖排的操作列 */
   variant?: 'button' | 'icon';
   isAuthenticated?: boolean;
@@ -41,6 +43,7 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
   resolvePostData,
   className = '',
   size = 'medium',
+  compactLabel,
   variant = 'button',
   isAuthenticated: isAuthenticatedProp,
   onLoginRequired,
@@ -106,7 +109,8 @@ export const ShareToCommunityButton: React.FC<ShareToCommunityButtonProps> = ({
           title={label}
         >
           <Icon className={`${iconSizes[size]} ${loading ? 'animate-spin' : ''}`} />
-          <span>{label}</span>
+          <span className="sm:hidden">{compactLabel ?? label}</span>
+          <span className="hidden sm:inline">{label}</span>
         </button>
       )}
 

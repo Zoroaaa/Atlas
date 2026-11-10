@@ -2011,6 +2011,9 @@
       "goToWebtor": "前往 WebTor",
       "magnetExtract": "磁力提取",
       "magnetsCount": "{{count}} 条磁力",
+      "magnetsCountShort": "{{count}} 条",
+      "favorited": "已收藏",
+      "favoriteShort": "收藏",
       "unfavorite": "取消收藏",
       "favorite": "收藏",
       "favoriteHint": "喜欢就收藏吧~",
@@ -2150,6 +2153,7 @@
   "community": {
     "share": {
       "toCommunity": "分享到社区",
+      "compact": "分享到社区",
       "noMagnetsInLibrary": "本地库里暂时没有这部影片的磁力链接，已按收藏里的信息分享"
     }
   },
