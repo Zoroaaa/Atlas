@@ -119,27 +119,18 @@ function userListFilter(opts: { search?: string; status?: string; roleId?: strin
   return { clause, params };
 }
 
-/** 统计用户总数（按搜索 / 状态 / 角色过滤） */
-export async function countUsers(
-  db: D1Database,
-  opts: { search?: string; status?: string; roleId?: string }
-): Promise<number> {
-  const { clause, params } = userListFilter(opts);
-  const row = await db
-    .prepare(`SELECT COUNT(*) as total FROM users u ${clause}`)
-    .bind(...params)
-    .first<{ total: number }>();
-  return row?.total || 0;
-}
-
-/** 分页查询用户列表（含角色名，按创建时间倒序） */
+/**
+ * 分页查询用户列表（含角色名，按创建时间倒序）。
+ * 合并了原先 countUsers + listUsers 两次请求：同批执行，1 个 D1 往返。
+ */
 export async function listUsers(
   db: D1Database,
   opts: { search?: string; status?: string; roleId?: string; limit: number; offset: number }
-): Promise<AdminUserListRow[]> {
+): Promise<{ total: number; rows: AdminUserListRow[] }> {
   const { clause, params } = userListFilter(opts);
-  const rows = await db
-    .prepare(
+  const [countResult, rowsResult] = (await db.batch([
+    db.prepare(`SELECT COUNT(*) as total FROM users u ${clause}`).bind(...params),
+    db.prepare(
       `SELECT u.id, u.username, u.email, u.is_active, u.email_verified, u.login_count, 
               u.created_at, u.last_login, u.role_id,
               r.name as role_name, r.display_name as role_display_name
@@ -148,10 +139,13 @@ export async function listUsers(
        ${clause}
        ORDER BY u.created_at DESC
        LIMIT ? OFFSET ?`
-    )
-    .bind(...params, opts.limit, opts.offset)
-    .all<AdminUserListRow>();
-  return rows.results || [];
+    ).bind(...params, opts.limit, opts.offset),
+  ])) as unknown as [
+    { results: Array<{ total: number }> },
+    { results: AdminUserListRow[] },
+  ];
+
+  return { total: countResult.results?.[0]?.total || 0, rows: rowsResult.results || [] };
 }
 
 /** 用户详情行（含角色信息） */
@@ -1257,6 +1251,107 @@ export async function listDashboardRecentActions(db: D1Database): Promise<Row[]>
     )
     .all();
   return rows.results || [];
+}
+
+/** 看板概览快照：10 条聚合查询合并为一个 db.batch（1 个 D1 往返） */
+export interface DashboardOverviewSnapshot {
+  userStats: DashboardUserStatsRow | null;
+  sessionStats: { total: number; active: number; unique_users: number } | null;
+  actionStats: { total: number; unique_users: number; today: number; week: number } | null;
+  analyticsStats: { total: number; unique_users: number; unique_sessions: number; today: number; week: number } | null;
+  sourceStats: { total: number; active: number; total_usage: number } | null;
+  searchStats: { total: number; unique_users: number; today: number; week: number } | null;
+  loginStats: { success: number; failed: number } | null;
+  communityStats: { posts: number; reviews: number; pending_reports: number } | null;
+  recentActions: Row[];
+  activeUsersToday: number;
+}
+
+export async function getDashboardOverviewSnapshot(
+  db: D1Database,
+  opts: { oneDayAgo: number; oneWeekAgo: number; oneMonthAgo: number; now: number }
+): Promise<DashboardOverviewSnapshot> {
+  const [user, session, action, analytics, source, search, login, community, recent, activeToday] =
+    await db.batch([
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_today,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_week,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_month
+        FROM users`
+      ).bind(opts.oneDayAgo, opts.oneWeekAgo, opts.oneMonthAgo),
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          SUM(CASE WHEN expires_at > ? THEN 1 ELSE 0 END) as active,
+          COUNT(DISTINCT user_id) as unique_users
+        FROM user_sessions`
+      ).bind(opts.now),
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          COUNT(DISTINCT user_id) as unique_users,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
+        FROM user_actions`
+      ).bind(opts.oneDayAgo, opts.oneWeekAgo),
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          COUNT(DISTINCT user_id) as unique_users,
+          COUNT(DISTINCT session_id) as unique_sessions,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
+        FROM analytics_events`
+      ).bind(opts.oneDayAgo, opts.oneWeekAgo),
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
+          SUM(usage_count) as total_usage
+        FROM search_sources`
+      ),
+      db.prepare(
+        `SELECT COUNT(*) as total,
+          COUNT(DISTINCT user_id) as unique_users,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as today,
+          SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as week
+        FROM user_search_history`
+      ).bind(opts.oneDayAgo, opts.oneWeekAgo),
+      db.prepare(
+        `SELECT SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
+          SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed
+        FROM user_actions
+        WHERE action IN ('login', 'login_failed') AND created_at > ?`
+      ).bind(opts.oneDayAgo),
+      db.prepare(
+        `SELECT
+          (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
+          (SELECT COUNT(*) FROM community_comments) as reviews,
+          (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports`
+      ),
+      db.prepare(
+        `SELECT a.action, a.data, a.created_at, u.username
+        FROM user_actions a
+        LEFT JOIN users u ON a.user_id = u.id
+        ORDER BY a.created_at DESC
+        LIMIT 20`
+      ),
+      // 今日活跃用户：沿用原语义，按会话 last_activity 去重统计（不是行为日志）
+      db.prepare(
+        `SELECT COUNT(DISTINCT user_id) as count FROM user_sessions WHERE last_activity > ?`
+      ).bind(opts.oneDayAgo),
+    ]);
+
+  return {
+    userStats: (user.results?.[0] as DashboardUserStatsRow) || null,
+    sessionStats: (session.results?.[0] as DashboardOverviewSnapshot['sessionStats']) || null,
+    actionStats: (action.results?.[0] as DashboardOverviewSnapshot['actionStats']) || null,
+    analyticsStats: (analytics.results?.[0] as DashboardOverviewSnapshot['analyticsStats']) || null,
+    sourceStats: (source.results?.[0] as DashboardOverviewSnapshot['sourceStats']) || null,
+    searchStats: (search.results?.[0] as DashboardOverviewSnapshot['searchStats']) || null,
+    loginStats: (login.results?.[0] as DashboardOverviewSnapshot['loginStats']) || null,
+    communityStats: (community.results?.[0] as DashboardOverviewSnapshot['communityStats']) || null,
+    recentActions: (recent.results || []) as Row[],
+    activeUsersToday: (activeToday.results?.[0] as { count: number } | undefined)?.count || 0,
+  };
 }
 
 // ===========================================================================

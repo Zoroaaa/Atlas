@@ -86,6 +86,32 @@ async function getLatestJob(db: D1Database): Promise<JavDetailJobRow | null> {
     .first<JavDetailJobRow>();
 }
 
+/**
+ * 是否存在「已到期可处理」的记录。
+ *
+ * COUNT(*) 必须扫完整个候选集才能得到数字；这里只判断存在性，
+ * 命中第一条即返回，任务运行中的收尾判断用它替代一次全量统计。
+ */
+async function hasDueRecords(db: D1Database): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS one
+       FROM data_records d
+       LEFT JOIN jav_detail_meta m ON m.record_id = d.id
+       WHERE d.record_type = 'jav'
+         AND d.status = 'active'
+         AND d.detail_completed = 0
+         AND d.code IS NOT NULL
+         AND COALESCE(m.retry_exhausted, 0) = 0
+         AND COALESCE(m.status, 'pending') <> 'complete'
+         AND COALESCE(m.next_retry_at, 0) <= ?
+       LIMIT 1`
+    )
+    .bind(Date.now())
+    .first<{ one: number }>();
+  return row !== null;
+}
+
 async function countPending(db: D1Database, dueOnly: boolean): Promise<number> {
   const now = Date.now();
   const row = await db
@@ -107,11 +133,29 @@ async function countPending(db: D1Database, dueOnly: boolean): Promise<number> {
 }
 
 export async function getJavDetailJobView(db: D1Database): Promise<JavDetailJobView> {
-  const [job, pending, due] = await Promise.all([
+  const now = Date.now();
+  // pending 与 due 用一次扫描同时算出来：管理页运行时每 15 秒轮询一次，
+  // 拆成两条 COUNT 会让候选集被完整扫描两遍。
+  const [job, counts] = await Promise.all([
     getLatestJob(db),
-    countPending(db, false),
-    countPending(db, true),
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                SUM(CASE WHEN COALESCE(m.next_retry_at, 0) <= ? THEN 1 ELSE 0 END) AS due
+         FROM data_records d
+         LEFT JOIN jav_detail_meta m ON m.record_id = d.id
+         WHERE d.record_type = 'jav'
+           AND d.status = 'active'
+           AND d.detail_completed = 0
+           AND d.code IS NOT NULL
+           AND COALESCE(m.retry_exhausted, 0) = 0
+           AND COALESCE(m.status, 'pending') <> 'complete'`
+      )
+      .bind(now)
+      .first<{ n: number; due: number | null }>(),
   ]);
+  const pending = counts?.n ?? 0;
+  const due = counts?.due ?? 0;
   return { job, pending, due, scheduled: Math.max(pending - due, 0) };
 }
 
@@ -309,16 +353,31 @@ async function processOne(db: D1Database, record: DueRecord): Promise<{ kind: 'c
 
 /**
  * 每分钟 cron 调用：有运行中的任务就处理一批。
- * 没抢到锁 / 没有任务 → 静默跳过。
+ *
+ * 空转门控：先做一次 `detail_fetch_jobs(status='running')` 的唯一索引查询，
+ * 没有运行中的任务就直接返回——不抢 cron 锁、不做候选集统计。
+ * 这样空闲时每 tick 只有 1 条语句、约 1 行读取；
+ * 任务被标记 done 后下一 tick 即落入该分支，不再产生轮询成本。
  */
 export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boolean; processed: number }> {
+  let running: { one: number } | null;
+  try {
+    running = await db
+      .prepare(`SELECT 1 AS one FROM detail_fetch_jobs WHERE status = 'running' LIMIT 1`)
+      .first<{ one: number }>();
+  } catch {
+    // 迁移 26 未执行 / 表不存在：直接退出，避免每分钟重复报错
+    return { ran: false, processed: 0 };
+  }
+  if (!running) return { ran: false, processed: 0 };
+
   return (
     (await withCronLock(db, LOCK_KEY, LOCK_TTL_MS, async () => {
       const job = await getRunningJob(db);
       if (!job) return { ran: false, processed: 0 };
 
-      const dueBefore = await countPending(db, true);
-      if (dueBefore === 0) {
+      const records = await selectDueRecords(db, Math.max(1, job.batch_size));
+      if (records.length === 0) {
         await db
           .prepare(
             `UPDATE detail_fetch_jobs
@@ -330,7 +389,6 @@ export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boole
         return { ran: true, processed: 0 };
       }
 
-      const records = await selectDueRecords(db, Math.max(1, job.batch_size));
       let processed = 0;
 
       for (let i = 0; i < records.length; i++) {
@@ -338,9 +396,9 @@ export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boole
         processed++;
 
         const isLast = i === records.length - 1;
-        const dueAfter = isLast ? await countPending(db, true) : 0;
+        const dueAfter = isLast ? await hasDueRecords(db) : false;
         // 最后一条处理完且没有到期记录时才收尾；未到重试时间的记录留给后续任务
-        const finished = isLast && dueAfter === 0;
+        const finished = isLast && !dueAfter;
 
         await bumpJob(
           db,

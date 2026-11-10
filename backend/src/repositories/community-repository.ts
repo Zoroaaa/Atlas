@@ -6,6 +6,8 @@
  * 用户社区统计在读取时从上述源表聚合，不再维护 community_user_stats。
  * 需要原子性的多语句操作（batch）在此整体提供，避免拆分后丢失原子性。
  */
+import { cached, invalidateCache } from '@/utils/cache';
+
 /** 帖子行（community_posts 查询结果；联表查询时可附带作者 username） */
 export type CommunityPostRow = Record<string, unknown> & { userName?: string | null };
 
@@ -19,18 +21,32 @@ type SqlValue = string | number | boolean | null;
 // community_tags
 // ===========================================================================
 
-/** 查询所有活跃标签（附带使用该标签的活跃帖子数） */
+/**
+ * 查询所有活跃标签（附带使用该标签的活跃帖子数）
+ *
+ * 帖子 tags 为 JSON 数组，先一次性 json_each 聚合出各标签计数，再 LEFT JOIN 标签表；
+ * 避免旧写法对每个标签各扫一遍活跃帖子（O(标签数 × 帖子数)）。
+ * 结果做 60s 进程内缓存，标签增删改时主动失效。
+ */
 export async function listActiveTags(db: D1Database): Promise<Array<Record<string, unknown>>> {
-  const rows = await db
-    .prepare(
-      `SELECT t.*,
-         (SELECT COUNT(*) FROM community_posts p WHERE p.status = 'active' AND p.tags LIKE '%' || t.tag_name || '%') as posts_count
-       FROM community_tags t
-       WHERE t.tag_active = 1
-       ORDER BY tag_name ASC`
-    )
-    .all<Record<string, unknown>>();
-  return rows.results || [];
+  return cached('community:active-tags', 60_000, async () => {
+    const rows = await db
+      .prepare(
+        `SELECT t.*, COALESCE(c.cnt, 0) AS posts_count
+         FROM community_tags t
+         LEFT JOIN (
+           SELECT j.value AS tag_name, COUNT(*) AS cnt
+           FROM community_posts p,
+                json_each(CASE WHEN json_valid(p.tags) AND json_type(p.tags) = 'array' THEN p.tags ELSE '[]' END) j
+           WHERE p.status = 'active' AND j.value != ''
+           GROUP BY j.value
+         ) c ON c.tag_name = t.tag_name
+         WHERE t.tag_active = 1
+         ORDER BY t.tag_name ASC`
+      )
+      .all<Record<string, unknown>>();
+    return rows.results || [];
+  });
 }
 
 /** 按标签名查询标签 id（用于创建时的重名校验） */
@@ -57,6 +73,7 @@ export async function insertTag(
     )
     .bind(params.id, params.name, params.description, params.color, params.createdBy, params.now, params.now)
     .run();
+  invalidateCache('community:active-tags');
 }
 
 /** 按 id 查询标签完整行 */
@@ -84,6 +101,7 @@ export async function updateTagFields(
     .prepare(`UPDATE community_tags SET ${opts.updates.join(', ')} WHERE id = ?`)
     .bind(...opts.params)
     .run();
+  invalidateCache('community:active-tags');
 }
 
 /** 统计使用某标签的帖子数（按 LIKE 模式匹配 tags 字段） */
@@ -98,6 +116,7 @@ export async function countPostsByTagPattern(db: D1Database, pattern: string): P
 /** 删除标签 */
 export async function deleteTag(db: D1Database, id: string): Promise<void> {
   await db.prepare('DELETE FROM community_tags WHERE id = ?').bind(id).run();
+  invalidateCache('community:active-tags');
 }
 
 // ===========================================================================
@@ -118,52 +137,45 @@ function userPostFilter(opts: { userId: string; status?: string | null }): {
   return { clause, params };
 }
 
-/** 统计某用户的帖子总数（可选按状态过滤） */
-export async function countUserPosts(
-  db: D1Database,
-  opts: { userId: string; status?: string | null }
-): Promise<number> {
-  const { clause, params } = userPostFilter(opts);
-  const row = await db
-    .prepare(`SELECT COUNT(*) as total FROM community_posts ${clause}`)
-    .bind(...params)
-    .first<{ total: number }>();
-  return row?.total || 0;
-}
-
-/** 分页查询某用户的帖子（按创建时间倒序） */
+/**
+ * 分页查询某用户的帖子（按创建时间倒序）。
+ * COUNT 与列表放在同一个 db.batch 里：1 个 D1 往返，且不引入窗口函数的临时排序。
+ */
 export async function listUserPosts(
   db: D1Database,
   opts: { userId: string; status?: string | null; limit: number; offset: number }
-): Promise<CommunityPostRow[]> {
+): Promise<{ total: number; rows: CommunityPostRow[] }> {
   const { clause, params } = userPostFilter(opts);
-  const rows = await db
-    .prepare(`SELECT * FROM community_posts ${clause} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
-    .bind(...params, opts.limit, opts.offset)
-    .all<CommunityPostRow>();
-  return rows.results || [];
+  const [countResult, rowsResult] = (await db.batch([
+    db.prepare(`SELECT COUNT(*) as total FROM community_posts ${clause}`).bind(...params),
+    db.prepare(
+      `SELECT * FROM community_posts ${clause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).bind(...params, opts.limit, opts.offset),
+  ])) as unknown as [
+    { results: Array<{ total: number }> },
+    { results: CommunityPostRow[] },
+  ];
+
+  return { total: countResult.results?.[0]?.total || 0, rows: rowsResult.results || [] };
 }
 
-/** 统计用户收藏的活跃帖子总数 */
-export async function countFavoritePosts(db: D1Database, userId: string): Promise<number> {
-  const row = await db
-    .prepare(
-      `SELECT COUNT(*) as total FROM community_likes l
-       JOIN community_posts p ON l.post_id = p.id
-       WHERE l.user_id = ? AND l.like_type = 'favorite' AND p.status = 'active'`
-    )
-    .bind(userId)
-    .first<{ total: number }>();
-  return row?.total || 0;
-}
-
-/** 分页查询用户收藏的帖子（含作者名，按收藏时间倒序） */
+/**
+ * 分页查询用户收藏的帖子（含作者名，按收藏时间倒序）。
+ * 依赖 idx_likes_user_type_created(user_id, like_type, created_at DESC)：
+ * 只扫该用户的收藏，且 ORDER BY 不需要临时 B 树。
+ * COUNT 与列表同批执行：1 个 D1 往返。
+ */
 export async function listFavoritePosts(
   db: D1Database,
   opts: { userId: string; limit: number; offset: number }
-): Promise<CommunityPostRow[]> {
-  const rows = await db
-    .prepare(
+): Promise<{ total: number; rows: CommunityPostRow[] }> {
+  const [countResult, rowsResult] = (await db.batch([
+    db.prepare(
+      `SELECT COUNT(*) as total FROM community_likes l
+       JOIN community_posts p ON l.post_id = p.id
+       WHERE l.user_id = ? AND l.like_type = 'favorite' AND p.status = 'active'`
+    ).bind(opts.userId),
+    db.prepare(
       `SELECT p.*, u.username as userName
        FROM community_likes l
        JOIN community_posts p ON l.post_id = p.id
@@ -171,10 +183,13 @@ export async function listFavoritePosts(
        WHERE l.user_id = ? AND l.like_type = 'favorite' AND p.status = 'active'
        ORDER BY l.created_at DESC
        LIMIT ? OFFSET ?`
-    )
-    .bind(opts.userId, opts.limit, opts.offset)
-    .all<CommunityPostRow>();
-  return rows.results || [];
+    ).bind(opts.userId, opts.limit, opts.offset),
+  ])) as unknown as [
+    { results: Array<{ total: number }> },
+    { results: CommunityPostRow[] },
+  ];
+
+  return { total: countResult.results?.[0]?.total || 0, rows: rowsResult.results || [] };
 }
 
 /**
@@ -222,25 +237,25 @@ export async function listPosts(
   }
 
   const whereClause = whereClauses.join(' AND ');
+  const offset = (opts.page - 1) * opts.pageSize;
 
-  const countResult = await db
-    .prepare(`SELECT COUNT(*) as total FROM community_posts p WHERE ${whereClause}`)
-    .bind(...params)
-    .first<{ total: number }>();
-  const total = countResult?.total || 0;
-
-  const posts = await db
-    .prepare(
+  // COUNT 与列表同批执行：1 个 D1 往返；不用窗口函数，避免 SQLite 物化 + 临时排序。
+  const [countResult, postsResult] = (await db.batch([
+    db.prepare(`SELECT COUNT(*) as total FROM community_posts p WHERE ${whereClause}`).bind(...params),
+    db.prepare(
       `SELECT p.*, u.username as userName
        FROM community_posts p
        LEFT JOIN users u ON p.user_id = u.id
        WHERE ${whereClause}
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`
-    )
-    .bind(...params, opts.pageSize, (opts.page - 1) * opts.pageSize)
-    .all<CommunityPostRow>();
-  const rows = posts.results || [];
+    ).bind(...params, opts.pageSize, offset),
+  ])) as unknown as [
+    { results: Array<{ total: number }> },
+    { results: CommunityPostRow[] },
+  ];
+  const total = countResult.results?.[0]?.total || 0;
+  const rows = postsResult.results || [];
 
   const likedPostIds: string[] = [];
   const favoritedPostIds: string[] = [];
@@ -557,11 +572,11 @@ export async function getUserCommunityStats(
          (SELECT COUNT(*) FROM community_posts
            WHERE user_id = ? AND status = 'active') AS posts_count,
          (SELECT COUNT(*) FROM community_likes l
-            JOIN community_posts p ON p.id = l.post_id
-           WHERE p.user_id = ? AND p.status = 'active' AND l.like_type = 'like') AS likes_received,
+           WHERE l.like_type = 'like'
+             AND l.post_id IN (SELECT id FROM community_posts WHERE user_id = ? AND status = 'active')) AS likes_received,
          (SELECT COUNT(*) FROM community_likes l
-            JOIN community_posts p ON p.id = l.post_id
-           WHERE p.user_id = ? AND p.status = 'active' AND l.like_type = 'favorite') AS favorites_received,
+           WHERE l.like_type = 'favorite'
+             AND l.post_id IN (SELECT id FROM community_posts WHERE user_id = ? AND status = 'active')) AS favorites_received,
          (SELECT COUNT(*) FROM community_comments
            WHERE user_id = ?) AS comments_count`
     )

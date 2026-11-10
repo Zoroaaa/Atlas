@@ -44,7 +44,6 @@ dataStorageRoutes.get('/stats', async (c) => {
     const thirtyDaysAgo = now - 30 * dayMs;
 
     const [
-      totalResult,
       byTypeResult,
       detailCompletedResult,
       addedTodayResult,
@@ -54,7 +53,6 @@ dataStorageRoutes.get('/stats', async (c) => {
       overTimeResult,
       topSourcesResult,
     ] = (await c.env.DB.batch([
-      c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records'),
       c.env.DB.prepare(
         `SELECT record_type as type, COUNT(*) as cnt
          FROM data_records GROUP BY record_type ORDER BY cnt DESC`
@@ -80,7 +78,6 @@ dataStorageRoutes.get('/stats', async (c) => {
          FROM data_record_sources GROUP BY source_name ORDER BY cnt DESC LIMIT 10`
       ),
     ])) as unknown as [
-      { results: Array<{ cnt: number }> },
       { results: Array<{ type: string; cnt: number }> },
       { results: Array<{ completed: number; total: number }> },
       { results: Array<{ cnt: number }> },
@@ -91,9 +88,10 @@ dataStorageRoutes.get('/stats', async (c) => {
       { results: Array<{ source_name: string; cnt: number }> },
     ];
 
-    const total = totalResult.results?.[0]?.cnt || 0;
-    const completed = detailCompletedResult.results?.[0]?.completed || 0;
-    const detailTotal = detailCompletedResult.results?.[0]?.total || 0;
+    // 总量与明细完成数复用同一条聚合，避免对 data_records 全表 COUNT 两次
+    const detailRow = detailCompletedResult.results?.[0];
+    const total = detailRow?.total || 0;
+    const completed = detailRow?.completed || 0;
 
     // JAV 字段级完整度（导演/制作商/发行商/磁力），与上面的全局 detail_completed 分开
     const javDetail = await getJavDetailStats(c.env.DB);
@@ -133,7 +131,7 @@ dataStorageRoutes.get('/stats', async (c) => {
       success({
         totalRecords: total,
         byType: (byTypeResult.results || []).map((r) => ({ type: r.type, count: r.cnt })),
-        detailCompletionRate: detailTotal > 0 ? Math.round((completed / detailTotal) * 1000) / 10 : 0,
+        detailCompletionRate: total > 0 ? Math.round((completed / total) * 1000) / 10 : 0,
         addedToday: addedTodayResult.results?.[0]?.cnt || 0,
         addedThisWeek: addedWeekResult.results?.[0]?.cnt || 0,
         addedThisMonth: addedMonthResult.results?.[0]?.cnt || 0,
@@ -249,32 +247,32 @@ dataStorageRoutes.get('/records', async (c) => {
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const fromClause = `FROM data_records d LEFT JOIN jav_detail_meta m ON m.record_id = d.id`;
 
-    const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total ${fromClause} ${whereClause}`
-    )
-      .bind(...params)
-      .first<{ total: number }>();
-    const total = countResult?.total || 0;
-
-    const rows = await c.env.DB.prepare(
-      `SELECT d.*,
-              m.status AS detail_status,
-              m.missing_mask AS detail_missing_mask,
-              m.attempts AS detail_attempts,
-              m.transient_failures AS detail_transient_failures,
-              m.next_retry_at AS detail_next_retry_at,
-              m.retry_exhausted AS detail_retry_exhausted,
-              m.last_error AS detail_last_error,
-              m.fetched_at AS detail_fetched_at
-       ${fromClause} ${whereClause}
-       ORDER BY d.first_seen_at DESC LIMIT ? OFFSET ?`
-    )
-      .bind(...params, pageSize, (page - 1) * pageSize)
-      .all<Record<string, unknown>>();
+    // COUNT 与列表同批执行：1 个 D1 往返；不用窗口函数，避免大表物化 + 临时排序。
+    const [countResult, rowsResult] = (await c.env.DB.batch([
+      c.env.DB.prepare(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`).bind(...params),
+      c.env.DB.prepare(
+        `SELECT d.*,
+                m.status AS detail_status,
+                m.missing_mask AS detail_missing_mask,
+                m.attempts AS detail_attempts,
+                m.transient_failures AS detail_transient_failures,
+                m.next_retry_at AS detail_next_retry_at,
+                m.retry_exhausted AS detail_retry_exhausted,
+                m.last_error AS detail_last_error,
+                m.fetched_at AS detail_fetched_at
+         ${fromClause} ${whereClause}
+         ORDER BY d.first_seen_at DESC LIMIT ? OFFSET ?`
+      ).bind(...params, pageSize, (page - 1) * pageSize),
+    ])) as unknown as [
+      { results: Array<{ total: number }> },
+      { results: Array<Record<string, unknown>> },
+    ];
+    const total = countResult.results?.[0]?.total || 0;
+    const resultRows = rowsResult.results || [];
 
     return c.json(
       success({
-        items: (rows.results || []).map(mapRecordRow),
+        items: resultRows.map(mapRecordRow),
         total,
         page,
         pageSize,

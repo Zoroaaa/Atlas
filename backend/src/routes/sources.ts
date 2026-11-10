@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, SearchSource, SearchSourceCategory, MajorCategory, UserSearchSourceConfig } from '@/types';
 import { success, error, generateId } from '@/utils';
+import { cached, invalidateCache } from '@/utils/cache';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { VALIDATION_RULES } from '@/constants';
 import { validateBody, schemas } from '@/validation';
@@ -18,16 +19,28 @@ export const sourceRoutes = new Hono<{ Bindings: Env }>();
 
 sourceRoutes.use('*', authMiddleware);
 
+// 大类/分类属于低频变化的静态字典，列表读走 5 分钟进程内缓存；
+// 任一分类写操作成功后立即失效，保证管理端改动即时可见。
+sourceRoutes.use('*', async (c, next) => {
+  await next();
+  if (c.req.method !== 'GET' && c.req.path.includes('categories') && c.res.status < 400) {
+    invalidateCache('sources:dict');
+  }
+});
+
 // 不再使用本地 checkAdminRole 函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
 
 sourceRoutes.get('/major-categories', async (c) => {
   try {
-    const categories = await c.env.DB.prepare(
-      'SELECT * FROM search_major_categories WHERE is_active = 1 ORDER BY display_order ASC'
-    ).all<MajorCategory>();
+    const categories = await cached('sources:dict:major', 5 * 60_000, async () => {
+      const rows = await c.env.DB.prepare(
+        'SELECT * FROM search_major_categories WHERE is_active = 1 ORDER BY display_order ASC'
+      ).all<MajorCategory>();
+      return rows.results || [];
+    });
 
     return c.json(success({
-      categories: categories.results || [],
+      categories,
     }));
   } catch (err) {
     console.error('Get major categories error:', err);
@@ -73,12 +86,15 @@ sourceRoutes.get('/categories', async (c) => {
     
     query += ' ORDER BY c.display_order ASC';
     
-    const categories = params.length > 0 
-      ? await c.env.DB.prepare(query).bind(...params).all<SearchSourceCategory & { major_category_name: string }>()
-      : await c.env.DB.prepare(query).all<SearchSourceCategory & { major_category_name: string }>();
+    const categories = await cached(`sources:dict:categories:${majorCategoryId || 'all'}`, 5 * 60_000, async () => {
+      const rows = params.length > 0
+        ? await c.env.DB.prepare(query).bind(...params).all<SearchSourceCategory & { major_category_name: string }>()
+        : await c.env.DB.prepare(query).all<SearchSourceCategory & { major_category_name: string }>();
+      return rows.results || [];
+    });
 
     return c.json(success({
-      categories: categories.results || [],
+      categories,
     }));
   } catch (err) {
     console.error('Get categories error:', err);
@@ -196,26 +212,35 @@ sourceRoutes.get('/stats', async (c) => {
   const user = c.get('user');
   
   try {
-    const totalSources = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1 AND (is_system = 1 OR created_by = ?)'
-    ).bind(user.userId).first<{ count: number }>();
-
-    const searchableSources = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1 AND searchable = 1 AND (is_system = 1 OR created_by = ?)'
-    ).bind(user.userId).first<{ count: number }>();
+    // 8 条统计查询合并为 1 个 db.batch 往返；总量与可搜索数合并为一次聚合。
+    const [
+      totalsResult,
+      enabledResult,
+      availableResult,
+      categoryCountsResult,
+      topUsedSources,
+      sourcesByCategory,
+      sourcesBySiteType,
+    ] = (await c.env.DB.batch([
+      c.env.DB.prepare(`
+      SELECT COUNT(*) AS total,
+             COALESCE(SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END), 0) AS searchable
+      FROM search_sources
+      WHERE is_active = 1 AND (is_system = 1 OR created_by = ?)
+    `).bind(user.userId),
 
     // 启用语义：无配置行 = 启用，仅 is_enabled = 0 才禁用
-    const enabledSources = await c.env.DB.prepare(`
+      c.env.DB.prepare(`
       SELECT COUNT(*) as count
       FROM search_sources s
       LEFT JOIN user_search_source_configs u ON u.source_id = s.id AND u.user_id = ?
       WHERE s.is_active = 1
         AND (s.is_system = 1 OR s.created_by = ?)
         AND (u.is_enabled IS NULL OR u.is_enabled = 1)
-    `).bind(user.userId, user.userId).first<{ count: number }>();
+    `).bind(user.userId, user.userId),
 
-    // 可用性取最近一次探测结果
-    const availableSources = await c.env.DB.prepare(`
+    // 可用性取最近一次探测结果（idx_status_cache_source_created 支撑取最新，不再临时排序）
+      c.env.DB.prepare(`
       SELECT COUNT(*) as count
       FROM search_sources s
       LEFT JOIN source_status_cache sc ON sc.id = (
@@ -224,47 +249,56 @@ sourceRoutes.get('/stats', async (c) => {
       WHERE s.is_active = 1
         AND (s.is_system = 1 OR s.created_by = ?)
         AND sc.available = 1
-    `).bind(user.userId).first<{ count: number }>();
+    `).bind(user.userId),
 
-    const totalCategories = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM search_source_categories WHERE is_active = 1'
-    ).first<{ count: number }>();
+      c.env.DB.prepare(`
+        SELECT (SELECT COUNT(*) FROM search_source_categories WHERE is_active = 1) AS totalCategories,
+               (SELECT COUNT(*) FROM search_major_categories WHERE is_active = 1) AS totalMajorCategories
+      `),
 
-    const totalMajorCategories = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM search_major_categories WHERE is_active = 1'
-    ).first<{ count: number }>();
-
-    const topUsedSources = await c.env.DB.prepare(`
+      c.env.DB.prepare(`
       SELECT id, name, usage_count 
       FROM search_sources 
       WHERE is_active = 1 AND (is_system = 1 OR created_by = ?)
       ORDER BY usage_count DESC 
       LIMIT 10
-    `).bind(user.userId).all<{ id: string; name: string; usage_count: number }>();
+    `).bind(user.userId),
 
-    const sourcesByCategory = await c.env.DB.prepare(`
+      c.env.DB.prepare(`
       SELECT c.name as category_name, COUNT(s.id) as source_count
       FROM search_source_categories c
       LEFT JOIN search_sources s ON c.id = s.category_id AND s.is_active = 1 AND (s.is_system = 1 OR s.created_by = ?)
       WHERE c.is_active = 1
       GROUP BY c.id
       ORDER BY source_count DESC
-    `).bind(user.userId).all<{ category_name: string; source_count: number }>();
+    `).bind(user.userId),
 
-    const sourcesBySiteType = await c.env.DB.prepare(`
+      c.env.DB.prepare(`
       SELECT site_type, COUNT(*) as count
       FROM search_sources
       WHERE is_active = 1 AND (is_system = 1 OR created_by = ?)
       GROUP BY site_type
-    `).bind(user.userId).all<{ site_type: string; count: number }>();
+    `).bind(user.userId),
+    ])) as unknown as [
+      { results: Array<{ total: number; searchable: number }> },
+      { results: Array<{ count: number }> },
+      { results: Array<{ count: number }> },
+      { results: Array<{ totalCategories: number; totalMajorCategories: number }> },
+      { results: Array<{ id: string; name: string; usage_count: number }> },
+      { results: Array<{ category_name: string; source_count: number }> },
+      { results: Array<{ site_type: string; count: number }> },
+    ];
+
+    const totals = totalsResult.results?.[0];
+    const categoryCounts = categoryCountsResult.results?.[0];
 
     return c.json(success({
-      totalSources: totalSources?.count || 0,
-      searchableSources: searchableSources?.count || 0,
-      enabledSources: enabledSources?.count || 0,
-      availableSources: availableSources?.count || 0,
-      totalCategories: totalCategories?.count || 0,
-      totalMajorCategories: totalMajorCategories?.count || 0,
+      totalSources: totals?.total || 0,
+      searchableSources: totals?.searchable || 0,
+      enabledSources: enabledResult.results?.[0]?.count || 0,
+      availableSources: availableResult.results?.[0]?.count || 0,
+      totalCategories: categoryCounts?.totalCategories || 0,
+      totalMajorCategories: categoryCounts?.totalMajorCategories || 0,
       topUsedSources: topUsedSources.results || [],
       sourcesByCategory: sourcesByCategory.results || [],
       sourcesBySiteType: sourcesBySiteType.results || [],
