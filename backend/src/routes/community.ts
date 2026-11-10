@@ -3,11 +3,12 @@
  * 功能：资源分享（帖子/标签/评论/点赞/收藏/举报/统计/通知）
  * 版本：3.0 - 从搜索源分享重构为资源分享
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { Env } from '@/types';
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
+import { checkMultiLevelRateLimit, type MultiLevelLimit } from '@/utils/rate-limit';
 import { validateBody, schemas } from '@/validation';
 import { emitNotification } from '@/services/notification-service';
 import { ConfigService } from '@/services';
@@ -59,6 +60,59 @@ const escapeLike = (v: string) => v.replace(/[\\%_]/g, (m) => '\\' + m);
 /** 浏览量去重窗口：同一用户对同一帖子 24 小时内只计一次 */
 const POST_VIEW_DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * 社区写操作限流：社区是唯一允许普通用户写入大量内容的入口，
+ * 没有限流时单账号即可批量刷帖/刷评/刷互动，直接消耗 D1 存储与读写配额。
+ * 互动类阈值放宽，因为点赞/收藏是高频正常行为；发帖/评论按真实使用节奏收紧。
+ */
+const COMMUNITY_WRITE_LIMITS = {
+  postCreate: [
+    { windowMs: 60_000, maxRequests: 6, label: '每分钟' },
+    { windowMs: 3_600_000, maxRequests: 30, label: '每小时' },
+    { windowMs: 86_400_000, maxRequests: 100, label: '每天' },
+  ],
+  contentEdit: [
+    { windowMs: 60_000, maxRequests: 20, label: '每分钟' },
+    { windowMs: 86_400_000, maxRequests: 500, label: '每天' },
+  ],
+  comment: [
+    { windowMs: 60_000, maxRequests: 10, label: '每分钟' },
+    { windowMs: 3_600_000, maxRequests: 60, label: '每小时' },
+    { windowMs: 86_400_000, maxRequests: 300, label: '每天' },
+  ],
+  interaction: [
+    { windowMs: 60_000, maxRequests: 30, label: '每分钟' },
+    { windowMs: 86_400_000, maxRequests: 1000, label: '每天' },
+  ],
+  report: [
+    { windowMs: 60_000, maxRequests: 6, label: '每分钟' },
+    { windowMs: 86_400_000, maxRequests: 30, label: '每天' },
+  ],
+  tagWrite: [
+    { windowMs: 60_000, maxRequests: 5, label: '每分钟' },
+    { windowMs: 86_400_000, maxRequests: 50, label: '每天' },
+  ],
+} satisfies Record<string, MultiLevelLimit[]>;
+
+/** 按 用户 + 动作 维度限流；管理员不受限（与搜索接口一致）。返回响应表示已拦截 */
+async function enforceWriteLimit(
+  c: Context<{ Bindings: Env }>,
+  action: keyof typeof COMMUNITY_WRITE_LIMITS,
+) {
+  const user = c.get('user');
+  if (await checkIsAdmin(c)) return null;
+
+  const result = await checkMultiLevelRateLimit(
+    c.env.DB,
+    `community:${action}:${user.userId}`,
+    COMMUNITY_WRITE_LIMITS[action],
+  );
+  if (result.allowed) return null;
+
+  if (result.retryAfter) c.header('Retry-After', String(result.retryAfter));
+  return c.json(error('RATE_LIMITED', result.message || '操作过于频繁，请稍后再试'), 429);
+}
+
 communityRoutes.use('*', authMiddleware);
 
 // 社区开关：关闭时普通用户不可用，管理员仍可进入管理/清理
@@ -99,6 +153,9 @@ communityRoutes.get('/tags', async (c) => {
 
 /** 创建标签 */
 communityRoutes.post('/tags', validateBody(schemas.community.createTag), async (c) => {
+  const limited = await enforceWriteLimit(c, 'tagWrite');
+  if (limited) return limited;
+
   const user = c.get('user');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.createTag>;
   const { name, description, color } = body;
@@ -169,6 +226,9 @@ communityRoutes.get('/tags/:id', async (c) => {
 
 /** 更新标签 */
 communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), async (c) => {
+  const limited = await enforceWriteLimit(c, 'tagWrite');
+  if (limited) return limited;
+
   const user = c.get('user');
   const tagId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.updateTag>;
@@ -255,6 +315,9 @@ communityRoutes.put('/tags/:id', validateBody(schemas.community.updateTag), asyn
 
 /** 删除标签 */
 communityRoutes.delete('/tags/:id', async (c) => {
+  const limited = await enforceWriteLimit(c, 'tagWrite');
+  if (limited) return limited;
+
   const user = c.get('user');
   const tagId = c.req.param('id');
 
@@ -512,6 +575,9 @@ communityRoutes.get('/posts/:id', async (c) => {
 
 /** 创建帖子 */
 communityRoutes.post('/posts', validateBody(schemas.community.createPost), async (c) => {
+  const limited = await enforceWriteLimit(c, 'postCreate');
+  if (limited) return limited;
+
   const user = c.get('user');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.createPost>;
   const { postType, title, coverImage, contentData, caption, tags } = body;
@@ -563,6 +629,9 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
 
 /** 更新帖子（仅 caption 和 tags） */
 communityRoutes.put('/posts/:id', validateBody(schemas.community.updatePost), async (c) => {
+  const limited = await enforceWriteLimit(c, 'contentEdit');
+  if (limited) return limited;
+
   const user = c.get('user');
   const postId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.updatePost>;
@@ -610,6 +679,9 @@ communityRoutes.put('/posts/:id', validateBody(schemas.community.updatePost), as
 
 /** 删除帖子（仅作者） */
 communityRoutes.delete('/posts/:id', async (c) => {
+  const limited = await enforceWriteLimit(c, 'contentEdit');
+  if (limited) return limited;
+
   const user = c.get('user');
   const postId = c.req.param('id');
 
@@ -664,6 +736,9 @@ communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePo
 
 /** 点赞/取消点赞 */
 communityRoutes.post('/posts/:id/like', async (c) => {
+  const limited = await enforceWriteLimit(c, 'interaction');
+  if (limited) return limited;
+
   const user = c.get('user');
   const postId = c.req.param('id');
 
@@ -705,6 +780,9 @@ communityRoutes.post('/posts/:id/like', async (c) => {
 
 /** 收藏/取消收藏 */
 communityRoutes.post('/posts/:id/favorite', async (c) => {
+  const limited = await enforceWriteLimit(c, 'interaction');
+  if (limited) return limited;
+
   const user = c.get('user');
   const postId = c.req.param('id');
 
@@ -790,6 +868,9 @@ communityRoutes.get('/posts/:id/comments', async (c) => {
 
 /** 发表评论 */
 communityRoutes.post('/comments', validateBody(schemas.community.createComment), async (c) => {
+  const limited = await enforceWriteLimit(c, 'comment');
+  if (limited) return limited;
+
   const user = c.get('user');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.createComment>;
   const { postId, content } = body;
@@ -842,6 +923,9 @@ communityRoutes.post('/comments', validateBody(schemas.community.createComment),
 
 /** 删除评论（作者或管理员） */
 communityRoutes.delete('/comments/:id', async (c) => {
+  const limited = await enforceWriteLimit(c, 'contentEdit');
+  if (limited) return limited;
+
   const user = c.get('user');
   const commentId = c.req.param('id');
 
@@ -871,6 +955,9 @@ communityRoutes.delete('/comments/:id', async (c) => {
 
 /** 举报帖子 */
 communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportPost), async (c) => {
+  const limited = await enforceWriteLimit(c, 'report');
+  if (limited) return limited;
+
   const user = c.get('user');
   const postId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.community.reportPost>;
