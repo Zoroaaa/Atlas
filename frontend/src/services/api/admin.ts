@@ -7,6 +7,7 @@ import type {
   DataStorageTrends,
   DataRecordsQuery,
   DataRecordStatus,
+  JavDetailJobView,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -759,6 +760,8 @@ export const dataStorageApi = {
     if (params.type) queryParams.set('type', params.type);
     if (params.status) queryParams.set('status', params.status);
     if (params.search) queryParams.set('search', params.search);
+    if (params.detail) queryParams.set('detail', params.detail);
+    if (params.missing) queryParams.set('missing', params.missing);
 
     const response = await apiClient.get<{ success: boolean; data: PaginatedResponse<DataRecord> }>(
       `/admin/data-storage/records?${queryParams.toString()}`
@@ -794,6 +797,24 @@ export const dataStorageApi = {
       success: boolean;
       data: { updated: number; sections: Record<string, string> };
     }>('/admin/data-storage/genre-dict/sync', {});
+    return response.data;
+  },
+
+  getDetailJob: async (): Promise<JavDetailJobView> => {
+    const response = await apiClient.get<{ success: boolean; data: JavDetailJobView }>(
+      '/admin/data-storage/detail-jobs/current'
+    );
+    return response.data;
+  },
+
+  startDetailJob: async (params: {
+    batchSize?: number;
+    intervalSeconds?: number;
+  } = {}): Promise<JavDetailJobView> => {
+    const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
+      '/admin/data-storage/detail-jobs',
+      params
+    );
     return response.data;
   },
 };

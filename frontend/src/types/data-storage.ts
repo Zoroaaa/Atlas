@@ -9,6 +9,12 @@ export type {
   DataStorageStats,
   DataStorageTrends,
   DataRecordsQuery,
+  JavDetailFieldName,
+  JavDetailStatus,
+  JavDetailStats,
+  JavDetailJob,
+  JavDetailFailure,
+  JavDetailJobView,
 } from '@codeseek/shared';
 
 // 前端特有的响应类型
@@ -18,4 +24,5 @@ export interface DataRecordsResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+  missingFields?: import('@codeseek/shared').JavDetailFieldName[];
 }

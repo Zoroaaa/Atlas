@@ -1484,7 +1484,65 @@
       "trendTooltip": "{{date}}: {{count}} records",
       "copyMagnetTitle": "Copy magnet link",
       "openLinkTitle": "Open link",
-      "magnetLabel": "Magnet link"
+      "magnetLabel": "Magnet link",
+      "detailFilter": {
+        "all": "All completeness",
+        "complete": "Detail complete",
+        "incomplete": "Detail incomplete"
+      },
+      "detailField": {
+        "director": "Director",
+        "maker": "Maker",
+        "publisher": "Publisher",
+        "magnets": "Magnets"
+      },
+      "detailStatus": {
+        "pending": "Pending",
+        "complete": "Complete",
+        "partial": "Missing fields",
+        "absent": "Not on source",
+        "error": "Temporary failure"
+      },
+      "missingFilterLabel": "Filter by missing field:",
+      "missingFieldsLabel": "Missing:",
+      "detailStatusLabel": "Detail completeness",
+      "detailAttemptsLabel": "Source-missing attempts",
+      "detailTransientLabel": "Temporary failures",
+      "detailNextRetryLabel": "Next retry",
+      "detailNoRetry": "No more retries",
+      "detailLastErrorLabel": "Last error",
+      "errorCode": {
+        "NOT_FOUND": "Code not found on source",
+        "TIMEOUT": "Request timed out",
+        "NETWORK_ERROR": "Network connection failed",
+        "HTTP_ERROR": "Source rate-limited access",
+        "PARSE_ERROR": "Unexpected page structure",
+        "MAGNET_FETCH_FAILED": "Magnet endpoint unavailable",
+        "INVALID_CODE": "Invalid code format"
+      },
+      "batch": {
+        "title": "JAV detail batch backfill",
+        "desc": "Backfills director, maker, publisher and magnets at 10 records per minute. Task state is persisted and resumes after refresh or restart.",
+        "start": "Start batch backfill",
+        "starting": "Starting...",
+        "running": "Task running",
+        "done": "Task completed",
+        "idle": "No running task",
+        "progress": "Processed {{processed}} / {{total}}",
+        "pending": "Pending",
+        "due": "Due now",
+        "scheduled": "Waiting to retry",
+        "completed": "Completed",
+        "partial": "Missing fields",
+        "absent": "Not on source",
+        "transientFailed": "Temporary failures",
+        "skipped": "Skipped",
+        "recentFailures": "Recent failures",
+        "noFailures": "No failures yet",
+        "nextRetry": "Retry {{time}}",
+        "startedToast": "Batch task started",
+        "startFailed": "Failed to start batch task"
+      }
     },
     "trends": {
       "loadFailed": "Failed to load trends data",

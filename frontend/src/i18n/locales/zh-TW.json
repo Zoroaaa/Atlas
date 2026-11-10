@@ -1484,7 +1484,65 @@
       "trendTooltip": "{{date}}：{{count}} 條",
       "copyMagnetTitle": "複製磁力連結",
       "openLinkTitle": "開啟連結",
-      "magnetLabel": "磁力連結"
+      "magnetLabel": "磁力連結",
+      "detailFilter": {
+        "all": "全部完整度",
+        "complete": "詳情完整",
+        "incomplete": "詳情不完整"
+      },
+      "detailField": {
+        "director": "導演",
+        "maker": "製作商",
+        "publisher": "發行商",
+        "magnets": "磁力"
+      },
+      "detailStatus": {
+        "pending": "待補全",
+        "complete": "完整",
+        "partial": "缺欄位",
+        "absent": "來源站缺失",
+        "error": "暫時失敗"
+      },
+      "missingFilterLabel": "缺欄位篩選：",
+      "missingFieldsLabel": "缺失欄位：",
+      "detailStatusLabel": "詳情完整度",
+      "detailAttemptsLabel": "來源站缺失次數",
+      "detailTransientLabel": "暫時失敗次數",
+      "detailNextRetryLabel": "下次重試",
+      "detailNoRetry": "不再重試",
+      "detailLastErrorLabel": "最近錯誤",
+      "errorCode": {
+        "NOT_FOUND": "來源站沒有該番號",
+        "TIMEOUT": "請求逾時",
+        "NETWORK_ERROR": "網路連線失敗",
+        "HTTP_ERROR": "來源站限制存取",
+        "PARSE_ERROR": "頁面結構異常",
+        "MAGNET_FETCH_FAILED": "磁力介面不可用",
+        "INVALID_CODE": "番號格式無效"
+      },
+      "batch": {
+        "title": "JAV 詳情批次補全",
+        "desc": "每分鐘限速 10 筆補全導演、製作商、發行商與磁力；任務狀態持久化，重新整理頁面或服務重啟後繼續。",
+        "start": "開始批次補全",
+        "starting": "啟動中...",
+        "running": "任務進行中",
+        "done": "任務已完成",
+        "idle": "暫無執行中的任務",
+        "progress": "已處理 {{processed}} / {{total}}",
+        "pending": "待處理",
+        "due": "可立即處理",
+        "scheduled": "等待重試",
+        "completed": "補全成功",
+        "partial": "缺欄位",
+        "absent": "來源站缺失",
+        "transientFailed": "暫時失敗",
+        "skipped": "已跳過",
+        "recentFailures": "最近失敗記錄",
+        "noFailures": "暫無失敗記錄",
+        "nextRetry": "{{time}}後重試",
+        "startedToast": "批次任務已啟動",
+        "startFailed": "啟動批次任務失敗"
+      }
     },
     "trends": {
       "loadFailed": "載入趨勢資料失敗",

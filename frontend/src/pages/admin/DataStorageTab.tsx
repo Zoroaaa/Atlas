@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { clsx } from 'clsx';
 import {
   Database,
@@ -19,6 +19,10 @@ import {
   Copy,
   Check,
   Tags,
+  Play,
+  Loader2,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { dataStorageApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
@@ -35,6 +39,12 @@ import type {
   DataRecordSource,
   DataStorageStats,
   DataRecordType,
+  JavDetailFailure,
+  JavDetailFieldName,
+  JavDetailJob,
+  JavDetailJobView,
+  JavDetailStats,
+  JavDetailStatus,
 } from '@/types';
 
 // ─── 类型元数据 ──────────────────────────────────────────────────────
@@ -58,6 +68,187 @@ const TYPE_FILTERS: Array<{ key: '' | DataRecordType; label: string }> = [
   { key: 'actress', label: 'admin:dataStorage.type.actress' },
 ];
 
+const DETAIL_FIELD_KEYS: JavDetailFieldName[] = ['director', 'maker', 'publisher', 'magnets'];
+
+const DETAIL_STATUS_STYLE: Record<JavDetailStatus, string> = {
+  complete: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  partial: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  absent: 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300',
+  error: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+};
+
+function detailStatusLabel(t: (key: string) => string, status: JavDetailStatus | null | undefined): string {
+  return t(`admin:dataStorage.detailStatus.${status || 'pending'}`);
+}
+
+function errorCodeLabel(t: (key: string) => string, code: string | null | undefined): string {
+  if (!code) return '';
+  const key = `admin:dataStorage.errorCode.${code}`;
+  const label = t(key);
+  return label === key ? code : label;
+}
+
+// ─── 接口响应容错 ────────────────────────────────────────────────────
+// 生产可能先部署前端、后执行迁移/部署后端，接口会返回旧结构、null 或空响应。
+// 所有展示数据在进入渲染前统一归一化，避免对缺失字段直接做 .length / .map / toLocaleString。
+
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function toNumber(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toObject(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+const EMPTY_JAV_DETAIL_STATS: JavDetailStats = {
+  total: 0,
+  complete: 0,
+  partial: 0,
+  absent: 0,
+  error: 0,
+  pending: 0,
+  missing: { director: 0, maker: 0, publisher: 0, magnets: 0 },
+};
+
+function normalizeDetailStats(value: unknown): JavDetailStats | null {
+  const raw = toObject(value);
+  if (!raw) return null;
+  const missing = toObject(raw.missing);
+  return {
+    total: toNumber(raw.total),
+    complete: toNumber(raw.complete),
+    partial: toNumber(raw.partial),
+    absent: toNumber(raw.absent),
+    error: toNumber(raw.error),
+    pending: toNumber(raw.pending),
+    missing: {
+      director: toNumber(missing?.director),
+      maker: toNumber(missing?.maker),
+      publisher: toNumber(missing?.publisher),
+      magnets: toNumber(missing?.magnets),
+    },
+  };
+}
+
+function normalizeStats(value: unknown): DataStorageStats | null {
+  const raw = toObject(value);
+  if (!raw) return null;
+  return {
+    totalRecords: toNumber(raw.totalRecords),
+    hiddenCount: toNumber(raw.hiddenCount),
+    addedToday: toNumber(raw.addedToday),
+    addedThisWeek: toNumber(raw.addedThisWeek),
+    addedThisMonth: toNumber(raw.addedThisMonth),
+    detailCompletionRate: toNumber(raw.detailCompletionRate),
+    byType: toArray<{ type?: unknown; count?: unknown }>(raw.byType).map((item) => ({
+      type: String(item?.type ?? ''),
+      count: toNumber(item?.count),
+    })),
+    recordsOverTime: toArray<{ date?: unknown; count?: unknown }>(raw.recordsOverTime).map((item) => ({
+      date: String(item?.date ?? ''),
+      count: toNumber(item?.count),
+    })),
+    topTags: toArray<{ tag?: unknown; count?: unknown }>(raw.topTags).map((item) => ({
+      tag: String(item?.tag ?? ''),
+      count: toNumber(item?.count),
+    })),
+    topSources: toArray<{ source_name?: unknown; count?: unknown }>(raw.topSources).map((item) => ({
+      source_name: String(item?.source_name ?? ''),
+      count: toNumber(item?.count),
+    })),
+    javDetail: normalizeDetailStats(raw.javDetail) ?? undefined,
+  };
+}
+
+function normalizeJob(value: unknown): JavDetailJob | null {
+  const raw = toObject(value);
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? ''),
+    status: raw.status === 'running' ? 'running' : 'done',
+    batch_size: toNumber(raw.batch_size),
+    interval_seconds: toNumber(raw.interval_seconds),
+    total: toNumber(raw.total),
+    processed: toNumber(raw.processed),
+    completed: toNumber(raw.completed),
+    partial: toNumber(raw.partial),
+    absent: toNumber(raw.absent),
+    transient_failed: toNumber(raw.transient_failed),
+    skipped: toNumber(raw.skipped),
+    last_error: typeof raw.last_error === 'string' ? raw.last_error : null,
+    created_by: typeof raw.created_by === 'string' ? raw.created_by : null,
+    created_at: toNumber(raw.created_at),
+    updated_at: toNumber(raw.updated_at),
+    finished_at: raw.finished_at == null ? null : toNumber(raw.finished_at),
+  };
+}
+
+function normalizeFailure(value: unknown): JavDetailFailure | null {
+  const raw = toObject(value);
+  if (!raw) return null;
+  const status = String(raw.status ?? 'pending') as JavDetailStatus;
+  return {
+    id: String(raw.id ?? ''),
+    code: typeof raw.code === 'string' ? raw.code : null,
+    title: typeof raw.title === 'string' ? raw.title : '',
+    status: status in DETAIL_STATUS_STYLE ? status : 'pending',
+    missing: toArray<JavDetailFieldName>(raw.missing),
+    lastError: typeof raw.lastError === 'string' ? raw.lastError : null,
+    nextRetryAt: toNumber(raw.nextRetryAt),
+    attempts: toNumber(raw.attempts),
+    transientFailures: toNumber(raw.transientFailures),
+    retryExhausted: raw.retryExhausted === true,
+  };
+}
+
+interface JobViewPatch {
+  job: JavDetailJob | null;
+  pending: number;
+  due: number;
+  scheduled: number;
+  stats?: JavDetailStats | null;
+  recentFailures?: JavDetailFailure[];
+}
+
+function normalizeJobView(value: unknown): JobViewPatch | null {
+  const raw = toObject(value);
+  if (!raw) return null;
+  const failures = Array.isArray(raw.recentFailures)
+    ? raw.recentFailures
+        .map(normalizeFailure)
+        .filter((item): item is JavDetailFailure => item !== null)
+    : undefined;
+  return {
+    job: normalizeJob(raw.job),
+    pending: toNumber(raw.pending),
+    due: toNumber(raw.due),
+    scheduled: toNumber(raw.scheduled),
+    stats: normalizeDetailStats(raw.stats),
+    recentFailures: failures,
+  };
+}
+
+function mergeJobView(prev: JavDetailJobView | null, patch: JobViewPatch | null): JavDetailJobView | null {
+  if (!patch) return prev;
+  return {
+    job: patch.job,
+    pending: patch.pending,
+    due: patch.due,
+    scheduled: patch.scheduled,
+    // 启动接口只返回 progress 字段：缺失时沿用上一次 GET 的统计/失败列表
+    stats: patch.stats ?? prev?.stats ?? EMPTY_JAV_DETAIL_STATS,
+    recentFailures: patch.recentFailures ?? prev?.recentFailures ?? [],
+  };
+}
+
 // ─── 主组件 ──────────────────────────────────────────────────────────
 
 export const DataStorageTab: React.FC = () => {
@@ -78,15 +269,19 @@ export const DataStorageTab: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<'' | DataRecordType>('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'hidden' | ''>('');
   const [search, setSearch] = useState('');
+  const [detailFilter, setDetailFilter] = useState<'' | 'complete' | 'incomplete'>('');
+  const [missingFilters, setMissingFilters] = useState<JavDetailFieldName[]>([]);
 
   const [detail, setDetail] = useState<DataRecordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [genreSyncing, setGenreSyncing] = useState(false);
+  const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
+  const [jobStarting, setJobStarting] = useState(false);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      setStats(await dataStorageApi.getStats());
+      setStats(normalizeStats(await dataStorageApi.getStats()));
     } catch {
       toast.error(t('admin:dataStorage.loadStatsFailed'));
     } finally {
@@ -103,16 +298,77 @@ export const DataStorageTab: React.FC = () => {
         type: typeFilter || undefined,
         status: statusFilter || undefined,
         search: search || undefined,
+        detail: detailFilter || undefined,
+        missing: missingFilters.length > 0 ? missingFilters.join(',') : undefined,
       });
-      setRecords(r.items);
-      setTotalPages(r.totalPages);
-      setTotal(r.total);
+      setRecords(toArray<DataRecord>(r?.items));
+      setTotalPages(Math.max(1, toNumber(r?.totalPages) || 1));
+      setTotal(toNumber(r?.total));
     } catch {
       toast.error(t('admin:dataStorage.loadRecordsFailed'));
     } finally {
       setRecordsLoading(false);
     }
-  }, [page, typeFilter, statusFilter, search, toast, t]);
+  }, [page, typeFilter, statusFilter, search, detailFilter, missingFilters, toast, t]);
+
+  const jobStatusRef = useRef<JavDetailJobView['job']>(null);
+
+  const loadJob = useCallback(async () => {
+    try {
+      const patch = normalizeJobView(await dataStorageApi.getDetailJob());
+      if (!patch) return;
+      jobStatusRef.current = patch.job;
+      setJobView((prev) => mergeJobView(prev, patch));
+    } catch {
+      // 轮询失败不打断页面，手动刷新可恢复
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const patch = normalizeJobView(await dataStorageApi.getDetailJob());
+        if (cancelled || !patch) return;
+        const prevStatus = jobStatusRef.current?.status;
+        jobStatusRef.current = patch.job;
+        setJobView((prev) => mergeJobView(prev, patch));
+        // 任务刚结束：刷新统计与当前列表，避免界面停留在旧数据
+        if (prevStatus === 'running' && patch.job?.status !== 'running') {
+          loadStats();
+          loadRecords();
+        }
+      } catch {
+        /* 忽略轮询错误 */
+      }
+    };
+    tick();
+    const timer = setInterval(() => {
+      if (jobStatusRef.current?.status === 'running') tick();
+    }, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [loadStats, loadRecords]);
+
+  const handleStartJob = async () => {
+    setJobStarting(true);
+    try {
+      const patch = normalizeJobView(
+        await dataStorageApi.startDetailJob({ batchSize: 10, intervalSeconds: 60 })
+      );
+      // 启动接口只返回 progress 字段，缺 stats/recentFailures 时沿用已有数据
+      if (!patch) throw new Error('empty response');
+      jobStatusRef.current = patch.job;
+      setJobView((prev) => mergeJobView(prev, patch));
+      toast.success(t('admin:dataStorage.batch.startedToast'));
+    } catch {
+      toast.error(t('admin:dataStorage.batch.startFailed'));
+    } finally {
+      setJobStarting(false);
+    }
+  };
 
   useEffect(() => {
     if (activeView === 'overview') loadStats();
@@ -126,8 +382,17 @@ export const DataStorageTab: React.FC = () => {
     setDetailLoading(true);
     setDetail(null);
     try {
-      const d = await dataStorageApi.getRecord(id);
-      setDetail(d);
+      const raw = await dataStorageApi.getRecord(id);
+      if (!raw) {
+        setDetail(null);
+        return;
+      }
+      setDetail({
+        ...raw,
+        tags: toArray<string>(raw.tags),
+        sources: toArray<DataRecordSource>(raw.sources),
+        detailMissing: toArray<JavDetailFieldName>(raw.detailMissing),
+      });
     } catch {
       toast.error(t('admin:dataStorage.loadDetailFailed'));
     } finally {
@@ -225,7 +490,15 @@ export const DataStorageTab: React.FC = () => {
             <Tags className="w-3.5 h-3.5" />
             <span className="ml-1">{t('admin:dataStorage.genreSync')}</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={activeView === 'overview' ? loadStats : loadRecords}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (activeView === 'overview') loadStats();
+              else loadRecords();
+              loadJob();
+            }}
+          >
             <RefreshCw className="w-3.5 h-3.5" />
             <span className="ml-1">{t('admin:dataStorage.refresh')}</span>
           </Button>
@@ -251,6 +524,9 @@ export const DataStorageTab: React.FC = () => {
               <StatCard icon={CheckCircle2} label={t('admin:dataStorage.stat.detailRate')} value={`${stats.detailCompletionRate}%`} color="purple" subLabel={t('admin:dataStorage.stat.detailRateSub')} />
               <StatCard icon={EyeOff} label={t('admin:dataStorage.stat.hidden')} value={stats.hiddenCount} color="orange" />
             </StatsGrid>
+
+            {/* JAV 详情完整度 + 手动批量补全 */}
+            <DetailJobPanel view={jobView} starting={jobStarting} onStart={handleStartJob} />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* 30天新增趋势 */}
@@ -282,7 +558,7 @@ export const DataStorageTab: React.FC = () => {
                             />
                           </div>
                           <div className="w-12 text-right text-xs font-semibold text-surface-700 dark:text-surface-300">
-                            {item.count.toLocaleString()}
+                            {toNumber(item.count).toLocaleString()}
                           </div>
                         </div>
                       );
@@ -331,7 +607,7 @@ export const DataStorageTab: React.FC = () => {
                           <span className="text-sm text-surface-600 dark:text-surface-400 truncate">{s.source_name}</span>
                         </div>
                         <span className="text-sm font-semibold text-surface-900 dark:text-surface-100 ml-2 shrink-0">
-                          {s.count.toLocaleString()}
+                          {toNumber(s.count).toLocaleString()}
                         </span>
                       </div>
                     ))
@@ -340,7 +616,11 @@ export const DataStorageTab: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : null
+        ) : (
+          <div className="text-center py-16 text-sm text-surface-500 dark:text-surface-400">
+            {t('admin:dataStorage.empty')}
+          </div>
+        )
       )}
 
       {/* 数据浏览视图 */}
@@ -367,7 +647,21 @@ export const DataStorageTab: React.FC = () => {
                 </button>
               ))}
             </div>
-            <div className="flex gap-2 flex-1 sm:max-w-md sm:ml-auto">
+            <div className="flex gap-2 flex-1 sm:max-w-2xl sm:ml-auto">
+              <select
+                value={detailFilter}
+                onChange={(e) => {
+                  const next = e.target.value as '' | 'complete' | 'incomplete';
+                  setDetailFilter(next);
+                  if (next === 'complete') setMissingFilters([]);
+                  setPage(1);
+                }}
+                className="px-3 py-2 rounded-lg text-sm bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 focus:outline-none focus:ring-2 focus:ring-rose-400"
+              >
+                <option value="">{t('admin:dataStorage.detailFilter.all')}</option>
+                <option value="complete">{t('admin:dataStorage.detailFilter.complete')}</option>
+                <option value="incomplete">{t('admin:dataStorage.detailFilter.incomplete')}</option>
+              </select>
               <select
                 value={statusFilter}
                 onChange={(e) => {
@@ -390,6 +684,47 @@ export const DataStorageTab: React.FC = () => {
                 leftIcon={<Search className="w-4 h-4" />}
               />
             </div>
+          </div>
+
+          {/* 缺失字段筛选（点击后自动切到 JAV + 详情不完整） */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-surface-400 mr-1">{t('admin:dataStorage.missingFilterLabel')}</span>
+            {DETAIL_FIELD_KEYS.map((field) => {
+              const active = missingFilters.includes(field);
+              return (
+                <button
+                  key={field}
+                  onClick={() => {
+                    setTypeFilter('jav');
+                    setDetailFilter('incomplete');
+                    setMissingFilters((prev) =>
+                      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
+                    );
+                    setPage(1);
+                  }}
+                  className={clsx(
+                    'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
+                    active
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300 dark:hover:bg-surface-600'
+                  )}
+                >
+                  {t(`admin:dataStorage.detailField.${field}`)}
+                </button>
+              );
+            })}
+            {(detailFilter || missingFilters.length > 0) && (
+              <button
+                onClick={() => {
+                  setDetailFilter('');
+                  setMissingFilters([]);
+                  setPage(1);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs text-surface-500 hover:text-rose-500"
+              >
+                {t('admin:dataStorage.filter.all')}
+              </button>
+            )}
           </div>
 
           <div className="text-sm text-surface-500">{t('admin:dataStorage.totalRecords', { count: total.toLocaleString() })}</div>
@@ -462,12 +797,17 @@ export const DataStorageTab: React.FC = () => {
                       {t(TYPE_META[detail.recordType].label)}
                     </span>
                   )}
-                  {detail.detailCompleted && (
+                  {detail.detailStatus ? (
+                    <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium', DETAIL_STATUS_STYLE[detail.detailStatus])}>
+                      {detail.detailStatus === 'complete' ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                      {detailStatusLabel(t, detail.detailStatus)}
+                    </span>
+                  ) : detail.detailCompleted ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                       <CheckCircle2 className="w-3 h-3" />
                       {t('admin:dataStorage.detailComplete')}
                     </span>
-                  )}
+                  ) : null}
                   {detail.status === 'hidden' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                       <EyeOff className="w-3 h-3" />
@@ -489,6 +829,58 @@ export const DataStorageTab: React.FC = () => {
               </div>
             </div>
 
+            {/* 详情完整度与重试状态 */}
+            {detail.recordType === 'jav' && detail.detailStatus && (
+              <div className="rounded-lg border border-surface-200 dark:border-surface-700 p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-surface-700 dark:text-surface-300">
+                    {t('admin:dataStorage.detailStatusLabel')}
+                  </span>
+                  {(detail.detailMissing?.length ?? 0) > 0 && (
+                    <span className="inline-flex flex-wrap items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                      {t('admin:dataStorage.missingFieldsLabel')}
+                      {detail.detailMissing!.map((field) => (
+                        <span key={field} className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/20">
+                          {t(`admin:dataStorage.detailField.${field}`)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {detail.detailRetryExhausted && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300">
+                      {t('admin:dataStorage.detailNoRetry')}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <div className="text-surface-400">{t('admin:dataStorage.detailAttemptsLabel')}</div>
+                    <div className="font-semibold text-surface-700 dark:text-surface-300">{detail.detailAttempts ?? 0} / 3</div>
+                  </div>
+                  <div>
+                    <div className="text-surface-400">{t('admin:dataStorage.detailTransientLabel')}</div>
+                    <div className="font-semibold text-surface-700 dark:text-surface-300">{detail.detailTransientFailures ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-surface-400">{t('admin:dataStorage.detailNextRetryLabel')}</div>
+                    <div className="font-semibold text-surface-700 dark:text-surface-300">
+                      {detail.detailRetryExhausted
+                        ? t('admin:dataStorage.detailNoRetry')
+                        : detail.detailNextRetryAt && detail.detailNextRetryAt > Date.now()
+                          ? formatRelativeTime(detail.detailNextRetryAt)
+                          : '—'}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-surface-400">{t('admin:dataStorage.detailLastErrorLabel')}</div>
+                    <div className="font-semibold text-surface-700 dark:text-surface-300 truncate">
+                      {detail.detailLastError ? errorCodeLabel(t, detail.detailLastError) : '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 演员 */}
             {detail.actors && (
               <div>
@@ -504,11 +896,11 @@ export const DataStorageTab: React.FC = () => {
             )}
 
             {/* 标签 */}
-            {detail.tags.length > 0 && (
+            {toArray<string>(detail.tags).length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-1.5">{t('admin:dataStorage.tagsLabel')}</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {detail.tags.map((tag, i) => (
+                  {toArray<string>(detail.tags).map((tag, i) => (
                     <span key={i} className="px-2 py-0.5 rounded-md text-xs bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300">
                       {tag}
                     </span>
@@ -582,17 +974,164 @@ export const DataStorageTab: React.FC = () => {
   );
 };
 
+// ─── 子组件：JAV 详情完整度与批量补全 ────────────────────────────────
+
+const DetailJobPanel: React.FC<{
+  view: JavDetailJobView | null;
+  starting: boolean;
+  onStart: () => void;
+}> = ({ view, starting, onStart }) => {
+  const { t } = useTranslation(['admin']);
+  const job = view?.job ?? null;
+  const stats = view?.stats;
+  // 启动接口不返回 recentFailures，旧后端也可能缺该字段：统一兜底为空数组
+  const failures = toArray<JavDetailFailure>(view?.recentFailures);
+  const running = job?.status === 'running';
+  const progress = job && job.total > 0 ? Math.min(100, (job.processed / job.total) * 100) : 0;
+
+  const statItems: Array<{ key: JavDetailStatus; value: number; className: string }> = stats
+    ? [
+        { key: 'complete', value: toNumber(stats.complete), className: DETAIL_STATUS_STYLE.complete },
+        { key: 'partial', value: toNumber(stats.partial), className: DETAIL_STATUS_STYLE.partial },
+        { key: 'absent', value: toNumber(stats.absent), className: DETAIL_STATUS_STYLE.absent },
+        { key: 'error', value: toNumber(stats.error), className: DETAIL_STATUS_STYLE.error },
+        { key: 'pending', value: toNumber(stats.pending), className: DETAIL_STATUS_STYLE.pending },
+      ]
+    : [];
+
+  return (
+    <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-5 space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-surface-900 dark:text-surface-100">{t('admin:dataStorage.batch.title')}</h3>
+          <p className="text-xs text-surface-500 mt-1">{t('admin:dataStorage.batch.desc')}</p>
+        </div>
+        <Button size="sm" onClick={onStart} disabled={starting || running}>
+          {starting || running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+          <span className="ml-1">
+            {starting ? t('admin:dataStorage.batch.starting') : running ? t('admin:dataStorage.batch.running') : t('admin:dataStorage.batch.start')}
+          </span>
+        </Button>
+      </div>
+
+      {/* 字段级完整度 */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {statItems.map((item) => (
+          <div key={item.key} className="rounded-lg border border-surface-200 dark:border-surface-700 p-2.5">
+            <div className={clsx('inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium', item.className)}>
+              {detailStatusLabel(t, item.key)}
+            </div>
+            <div className="mt-1 text-lg font-semibold text-surface-900 dark:text-surface-100">{toNumber(item.value).toLocaleString()}</div>
+          </div>
+        ))}
+      </div>
+
+      {stats && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-surface-500">
+          <span>{t('admin:dataStorage.missingFieldsLabel')}</span>
+          {DETAIL_FIELD_KEYS.map((field) => (
+            <span key={field}>
+              {t(`admin:dataStorage.detailField.${field}`)}
+              <span className="ml-1 font-semibold text-amber-600 dark:text-amber-400">{toNumber(stats.missing?.[field])}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* 任务进度 */}
+      <div className="rounded-lg bg-surface-50 dark:bg-surface-900/50 p-3 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-surface-600 dark:text-surface-300 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            {running ? t('admin:dataStorage.batch.running') : job?.status === 'done' ? t('admin:dataStorage.batch.done') : t('admin:dataStorage.batch.idle')}
+          </span>
+          <span className="text-surface-500">
+            {job ? t('admin:dataStorage.batch.progress', { processed: job.processed, total: job.total }) : ''}
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-surface-200 dark:bg-surface-700 overflow-hidden">
+          <div
+            className="h-2 rounded-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all"
+            style={{ width: `${job ? Math.max(progress, job.processed > 0 ? 2 : 0) : 0}%` }}
+          />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          {[
+            { label: t('admin:dataStorage.batch.completed'), value: job?.completed ?? 0 },
+            { label: t('admin:dataStorage.batch.partial'), value: job?.partial ?? 0 },
+            { label: t('admin:dataStorage.batch.absent'), value: job?.absent ?? 0 },
+            { label: t('admin:dataStorage.batch.transientFailed'), value: job?.transient_failed ?? 0 },
+            { label: t('admin:dataStorage.batch.pending'), value: view?.pending ?? 0 },
+            { label: t('admin:dataStorage.batch.due'), value: view?.due ?? 0 },
+            { label: t('admin:dataStorage.batch.scheduled'), value: view?.scheduled ?? 0 },
+            { label: t('admin:dataStorage.batch.skipped'), value: job?.skipped ?? 0 },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center justify-between">
+              <span className="text-surface-400">{item.label}</span>
+              <span className="font-semibold text-surface-700 dark:text-surface-300">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 最近失败 */}
+      <div>
+        <h4 className="text-xs font-semibold text-surface-600 dark:text-surface-300 mb-1.5">
+          {t('admin:dataStorage.batch.recentFailures')}
+        </h4>
+        {failures.length === 0 ? (
+          <p className="text-xs text-surface-400">{t('admin:dataStorage.batch.noFailures')}</p>
+        ) : (
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {failures.map((item) => {
+              const missing = toArray<JavDetailFieldName>(item.missing);
+              return (
+                <div key={item.id} className="flex items-start justify-between gap-2 p-2 rounded bg-surface-50 dark:bg-surface-900/50 text-xs">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-surface-700 dark:text-surface-300">{item.code || item.id}</span>
+                      <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium', DETAIL_STATUS_STYLE[item.status] ?? DETAIL_STATUS_STYLE.pending)}>
+                        {detailStatusLabel(t, item.status)}
+                      </span>
+                      {item.retryExhausted && (
+                        <span className="text-[10px] text-surface-400">{t('admin:dataStorage.detailNoRetry')}</span>
+                      )}
+                    </div>
+                    <div className="text-surface-400 mt-0.5 truncate">
+                      {missing.length > 0 && `${t('admin:dataStorage.missingFieldsLabel')}${missing.map((f) => t(`admin:dataStorage.detailField.${f}`)).join(' / ')}`}
+                      {item.lastError && ` · ${errorCodeLabel(t, item.lastError)}`}
+                    </div>
+                  </div>
+                  {item.nextRetryAt > 0 && (
+                    <span className="text-[10px] text-surface-400 shrink-0">
+                      {t('admin:dataStorage.batch.nextRetry', { time: formatRelativeTime(item.nextRetryAt) })}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── 子组件：趋势柱状图 ──────────────────────────────────────────────
 
 const TrendBarChart: React.FC<{ data: Array<{ date: string; count: number }> }> = ({ data }) => {
   const { t } = useTranslation(['admin']);
-  const maxCount = Math.max(...(data || []).map((d) => d.count), 1);
-  if (!data || data.length === 0) {
+  const rows = toArray<{ date?: unknown; count?: unknown }>(data).map((item) => ({
+    date: String(item?.date ?? ''),
+    count: toNumber(item?.count),
+  }));
+  const maxCount = Math.max(...rows.map((d) => d.count), 1);
+  if (rows.length === 0) {
     return <p className="text-sm text-surface-400 py-8 text-center">{t('admin:dataStorage.trendEmpty')}</p>;
   }
   return (
     <div className="flex items-end gap-0.5 h-32">
-      {data.map((d) => (
+      {rows.map((d) => (
         <div
           key={d.date}
           className="flex-1 group relative"
@@ -650,9 +1189,13 @@ const RecordCard: React.FC<{
                 {t(meta.label)}
               </span>
             )}
-            {record.detailCompleted && (
+            {record.detailStatus && record.detailStatus !== 'complete' ? (
+              <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', DETAIL_STATUS_STYLE[record.detailStatus])}>
+                {detailStatusLabel(t, record.detailStatus)}
+              </span>
+            ) : record.detailCompleted ? (
               <CheckCircle2 className="w-3 h-3 text-green-500" />
-            )}
+            ) : null}
             {record.status === 'hidden' && (
               <EyeOff className="w-3 h-3 text-orange-500" />
             )}
@@ -660,6 +1203,18 @@ const RecordCard: React.FC<{
           <h4 className="text-sm font-semibold text-surface-900 dark:text-surface-100 line-clamp-2 leading-snug">
             {record.title}
           </h4>
+          {(record.detailMissing?.length ?? 0) > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {record.detailMissing!.map((field) => (
+                <span
+                  key={field}
+                  className="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                >
+                  {t(`admin:dataStorage.detailField.${field}`)}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="mt-1 text-[11px] text-surface-400 space-y-0.5">
             {record.code && <div className="font-mono truncate">{record.code}</div>}
             <div className="flex items-center gap-2">
