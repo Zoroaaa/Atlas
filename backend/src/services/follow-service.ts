@@ -7,7 +7,6 @@
 import { FOLLOW } from '@/constants';
 import { getHtml, parseActressList, parseGrid, type JavItem } from '@/services/jav-utils';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
-import { emitNotification } from '@/services/notification-service';
 import { upsertWorksToLibrary } from '@/services/library-writer';
 
 const JAVBUS_BASE = 'https://www.javbus.com';
@@ -125,41 +124,67 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
     return { ok: true, baseline, newCount: baseline ? 0 : fresh.length };
   }
 
-  await notifyFollowers(db, watch, fresh);
+  try {
+    await notifyFollowers(db, watch, fresh);
+  } catch (err) {
+    // 通知失败不影响检测结果：作品已入库，本次新作下一轮不会重复推送，
+    // 但也不能让通知写失败把整轮标记为抓取失败
+    console.error(`[follow] notify followers failed for ${key}:`, err);
+  }
   return { ok: true, baseline: false, newCount: fresh.length };
 }
 
+/**
+ * 推送新作通知：站内按关注者批量写入，邮件按偏好入队。
+ *
+ * 用 INSERT ... SELECT 一次写完全部关注者，而不是逐人 emitNotification：
+ * 单次 cron 的 D1 查询数因此与关注者数量无关（热门女优几百关注者也不会撑爆
+ * 单次 invocation 的查询预算）。偏好语义与 emitNotification 保持一致：
+ * 站内未设置 = 开启，邮件未设置 = 关闭且邮箱必须已验证。
+ * id 只需唯一，交给 SQL 侧随机 hex，省掉逐行生成。
+ */
 async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]): Promise<void> {
-  const followers = await db
-    // notify_in_app 是"这位女优的提醒开关"（关闭 = 静音）；具体走站内还是邮件，由用户的通知偏好决定
-    .prepare('SELECT user_id FROM user_follows WHERE watch_key = ? AND notify_in_app = 1')
-    .bind(watch.key)
-    .all<{ user_id: string }>();
-
   const codes = fresh.map((w) => w.code);
   const preview = fresh.slice(0, 5).map((w) => `${w.code} ${w.title || ''}`.trim());
   const body = preview.join('\n') + (fresh.length > preview.length ? `\n…共 ${fresh.length} 部` : '');
-  const payload = {
+  const payload = JSON.stringify({
     key: watch.key,
     name: watch.name,
     count: fresh.length,
     works: fresh.slice(0, 10).map((w) => ({ code: w.code, title: w.title, cover: w.cover, date: w.date })),
-  };
+  });
+  const title = `${watch.name} 有 ${fresh.length} 部新作`;
+  const dedupKey = `follow_new:${watch.key}:${fresh.length}:${codes[0]}`;
+  const now = Date.now();
 
-  for (const follower of followers.results || []) {
-    try {
-      await emitNotification(db, {
-        userId: follower.user_id,
-        type: 'follow.new_work',
-        title: `${watch.name} 有 ${fresh.length} 部新作`,
-        body,
-        payload,
-        dedupKey: `follow_new:${watch.key}:${fresh.length}:${codes[0]}`,
-      });
-    } catch (err) {
-      console.error('[follow] emit notification failed:', err);
-    }
-  }
+  // 站内：notify_in_app 是"这位女优的提醒开关"（关闭 = 静音），用户级偏好再过滤一次
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO notifications (id, user_id, type, title, body, payload, dedup_key, created_at)
+       SELECT lower(hex(randomblob(16))), f.user_id, 'follow.new_work', ?, ?, ?, ?, ?
+       FROM user_follows f
+       LEFT JOIN notification_preferences p
+         ON p.user_id = f.user_id AND p.type = 'follow.new_work'
+       WHERE f.watch_key = ? AND f.notify_in_app = 1
+         AND (p.in_app IS NULL OR p.in_app = 1)`
+    )
+    .bind(title, body, payload, dedupKey, now, watch.key)
+    .run();
+
+  // 邮件：默认关闭，只有显式开启且邮箱已验证的才入队，由邮件摘要合并发送
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO email_queue (id, user_id, type, title, body, payload, dedup_key, status, created_at)
+       SELECT lower(hex(randomblob(16))), f.user_id, 'follow.new_work', ?, ?, ?, ?, 'pending', ?
+       FROM user_follows f
+       JOIN users u ON u.id = f.user_id
+       LEFT JOIN notification_preferences p
+         ON p.user_id = f.user_id AND p.type = 'follow.new_work'
+       WHERE f.watch_key = ? AND f.notify_in_app = 1
+         AND p.email = 1 AND u.email IS NOT NULL AND u.email_verified = 1`
+    )
+    .bind(title, body, payload, dedupKey, now, watch.key)
+    .run();
 }
 
 /** 定时任务：检查最久没检查的一批（有关注者的）女优，失败按指数退避 */
