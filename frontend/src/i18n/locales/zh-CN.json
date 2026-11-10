@@ -2030,7 +2030,11 @@
       "tagsLabel": "类别",
       "actressesLabel": "演员",
       "magnetsHeader": "磁力链接 ({{count}})",
-      "magnetFooterHint": "点击名称唤起客户端 · Play选择播放方式"
+      "magnetFooterHint": "点击名称唤起客户端 · Play选择播放方式",
+      "playOnline": "在线播放",
+      "playOnlineTitle": "选择播放平台",
+      "playOnlineHint": "选择平台后将在新标签页打开第三方网站播放 {{code}}",
+      "playOnlineEntryHint": "可选平台：{{platforms}}"
     },
     "rankings": {
       "title": "JAV 榜单",

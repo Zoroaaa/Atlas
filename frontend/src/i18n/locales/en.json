@@ -2030,7 +2030,11 @@
       "tagsLabel": "Tags",
       "actressesLabel": "Actresses",
       "magnetsHeader": "Magnet links ({{count}})",
-      "magnetFooterHint": "Click a name to launch your client · Play to choose a playback method"
+      "magnetFooterHint": "Click a name to launch your client · Play to choose a playback method",
+      "playOnline": "Watch online",
+      "playOnlineTitle": "Choose a platform",
+      "playOnlineHint": "Pick a platform to open {{code}} on a third-party site in a new tab",
+      "playOnlineEntryHint": "Available on {{platforms}}"
     },
     "rankings": {
       "title": "JAV rankings",
