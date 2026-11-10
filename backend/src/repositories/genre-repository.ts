@@ -5,6 +5,8 @@
  * 所有 SQL 只出现在本文件；算法与页面抓取在 services 层。
  */
 
+import { cached, invalidateCache } from '@/utils/cache';
+
 export type GenreSection = 'censored' | 'uncensored';
 
 export interface GenreRow {
@@ -56,15 +58,18 @@ export interface GenreSignalRow {
 
 /** 词典中可用于推荐的标签（已排除技术/发行属性标签） */
 export async function getUsableGenres(db: D1Database): Promise<GenreRow[]> {
-  const rows = await db
-    .prepare(
-      `SELECT id, name_key, name, genre_key, section, url, is_technical, sort_order, created_at, updated_at
-       FROM jav_genres
-       WHERE is_technical = 0
-       ORDER BY section ASC, sort_order ASC, name ASC`
-    )
-    .all<GenreRow>();
-  return rows.results || [];
+  // 标签词典每周才同步一次，读路径做 10 分钟进程内缓存；同步写库后主动失效。
+  return cached('jav:dict:genres', 10 * 60_000, async () => {
+    const rows = await db
+      .prepare(
+        `SELECT id, name_key, name, genre_key, section, url, is_technical, sort_order, created_at, updated_at
+         FROM jav_genres
+         WHERE is_technical = 0
+         ORDER BY section ASC, sort_order ASC, name ASC`
+      )
+      .all<GenreRow>();
+    return rows.results || [];
+  });
 }
 
 /** 按 name_key 精确读取词典行（作品接口校验入参） */
@@ -128,11 +133,13 @@ export async function replaceSectionGenres(
   // 极端情况下超过单批上限时退化为分批，仍先删后插。
   if (statements.length <= 100) {
     await db.batch(statements);
+    invalidateCache('jav:dict');
     return;
   }
   for (let i = 0; i < statements.length; i += 100) {
     await db.batch(statements.slice(i, i + 100));
   }
+  invalidateCache('jav:dict');
 }
 
 /** 读取标签分页状态（无记录时返回 null，由调用方按初始值处理） */

@@ -256,59 +256,109 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
     .bind(now - EMAIL.MIN_DELAY_MS, EMAIL.DIGEST_BATCH_USERS)
     .all<{ user_id: string }>();
 
+  const userIds = (due.results || []).map((r) => r.user_id);
+  if (userIds.length === 0) return result;
+
+  const placeholders = userIds.map(() => '?').join(',');
   const urls = appUrls(env);
 
-  for (const { user_id: userId } of due.results || []) {
+  // 批量取本批用户的日志聚合 / 账号 / 队列 / 偏好 / 设置：6 条查询合并为 1 个 D1 往返，
+  // 后续只在内存分组，避免每个用户再串行查 6 次（N+1）。
+  const [
+    aggResult,
+    failCountResult,
+    usersResult,
+    queueResult,
+    prefsResult,
+    settingsResult,
+  ] = (await db.batch([
+    db.prepare(
+      `SELECT user_id,
+         SUM(CASE WHEN status = 'sent' AND sent_at > ? THEN 1 ELSE 0 END) AS sent_24h,
+         MAX(CASE WHEN status = 'failed' THEN sent_at END) AS last_fail,
+         MAX(CASE WHEN status = 'sent' THEN sent_at END) AS last_sent
+       FROM email_log
+       WHERE user_id IN (${placeholders})
+       GROUP BY user_id`
+    ).bind(dayAgo, ...userIds),
+    // 连续失败次数：最后一次成功之后的 failed 条数
+    db.prepare(
+      `SELECT l.user_id, COUNT(*) AS count
+       FROM email_log l
+       LEFT JOIN (
+         SELECT user_id, MAX(sent_at) AS last_sent
+         FROM email_log WHERE status = 'sent' AND user_id IN (${placeholders})
+         GROUP BY user_id
+       ) s ON s.user_id = l.user_id
+       WHERE l.status = 'failed' AND l.user_id IN (${placeholders})
+         AND l.sent_at > COALESCE(s.last_sent, 0)
+       GROUP BY l.user_id`
+    ).bind(...userIds, ...userIds),
+    db.prepare(
+      `SELECT id, email, email_verified, settings FROM users WHERE id IN (${placeholders})`
+    ).bind(...userIds),
+    // 每人最多取 MAX_ITEMS_PER_EMAIL 条，用窗口函数在库内截断
+    db.prepare(
+      `SELECT id, user_id, type, title, body, payload FROM (
+         SELECT id, user_id, type, title, body, payload,
+                ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at ASC) AS rn
+         FROM email_queue
+         WHERE status = 'pending' AND user_id IN (${placeholders})
+       ) WHERE rn <= ?
+       ORDER BY user_id, rn`
+    ).bind(...userIds, EMAIL.MAX_ITEMS_PER_EMAIL),
+    db.prepare(
+      `SELECT user_id, type, email FROM notification_preferences WHERE user_id IN (${placeholders})`
+    ).bind(...userIds),
+    db.prepare(
+      `SELECT user_id, email_hide_details FROM notification_settings WHERE user_id IN (${placeholders})`
+    ).bind(...userIds),
+  ])) as unknown as [
+    { results: Array<{ user_id: string; sent_24h: number | null; last_fail: number | null; last_sent: number | null }> },
+    { results: Array<{ user_id: string; count: number }> },
+    { results: Array<{ id: string; email: string | null; email_verified: number; settings: string | null }> },
+    { results: Array<QueueRow & { user_id: string }> },
+    { results: Array<{ user_id: string; type: string; email: number }> },
+    { results: Array<{ user_id: string; email_hide_details: number }> },
+  ];
+
+  const aggMap = new Map((aggResult.results || []).map((r) => [r.user_id, r]));
+  const failCountMap = new Map((failCountResult.results || []).map((r) => [r.user_id, r.count]));
+  const userMap = new Map((usersResult.results || []).map((r) => [r.id, r]));
+  const queueMap = new Map<string, QueueRow[]>();
+  for (const row of queueResult.results || []) {
+    const list = queueMap.get(row.user_id) || [];
+    list.push(row);
+    queueMap.set(row.user_id, list);
+  }
+  const prefMap = new Map<string, Array<{ type: string; email: number }>>();
+  for (const row of prefsResult.results || []) {
+    const list = prefMap.get(row.user_id) || [];
+    list.push(row);
+    prefMap.set(row.user_id, list);
+  }
+  const settingsMap = new Map((settingsResult.results || []).map((r) => [r.user_id, r.email_hide_details]));
+
+  for (const userId of userIds) {
     if (budget <= 0) break;
     result.users++;
 
-    // 每人每天上限 + 失败退避
-    const recent = await db
-      .prepare(
-        `SELECT
-           SUM(CASE WHEN status = 'sent' AND sent_at > ? THEN 1 ELSE 0 END) AS sent_24h,
-           MAX(CASE WHEN status = 'failed' THEN sent_at END) AS last_fail
-         FROM email_log WHERE user_id = ?`
-      )
-      .bind(dayAgo, userId)
-      .first<{ sent_24h: number | null; last_fail: number | null }>();
+    const recent = aggMap.get(userId);
     if ((recent?.sent_24h ?? 0) >= EMAIL.MAX_PER_USER_PER_DAY) continue;
 
-    const lastSuccess = await db
-      .prepare("SELECT MAX(sent_at) AS t FROM email_log WHERE user_id = ? AND status = 'sent'")
-      .bind(userId)
-      .first<{ t: number | null }>();
-    const failsRow = await db
-      .prepare("SELECT COUNT(*) AS count FROM email_log WHERE user_id = ? AND status = 'failed' AND sent_at > ?")
-      .bind(userId, lastSuccess?.t ?? 0)
-      .first<{ count: number }>();
-    const consecutiveFails = failsRow?.count ?? 0;
+    const consecutiveFails = failCountMap.get(userId) ?? 0;
     if (consecutiveFails > 0 && recent?.last_fail) {
       const wait = EMAIL.FAIL_BACKOFF_BASE_MS * 2 ** Math.min(consecutiveFails - 1, EMAIL.FAIL_BACKOFF_MAX_EXP);
       if (now < recent.last_fail + wait) continue;
     }
 
-    const user = await db
-      .prepare('SELECT email, email_verified, settings FROM users WHERE id = ?')
-      .bind(userId)
-      .first<{ email: string | null; email_verified: number; settings: string | null }>();
-
-    const queued = await db
-      .prepare(
-        `SELECT id, type, title, body, payload FROM email_queue
-         WHERE user_id = ? AND status = 'pending' ORDER BY created_at ASC LIMIT ?`
-      )
-      .bind(userId, EMAIL.MAX_ITEMS_PER_EMAIL)
-      .all<QueueRow>();
-    const rows = queued.results || [];
+    const user = userMap.get(userId);
+    const rows = queueMap.get(userId) || [];
     if (rows.length === 0) continue;
 
     // 发送前再核对：邮箱已验证；该类型邮件偏好仍开启
-    const prefs = await db
-      .prepare('SELECT type, email FROM notification_preferences WHERE user_id = ?')
-      .bind(userId)
-      .all<{ type: string; email: number }>();
-    const emailOn = new Set((prefs.results || []).filter((p) => p.email === 1).map((p) => p.type));
+    const prefs = prefMap.get(userId) || [];
+    const emailOn = new Set(prefs.filter((p) => p.email === 1).map((p) => p.type));
     const allowed = user?.email && user.email_verified === 1 ? rows.filter((r) => emailOn.has(r.type)) : [];
     const skipped = rows.filter((r) => !allowed.includes(r));
     if (skipped.length > 0) {
@@ -317,10 +367,7 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
     }
     if (allowed.length === 0 || !user?.email) continue;
 
-    const settingsRow = await db
-      .prepare('SELECT email_hide_details FROM notification_settings WHERE user_id = ?')
-      .bind(userId)
-      .first<{ email_hide_details: number }>();
+    const hideDetails = (settingsMap.get(userId) ?? 0) === 1;
 
     const unsubscribeUrl = `${urls.backend}/api/email/unsubscribe?token=${encodeURIComponent(await createUnsubscribeToken(env.JWT_SECRET, userId))}`;
     const content = buildDigestEmail({
@@ -330,7 +377,7 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
         payload: safeParse(r.payload) as DigestItem['payload'],
       })),
       lang: pickLang(user.settings),
-      hideDetails: settingsRow?.email_hide_details === 1,
+      hideDetails,
       frontendUrl: urls.frontend,
       unsubscribeUrl,
     });

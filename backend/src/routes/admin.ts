@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, JwtPayload } from '@/types';
 import { success, error, logUserAction } from '@/utils';
+import { cached } from '@/utils/cache';
 import { ConfigService } from '@/services';
 import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
@@ -21,7 +22,6 @@ import {
   getUserStats,
   countActiveUsersSince,
   listRoleUserDistribution,
-  countUsers,
   listUsers,
   findUserDetailById,
   listUserRecentSessions,
@@ -81,15 +81,7 @@ import {
   listAnalyticsHourlyDistribution,
   countAnalyticsEvents,
   listAnalyticsEvents,
-  getDashboardUserStats,
-  getDashboardSessionStats,
-  getDashboardActionStats,
-  getDashboardAnalyticsStats,
-  getDashboardSourceStats,
-  getDashboardSearchStats,
-  getDashboardLoginStats,
-  getDashboardCommunityStats,
-  listDashboardRecentActions,
+  getDashboardOverviewSnapshot,
   listUserRegistrationsByDay,
   listDailyLoginStats,
   listDailySearches,
@@ -200,9 +192,7 @@ adminRoutes.get('/users', async (c) => {
   const roleId = c.req.query('roleId');
 
   try {
-    const total = await countUsers(c.env.DB, { search, status, roleId });
-
-    const users = await listUsers(c.env.DB, {
+    const { total, rows: users } = await listUsers(c.env.DB, {
       search,
       status,
       roleId,
@@ -1142,25 +1132,22 @@ adminRoutes.get('/dashboard/overview', async (c) => {
     const oneWeekAgo = now - CONFIG.Stats.WEEK_IN_MS;
     const oneMonthAgo = now - CONFIG.Stats.MONTH_IN_MS;
 
-    const userStats = await getDashboardUserStats(c.env.DB, { oneDayAgo, oneWeekAgo, oneMonthAgo });
-
-    const sessionStats = await getDashboardSessionStats(c.env.DB, now);
-
-    const actionStats = await getDashboardActionStats(c.env.DB, { oneDayAgo, oneWeekAgo });
-
-    const analyticsStats = await getDashboardAnalyticsStats(c.env.DB, { oneDayAgo, oneWeekAgo });
-
-    const sourceStats = await getDashboardSourceStats(c.env.DB);
-
-    const searchStats = await getDashboardSearchStats(c.env.DB, { oneDayAgo, oneWeekAgo });
-
-    const loginStats = await getDashboardLoginStats(c.env.DB, oneDayAgo);
-
-    const communityStats = await getDashboardCommunityStats(c.env.DB);
-
-    const recentActions = await listDashboardRecentActions(c.env.DB);
-
-    const activeUsersToday = await countActiveUsersSince(c.env.DB, oneDayAgo);
+    // 10 条聚合查询合并为 1 个 db.batch 往返，并做 30s 进程内缓存：看板会自动轮询刷新。
+    const overview = await cached('admin:dashboard:overview', 30_000, () =>
+      getDashboardOverviewSnapshot(c.env.DB, { oneDayAgo, oneWeekAgo, oneMonthAgo, now })
+    );
+    const {
+      userStats,
+      sessionStats,
+      actionStats,
+      analyticsStats,
+      sourceStats,
+      searchStats,
+      loginStats,
+      communityStats,
+      recentActions,
+      activeUsersToday,
+    } = overview;
 
     return c.json(success({
       users: {

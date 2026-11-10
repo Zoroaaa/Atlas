@@ -22,9 +22,7 @@ import {
   updateTagFields,
   countPostsByTagPattern,
   deleteTag,
-  countUserPosts,
   listUserPosts,
-  countFavoritePosts,
   listFavoritePosts,
   listPosts,
   findPostWithUserById,
@@ -362,9 +360,7 @@ communityRoutes.get('/posts/my-posts', async (c) => {
   try {
     const statusFilter = status && ['active', 'hidden'].includes(status) ? status : null;
 
-    const total = await countUserPosts(c.env.DB, { userId: user.userId, status: statusFilter });
-
-    const rows = await listUserPosts(c.env.DB, {
+    const { total, rows } = await listUserPosts(c.env.DB, {
       userId: user.userId,
       status: statusFilter,
       limit: pageSize,
@@ -407,9 +403,7 @@ communityRoutes.get('/posts/my-favorites', async (c) => {
   const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '20')));
 
   try {
-    const total = await countFavoritePosts(c.env.DB, user.userId);
-
-    const rows = await listFavoritePosts(c.env.DB, {
+    const { total, rows } = await listFavoritePosts(c.env.DB, {
       userId: user.userId,
       limit: pageSize,
       offset: (page - 1) * pageSize,

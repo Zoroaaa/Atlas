@@ -389,19 +389,26 @@ userRoutes.get('/search-history', async (c) => {
       if (q) { conds.push("query LIKE ? ESCAPE '\\'"); args.push(`%${escapeLike(q)}%`); }
       if (since > 0) { conds.push('created_at >= ?'); args.push(since); }
       const where = conds.join(' AND ');
+      const offset = (page - 1) * pageSize;
 
-      const [rows, totalRow] = await Promise.all([
+      // COUNT 与列表同批执行：1 个 D1 往返；ORDER BY 只保留 created_at，
+      // 完全命中 idx_history_user_created，不使用窗口函数（避免临时 B 树与空页总数丢失）。
+      const [countResult, rowsResult] = (await c.env.DB.batch([
+        c.env.DB.prepare(`SELECT COUNT(*) AS total FROM user_search_history WHERE ${where}`).bind(...args),
         c.env.DB.prepare(
-          `SELECT * FROM user_search_history WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
-        ).bind(...args, pageSize, (page - 1) * pageSize).all<UserSearchHistory>(),
-        c.env.DB.prepare(
-          `SELECT COUNT(*) AS count FROM user_search_history WHERE ${where}`
-        ).bind(...args).first<{ count: number }>(),
-      ]);
+          `SELECT * FROM user_search_history WHERE ${where}
+           ORDER BY created_at DESC LIMIT ? OFFSET ?`
+        ).bind(...args, pageSize, offset),
+      ])) as unknown as [
+        { results: Array<{ total: number }> },
+        { results: UserSearchHistory[] },
+      ];
+      const rows = rowsResult.results || [];
+      const total = countResult.results?.[0]?.total ?? 0;
 
       return c.json(success({
-        history: rows.results || [],
-        total: totalRow?.count ?? 0,
+        history: rows,
+        total,
         page,
         pageSize,
       }));
@@ -819,80 +826,61 @@ userRoutes.get('/activities/stats', async (c) => {
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-    const totalActions = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_actions WHERE user_id = ?'
-    ).bind(user.userId).first<{ count: number }>();
-
-    const todayActions = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_actions WHERE user_id = ? AND created_at > ?'
-    ).bind(user.userId, oneDayAgo).first<{ count: number }>();
-
-    const weekActions = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_actions WHERE user_id = ? AND created_at > ?'
-    ).bind(user.userId, oneWeekAgo).first<{ count: number }>();
-
-    const monthActions = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM user_actions WHERE user_id = ? AND created_at > ?'
-    ).bind(user.userId, oneMonthAgo).first<{ count: number }>();
-
-    const actionsByType = await c.env.DB.prepare(`
-      SELECT action, COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ?
-      GROUP BY action
-      ORDER BY count DESC
-    `).bind(user.userId).all();
-
-    const recentLogins = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action = 'login' AND created_at > ?
-    `).bind(user.userId, oneMonthAgo).first<{ count: number }>();
-
-    const thisWeekLogins = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action = 'login' AND created_at > ?
-    `).bind(user.userId, oneWeekAgo).first<{ count: number }>();
-
     const lastWeekStart = now - 14 * 24 * 60 * 60 * 1000;
-    const lastWeekLogins = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action = 'login' AND created_at > ? AND created_at <= ?
-    `).bind(user.userId, lastWeekStart, oneWeekAgo).first<{ count: number }>();
 
-    const recentFailedLogins = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action = 'login_failed' AND created_at > ?
-    `).bind(user.userId, oneMonthAgo).first<{ count: number }>();
-
-    const recentSearches = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action = 'search' AND created_at > ?
-    `).bind(user.userId, oneMonthAgo).first<{ count: number }>();
-
-    const recentFavorites = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count
-      FROM user_actions
-      WHERE user_id = ? AND action IN ('add_favorite', 'remove_favorite') AND created_at > ?
-    `).bind(user.userId, oneMonthAgo).first<{ count: number }>();
+    // 原实现对该用户的 user_actions 连续扫 10 次；合并为一次聚合 + 一次分组，
+    // 并用 db.batch 合成 1 个 D1 往返。
+    const [summaryResult, actionsByType] = (await c.env.DB.batch([
+      c.env.DB.prepare(
+        `SELECT
+           COUNT(*) AS total,
+           COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) AS today,
+           COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) AS week,
+           COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) AS month,
+           COALESCE(SUM(CASE WHEN action = 'login' AND created_at > ? THEN 1 ELSE 0 END), 0) AS logins_month,
+           COALESCE(SUM(CASE WHEN action = 'login' AND created_at > ? THEN 1 ELSE 0 END), 0) AS logins_week,
+           COALESCE(SUM(CASE WHEN action = 'login' AND created_at > ? AND created_at <= ? THEN 1 ELSE 0 END), 0) AS logins_last_week,
+           COALESCE(SUM(CASE WHEN action = 'login_failed' AND created_at > ? THEN 1 ELSE 0 END), 0) AS failed_month,
+           COALESCE(SUM(CASE WHEN action = 'search' AND created_at > ? THEN 1 ELSE 0 END), 0) AS searches_month,
+           COALESCE(SUM(CASE WHEN action IN ('add_favorite', 'remove_favorite') AND created_at > ? THEN 1 ELSE 0 END), 0) AS favorites_month
+         FROM user_actions
+         WHERE user_id = ?`
+      ).bind(
+        oneDayAgo, oneWeekAgo, oneMonthAgo,
+        oneMonthAgo, oneWeekAgo, lastWeekStart, oneWeekAgo,
+        oneMonthAgo, oneMonthAgo, oneMonthAgo,
+        user.userId
+      ),
+      c.env.DB.prepare(`
+        SELECT action, COUNT(*) as count
+        FROM user_actions
+        WHERE user_id = ?
+        GROUP BY action
+        ORDER BY count DESC
+      `).bind(user.userId),
+    ])) as unknown as [
+      { results: Array<{
+        total: number; today: number; week: number; month: number;
+        logins_month: number; logins_week: number; logins_last_week: number;
+        failed_month: number; searches_month: number; favorites_month: number;
+      }> },
+      { results: Array<{ action: string; count: number }> },
+    ];
+    const summary = summaryResult.results?.[0];
 
     return c.json(success({
-      total: totalActions?.count || 0,
-      today: todayActions?.count || 0,
-      week: weekActions?.count || 0,
-      month: monthActions?.count || 0,
+      total: summary?.total || 0,
+      today: summary?.today || 0,
+      week: summary?.week || 0,
+      month: summary?.month || 0,
       actionsByType: actionsByType.results || [],
       summary: {
-        logins: recentLogins?.count || 0,
-        thisWeekLogins: thisWeekLogins?.count || 0,
-        lastWeekLogins: lastWeekLogins?.count || 0,
-        failedLogins: recentFailedLogins?.count || 0,
-        searches: recentSearches?.count || 0,
-        favorites: recentFavorites?.count || 0,
+        logins: summary?.logins_month || 0,
+        thisWeekLogins: summary?.logins_week || 0,
+        lastWeekLogins: summary?.logins_last_week || 0,
+        failedLogins: summary?.failed_month || 0,
+        searches: summary?.searches_month || 0,
+        favorites: summary?.favorites_month || 0,
       },
     }));
   } catch (err) {
