@@ -319,6 +319,11 @@ export function parseJavDetail(
   maker?: string;
   /** 系列（仅 jav.ts 路由使用） */
   series?: string;
+  /** 多值原文（JavBus 同一字段可能挂多个链接） */
+  publishers?: string[];
+  directors?: string[];
+  makers?: string[];
+  seriesList?: string[];
   tags: string[];
   actresses: string[];
   detailUrl: string;
@@ -335,21 +340,56 @@ export function parseJavDetail(
   const cover = coverM ? coverM[1] : undefined;
 
   // 信息提取辅助
-  const infoField = (label: string): string | undefined => {
-    const re = new RegExp(label + '[^:：]*[:：]\\s*<[^>]+>([^<]+)<', 'i');
-    const m = html.match(re);
-    if (m) return m[1].trim();
-    const re2 = new RegExp(label + '[^:：]*[:：]\\s*([^<\\n]+)', 'i');
-    const m2 = html.match(re2);
-    return m2 ? m2[1].trim() : undefined;
+  //
+  // JavBus 的字段值有两种形态：
+  //   <p><span class="header">發行日期:</span> 2021-02-18</p>       ← 纯文本
+  //   <p><span class="header">導演:</span> <a href="/director/o7">苺原</a></p>  ← 链接
+  // 旧实现只兼容纯文本：正则先吃到 </span>，再捕获到「空格」就返回空串，
+  // 导致导演/制作商/发行商永远是 ''，后面的 ?? 也不会回退。
+  // 这里先按「字段块」取到下一个 <p> 为止，再优先收集块内所有 <a> 文本。
+  const infoValues = (labels: string[]): string[] => {
+    for (const label of labels) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const blockRe = new RegExp(escaped + '[^:：]*[:：]([\\s\\S]{0,300}?)(?=<\\/p>|<p\\b)', 'i');
+      const blockM = html.match(blockRe);
+      if (blockM) {
+        const values: string[] = [];
+        const anchorRe = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+        let anchor: RegExpExecArray | null;
+        while ((anchor = anchorRe.exec(blockM[1])) !== null) {
+          const value = anchor[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+          if (value && !values.includes(value)) values.push(value);
+        }
+        if (values.length > 0) return values;
+
+        const text = blockM[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+        if (text) return [text];
+      }
+
+      // 回退：标签后直接是文本（部分镜像站结构更简单）
+      const textRe = new RegExp(escaped + '[^:：]*[:：]\\s*([^<\\n]+)', 'i');
+      const textM = html.match(textRe);
+      const fallback = textM?.[1].trim();
+      if (fallback) return [fallback];
+    }
+    return [];
+  };
+  const joined = (labels: string[]): string | undefined => {
+    const values = infoValues(labels);
+    return values.length > 0 ? values.join(' / ') : undefined;
   };
 
-  const releaseDate = infoField('發行日期') ?? infoField('发行日期') ?? infoField('Release Date');
-  const duration    = infoField('長度') ?? infoField('长度') ?? infoField('Length');
-  const publisher   = infoField('發行商') ?? infoField('发行商') ?? infoField('Label');
-  const director    = infoField('導演') ?? infoField('导演') ?? infoField('Director');
-  const maker       = infoField('製作商') ?? infoField('制作商') ?? infoField('Studio');
-  const series      = infoField('系列') ?? infoField('Series');
+  const publishers = infoValues(['發行商', '发行商', 'Label']);
+  const directors = infoValues(['導演', '导演', 'Director']);
+  const makers = infoValues(['製作商', '制作商', 'Studio']);
+  const seriesList = infoValues(['系列', 'Series']);
+
+  const releaseDate = joined(['發行日期', '发行日期', 'Release Date']);
+  const duration = joined(['長度', '长度', 'Length']);
+  const publisher = publishers.join(' / ') || undefined;
+  const director = directors.join(' / ') || undefined;
+  const maker = makers.join(' / ') || undefined;
+  const series = seriesList.join(' / ') || undefined;
 
   // 类别标签
   const tags: string[] = [];
@@ -374,5 +414,59 @@ export function parseJavDetail(
     }
   }
 
-  return { code, title, cover, releaseDate, duration, publisher, director, maker, series, tags, actresses, detailUrl };
+  return {
+    code, title, cover, releaseDate, duration, publisher, director, maker, series,
+    publishers, directors, makers, seriesList,
+    tags, actresses, detailUrl,
+  };
+}
+
+export interface JavbusDetailWithMagnets {
+  detail: ReturnType<typeof parseJavDetail>;
+  magnets: MagnetItem[];
+  detailUrl: string;
+  usedCode: string;
+  /** 磁力接口本身失败（超时/被拦），不代表源站没有磁力 */
+  magnetFetchFailed: boolean;
+}
+
+export type JavbusDetailWithMagnetsResult =
+  | { ok: true; data: JavbusDetailWithMagnets }
+  | { ok: false; error: JavbusFetchError };
+
+/**
+ * 详情页（元数据）+ 磁力 Ajax 的统一抓取入口。
+ * 历史上榜单补全只抓了详情页，导致记录 detail_completed=1 但磁力为空；
+ * 需要「完整详情」的路径（搜索 Provider / 详情接口 / 榜单补全 / 管理批量任务）统一走这里。
+ */
+export async function fetchJavbusDetailWithMagnets(
+  code: string,
+  timeoutMs = 15000
+): Promise<JavbusDetailWithMagnetsResult> {
+  const fetched = await fetchJavbusDetailHtml(code, timeoutMs);
+  if (!fetched.ok) return { ok: false, error: fetched.error };
+
+  const detailUrl = `https://www.javbus.com/${fetched.usedCode}`;
+  const detail = parseJavDetail(fetched.html, normalizeJavCode(code), detailUrl);
+
+  let magnets: MagnetItem[] = [];
+  let magnetFetchFailed = false;
+  const gidUc = extractGidUc(fetched.html);
+  if (gidUc) {
+    const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
+    const magnetHtml = await getHtml(magnetUrl, Math.min(12000, timeoutMs));
+    if (!magnetHtml) {
+      magnetFetchFailed = true;
+    } else {
+      magnets = parseMagnets(magnetHtml);
+    }
+  } else {
+    // 没有 gid/uc 说明页面结构异常，按暂时失败处理，避免误判成「源站没有磁力」
+    magnetFetchFailed = true;
+  }
+
+  return {
+    ok: true,
+    data: { detail, magnets, detailUrl, usedCode: fetched.usedCode, magnetFetchFailed },
+  };
 }

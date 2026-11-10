@@ -1484,7 +1484,65 @@
       "trendTooltip": "{{date}}：{{count}} 条",
       "copyMagnetTitle": "复制磁力链接",
       "openLinkTitle": "打开链接",
-      "magnetLabel": "磁力链接"
+      "magnetLabel": "磁力链接",
+      "detailFilter": {
+        "all": "全部完整度",
+        "complete": "详情完整",
+        "incomplete": "详情不完整"
+      },
+      "detailField": {
+        "director": "导演",
+        "maker": "制作商",
+        "publisher": "发行商",
+        "magnets": "磁力"
+      },
+      "detailStatus": {
+        "pending": "待补全",
+        "complete": "完整",
+        "partial": "缺字段",
+        "absent": "源站缺失",
+        "error": "暂时失败"
+      },
+      "missingFilterLabel": "缺字段筛选：",
+      "missingFieldsLabel": "缺失字段：",
+      "detailStatusLabel": "详情完整度",
+      "detailAttemptsLabel": "源站缺失次数",
+      "detailTransientLabel": "暂时失败次数",
+      "detailNextRetryLabel": "下次重试",
+      "detailNoRetry": "不再重试",
+      "detailLastErrorLabel": "最近错误",
+      "errorCode": {
+        "NOT_FOUND": "源站没有该番号",
+        "TIMEOUT": "请求超时",
+        "NETWORK_ERROR": "网络连接失败",
+        "HTTP_ERROR": "源站限制访问",
+        "PARSE_ERROR": "页面结构异常",
+        "MAGNET_FETCH_FAILED": "磁力接口不可用",
+        "INVALID_CODE": "番号格式无效"
+      },
+      "batch": {
+        "title": "JAV 详情批量补全",
+        "desc": "按每分钟 10 条限速补全导演、制作商、发行商与磁力；任务状态持久化，刷新页面或服务重启后继续。",
+        "start": "开始批量补全",
+        "starting": "启动中...",
+        "running": "任务进行中",
+        "done": "任务已完成",
+        "idle": "暂无运行中的任务",
+        "progress": "已处理 {{processed}} / {{total}}",
+        "pending": "待处理",
+        "due": "可立即处理",
+        "scheduled": "等待重试",
+        "completed": "补全成功",
+        "partial": "缺字段",
+        "absent": "源站缺失",
+        "transientFailed": "暂时失败",
+        "skipped": "已跳过",
+        "recentFailures": "最近失败记录",
+        "noFailures": "暂无失败记录",
+        "nextRetry": "{{time}}后重试",
+        "startedToast": "批量任务已启动",
+        "startFailed": "启动批量任务失败"
+      }
     },
     "trends": {
       "loadFailed": "加载趋势数据失败",
@@ -2011,6 +2069,9 @@
       "goToWebtor": "前往 WebTor",
       "magnetExtract": "磁力提取",
       "magnetsCount": "{{count}} 条磁力",
+      "magnetsCountShort": "{{count}} 条",
+      "favorited": "已收藏",
+      "favoriteShort": "收藏",
       "unfavorite": "取消收藏",
       "favorite": "收藏",
       "favoriteHint": "喜欢就收藏吧~",
@@ -2030,7 +2091,11 @@
       "tagsLabel": "类别",
       "actressesLabel": "演员",
       "magnetsHeader": "磁力链接 ({{count}})",
-      "magnetFooterHint": "点击名称唤起客户端 · Play选择播放方式"
+      "magnetFooterHint": "点击名称唤起客户端 · Play选择播放方式",
+      "playOnline": "在线播放",
+      "playOnlineTitle": "选择播放平台",
+      "playOnlineHint": "选择平台后将在新标签页打开第三方网站播放 {{code}}",
+      "playOnlineEntryHint": "可选平台：{{platforms}}"
     },
     "rankings": {
       "title": "JAV 榜单",
@@ -2146,6 +2211,7 @@
   "community": {
     "share": {
       "toCommunity": "分享到社区",
+      "compact": "分享到社区",
       "noMagnetsInLibrary": "本地库里暂时没有这部影片的磁力链接，已按收藏里的信息分享"
     }
   },

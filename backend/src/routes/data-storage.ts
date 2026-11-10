@@ -12,6 +12,16 @@ import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware
 import { CONFIG } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
+import {
+  DETAIL_FIELD_BITS,
+  missingFieldsFromMask,
+  type JavDetailField,
+} from '@/services/jav-detail-meta';
+import {
+  getJavDetailJobView,
+  getJavDetailStats,
+  startJavDetailJob,
+} from '@/services/jav-detail-job';
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
 
@@ -85,6 +95,9 @@ dataStorageRoutes.get('/stats', async (c) => {
     const completed = detailCompletedResult.results?.[0]?.completed || 0;
     const detailTotal = detailCompletedResult.results?.[0]?.total || 0;
 
+    // JAV 字段级完整度（导演/制作商/发行商/磁力），与上面的全局 detail_completed 分开
+    const javDetail = await getJavDetailStats(c.env.DB);
+
     // 标签统计：JSON 数组交给 SQLite JSON1 聚合，避免全表拉到应用层解析
     const [jsonTagRows, legacyTagRows] = await Promise.all([
       c.env.DB.prepare(
@@ -131,6 +144,7 @@ dataStorageRoutes.get('/stats', async (c) => {
           count: r.cnt,
         })),
         hiddenCount: hiddenResult.results?.[0]?.cnt || 0,
+        javDetail,
       })
     );
   } catch (err) {
@@ -191,37 +205,69 @@ dataStorageRoutes.get('/records', async (c) => {
   const type = c.req.query('type') || '';
   const status = c.req.query('status') || '';
   const search = c.req.query('search') || '';
+  const detail = c.req.query('detail') || '';
+  const missing = c.req.query('missing') || '';
 
   try {
     const where: string[] = [];
     const params: (string | number)[] = [];
 
     if (type && VALID_TYPES.includes(type)) {
-      where.push('record_type = ?');
+      where.push('d.record_type = ?');
       params.push(type);
     }
     if (status && VALID_STATUSES.includes(status)) {
-      where.push('status = ?');
+      where.push('d.status = ?');
       params.push(status);
     }
     if (search) {
-      where.push('(title LIKE ? OR code LIKE ?)');
+      where.push('(d.title LIKE ? OR d.code LIKE ?)');
       const term = `%${search}%`;
       params.push(term, term);
     }
+    if (detail === 'complete') {
+      where.push("d.detail_completed = 1 AND (d.record_type <> 'jav' OR COALESCE(m.missing_mask, 0) = 0)");
+    } else if (detail === 'incomplete') {
+      where.push("(d.detail_completed = 0 OR (d.record_type = 'jav' AND COALESCE(m.missing_mask, 0) <> 0))");
+    }
+
+    // 缺字段筛选：director,maker,publisher,magnets 的并集
+    let missingMask = 0;
+    const missingFields: JavDetailField[] = [];
+    for (const raw of missing.split(',')) {
+      const field = raw.trim() as JavDetailField;
+      if (field && field in DETAIL_FIELD_BITS) {
+        missingMask |= DETAIL_FIELD_BITS[field];
+        missingFields.push(field);
+      }
+    }
+    if (missingMask !== 0) {
+      where.push('(COALESCE(m.missing_mask, 0) & ?) <> 0');
+      params.push(missingMask);
+    }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const fromClause = `FROM data_records d LEFT JOIN jav_detail_meta m ON m.record_id = d.id`;
 
     const countResult = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total FROM data_records ${whereClause}`
+      `SELECT COUNT(*) as total ${fromClause} ${whereClause}`
     )
       .bind(...params)
       .first<{ total: number }>();
     const total = countResult?.total || 0;
 
     const rows = await c.env.DB.prepare(
-      `SELECT * FROM data_records ${whereClause}
-       ORDER BY first_seen_at DESC LIMIT ? OFFSET ?`
+      `SELECT d.*,
+              m.status AS detail_status,
+              m.missing_mask AS detail_missing_mask,
+              m.attempts AS detail_attempts,
+              m.transient_failures AS detail_transient_failures,
+              m.next_retry_at AS detail_next_retry_at,
+              m.retry_exhausted AS detail_retry_exhausted,
+              m.last_error AS detail_last_error,
+              m.fetched_at AS detail_fetched_at
+       ${fromClause} ${whereClause}
+       ORDER BY d.first_seen_at DESC LIMIT ? OFFSET ?`
     )
       .bind(...params, pageSize, (page - 1) * pageSize)
       .all<Record<string, unknown>>();
@@ -233,6 +279,7 @@ dataStorageRoutes.get('/records', async (c) => {
         page,
         pageSize,
         totalPages: Math.ceil(total / pageSize),
+        missingFields,
       })
     );
   } catch (err) {
@@ -249,7 +296,20 @@ dataStorageRoutes.get('/records/:id', async (c) => {
   const id = c.req.param('id');
 
   try {
-    const record = await c.env.DB.prepare('SELECT * FROM data_records WHERE id = ?')
+    const record = await c.env.DB.prepare(
+      `SELECT d.*,
+              m.status AS detail_status,
+              m.missing_mask AS detail_missing_mask,
+              m.attempts AS detail_attempts,
+              m.transient_failures AS detail_transient_failures,
+              m.next_retry_at AS detail_next_retry_at,
+              m.retry_exhausted AS detail_retry_exhausted,
+              m.last_error AS detail_last_error,
+              m.fetched_at AS detail_fetched_at
+       FROM data_records d
+       LEFT JOIN jav_detail_meta m ON m.record_id = d.id
+       WHERE d.id = ?`
+    )
       .bind(id)
       .first<Record<string, unknown>>();
 
@@ -397,9 +457,89 @@ dataStorageRoutes.post('/genre-dict/sync', async (c) => {
   }
 });
 
+// ============================================================
+// 9. JAV 详情批量补全任务
+// ============================================================
+
+dataStorageRoutes.get('/detail-jobs/current', async (c) => {
+  try {
+    const view = await getJavDetailJobView(c.env.DB);
+    const stats = await getJavDetailStats(c.env.DB);
+
+    const failures = await c.env.DB.prepare(
+      `SELECT d.id, d.code, d.title, m.status, m.last_error, m.next_retry_at,
+              m.attempts, m.transient_failures, m.retry_exhausted, m.missing_mask
+       FROM jav_detail_meta m
+       JOIN data_records d ON d.id = m.record_id
+       WHERE d.record_type = 'jav'
+         AND (m.last_error IS NOT NULL OR m.status IN ('partial', 'absent', 'error'))
+       ORDER BY m.updated_at DESC
+       LIMIT 20`
+    ).all<Record<string, unknown>>();
+
+    return c.json(
+      success({
+        ...view,
+        stats,
+        recentFailures: (failures.results || []).map((row) => ({
+          id: row.id,
+          code: row.code,
+          title: row.title,
+          status: row.status,
+          missing: missingFieldsFromMask(Number(row.missing_mask ?? 0)),
+          lastError: row.last_error ?? null,
+          nextRetryAt: Number(row.next_retry_at ?? 0),
+          attempts: Number(row.attempts ?? 0),
+          transientFailures: Number(row.transient_failures ?? 0),
+          retryExhausted: !!row.retry_exhausted,
+        })),
+      })
+    );
+  } catch (err) {
+    console.error('[data-storage] detail job view error:', err);
+    return c.json(error('SERVER_ERROR', '获取批量任务状态失败'), 500);
+  }
+});
+
+dataStorageRoutes.post('/detail-jobs', async (c) => {
+  const userId = c.get('user')?.userId ?? 'unknown';
+
+  // 防误点：同一管理员 10 秒内只允许触发一次
+  const limit = await checkRateLimitD1(c.env.DB, `jav-detail-job:${userId}`, 10 * 1000, 1);
+  if (!limit.allowed) {
+    if (limit.retryAfter) c.header('Retry-After', String(limit.retryAfter));
+    return c.json(error('RATE_LIMITED', '任务启动过于频繁，请稍后再试'), 429);
+  }
+
+  let body: { batchSize?: unknown; intervalSeconds?: unknown } = {};
+  try {
+    body = (await c.req.json()) as typeof body;
+  } catch {
+    // 允许空 body，使用默认参数
+  }
+
+  const batchSize = Math.min(50, Math.max(1, Number(body.batchSize) || 10));
+  const intervalSeconds = Math.min(3600, Math.max(30, Number(body.intervalSeconds) || 60));
+
+  try {
+    const view = await startJavDetailJob(c.env.DB, {
+      batchSize,
+      intervalSeconds,
+      createdBy: userId,
+    });
+    return c.json(
+      success(view, view.job?.status === 'running' ? '批量任务已启动' : '没有待补全的记录')
+    );
+  } catch (err) {
+    console.error('[data-storage] start detail job error:', err);
+    return c.json(error('SERVER_ERROR', '启动批量任务失败'), 500);
+  }
+});
+
 // ─── 行映射辅助 ──────────────────────────────────────────────────────
 
 function mapRecordRow(r: Record<string, unknown>) {
+  const missingMask = Number(r.detail_missing_mask ?? 0);
   return {
     id: r.id,
     recordType: r.record_type,
@@ -415,6 +555,15 @@ function mapRecordRow(r: Record<string, unknown>) {
     rating: r.rating,
     contentData: r.content_data,
     detailCompleted: !!r.detail_completed,
+    /** JAV 字段级完整度（非 JAV 记录为 null） */
+    detailStatus: (r.detail_status as string | null) ?? null,
+    detailMissing: missingFieldsFromMask(missingMask),
+    detailAttempts: Number(r.detail_attempts ?? 0),
+    detailTransientFailures: Number(r.detail_transient_failures ?? 0),
+    detailNextRetryAt: Number(r.detail_next_retry_at ?? 0),
+    detailRetryExhausted: !!r.detail_retry_exhausted,
+    detailLastError: (r.detail_last_error as string | null) ?? null,
+    detailFetchedAt: r.detail_fetched_at ? Number(r.detail_fetched_at) : null,
     status: r.status,
     sourceCount: r.source_count,
     firstSeenAt: r.first_seen_at,

@@ -10,12 +10,8 @@ import { Hono } from 'hono';
 import { Env } from '@/types';
 import { authMiddleware } from '@/middleware';
 import {
-  getHtml,
-  fetchJavbusDetailHtml,
+  fetchJavbusDetailWithMagnets,
   describeJavbusFetchError,
-  extractGidUc,
-  parseMagnets,
-  parseJavDetail,
   JAV_HEADERS,
 } from '@/services/jav-utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
@@ -332,14 +328,6 @@ javRoutes.get('/rankings', async (c) => {
 // 详情页 + 磁力链接提取
 // =====================================================================
 
-interface MagnetItem {
-  name: string;
-  size: string;
-  date: string;
-  magnet: string;      // magnet:?xt= 完整链接
-  isHD: boolean;
-}
-
 // JavDetail 类型已由 parseJavDetail 的返回值替代（定义在 services/jav-utils.ts）
 
 // extractGidUc / parseMagnets / parseDetail 已提取至 services/jav-utils.ts，此处从该模块导入
@@ -364,7 +352,8 @@ javRoutes.get('/detail', async (c) => {
   const code = info.code;
 
   const DETAIL_CACHE_TTL = 3600;
-  const cacheKey = new Request(`https://internal/jav-detail/${code}`);
+  // v2：修复导演/制作商/发行商解析后，避免继续命中旧的空字段缓存
+  const cacheKey = new Request(`https://internal/jav-detail-v2/${code}`);
   const cache = caches.default;
 
   const cached = await cache.match(cacheKey);
@@ -378,8 +367,8 @@ javRoutes.get('/detail', async (c) => {
   }
 
   try {
-    // Step 1：抓详情页（按共享查询变体重试）
-    const fetched = await fetchJavbusDetailHtml(code, 15000);
+    // Step 1-3：抓详情页 + 解析字段 + 抓磁力（统一入口，避免漏抓磁力）
+    const fetched = await fetchJavbusDetailWithMagnets(code, 15000);
     if (!fetched.ok) {
       // 404 才是「没有这个番号」；超时/限流/内容异常是源不可用，不能报成未找到
       const isNotFound = fetched.error === 'NOT_FOUND';
@@ -395,20 +384,7 @@ javRoutes.get('/detail', async (c) => {
       );
     }
 
-    const html = fetched.html;
-    const detailUrl = `https://www.javbus.com/${fetched.usedCode}`;
-
-    // Step 2：提取基本信息
-    const detail = parseJavDetail(html, code, detailUrl);
-
-    // Step 3：提取 gid/uc 并请求磁力 Ajax
-    let magnets: MagnetItem[] = [];
-    const gidUc = extractGidUc(html);
-    if (gidUc) {
-      const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
-      const magnetHtml = await getHtml(magnetUrl, 12000);
-      magnets = parseMagnets(magnetHtml);
-    }
+    const { detail, magnets, magnetFetchFailed } = fetched.data;
 
     const detailResponse = JSON.stringify({ success: true, data: { ...detail, magnets } });
     const newResponse = new Response(detailResponse, {
@@ -421,7 +397,7 @@ javRoutes.get('/detail', async (c) => {
 
     // 数据存储：补充/更新 JAV 记录的磁力来源（异步，不阻塞响应）
     c.executionCtx.waitUntil(
-      enrichDataRecordFromDetail(c.env.DB, { detail, magnets }).catch((e) =>
+      enrichDataRecordFromDetail(c.env.DB, { detail, magnets, magnetFetchFailed }).catch((e) =>
         console.error('[data-storage] enrich error:', e)
       )
     );

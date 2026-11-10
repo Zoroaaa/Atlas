@@ -23,4 +23,6 @@ export type { ApiError, ApiSuccess, ApiResponse,
 
 export type { DataRecordType, DataRecordStatus, DataSourceType,
   DataRecordSource, DataRecord, DataRecordDetail,
-  DataStorageStats, DataStorageTrends, DataRecordsQuery } from './data-storage';
+  DataStorageStats, DataStorageTrends, DataRecordsQuery,
+  JavDetailFieldName, JavDetailStatus, JavDetailStats,
+  JavDetailJob, JavDetailFailure, JavDetailJobView } from './data-storage';
