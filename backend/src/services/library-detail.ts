@@ -22,6 +22,10 @@ export interface LibraryJavDetail {
   director?: string;
   maker?: string;
   series?: string;
+  /** 多值原文（源站同一字段可能挂多个链接） */
+  directors?: string[];
+  makers?: string[];
+  publishers?: string[];
   tags: string[];
   actresses: string[];
   detailUrl?: string;
@@ -51,6 +55,13 @@ function parseList(raw: string | null): string[] {
 function pickString(source: Record<string, unknown>, key: string): string | undefined {
   const value = source[key];
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function pickStringArray(source: Record<string, unknown>, key: string): string[] | undefined {
+  const value = source[key];
+  if (!Array.isArray(value)) return undefined;
+  const list = value.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+  return list.length > 0 ? list : undefined;
 }
 
 export async function getLibraryJavDetail(db: D1Database, rawCode: string): Promise<LibraryLookup> {
@@ -120,6 +131,9 @@ export async function getLibraryJavDetail(db: D1Database, rawCode: string): Prom
       director: pickString(extra, 'director'),
       maker: pickString(extra, 'maker'),
       series: pickString(extra, 'series'),
+      directors: pickStringArray(extra, 'directors'),
+      makers: pickStringArray(extra, 'makers'),
+      publishers: pickStringArray(extra, 'publishers') ?? (record.publisher ? [record.publisher] : undefined),
       tags: parseList(record.tags),
       actresses: parseList(record.actors),
       detailUrl,

@@ -21,6 +21,7 @@ import { javProvider } from '@/providers/jav-provider';
 import { mangaProvider } from '@/providers/manga-provider';
 import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
+import { runJavDetailJobBatch } from '@/services/jav-detail-job';
 import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
@@ -175,6 +176,16 @@ export default {
         withCronLock(env.DB, 'email.digest', HALF_HOUR_LOCK_TTL_MS, () => runEmailDigest(env))
           .then((r) => { if (r && r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })
           .catch((err) => console.error('[email] digest failed:', err))
+      );
+    }
+    if (event.cron === '* * * * *') {
+      // 每分钟：推进管理看板手动触发的 JAV 详情补全任务。
+      // 没有运行中的任务时只查一次 D1；任务状态持久化在 detail_fetch_jobs，
+      // 服务重启/刷新页面后继续。批内限速与批大小由任务参数控制。
+      ctx.waitUntil(
+        runJavDetailJobBatch(env.DB)
+          .then((r) => { if (r.ran && r.processed > 0) console.log(`[jav-detail-job] processed=${r.processed}`); })
+          .catch((err) => console.error('[jav-detail-job] cron failed:', err))
       );
     }
     if (event.cron === '5 * * * *') {

@@ -16,6 +16,13 @@
  */
 import { generateId } from '@/utils';
 import type { MagnetItem } from './jav-utils';
+import {
+  applyJavDetailAbsent,
+  applyJavDetailSuccess,
+  applyJavDetailTransientFailure,
+  computeMissingMask,
+  magnetCountOf,
+} from './jav-detail-meta';
 
 // ─── JAV 封面相对路径补全 ─────────────────────────────────────────────
 // JavBus 返回的 cover 是相对路径（如 /pics/cover/9ho0_b.jpg），
@@ -138,6 +145,9 @@ interface JavDetail {
   director?: string;
   maker?: string;
   series?: string;
+  publishers?: string[];
+  directors?: string[];
+  makers?: string[];
   tags: string[];
   actresses: string[];
   detailUrl: string;
@@ -414,6 +424,7 @@ export async function persistDataRecord(
 
     let payload: RecordPayload | null = null;
     let sources: SourceEntry[] = [];
+    let javDetail: JavDetail | null = null;
 
     switch (resultType) {
       case 'jav': {
@@ -421,7 +432,9 @@ export async function persistDataRecord(
         const detail = result.detail as JavDetail | undefined;
         if (detail && detail.code && detail.title) {
           const magnets = (result.magnets as MagnetItem[] | undefined) || [];
+          const magnetFetchFailed = result.magnetFetchFailed === true;
           const resolvedCover = resolveJavCover(detail.cover);
+          javDetail = detail;
           payload = {
             recordType: 'jav',
             dedupKey: `jav:${detail.code}`,
@@ -439,7 +452,9 @@ export async function persistDataRecord(
               // 磁力只写 data_record_sources（唯一事实源），避免同一批磁力在
               // content_data 与子表双份存储；详情读取走 library-detail 的 sources 查询
             },
-            detailCompleted: 1,
+            // 首采只做保守判断，落库后由 applyJavDetailSuccess 按真实来源数复核
+            detailCompleted:
+              !magnetFetchFailed && computeMissingMask(detail, magnetCountOf(magnets)) === 0 ? 1 : 0,
           };
           sources = magnetsToSources(magnets, detail.detailUrl);
           break;
@@ -608,35 +623,68 @@ export async function persistDataRecord(
     if (recordId && sources.length) {
       await insertSources(db, recordId, sources);
     }
+    // 按库中真实磁力来源数复核完整度，避免「抓过详情 = 完整」的历史误判
+    if (recordId && javDetail) {
+      await applyJavDetailSuccess(db, recordId, javDetail, {
+        magnetFetchFailed: result.magnetFetchFailed === true,
+      });
+    }
   } catch (err) {
     console.error('[data-storage] persistDataRecord error:', err);
   }
 }
 
 /**
- * 详情补充：用户查看 JAV 详情时，用完整数据更新/新建记录并补充磁力来源。
- * 即使搜索时已采集，detail 接口可能拿到更新的磁力，故始终合并来源（INSERT OR IGNORE 去重）。
- *
- * 当前仅 JAV 有独立详情接口；后续其他类型新增详情接口时可扩展。
+ * 详情补充：用户查看 JAV 详情 / 榜单补全 / 管理批量任务共用。
+ * 成功时更新记录并补充磁力来源；失败时只更新 jav_detail_meta 的重试状态，
+ * 不动业务字段。暂时失败与源站缺失（NOT_FOUND）分开处理。
  */
 export async function enrichDataRecordFromDetail(
   db: D1Database,
-  detail: { detail: JavDetail; magnets?: MagnetItem[] }
+  input: {
+    detail?: JavDetail;
+    magnets?: MagnetItem[];
+    /** 详情页抓取失败时的错误码；有值表示本次没有拿到详情 */
+    error?: string;
+    /** 详情页成功但磁力 Ajax 失败 */
+    magnetFetchFailed?: boolean;
+    /** 没有 detail 时用于定位已有记录的番号 */
+    code?: string;
+    /**
+     * 明确要更新的记录 ID（批量任务逐条处理时传入）。
+     * 历史记录可能使用非 `jav:<code>` 的 dedup_key，仅按 dedup_key 反查会漏更新、
+     * 误判失败类型，甚至插入重复记录，因此已知 ID 时优先按 ID 定位。
+     */
+    recordId?: string;
+  }
 ): Promise<void> {
   try {
-    const d = detail.detail;
-    if (!d?.code || !d?.title) return;
+    const d = input.detail;
+    const code = d?.code ?? input.code;
+    if (!code) return;
 
-    const magnets = detail.magnets || [];
+    const dedupKey = `jav:${code}`;
+    const existing = input.recordId
+      ? { id: input.recordId }
+      : await db
+          .prepare('SELECT id FROM data_records WHERE record_type = ? AND dedup_key = ?')
+          .bind('jav', dedupKey)
+          .first<{ id: string }>();
+
+    // 失败路径：只更新重试元数据，不动业务字段
+    if (!d || !d.title) {
+      if (!existing) return;
+      if (input.error === 'NOT_FOUND') {
+        await applyJavDetailAbsent(db, existing.id, 'NOT_FOUND');
+      } else if (input.error) {
+        await applyJavDetailTransientFailure(db, existing.id, input.error);
+      }
+      return;
+    }
+
+    const magnets = input.magnets || [];
     const resolvedCover = resolveJavCover(d.cover);
-    const dedupKey = `jav:${d.code}`;
     const now = Date.now();
-
-    // 查是否已存在
-    const existing = await db
-      .prepare('SELECT id, detail_completed FROM data_records WHERE record_type = ? AND dedup_key = ?')
-      .bind('jav', dedupKey)
-      .first<{ id: string; detail_completed: number }>();
 
     // 磁力只写 data_record_sources（唯一事实源），content_data 不再重复存一份
     const contentData = {
@@ -644,15 +692,16 @@ export async function enrichDataRecordFromDetail(
       cover: resolvedCover,
     };
 
-    if (existing) {
-      // 已存在：补充完整详情（若未完成）+ 刷新 last_updated_at
+    let recordId = existing?.id;
+    if (recordId) {
+      // 已存在：补充详情字段；完整度稍后由 applyJavDetailSuccess 统一判定
       await db
         .prepare(
           `UPDATE data_records
              SET title = ?, cover = COALESCE(?, cover), actors = ?,
                  duration = COALESCE(?, duration), release_date = COALESCE(?, release_date),
                  publisher = COALESCE(?, publisher), tags = ?, content_data = ?,
-                 detail_completed = 1, last_updated_at = ?
+                 detail_completed = 0, last_updated_at = ?
            WHERE id = ?`
         )
         .bind(
@@ -665,25 +714,23 @@ export async function enrichDataRecordFromDetail(
           JSON.stringify(d.tags || []),
           JSON.stringify(contentData),
           now,
-          existing.id
+          recordId
         )
         .run()
         .catch((e) => console.error('[data-storage] enrich update error:', e));
-
-      await insertSources(db, existing.id, magnetsToSources(magnets, d.detailUrl));
     } else {
-      // 不存在：直接新建完整记录
-      const id = generateId();
+      // 不存在：新建记录，detail_completed 先置 0，随后统一复核
+      recordId = generateId();
       await db
         .prepare(
           `INSERT INTO data_records
              (id, record_type, dedup_key, title, cover, code, actors, duration,
               release_date, publisher, tags, rating, content_data, detail_completed,
               status, source_count, first_seen_at, last_updated_at)
-           VALUES (?, 'jav', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 1, 'active', 0, ?, ?)`
+           VALUES (?, 'jav', ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, 0, 'active', 0, ?, ?)`
         )
         .bind(
-          id,
+          recordId,
           dedupKey,
           d.title,
           resolvedCover ?? null,
@@ -699,9 +746,12 @@ export async function enrichDataRecordFromDetail(
         )
         .run()
         .catch((e) => console.error('[data-storage] enrich insert error:', e));
-
-      await insertSources(db, id, magnetsToSources(magnets, d.detailUrl));
     }
+
+    await insertSources(db, recordId, magnetsToSources(magnets, d.detailUrl));
+    await applyJavDetailSuccess(db, recordId, d, {
+      magnetFetchFailed: input.magnetFetchFailed,
+    });
   } catch (err) {
     console.error('[data-storage] enrichDataRecordFromDetail error:', err);
   }

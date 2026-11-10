@@ -18,14 +18,11 @@ import {
 } from '@/services/search-provider';
 import { inspectJavCode, isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
 import {
-  fetchJavbusDetailHtml,
+  fetchJavbusDetailWithMagnets,
   getHtml,
-  extractGidUc,
-  parseMagnets,
-  parseJavDetail,
   describeJavbusFetchError,
-  type MagnetItem,
   type JavItem,
+  type MagnetItem,
 } from '@/services/jav-utils';
 import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
@@ -71,6 +68,8 @@ export interface JavSearchResult extends SearchResultBase {
   fallback?: 'title' | 'sources-only';
   /** 搜索失败语义：前端据此区分「查无此号」与「源暂时不可用」，不再解析文案 */
   searchErrorKind?: 'NOT_FOUND' | 'SOURCE_UNAVAILABLE';
+  /** 详情页成功但磁力接口暂时失败，落库时不能判定为「源站没有磁力」 */
+  magnetFetchFailed?: boolean;
 }
 
 // ─── Provider 实现 ──────────────────────────────────────────────────────
@@ -143,7 +142,7 @@ export class JavProvider implements SearchProvider {
     const code = info.code;
 
     try {
-      const fetched = await fetchJavbusDetailHtml(code, 15000);
+      const fetched = await fetchJavbusDetailWithMagnets(code, 15000);
 
       if (!fetched.ok) {
         return {
@@ -157,20 +156,7 @@ export class JavProvider implements SearchProvider {
         };
       }
 
-      const { html, usedCode } = fetched;
-      const detailUrl = `https://www.javbus.com/${usedCode}`;
-
-      // 解析基本信息（使用共享的 parseJavDetail）
-      const baseInfo = parseJavDetail(html, code, detailUrl);
-
-      // 提取磁力链接
-      let magnets: MagnetItem[] = [];
-      const gidUc = extractGidUc(html);
-      if (gidUc) {
-        const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
-        const magnetHtml = await getHtml(magnetUrl, 12000);
-        magnets = parseMagnets(magnetHtml);
-      }
+      const { detail: baseInfo, magnets, magnetFetchFailed } = fetched.data;
 
       return {
         resultType: 'jav',
@@ -179,6 +165,7 @@ export class JavProvider implements SearchProvider {
         total: magnets.length,
         errors: { search: null },
         detail: { ...baseInfo, magnets },
+        magnetFetchFailed,
       };
     } catch (err) {
       return {
