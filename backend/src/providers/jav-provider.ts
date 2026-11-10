@@ -23,6 +23,7 @@ import {
   extractGidUc,
   parseMagnets,
   parseJavDetail,
+  describeJavbusFetchError,
   type MagnetItem,
   type JavItem,
 } from '@/services/jav-utils';
@@ -68,6 +69,8 @@ export interface JavSearchResult extends SearchResultBase {
   normalizedKeyword?: string;
   /** code 模式：未识别为番号（title）或识别但无 JavBus 详情（sources-only） */
   fallback?: 'title' | 'sources-only';
+  /** 搜索失败语义：前端据此区分「查无此号」与「源暂时不可用」，不再解析文案 */
+  searchErrorKind?: 'NOT_FOUND' | 'SOURCE_UNAVAILABLE';
 }
 
 // ─── Provider 实现 ──────────────────────────────────────────────────────
@@ -142,13 +145,14 @@ export class JavProvider implements SearchProvider {
     try {
       const fetched = await fetchJavbusDetailHtml(code, 15000);
 
-      if (!fetched) {
+      if (!fetched.ok) {
         return {
           resultType: 'jav',
           keyword,
           page: 1,
           total: 0,
-          errors: { search: `未找到番号 ${code}` },
+          errors: { search: describeJavbusFetchError(fetched.error, code) },
+          searchErrorKind: fetched.error === 'NOT_FOUND' ? 'NOT_FOUND' : 'SOURCE_UNAVAILABLE',
           fallback: 'sources-only',
         };
       }
@@ -205,9 +209,11 @@ export class JavProvider implements SearchProvider {
     // 作品列表与女优资料抓取解耦：资料源失败时仍尽量展示 JavBus 作品
     // 关键词复用 normalizeActressKeyword 归一化结果（日文名），确保 JavBus 可命中
     let actressWorks: JavItem[] = [];
+    let worksError: string | null = null;
     try {
       actressWorks = await fetchActressWorks(keyword);
     } catch (e) {
+      worksError = e instanceof Error ? e.message : String(e);
       console.error('[jav-provider] javbus actress works fetch failed:', e);
     }
 
@@ -220,7 +226,8 @@ export class JavProvider implements SearchProvider {
       normalizedKeyword: normalizeActressKeyword(keyword),
       page,
       total: results.length,
-      errors: { search: actressError },
+      errors: { search: actressError, works: worksError },
+      searchErrorKind: actressError ? 'SOURCE_UNAVAILABLE' : undefined,
       actresses,
       actressWorks,
       results,

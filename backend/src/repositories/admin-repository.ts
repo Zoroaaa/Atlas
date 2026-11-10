@@ -141,7 +141,7 @@ export async function listUsers(
   const rows = await db
     .prepare(
       `SELECT u.id, u.username, u.email, u.is_active, u.email_verified, u.login_count, 
-              u.created_at, u.last_login, u.permissions, u.role_id,
+              u.created_at, u.last_login, u.role_id,
               r.name as role_name, r.display_name as role_display_name
        FROM users u
        LEFT JOIN roles r ON u.role_id = r.id
@@ -158,14 +158,13 @@ export async function listUsers(
 export type AdminUserWithRole = User & {
   role_name?: string | null;
   role_display_name?: string | null;
-  role_permissions?: string | null;
 };
 
-/** 按 id 查询用户详情（含角色名与角色权限） */
+/** 按 id 查询用户详情（含角色名） */
 export async function findUserDetailById(db: D1Database, userId: string): Promise<AdminUserWithRole | null> {
   return db
     .prepare(
-      `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions
+      `SELECT u.*, r.name as role_name, r.display_name as role_display_name
        FROM users u
        LEFT JOIN roles r ON u.role_id = r.id
        WHERE u.id = ?`
@@ -250,14 +249,6 @@ export async function deleteUserSessions(db: D1Database, userId: string): Promis
   await db.prepare('DELETE FROM user_sessions WHERE user_id = ?').bind(userId).run();
 }
 
-/** 查询用户基础身份（id / username） */
-export async function findUserIdentity(
-  db: D1Database,
-  userId: string
-): Promise<{ id: string; username: string } | null> {
-  return db.prepare('SELECT id, username FROM users WHERE id = ?').bind(userId).first<{ id: string; username: string }>();
-}
-
 /** 更新用户启用状态 */
 export async function updateUserStatus(
   db: D1Database,
@@ -266,17 +257,6 @@ export async function updateUserStatus(
   await db
     .prepare('UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?')
     .bind(opts.isActive ? 1 : 0, opts.now, opts.userId)
-    .run();
-}
-
-/** 更新用户权限（JSON 串） */
-export async function updateUserPermissions(
-  db: D1Database,
-  opts: { userId: string; permissions: string; now: number }
-): Promise<void> {
-  await db
-    .prepare('UPDATE users SET permissions = ?, updated_at = ? WHERE id = ?')
-    .bind(opts.permissions, opts.now, opts.userId)
     .run();
 }
 

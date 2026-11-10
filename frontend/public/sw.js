@@ -12,11 +12,16 @@ const STATIC_ASSETS = [
   '/og-image.png'
 ];
 
+/**
+ * API 缓存策略（仅 GET，POST 在 fetch 处理里直接跳过）。
+ * 只保留真实存在且公共可缓存的路径：
+ * - /api/search 是 POST，永远走不到这里；旧配置按路径前缀还会误匹配 /api/search-history
+ * - /api/sources 不是真实路由（真实路由是 /api/search-sources）
+ * - maxAge 字段从未被 networkFirst/staleWhileRevalidate 读取，已移除
+ * 其余 /api/* 走默认 networkFirst。
+ */
 const API_CACHE_CONFIG = {
-  '/api/search': { strategy: 'network-first', maxAge: 5 * 60 * 1000 },
-  '/api/sources': { strategy: 'stale-while-revalidate', maxAge: 30 * 60 * 1000 },
-  '/api/config': { strategy: 'stale-while-revalidate', maxAge: 60 * 60 * 1000 },
-  '/api/user': { strategy: 'network-first', maxAge: 0 }
+  '/api/config': { strategy: 'stale-while-revalidate' }
 };
 
 function getApiCacheConfig(url) {

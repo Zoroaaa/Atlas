@@ -257,6 +257,8 @@ export interface JavEnrichedData {
   actressWorks?: import('./jav').JavItem[];
   /** code 模式：未识别为番号（title）或识别但无 JavBus 详情（sources-only） */
   fallback?: 'title' | 'sources-only';
+  /** 搜索失败语义：区分「查无此号」与「源暂时不可用」，避免解析文案 */
+  searchErrorKind?: 'NOT_FOUND' | 'SOURCE_UNAVAILABLE';
 }
 
 export interface MangaEnrichedData {

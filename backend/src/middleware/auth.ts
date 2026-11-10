@@ -18,7 +18,6 @@ const DEFAULT_USER_ROLE: Role = {
   id: 'user',
   name: 'user',
   display_name: '普通用户',
-  permissions: '["search","favorite","history","sync","community:share","community:review"]',
   is_system: 1,
   priority: 10,
   created_at: 0,
@@ -63,46 +62,9 @@ export async function checkIsSuperAdmin(c: Context<{ Bindings: Env }>): Promise<
 }
 
 /**
- * 检查用户是否拥有指定权限
- * 优先读取 authMiddleware 写入的 userRole.permissions（零查询）；无上下文时回退实时查询
- *
- * 权限规则：
- * 1. 通配符 '*' 表示拥有所有权限（超级管理员）
- * 2. 'module:*' 表示拥有该模块所有权限（如 'user:*' 包含 'user:read', 'user:write'）
- * 3. 精确匹配权限字符串
- */
-export async function checkPermission(c: Context<{ Bindings: Env }>, requiredPermission: string): Promise<boolean> {
-  let permissions: string[];
-
-  const role = c.get('userRole');
-  if (role) {
-    permissions = JSON.parse(role.permissions || '[]') as string[];
-  } else {
-    const userId = c.get('user')?.userId;
-    if (!userId) return false;
-    try {
-      const result = await c.env.DB.prepare(
-        'SELECT r.permissions FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?'
-      ).bind(userId).first<{ permissions: string }>();
-      if (!result) return false;
-      permissions = JSON.parse(result.permissions || '[]') as string[];
-    } catch {
-      return false;
-    }
-  }
-
-  if (permissions.includes('*')) return true;
-
-  const moduleWildcard = requiredPermission.split(':')[0] + ':*';
-  if (permissions.includes(moduleWildcard)) return true;
-
-  return permissions.includes(requiredPermission);
-}
-
-/**
  * 认证中间件
- * 单次 JOIN 同时完成会话校验与角色/权限加载，写入 c.set('userRole')，
- * 使下游中间件与权限辅助函数无需再次查询数据库。
+ * 单次 JOIN 同时完成会话校验与角色加载，写入 c.set('userRole')，
+ * 使下游中间件与角色判定函数无需再次查询数据库。
  *
  * SQL 语义保证：
  *   - 以 session 为主表判断会话有效性（与旧实现一致，不因用户/角色缺失而误判会话失效）
@@ -125,7 +87,7 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
   const tokenHash = await hashToken(token);
   const row = await c.env.DB.prepare(`
     SELECT s.id AS session_id,
-           r.id, r.name, r.display_name, r.description, r.permissions,
+           r.id, r.name, r.display_name, r.description,
            r.is_system, r.priority, r.created_at, r.updated_at
     FROM user_sessions s
     LEFT JOIN users u ON u.id = s.user_id
@@ -137,7 +99,6 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
     name: string | null;
     display_name: string | null;
     description: string | null;
-    permissions: string | null;
     is_system: number | null;
     priority: number | null;
     created_at: number | null;

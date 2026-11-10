@@ -406,7 +406,8 @@ export const schemas = {
     }),
 
     updatePostStatus: z.object({
-      status: z.enum(['active', 'pending', 'rejected', 'hidden']),
+      // 社区没有审核流：只有正常展示与管理员隐藏两种状态
+      status: z.enum(['active', 'hidden']),
     }),
 
     createComment: z.object({
@@ -454,10 +455,6 @@ export const schemas = {
     updateUserStatus: z.object({
       isActive: z.boolean(),
       reason: z.string().max(500).optional(),
-    }),
-
-    updateUserPermissions: z.object({
-      permissions: z.array(z.string()),
     }),
 
     handleReport: z.object({

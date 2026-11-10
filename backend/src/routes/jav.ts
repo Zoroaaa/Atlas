@@ -12,6 +12,7 @@ import { authMiddleware } from '@/middleware';
 import {
   getHtml,
   fetchJavbusDetailHtml,
+  describeJavbusFetchError,
   extractGidUc,
   parseMagnets,
   parseJavDetail,
@@ -379,8 +380,19 @@ javRoutes.get('/detail', async (c) => {
   try {
     // Step 1：抓详情页（按共享查询变体重试）
     const fetched = await fetchJavbusDetailHtml(code, 15000);
-    if (!fetched) {
-      return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该番号' } }, 404);
+    if (!fetched.ok) {
+      // 404 才是「没有这个番号」；超时/限流/内容异常是源不可用，不能报成未找到
+      const isNotFound = fetched.error === 'NOT_FOUND';
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: isNotFound ? 'NOT_FOUND' : 'SOURCE_UNAVAILABLE',
+            message: describeJavbusFetchError(fetched.error, code),
+          },
+        },
+        isNotFound ? 404 : 503
+      );
     }
 
     const html = fetched.html;

@@ -92,10 +92,6 @@ export interface UpdateUserStatusRequest {
   reason?: string;
 }
 
-export interface UpdateUserPermissionsRequest {
-  permissions: string[];
-}
-
 export interface HandleReportRequest {
   status: 'resolved' | 'dismissed';
   action?: 'remove_source' | 'warning' | 'ignore';

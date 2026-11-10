@@ -548,6 +548,7 @@
         "fallbackSourcesTitle": "暫無番號詳情",
         "fallbackSourcesMessage": "JavBus 暫無該番號詳情，已展示各站搜尋結果。",
         "resourceNotFoundTitle": "無該資源",
+        "sourceUnavailableTitle": "來源暫時不可用",
         "noResultsTitle": "暫無結果",
         "noRelatedResourcesTitle": "暫無相關資源",
         "noRelatedResourcesMessage": "嘗試更換關鍵字或稍後再試",
@@ -913,8 +914,6 @@
       "opFailed": "操作失敗",
       "roleUpdatedToast": "角色已更新",
       "updateRoleFailed": "更新角色失敗",
-      "permissionUpdatedToast": "權限已更新",
-      "updatePermissionFailed": "更新失敗",
       "stat": {
         "total": "總使用者",
         "active": "已啟用",
@@ -945,8 +944,7 @@
         "statusInactive": "已停用",
         "viewDetailTitle": "查看詳情",
         "disableTitle": "停用",
-        "enableTitle": "啟用",
-        "managePermissionsTitle": "管理權限"
+        "enableTitle": "啟用"
       },
       "detail": {
         "modalTitle": "使用者詳情",
@@ -963,12 +961,6 @@
         "cumulativeLogin": "累計登入",
         "recentSessions": "最近工作階段",
         "unknownIp": "未知 IP"
-      },
-      "permissions": {
-        "modalTitle": "管理使用者權限",
-        "description": "自訂權限（每行一個權限識別碼）",
-        "cancel": "取消",
-        "save": "儲存權限"
       }
     },
     "sessions": {
@@ -1136,8 +1128,7 @@
       "loading": "載入中...",
       "systemBuiltin": "系統內建",
       "priority": "優先級 {{count}}",
-      "noDescription": "暫無描述",
-      "noPermissions": "暫無自訂權限"
+      "noDescription": "暫無描述"
     },
     "cleanup": {
       "confirm": "確定要清理過期資料嗎？此操作不可撤銷。",
@@ -1725,13 +1716,6 @@
     "viewTerms": "查看服務條款"
   },
   "communityPages": {
-    "shared": {
-      "totalCount": "共 {{total}} 條",
-      "statusActive": "已通過",
-      "statusPending": "待審核",
-      "statusRejected": "已拒絕",
-      "statusRemoved": "已下架"
-    },
     "browse": {
       "searchPlaceholder": "搜尋帖子標題、推薦語...",
       "filterAll": "全部",
@@ -1926,8 +1910,6 @@
     "myPosts": {
       "statusAll": "全部",
       "statusActive": "已發布",
-      "statusPending": "審核中",
-      "statusRejected": "已拒絕",
       "statusHidden": "已隱藏",
       "loginRequiredTitle": "請先登入",
       "loginRequiredDescription": "登入後可查看和管理你發布的帖子",
@@ -2106,6 +2088,7 @@
     },
     "actressResults": {
       "searchFailed": "女優搜尋失敗：{{message}}",
+      "worksFailed": "作品列表載入失敗：{{message}}",
       "title": "AV女優",
       "actressCount": "{{count}} 位",
       "javbusActressSearch": "JavBus 女優搜尋 →",

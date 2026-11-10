@@ -26,7 +26,6 @@ export interface Role {
   name: string;
   displayName: string;
   description: string | null;
-  permissions: string[];
   isSystem: boolean;
   priority: number;
   createdAt: number;
@@ -37,7 +36,6 @@ export interface AdminUser {
   id: string;
   username: string;
   email: string;
-  permissions: string[];
   role: string;
   isActive: boolean;
   emailVerified: boolean;
@@ -52,10 +50,8 @@ export interface AdminUserDetail {
   id: string;
   username: string;
   email: string;
-  permissions: string[];
   role: string;
   roleDisplayName: string;
-  rolePermissions: string[];
   isActive: boolean;
   emailVerified: boolean;
   createdAt: number;

@@ -19,14 +19,10 @@ import { useToast } from '@/hooks/useNotification';
 const STATUS_CONFIG: Record<string, { labelKey: string; value: string }> = {
   all: { labelKey: 'statusAll', value: '' },
   active: { labelKey: 'statusActive', value: 'active' },
-  pending: { labelKey: 'statusPending', value: 'pending' },
-  rejected: { labelKey: 'statusRejected', value: 'rejected' },
 };
 
 const STATUS_BADGE: Record<string, { labelKey: string; variant: 'success' | 'warning' | 'error' | 'default' }> = {
   active: { labelKey: 'statusActive', variant: 'success' },
-  pending: { labelKey: 'statusPending', variant: 'warning' },
-  rejected: { labelKey: 'statusRejected', variant: 'error' },
   hidden: { labelKey: 'statusHidden', variant: 'default' },
 };
 
@@ -207,7 +203,7 @@ export const MyPostsTab: React.FC = () => {
 
                     {/* 操作按钮 */}
                     <div className="flex gap-1 shrink-0">
-                      {(post.status === 'active' || post.status === 'rejected') && (
+                      {post.status === 'active' && (
                         <button
                           onClick={() => openEdit(post)}
                           className="p-1.5 rounded-lg text-stone-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"

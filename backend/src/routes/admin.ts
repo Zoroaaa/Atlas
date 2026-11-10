@@ -31,9 +31,7 @@ import {
   findUserRoleRef,
   updateUserRole,
   deleteUserSessions,
-  findUserIdentity,
   updateUserStatus,
-  updateUserPermissions,
   findUserRolePriority,
   findUserRoleAndPriority,
   countUserLoginActions,
@@ -143,7 +141,6 @@ adminRoutes.get('/roles', async (c) => {
         name: r.name,
         displayName: r.display_name,
         description: r.description,
-        permissions: (() => { try { return JSON.parse(r.permissions || '[]'); } catch { return []; } })(),
         isSystem: r.is_system === 1,
         priority: r.priority,
         createdAt: r.created_at,
@@ -223,7 +220,6 @@ adminRoutes.get('/users', async (c) => {
         loginCount: u.login_count,
         createdAt: u.created_at,
         lastLogin: u.last_login,
-        permissions: (() => { try { return JSON.parse(u.permissions || '[]'); } catch { return []; } })(),
         role: u.role_name || 'user',
         roleDisplayName: u.role_display_name || '普通用户',
       })),
@@ -276,11 +272,9 @@ adminRoutes.get('/users/:id', async (c) => {
         loginCount: user.login_count,
         createdAt: user.created_at,
         lastLogin: user.last_login,
-        permissions: (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
         settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
         role: user.role_name || 'user',
         roleDisplayName: user.role_display_name || '普通用户',
-        rolePermissions: (() => { try { return JSON.parse(user.role_permissions || '[]'); } catch { return []; } })(),
       },
       stats: {
         favoritesCount: favoritesCount,
@@ -618,46 +612,6 @@ adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus
 });
 
 /**
- * 更新用户权限
- * PUT /api/admin/users/:id/permissions
- * 
- * 权限规则：只有超级管理员可以修改用户权限
- */
-adminRoutes.put('/users/:id/permissions', validateBody(schemas.admin.updateUserPermissions), async (c) => {
-  const userId = c.req.param('id');
-  const body = c.get('validatedBody') as z.infer<typeof schemas.admin.updateUserPermissions>;
-  const { permissions } = body;
-  const adminUser = c.get('user') as JwtPayload;
-
-  // 权限检查：只有超级管理员可以修改用户权限
-  const isSuperAdmin = await checkIsSuperAdmin(c);
-  if (!isSuperAdmin) {
-    return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户权限'), 403);
-  }
-
-  try {
-    const user = await findUserIdentity(c.env.DB, userId);
-
-    if (!user) {
-      return c.json(error('NOT_FOUND', '用户不存在'), 404);
-    }
-
-    await updateUserPermissions(c.env.DB, { userId, permissions: JSON.stringify(permissions), now: Date.now() });
-
-    await logUserAction(c.env, adminUser.userId, 'admin_update_user_permissions', {
-      targetUserId: userId,
-      targetUsername: user.username,
-      permissions,
-    }, c);
-
-    return c.json(success({ permissions }, '权限已更新'));
-  } catch (err) {
-    console.error('Update user permissions error:', err);
-    return c.json(error('SERVER_ERROR', '更新权限失败'), 500);
-  }
-});
-
-/**
  * 获取举报列表
  * GET /api/admin/reports
  */
@@ -719,13 +673,26 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
 
     const target = await findPostNotificationTarget(c.env.DB, report.post_id);
     if (target && target.user_id !== adminUser.userId) {
+      // warn_author 必须真正传达给作者：此前只入库+日志，作者只会收到一句
+      // 「举报已处理」，既不知道被警告也不知道原因。
+      const warned = status === 'resolved' && action === 'warn_author';
+      const body = warned
+        ? `${target.title} · 管理员警告：${report.report_reason}${notes ? `（${notes}）` : ''}`
+        : `${target.title} · ${status === 'resolved' ? '已处理' : '已驳回'}`;
+
       await emitNotification(c.env.DB, {
         userId: target.user_id,
         type: 'community.report_resolved',
-        title: '你帖子上的举报已处理',
-        body: `${target.title} · ${status === 'resolved' ? '已处理' : '已驳回'}`,
-        payload: { postId: report.post_id, postTitle: target.title, status, action: action || '' },
-        dedupKey: `community_report:${reportId}:${status}`,
+        title: warned ? '你的帖子被管理员警告' : '你帖子上的举报已处理',
+        body,
+        payload: {
+          postId: report.post_id,
+          postTitle: target.title,
+          status,
+          action: action || '',
+          reason: warned ? report.report_reason : '',
+        },
+        dedupKey: `community_report:${reportId}:${status}:${action || 'none'}`,
       }).catch((err) => console.error('Emit report notification error:', err));
     }
 

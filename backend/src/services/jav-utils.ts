@@ -135,7 +135,7 @@ export const JAV_HEADERS = {
 /** get() 返回类型 */
 export type GetResult =
   | { ok: true; html: string }
-  | { ok: false; error: 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR' };
+  | { ok: false; error: 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR'; status?: number };
 
 export async function get(url: string, timeoutMs = 10000): Promise<GetResult> {
   const ctrl = new AbortController();
@@ -143,7 +143,7 @@ export async function get(url: string, timeoutMs = 10000): Promise<GetResult> {
   try {
     const r = await fetch(url, { headers: JAV_HEADERS, signal: ctrl.signal });
     if (!r.ok) {
-      return { ok: false, error: 'HTTP_ERROR' };
+      return { ok: false, error: 'HTTP_ERROR', status: r.status };
     }
     const html = await r.text();
     return { ok: true, html };
@@ -163,30 +163,105 @@ export async function getHtml(url: string, timeoutMs = 10000): Promise<string> {
   return result.ok ? result.html : '';
 }
 
+/** 详情抓取的失败种类：用于把「源异常」和「确实没有这个番号」区分开 */
+export type JavbusFetchError = 'NOT_FOUND' | 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR';
+
+export type JavbusDetailFetch =
+  | { ok: true; html: string; usedCode: string }
+  | { ok: false; error: JavbusFetchError };
+
+/**
+ * 失败原因 → 面向用户的文案。
+ * 「未找到」与「源不可用」必须分开：把超时/限流说成「查无此号」会直接摧毁信任。
+ */
+export function describeJavbusFetchError(error: JavbusFetchError, code: string): string {
+  switch (error) {
+    case 'NOT_FOUND':
+      return `未找到番号 ${code}`;
+    case 'TIMEOUT':
+      return 'JavBus 响应超时，请稍后重试';
+    case 'NETWORK_ERROR':
+      return 'JavBus 连接失败，请稍后重试';
+    case 'HTTP_ERROR':
+      return 'JavBus 暂时不可用（可能触发访问限制），请稍后重试';
+    case 'PARSE_ERROR':
+      return 'JavBus 返回内容异常，请稍后重试';
+  }
+}
+
+/**
+ * 失败负缓存：源站抖动/限流时，同一番号在 60 秒内不再重复打 4 个变体。
+ * Workers isolate 内内存缓存即可，顺便保护源站不被同一用户的重复搜索放大。
+ */
+const NEGATIVE_CACHE_TTL_MS = 60_000;
+const NEGATIVE_CACHE_MAX_ENTRIES = 500;
+const negativeCache = new Map<string, { error: JavbusFetchError; expiresAt: number }>();
+
+function readNegativeCache(key: string): JavbusFetchError | null {
+  const hit = negativeCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    negativeCache.delete(key);
+    return null;
+  }
+  return hit.error;
+}
+
+function writeNegativeCache(key: string, error: JavbusFetchError): void {
+  if (negativeCache.size >= NEGATIVE_CACHE_MAX_ENTRIES) {
+    // Map 保持插入顺序，删除最早的一条即可
+    const oldest = negativeCache.keys().next().value;
+    if (oldest !== undefined) negativeCache.delete(oldest);
+  }
+  negativeCache.set(key, { error, expiresAt: Date.now() + NEGATIVE_CACHE_TTL_MS });
+}
+
 /**
  * 按共享查询变体抓 JavBus 详情页。
  * 首个变体 10 秒超时，后续每个最多 6 秒；最多 4 个变体，避免单次搜索拖太久。
+ *
+ * 返回值区分「未找到」（所有变体均 404）与「源不可用」（超时/网络/限流/内容异常），
+ * 上层据此决定展示「查无此号」还是「源暂时不可用」。
  */
 export async function fetchJavbusDetailHtml(
   code: string,
   timeoutMs = 10000
-): Promise<{ html: string; usedCode: string } | null> {
+): Promise<JavbusDetailFetch> {
+  const cacheKey = normalizeJavCode(code);
+  const cachedError = readNegativeCache(cacheKey);
+  if (cachedError) return { ok: false, error: cachedError };
+
   const variants = javCodeLookupVariants(code);
   const candidates = variants.length > 0 ? variants : [normalizeJavCode(code)];
+  const failures: JavbusFetchError[] = [];
 
   for (let index = 0; index < candidates.length; index++) {
     const usedCode = candidates[index];
     if (!usedCode) continue;
-    const html = await getHtml(
+    const result = await get(
       `https://www.javbus.com/${usedCode}`,
       index === 0 ? timeoutMs : Math.min(6000, timeoutMs)
     );
-    if (html && html.length >= 500) {
-      return { html, usedCode };
+
+    if (result.ok) {
+      // 200 但内容过短：站点返回了维护/验证页，不是有效详情
+      if (result.html.length >= 500) {
+        return { ok: true, html: result.html, usedCode };
+      }
+      failures.push('PARSE_ERROR');
+      continue;
     }
+
+    failures.push(result.error === 'HTTP_ERROR' && result.status === 404 ? 'NOT_FOUND' : result.error);
   }
 
-  return null;
+  // 所有变体都 404 才是「没有这个番号」；只要有一个是超时/网络/限流，就归为源不可用
+  const error: JavbusFetchError = failures.every((e) => e === 'NOT_FOUND')
+    ? 'NOT_FOUND'
+    : failures.find((e) => e !== 'NOT_FOUND') ?? 'HTTP_ERROR';
+
+  writeNegativeCache(cacheKey, error);
+  return { ok: false, error };
 }
 
 // ─── 页面解析 ────────────────────────────────────────────────────────────
