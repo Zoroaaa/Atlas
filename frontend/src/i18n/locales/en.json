@@ -548,6 +548,7 @@
         "fallbackSourcesTitle": "No code details",
         "fallbackSourcesMessage": "JavBus has no details for this code. Showing results from all sources.",
         "resourceNotFoundTitle": "Resource not found",
+        "sourceUnavailableTitle": "Source temporarily unavailable",
         "noResultsTitle": "No results",
         "noRelatedResourcesTitle": "No related resources",
         "noRelatedResourcesMessage": "Try a different keyword or try again later",
@@ -2106,6 +2107,7 @@
     },
     "actressResults": {
       "searchFailed": "Actress search failed: {{message}}",
+      "worksFailed": "Failed to load works: {{message}}",
       "title": "AV actresses",
       "actressCount": "{{count}} found",
       "javbusActressSearch": "Search actresses on JavBus →",

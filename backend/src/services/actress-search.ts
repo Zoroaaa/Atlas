@@ -175,7 +175,9 @@ export async function fetchActressWorks(keyword: string): Promise<JavItem[]> {
 
   const searchUrl = `${JAVBUS_BASE}/search/${encodeURIComponent(normalized)}`;
   const html = await getHtml(searchUrl, 15000);
-  if (!html || html.length < 500) return [];
+  // 失败必须抛出：返回空数组会被上层当成「该女优没有作品」
+  if (!html) throw new Error('作品源无响应（JavBus 连接失败）');
+  if (html.length < 500) throw new Error('作品源返回异常内容');
 
   return parseGrid(html, 'javbus-actress-works').slice(0, JAVBUS_ACTRESS_WORKS_LIMIT);
 }

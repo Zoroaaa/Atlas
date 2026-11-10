@@ -150,14 +150,14 @@ export function useSearchFlow({
           if (response.data.resultType === 'jav') {
             const javData = response.data as JavEnrichedData;
 
-            // 检查是否有具体错误信息（如"未找到番号"、"无效格式"）
+            // 检查是否有具体错误信息（如"未找到番号"、"源不可用"）
             const errorMsg = javData.errors?.search;
             if (errorMsg && javData.total === 0) {
-              // 区分不同错误类型，给出更精确的提示
-              if (errorMsg.includes('未找到') || errorMsg.includes('无该')) {
+              // 依据后端返回的失败语义区分：源异常不能报成「查无此号」
+              if (javData.searchErrorKind === 'SOURCE_UNAVAILABLE') {
+                toast.warning(i18next.t('errors:hooks.search.sourceUnavailableTitle'), errorMsg);
+              } else if (javData.searchErrorKind === 'NOT_FOUND') {
                 toast.info(i18next.t('errors:hooks.search.resourceNotFoundTitle'), errorMsg);
-              } else if (errorMsg.includes('格式') || errorMsg.includes('无效')) {
-                toast.warning(i18next.t('errors:hooks.search.formatErrorTitle'), errorMsg);
               } else {
                 toast.info(i18next.t('errors:hooks.search.noResultsTitle'), errorMsg);
               }

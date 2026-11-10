@@ -147,6 +147,8 @@ export function JavActressResultsPanel({
   const actresses = data.actresses ?? [];
   const works = data.actressWorks ?? [];
   const errorMsg = data.errors?.search;
+  // 作品源失败与「该女优没有作品」是两件事，必须分别展示
+  const worksError = data.errors?.works;
 
   const actressSearchUrl = `https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;
   const actressSearchHref = isProxyEnabled ? convertToProxyUrl(actressSearchUrl) : actressSearchUrl;
@@ -209,6 +211,14 @@ export function JavActressResultsPanel({
           </div>
         )}
       </PanelSection>
+
+      {works.length === 0 && worksError ? (
+        <PanelSection>
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+            <Notice tone="error">{t('jav:actressResults.worksFailed', { message: worksError })}</Notice>
+          </div>
+        </PanelSection>
+      ) : null}
 
       {works.length > 0 ? (
         <PanelSection>

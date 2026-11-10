@@ -548,6 +548,7 @@
         "fallbackSourcesTitle": "暫無番號詳情",
         "fallbackSourcesMessage": "JavBus 暫無該番號詳情，已展示各站搜尋結果。",
         "resourceNotFoundTitle": "無該資源",
+        "sourceUnavailableTitle": "來源暫時不可用",
         "noResultsTitle": "暫無結果",
         "noRelatedResourcesTitle": "暫無相關資源",
         "noRelatedResourcesMessage": "嘗試更換關鍵字或稍後再試",
@@ -2106,6 +2107,7 @@
     },
     "actressResults": {
       "searchFailed": "女優搜尋失敗：{{message}}",
+      "worksFailed": "作品列表載入失敗：{{message}}",
       "title": "AV女優",
       "actressCount": "{{count}} 位",
       "javbusActressSearch": "JavBus 女優搜尋 →",
