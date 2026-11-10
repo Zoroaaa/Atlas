@@ -2,7 +2,6 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  permissions: string[];
   settings: UserSettings;
   isActive: boolean;
   emailVerified: boolean;

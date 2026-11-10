@@ -25,9 +25,6 @@ export const RolesTab: React.FC = () => {
               <span className="text-xs text-surface-500 bg-surface-50 dark:bg-surface-900 px-2 py-1 rounded">{t('admin:roles.priority', { count: role.priority })}</span>
             </div>
             <p className="text-sm text-surface-600 dark:text-surface-400 mb-3">{role.description || t('admin:roles.noDescription')}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {role.permissions.length > 0 ? role.permissions.map((p, i) => <span key={i} className="px-2 py-0.5 text-xs bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400 rounded">{p}</span>) : <span className="text-xs text-surface-400">{t('admin:roles.noPermissions')}</span>}
-            </div>
           </div>
         ))}
     </div>

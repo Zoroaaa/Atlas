@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
-import { Search, RefreshCw, Ban, CheckCircle, Eye, Shield, LogIn, Activity, Server, Database, Award, MapPin, Users, UserCheck, UserX, Mail, TrendingUp } from 'lucide-react';
+import { Search, RefreshCw, Ban, CheckCircle, Eye, LogIn, Activity, Server, Database, Award, MapPin, Users, UserCheck, UserX, Mail, TrendingUp } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import type { AdminUser, AdminUserDetail, Role } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -23,7 +23,6 @@ export const UsersTab: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [showDetail, setShowDetail] = useState(false);
-  const [permissionsModal, setPermissionsModal] = useState<{ open: boolean; userId: string; current: string[] }>({ open: false, userId: '', current: [] });
   const [stats, setStats] = useState<{
     total: number;
     active: number;
@@ -136,7 +135,6 @@ export const UsersTab: React.FC = () => {
                       <button onClick={() => handleToggleStatus(user.id, user.isActive)} className={clsx('p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700', user.isActive ? 'text-surface-500 hover:text-error-600' : 'text-surface-500 hover:text-success-600')} title={user.isActive ? t('admin:users.table.disableTitle') : t('admin:users.table.enableTitle')}>
                         {user.isActive ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                       </button>
-                      <button onClick={() => setPermissionsModal({ open: true, userId: user.id, current: user.permissions || [] })} className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 hover:text-rose-600" title={t('admin:users.table.managePermissionsTitle')}><Shield className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -188,21 +186,6 @@ export const UsersTab: React.FC = () => {
             )}
           </div>
         )}
-      </Modal>
-
-      <Modal isOpen={permissionsModal.open} onClose={() => setPermissionsModal({ open: false, userId: '', current: [] })} title={t('admin:users.permissions.modalTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-surface-500">{t('admin:users.permissions.description')}</p>
-          <textarea defaultValue={permissionsModal.current.join('\n')} rows={8} id="permissions-textarea" className="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm font-mono" placeholder="community.share&#10;source.create" />
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setPermissionsModal({ open: false, userId: '', current: [] })}>{t('admin:users.permissions.cancel')}</Button>
-            <Button variant="primary" onClick={async () => {
-              const el = document.getElementById('permissions-textarea') as HTMLTextAreaElement;
-              const perms = el.value.split('\n').map(p => p.trim()).filter(Boolean);
-              try { await adminApi.updateUserPermissions(permissionsModal.userId, perms); toast.success(t('admin:users.permissionUpdatedToast')); setPermissionsModal({ open: false, userId: '', current: [] }); loadUsers(); } catch { toast.error(t('admin:users.updatePermissionFailed')); }
-            }}>{t('admin:users.permissions.save')}</Button>
-          </div>
-        </div>
       </Modal>
     </div>
   );

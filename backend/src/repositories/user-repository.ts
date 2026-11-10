@@ -10,10 +10,9 @@ import type { User, UserSession } from '@/types';
 export type UserWithRole = User & {
   role_name?: string | null;
   role_display_name?: string | null;
-  role_permissions?: string | null;
 };
 
-const USER_WITH_ROLE_SELECT = `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions
+const USER_WITH_ROLE_SELECT = `SELECT u.*, r.name as role_name, r.display_name as role_display_name
   FROM users u
   LEFT JOIN roles r ON u.role_id = r.id`;
 
@@ -149,7 +148,6 @@ export async function createUserWithSession(
     username: string;
     email: string;
     passwordHash: string;
-    permissions: string;
     settings: string;
     emailVerified: number;
     sessionId: string;
@@ -163,8 +161,8 @@ export async function createUserWithSession(
   await db.batch([
     db
       .prepare(
-        `INSERT INTO users (id, username, email, password_hash, created_at, updated_at, permissions, settings, is_active, login_count, email_verified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO users (id, username, email, password_hash, created_at, updated_at, settings, is_active, login_count, email_verified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         params.userId,
@@ -173,7 +171,6 @@ export async function createUserWithSession(
         params.passwordHash,
         params.now,
         params.now,
-        params.permissions,
         params.settings,
         1,
         0,

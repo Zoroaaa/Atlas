@@ -914,8 +914,6 @@
       "opFailed": "Operation failed",
       "roleUpdatedToast": "Role updated",
       "updateRoleFailed": "Failed to update role",
-      "permissionUpdatedToast": "Permissions updated",
-      "updatePermissionFailed": "Update failed",
       "stat": {
         "total": "Total users",
         "active": "Active",
@@ -946,8 +944,7 @@
         "statusInactive": "Disabled",
         "viewDetailTitle": "View details",
         "disableTitle": "Disable",
-        "enableTitle": "Enable",
-        "managePermissionsTitle": "Manage permissions"
+        "enableTitle": "Enable"
       },
       "detail": {
         "modalTitle": "User details",
@@ -964,12 +961,6 @@
         "cumulativeLogin": "Cumulative logins",
         "recentSessions": "Recent sessions",
         "unknownIp": "Unknown IP"
-      },
-      "permissions": {
-        "modalTitle": "Manage user permissions",
-        "description": "Custom permissions (one identifier per line)",
-        "cancel": "Cancel",
-        "save": "Save permissions"
       }
     },
     "sessions": {
@@ -1137,8 +1128,7 @@
       "loading": "Loading...",
       "systemBuiltin": "Built-in",
       "priority": "Priority {{count}}",
-      "noDescription": "No description",
-      "noPermissions": "No custom permissions"
+      "noDescription": "No description"
     },
     "cleanup": {
       "confirm": "Clean up expired data? This cannot be undone.",
@@ -1726,13 +1716,6 @@
     "viewTerms": "View terms of service"
   },
   "communityPages": {
-    "shared": {
-      "totalCount": "{{total}} item(s) in total",
-      "statusActive": "Approved",
-      "statusPending": "Pending review",
-      "statusRejected": "Rejected",
-      "statusRemoved": "Removed"
-    },
     "browse": {
       "searchPlaceholder": "Search post titles, captions...",
       "filterAll": "All",
@@ -1927,8 +1910,6 @@
     "myPosts": {
       "statusAll": "All",
       "statusActive": "Published",
-      "statusPending": "Under review",
-      "statusRejected": "Rejected",
       "statusHidden": "Hidden",
       "loginRequiredTitle": "Please log in first",
       "loginRequiredDescription": "Log in to view and manage your posts",

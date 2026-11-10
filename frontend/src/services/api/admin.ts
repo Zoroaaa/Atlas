@@ -174,10 +174,6 @@ export const adminApi = {
     return response.data;
   },
 
-  updateUserPermissions: async (userId: string, permissions: string[]): Promise<void> => {
-    await apiClient.put(`/admin/users/${userId}/permissions`, { permissions });
-  },
-
   getUserLoginLogs: async (userId: string, params: {
     page?: number;
     pageSize?: number;

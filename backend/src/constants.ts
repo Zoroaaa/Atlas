@@ -102,7 +102,7 @@ export const CONFIG = {
   },
 
   // ==================================================================
-  // 角色枚举 — 代码逻辑硬编码，改了需改权限体系
+  // 角色枚举 — 仅角色名判定（admin/superadmin），不存在细粒度权限体系
   // ==================================================================
 
   Roles: {
@@ -110,7 +110,6 @@ export const CONFIG = {
     DEFAULT_ROLE_NAME: 'user',
     DEFAULT_ROLE_DISPLAY_NAME: '普通用户',
     DEFAULT_ROLE_PRIORITY: 10,
-    DEFAULT_PERMISSIONS: ['search', 'favorite', 'history', 'sync', 'community:share', 'community:review'] as const,
   },
 };
 

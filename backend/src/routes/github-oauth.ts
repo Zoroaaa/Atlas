@@ -195,7 +195,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
 
     // Step 3: 查找或创建本地用户
     let user = await c.env.DB.prepare(
-      `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions
+      `SELECT u.*, r.name as role_name, r.display_name as role_display_name
        FROM users u
        LEFT JOIN roles r ON u.role_id = r.id
        WHERE u.github_id = ?`
@@ -206,7 +206,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     if (!user && email) {
       // 尝试通过邮箱关联已有账号
       user = await c.env.DB.prepare(
-        `SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions as role_permissions
+        `SELECT u.*, r.name as role_name, r.display_name as role_display_name
          FROM users u
          LEFT JOIN roles r ON u.role_id = r.id
          WHERE u.email = ?`
@@ -271,8 +271,8 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         c.env.DB.prepare(`
           INSERT INTO users
             (id, username, email, password_hash, github_id, github_username,
-             created_at, updated_at, permissions, settings, is_active, last_login, login_count, email_verified)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             created_at, updated_at, settings, is_active, last_login, login_count, email_verified)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           userId,
           username,
@@ -282,7 +282,6 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
           ghUser.login,
           now,
           now,
-          JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]),
           JSON.stringify({}),
           1,
           now,
@@ -372,7 +371,6 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        permissions: (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
         settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
         isActive: true,
         emailVerified: true,

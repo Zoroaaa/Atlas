@@ -914,8 +914,6 @@
       "opFailed": "操作失败",
       "roleUpdatedToast": "角色已更新",
       "updateRoleFailed": "更新角色失败",
-      "permissionUpdatedToast": "权限已更新",
-      "updatePermissionFailed": "更新失败",
       "stat": {
         "total": "总用户",
         "active": "已激活",
@@ -946,8 +944,7 @@
         "statusInactive": "已禁用",
         "viewDetailTitle": "查看详情",
         "disableTitle": "禁用",
-        "enableTitle": "启用",
-        "managePermissionsTitle": "管理权限"
+        "enableTitle": "启用"
       },
       "detail": {
         "modalTitle": "用户详情",
@@ -964,12 +961,6 @@
         "cumulativeLogin": "累计登录",
         "recentSessions": "最近会话",
         "unknownIp": "未知IP"
-      },
-      "permissions": {
-        "modalTitle": "管理用户权限",
-        "description": "自定义权限（每行一个权限标识符）",
-        "cancel": "取消",
-        "save": "保存权限"
       }
     },
     "sessions": {
@@ -1137,8 +1128,7 @@
       "loading": "加载中...",
       "systemBuiltin": "系统内置",
       "priority": "优先级 {{count}}",
-      "noDescription": "暂无描述",
-      "noPermissions": "暂无自定义权限"
+      "noDescription": "暂无描述"
     },
     "cleanup": {
       "confirm": "确定要清理过期数据吗？此操作不可撤销。",
@@ -1726,13 +1716,6 @@
     "viewTerms": "查看服务条款"
   },
   "communityPages": {
-    "shared": {
-      "totalCount": "共 {{total}} 条",
-      "statusActive": "已通过",
-      "statusPending": "待审核",
-      "statusRejected": "已拒绝",
-      "statusRemoved": "已下架"
-    },
     "browse": {
       "searchPlaceholder": "搜索帖子标题、推荐语...",
       "filterAll": "全部",
@@ -1927,8 +1910,6 @@
     "myPosts": {
       "statusAll": "全部",
       "statusActive": "已发布",
-      "statusPending": "审核中",
-      "statusRejected": "已拒绝",
       "statusHidden": "已隐藏",
       "loginRequiredTitle": "请先登录",
       "loginRequiredDescription": "登录后可查看和管理你发布的帖子",

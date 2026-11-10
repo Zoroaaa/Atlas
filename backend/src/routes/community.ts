@@ -360,7 +360,7 @@ communityRoutes.get('/posts/my-posts', async (c) => {
   const status = c.req.query('status');
 
   try {
-    const statusFilter = status && ['active', 'pending', 'rejected', 'hidden'].includes(status) ? status : null;
+    const statusFilter = status && ['active', 'hidden'].includes(status) ? status : null;
 
     const total = await countUserPosts(c.env.DB, { userId: user.userId, status: statusFilter });
 

@@ -102,7 +102,6 @@ export interface User {
   password_hash: string;
   created_at: number;
   updated_at: number;
-  permissions: string;
   settings: string;
   is_active: number;
   last_login: number | null;
@@ -121,7 +120,6 @@ export interface Role {
   name: string;
   display_name: string;
   description: string | null;
-  permissions: string;
   is_system: number;
   priority: number;
   created_at: number;

@@ -5,7 +5,7 @@ import { success, error, generateId, hashPassword, hashToken, verifyPassword, ge
 import { recordFailedAttempt, recordPasswordResetLog, updatePasswordResetLog } from '@/utils/security';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 import { EmailVerificationService, emailVerificationUtils, ConfigService } from '@/services';
-import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
+import { VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
 import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
@@ -137,7 +137,6 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        permissions: (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
         settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
         isActive: user.is_active === 1,
         emailVerified: user.email_verified === 1,
@@ -249,7 +248,7 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
     const sessionId = generateId();
     const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-    await createUserWithSession(c.env.DB, { userId, username, email: normalizedEmail, passwordHash, permissions: JSON.stringify([...CONFIG.Roles.DEFAULT_PERMISSIONS]), settings: JSON.stringify({}), emailVerified, sessionId, tokenHash, expiresAt, now, ipAddress: clientIP, userAgent });
+    await createUserWithSession(c.env.DB, { userId, username, email: normalizedEmail, passwordHash, settings: JSON.stringify({}), emailVerified, sessionId, tokenHash, expiresAt, now, ipAddress: clientIP, userAgent });
 
     await logUserAction(c.env, userId, 'register', { username, email: normalizedEmail }, c);
 
@@ -258,7 +257,6 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
         id: userId,
         username,
         email: normalizedEmail,
-        permissions: [...CONFIG.Roles.DEFAULT_PERMISSIONS],
         settings: {},
         isActive: true,
         emailVerified: emailVerified === 1,
@@ -318,7 +316,6 @@ authRoutes.get('/me', authMiddleware, async (c) => {
       id: user.id,
       username: user.username,
       email: user.email,
-      permissions: (() => { try { return JSON.parse(user.permissions || '[]'); } catch { return []; } })(),
       settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
       isActive: user.is_active === 1,
       emailVerified: user.email_verified === 1,
