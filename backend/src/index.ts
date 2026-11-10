@@ -24,6 +24,7 @@ import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
 import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
+import { runDataRetention } from '@/services/data-retention';
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
@@ -176,6 +177,15 @@ export default {
         env.DB.prepare('DELETE FROM email_verifications WHERE created_at < ?')
           .bind(Date.now() - 7 * 24 * 60 * 60 * 1000)
           .run()
+      );
+      ctx.waitUntil(
+        runDataRetention(env.DB)
+          .then((r) => {
+            if (r.rateLimits + r.postViews + r.dataRecords > 0) {
+              console.log(`[retention] rate_limits=${r.rateLimits} post_views=${r.postViews} data_records=${r.dataRecords}`);
+            }
+          })
+          .catch((err) => console.error('[retention] cleanup failed:', err))
       );
       ctx.waitUntil(
         enrichPendingJavRecords(env.DB).catch((err) =>

@@ -235,22 +235,6 @@ export function normalizeIpForRateLimit(ip: string): string {
   return full.slice(0, 4).join(':');
 }
 
-/**
- * 清理过期的限流记录（可定期调用）
- * @param db - D1 数据库实例
- */
-export async function cleanupExpiredRateLimits(db: D1Database): Promise<void> {
-  const now = Date.now();
-  try {
-    await db
-      .prepare('DELETE FROM rate_limits WHERE reset_at < ?')
-      .bind(now)
-      .run();
-  } catch (error) {
-    console.error('[RateLimit] Cleanup error:', error);
-  }
-}
-
 // 兼容旧版本的内存级限流（已废弃，仅保留接口兼容）
 // @deprecated 使用 checkRateLimitD1 替代
 export function checkRateLimit(
