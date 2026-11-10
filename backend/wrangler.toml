@@ -60,4 +60,5 @@ database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
 enabled = true
 
 [triggers]
-crons = ["0 * * * *", "*/30 * * * *"]
+# 小时任务错开 :05，避免与 */30 的 :00 轮次在同一分钟抢 D1 写
+crons = ["5 * * * *", "*/30 * * * *"]

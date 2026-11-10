@@ -25,6 +25,12 @@ import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
 import { runDataRetention } from '@/services/data-retention';
+import { withCronLock } from '@/services/cron-lock';
+
+/** 30 分钟一轮的任务：租约 25 分钟，超过即认为上一轮已异常终止 */
+const HALF_HOUR_LOCK_TTL_MS = 25 * 60_000;
+/** 1 小时一轮的任务：租约 50 分钟 */
+const HOURLY_LOCK_TTL_MS = 50 * 60_000;
 
 // ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
 providerRegistry.register(animeProvider);
@@ -154,21 +160,24 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    // 两类触发器特意错开分钟：*/30 落在 :00/:30，小时任务在 :05，
+    // 避免两套任务在同一分钟抢 D1 写。
     if (event.cron === '*/30 * * * *') {
-      // 每 30 分钟：关注女优新作检测（≤20 次子请求）+ 邮件通知合并发送（≤15 次子请求）。
-      // 两项合计 ≤35，低于 Workers 每次调用 50 次子请求的上限，所以共用一个触发器
+      // 每 30 分钟：关注女优新作检测 + 邮件通知合并发送。
+      // 每个任务各自持租约锁：上一轮没跑完（抓外部站慢）时，本轮直接跳过，
+      // 由下一轮补上，避免重复写库、重复通知。
       ctx.waitUntil(
-        runWatchCheck(env.DB)
-          .then((r) => { if (r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
+        withCronLock(env.DB, 'follow.check', HALF_HOUR_LOCK_TTL_MS, () => runWatchCheck(env.DB))
+          .then((r) => { if (r && r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
           .catch((err) => console.error('[follow] watch check failed:', err))
       );
       ctx.waitUntil(
-        runEmailDigest(env)
-          .then((r) => { if (r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })
+        withCronLock(env.DB, 'email.digest', HALF_HOUR_LOCK_TTL_MS, () => runEmailDigest(env))
+          .then((r) => { if (r && r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })
           .catch((err) => console.error('[email] digest failed:', err))
       );
     }
-    if (event.cron === '0 * * * *') {
+    if (event.cron === '5 * * * *') {
       ctx.waitUntil(
         env.DB.prepare('DELETE FROM user_sessions WHERE expires_at < ?').bind(Date.now()).run()
       );
@@ -179,23 +188,22 @@ export default {
           .run()
       );
       ctx.waitUntil(
-        runDataRetention(env.DB)
+        withCronLock(env.DB, 'data.retention', HOURLY_LOCK_TTL_MS, () => runDataRetention(env.DB))
           .then((r) => {
-            if (r.rateLimits + r.postViews + r.dataRecords > 0) {
+            if (r && r.rateLimits + r.postViews + r.dataRecords > 0) {
               console.log(`[retention] rate_limits=${r.rateLimits} post_views=${r.postViews} data_records=${r.dataRecords}`);
             }
           })
           .catch((err) => console.error('[retention] cleanup failed:', err))
       );
       ctx.waitUntil(
-        enrichPendingJavRecords(env.DB).catch((err) =>
-          console.error('[ranking-enrichment] cron failed:', err)
-        )
+        withCronLock(env.DB, 'ranking.enrich', HOURLY_LOCK_TTL_MS, () => enrichPendingJavRecords(env.DB))
+          .catch((err) => console.error('[ranking-enrichment] cron failed:', err))
       );
       // 推荐标签词典每周同步一次（未到期时只查 2 次 D1，无外部请求）
       ctx.waitUntil(
-        syncGenreDictionary(env.DB)
-          .then((r) => { if (r.updated > 0) console.log(`[genre-dict] updated=${r.updated}`); })
+        withCronLock(env.DB, 'genre.dict', HOURLY_LOCK_TTL_MS, () => syncGenreDictionary(env.DB))
+          .then((r) => { if (r && r.updated > 0) console.log(`[genre-dict] updated=${r.updated}`); })
           .catch((err) => console.error('[genre-dict] cron failed:', err))
       );
     }
