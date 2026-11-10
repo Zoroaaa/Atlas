@@ -159,28 +159,31 @@ async function insertSources(
 ): Promise<void> {
   if (!sources.length) return;
   const now = Date.now();
-  // 逐条 INSERT OR IGNORE（触发器自动维护 source_count，仅新增时计数+1）
-  await Promise.all(
-    sources.map((s) =>
-      db
-        .prepare(
-          `INSERT OR IGNORE INTO data_record_sources
-             (id, record_id, source_name, source_type, source_url, source_data, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          generateId(),
-          recordId,
-          s.sourceName,
-          s.sourceType,
-          s.sourceUrl,
-          JSON.stringify(s.sourceData),
-          now
-        )
-        .run()
-        .catch((e) => console.error('[data-storage] insertSource error:', e))
-    )
+  // 一次 batch 完成全部写入：D1 每次 invocation 最多 6 个并发连接，
+  // 逐条 Promise.all 会在磁力多时排队甚至触发 overloaded，batch 只算一次往返
+  const statements = sources.map((s) =>
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO data_record_sources
+           (id, record_id, source_name, source_type, source_url, source_data, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        generateId(),
+        recordId,
+        s.sourceName,
+        s.sourceType,
+        s.sourceUrl,
+        JSON.stringify(s.sourceData),
+        now
+      )
   );
+
+  try {
+    await db.batch(statements);
+  } catch (e) {
+    console.error('[data-storage] insertSources batch error:', e);
+  }
 }
 
 // ─── 内部：主记录 upsert ─────────────────────────────────────────────
@@ -202,21 +205,28 @@ interface RecordPayload {
 }
 
 /**
- * 写入主记录：首写优先（INSERT OR IGNORE 保留 first_seen_at）。
- * 返回记录 id；若已存在则顺带节流更新 last_updated_at（5 分钟内不重复更新，减少写放大）。
+ * 写入主记录：首写优先（冲突时只刷新 last_updated_at，不覆盖已采数据）。
+ * 单条 UPSERT + RETURNING 完成插入/节流更新/取 id：
+ * - 新记录：一次往返
+ * - 已有记录且超过 5 分钟：一次往返（更新 last_updated_at）
+ * - 已有记录且 5 分钟内刚更新：RETURNING 为空，回退一次只读查询取 id
  */
 async function upsertRecord(db: D1Database, payload: RecordPayload): Promise<string | null> {
   const now = Date.now();
   const id = generateId();
   const tagsJson = JSON.stringify(payload.tags || []);
+  const throttleMs = 5 * 60 * 1000;
 
-  await db
+  const written = await db
     .prepare(
-      `INSERT OR IGNORE INTO data_records
+      `INSERT INTO data_records
          (id, record_type, dedup_key, title, cover, code, actors, duration,
           release_date, publisher, tags, rating, content_data, detail_completed,
           status, source_count, first_seen_at, last_updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, ?, ?)
+       ON CONFLICT(record_type, dedup_key) DO UPDATE SET last_updated_at = excluded.last_updated_at
+       WHERE data_records.last_updated_at < ?
+       RETURNING id`
     )
     .bind(
       id,
@@ -234,13 +244,19 @@ async function upsertRecord(db: D1Database, payload: RecordPayload): Promise<str
       JSON.stringify(payload.contentData),
       payload.detailCompleted,
       now,
-      now
+      now,
+      now - throttleMs
     )
-    .run()
-    .catch((e) => console.error('[data-storage] upsertRecord error:', e));
+    .first<{ id: string }>()
+    .catch((e) => {
+      console.error('[data-storage] upsertRecord error:', e);
+      return null;
+    });
 
-  // 查询实际记录 id（可能是刚插入的，也可能是已存在的）
-  const row = await db
+  if (written) return written.id;
+
+  // 冲突且未到节流窗口：记录已存在，只需取回 id
+  const existing = await db
     .prepare('SELECT id FROM data_records WHERE record_type = ? AND dedup_key = ?')
     .bind(payload.recordType, payload.dedupKey)
     .first<{ id: string }>()
@@ -249,17 +265,7 @@ async function upsertRecord(db: D1Database, payload: RecordPayload): Promise<str
       return null;
     });
 
-  if (!row) return null;
-
-  // 节流更新 last_updated_at：仅当距上次更新超过 5 分钟时刷新，避免热点资源每次搜索都写
-  const throttleMs = 5 * 60 * 1000;
-  await db
-    .prepare('UPDATE data_records SET last_updated_at = ? WHERE id = ? AND last_updated_at < ?')
-    .bind(now, row.id, now - throttleMs)
-    .run()
-    .catch((e) => console.error('[data-storage] touchRecord error:', e));
-
-  return row.id;
+  return existing?.id ?? null;
 }
 
 // ─── JAV 磁力 → 来源条目 ─────────────────────────────────────────────
@@ -430,13 +436,8 @@ export async function persistDataRecord(
             contentData: {
               ...detail,
               cover: resolvedCover,
-              magnets: magnets.map((m) => ({
-                name: m.name,
-                magnet: m.magnet,
-                size: m.size,
-                date: m.date,
-                isHD: m.isHD,
-              })),
+              // 磁力只写 data_record_sources（唯一事实源），避免同一批磁力在
+              // content_data 与子表双份存储；详情读取走 library-detail 的 sources 查询
             },
             detailCompleted: 1,
           };
@@ -637,16 +638,10 @@ export async function enrichDataRecordFromDetail(
       .bind('jav', dedupKey)
       .first<{ id: string; detail_completed: number }>();
 
+    // 磁力只写 data_record_sources（唯一事实源），content_data 不再重复存一份
     const contentData = {
       ...d,
       cover: resolvedCover,
-      magnets: magnets.map((m) => ({
-        name: m.name,
-        magnet: m.magnet,
-        size: m.size,
-        date: m.date,
-        isHD: m.isHD,
-      })),
     };
 
     if (existing) {
