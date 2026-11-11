@@ -80,7 +80,7 @@ The project uses a modular documentation system, where each specialized document
 - **Zustand State Management**: A lightweight state management solution with automatic persistent storage
 
 #### 3. Cloud-Native Edge Computing
-- **Cloudflare Full-Stack Deployment**: Utilizes Cloudflare Pages for frontend, Workers for backend, and D1 for database, all in a fully serverless architecture
+- **Cloudflare Full-Stack Deployment**: A single Cloudflare Worker serves both the static frontend (Workers Static Assets) and the API, with D1 for the database — fully serverless and deployed from one pipeline
 - **Global CDN Acceleration**: Leverages Cloudflare's 300+ global edge nodes for user-proximity access
 - **Zero Operational Costs**: No need to purchase servers; the free tier can support small to medium-sized applications
 - **Automatic Elastic Scaling**: Automatically scales during peak traffic, eliminating concerns about server crashes
@@ -325,7 +325,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - Workbench components + trilingual i18n (v1.5.0)
 - HelpCenterPage + help content definitions (v1.6.0)
 - Notification bell / inbox / preferences pages (v1.6.0)
-- Deployment: Cloudflare Pages
+- Deployment: Cloudflare Workers (Workers Builds, Git-connected)
 
 **Provider Layer (v1.6.0)**
 - SearchProvider interface + ProviderRegistry

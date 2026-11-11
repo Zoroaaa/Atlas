@@ -95,7 +95,7 @@ githubOAuthRoutes.get('/github', async (c) => {
   }
 
   const state = generateState();
-  const backendUrl = (c.env.BACKEND_URL || 'https://atlasapi.wort.uk').replace(/\/$/, '');
+  const backendUrl = (c.env.BACKEND_URL || 'https://atlas.wort.uk').replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/github/callback`;
 
   const params = new URLSearchParams({

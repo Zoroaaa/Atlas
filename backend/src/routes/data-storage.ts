@@ -21,6 +21,7 @@ import {
   getJavDetailJobView,
   getJavDetailStats,
   isJavDetailJobEnabled,
+  isJavDetailMissingFilter,
   setJavDetailJobPaused,
   startJavDetailJob,
   stopJavDetailJob,
@@ -44,7 +45,12 @@ dataStorageRoutes.get('/stats', async (c) => {
     const dayMs = CONFIG.Stats.DAY_IN_MS;
     const weekMs = CONFIG.Stats.WEEK_IN_MS;
     const monthMs = 30 * dayMs;
-    const thirtyDaysAgo = now - 30 * dayMs;
+    // 趋势图按 +8 时区的自然日聚合（与下面的 SQL 一致）。若用「now - 30 天」做起点，
+    // 首日只会包含截止时刻之后的数据，看起来像「第一天莫名很低」；
+    // 这里对齐到 +8 时区今天的 0 点，取最近 30 个完整自然日。
+    const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
+    const todayStartCst = Math.floor((now + CST_OFFSET_MS) / dayMs) * dayMs - CST_OFFSET_MS;
+    const trendStart = todayStartCst - 29 * dayMs;
 
     const [
       byTypeResult,
@@ -71,11 +77,28 @@ dataStorageRoutes.get('/stats', async (c) => {
       c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records WHERE first_seen_at > ?').bind(now - monthMs),
       c.env.DB.prepare("SELECT COUNT(*) as cnt FROM data_records WHERE status = 'hidden'"),
       c.env.DB.prepare(
-        `SELECT date(first_seen_at / 1000, 'unixepoch', '+8 hours') as d, COUNT(*) as cnt
-         FROM data_records
-         WHERE first_seen_at > ?
-         GROUP BY d ORDER BY d ASC`
-      ).bind(thirtyDaysAgo),
+        // 补零：没有新增记录的日期也要占一个点，否则 30 天会被压缩成「有数据的那几天」，
+        // x 轴既不是等距时间轴，也看不出中间断了多久。
+        `WITH RECURSIVE days(d) AS (
+           SELECT date(?, 'unixepoch', '+8 hours')
+           UNION ALL
+           SELECT date(d, '+1 day') FROM days
+           WHERE d < date(?, 'unixepoch', '+8 hours')
+         )
+         SELECT days.d AS d, COALESCE(cnt, 0) AS cnt
+         FROM days
+         LEFT JOIN (
+           SELECT date(first_seen_at / 1000, 'unixepoch', '+8 hours') AS d, COUNT(*) AS cnt
+           FROM data_records
+           WHERE first_seen_at >= ?
+           GROUP BY d
+         ) t ON t.d = days.d
+         ORDER BY days.d ASC`
+      ).bind(
+        Math.floor(trendStart / 1000),
+        Math.floor(now / 1000),
+        trendStart
+      ),
       c.env.DB.prepare(
         `SELECT source_name, COUNT(*) as cnt
          FROM data_record_sources GROUP BY source_name ORDER BY cnt DESC LIMIT 10`
@@ -512,7 +535,7 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
     return c.json(error('RATE_LIMITED', '任务启动过于频繁，请稍后再试'), 429);
   }
 
-  let body: { batchSize?: unknown } = {};
+  let body: { batchSize?: unknown; missing?: unknown } = {};
   try {
     body = (await c.req.json()) as typeof body;
   } catch {
@@ -520,6 +543,12 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
   }
 
   const batchSize = Math.min(50, Math.max(1, Number(body.batchSize) || 10));
+
+  // 筛选只决定选哪些记录，抓取内容不变；不传表示不限字段
+  if (body.missing != null && !isJavDetailMissingFilter(body.missing)) {
+    return c.json(error('INVALID_PARAM', 'missing 仅支持 director / maker / publisher / magnets'), 400);
+  }
+  const missing = isJavDetailMissingFilter(body.missing) ? body.missing : null;
 
   // 开关关闭时不允许新建任务：否则会留下一个永不推进的 running 行
   if (!(await isJavDetailJobEnabled(c.env.DB))) {
@@ -530,6 +559,7 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
     const view = await startJavDetailJob(c.env.DB, {
       batchSize,
       createdBy: userId,
+      missing,
     });
     return c.json(
       success(view, view.job?.status === 'running' ? '批量任务已启动' : '没有待补全的记录')

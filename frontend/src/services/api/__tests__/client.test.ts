@@ -19,7 +19,9 @@ vi.mock('@/stores/authStore', () => ({
 
 // Mock constants with short RETRY_DELAY for fast tests
 vi.mock('@/constants', () => ({
-  API_BASE_URL: { LOCAL: '/api', PRODUCTION: 'https://example.com/api' },
+  API_BASE_URL: '/api',
+  getApiBaseUrl: () => '/api',
+  getBackendBaseUrl: () => '',
   API_CONFIG: { MAX_RETRIES: 3, RETRY_DELAY: 10, DEFAULT_TIMEOUT: 15000 },
   TOAST_CONFIG: { MAX_TOASTS: 5, DEFAULT_DURATION: 5000 },
   SIDEBAR_CONFIG: { DEFAULT_WIDTH: 280, COLLAPSED_WIDTH: 72, MOBILE_WIDTH: 288 },

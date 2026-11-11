@@ -9,6 +9,7 @@
  */
 import { RECOMMEND } from '@/constants';
 import { enrichDataRecordFromDetail } from './data-storage';
+import { DETAIL_FIELD_BITS } from './jav-detail-meta';
 import {
   fetchJavbusDetailWithMagnets,
   isJavCodeLike,
@@ -88,6 +89,13 @@ export async function enrichPendingJavRecords(
          AND d.code IS NOT NULL
          AND COALESCE(m.retry_exhausted, 0) = 0
          AND COALESCE(m.next_retry_at, 0) <= ?
+         -- 只缺导演/制作商/发行商（磁力齐全）的记录不再自动重补：
+         -- 这三项只能由管理端 JAV 详情批量补全面板手动触发。
+         -- 在候选集里排除，而不是抓完之后过滤，避免白白请求源站。
+         AND (
+           COALESCE(m.status, 'pending') <> 'partial'
+           OR (COALESCE(m.missing_mask, 0) & ${DETAIL_FIELD_BITS.magnets}) <> 0
+         )
        ORDER BY COALESCE(m.next_retry_at, 0), d.last_updated_at ASC
        LIMIT ?`
     )

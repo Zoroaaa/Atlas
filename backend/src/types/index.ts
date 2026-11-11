@@ -17,7 +17,6 @@ export interface Env {
 
   // 部署级 vars（对应 wrangler.toml [vars]）
   APP_VERSION?: string;
-  APP_ENV?: string;
   SITE_URL?: string;
   FRONTEND_URL?: string;
   BACKEND_URL?: string;
