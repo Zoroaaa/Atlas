@@ -38,6 +38,9 @@ interface JavDetailPanelProps {
   isFavorited?: boolean;
   isAuthenticated?: boolean;
   onLoginRequired?: () => void;
+  /** 本地库命中时，手动回源 JavBus 拉取最新详情 */
+  onPullExternal?: () => void | Promise<void>;
+  isPullingExternal?: boolean;
 }
 
 // ── 复制按钮（带反馈） ─────────────────────────────────────────────
@@ -268,7 +271,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
-export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired }) => {
+export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false }) => {
   const { t } = useTranslation(['jav']);
   // 封面按真实比例自适应：横版封面独占一行完整展示，竖版封面与信息并排
   const [coverLandscape, setCoverLandscape] = useState(false);
@@ -311,6 +314,19 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
             </span>
           ) : null}
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:ml-0">
+            {onPullExternal && detail?.fromLibrary && status === 'success' ? (
+              <button
+                type="button"
+                onClick={() => void onPullExternal()}
+                disabled={isPullingExternal}
+                aria-label={t('jav:detail.pullExternal')}
+                title={t('jav:detail.pullExternal')}
+                className="flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-600 disabled:opacity-60 dark:text-surface-400 dark:hover:bg-primary-900/20 sm:h-8 sm:w-8 sm:justify-center sm:px-0"
+              >
+                <RefreshCw className={clsx('h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4', isPullingExternal && 'animate-spin')} />
+                <span className="whitespace-nowrap sm:hidden">{t('jav:detail.pullExternalShort')}</span>
+              </button>
+            ) : null}
             {onFavorite && detail && status === 'success' ? (
               <button
                 type="button"

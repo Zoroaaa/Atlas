@@ -26,6 +26,7 @@ import {
 } from '@/services/jav-utils';
 import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
+import { getLibraryJavDetail } from '@/services/library-detail';
 import {
   listSourcesByCategory,
   filterEnabledSources,
@@ -41,11 +42,16 @@ export interface JavDetailResult {
   cover?: string;
   releaseDate?: string;
   duration?: string;
+  director?: string;
+  maker?: string;
   publisher?: string;
+  series?: string;
   tags: string[];
   actresses: string[];
   magnets: MagnetItem[];
   detailUrl: string;
+  /** true 表示本次结果来自本地库（命中缓存），前端据此展示「拉取 JavBus 外部源」按钮 */
+  fromLibrary?: boolean;
 }
 
 export interface JavSearchResult extends SearchResultBase {
@@ -116,15 +122,15 @@ export class JavProvider implements SearchProvider {
       };
     }
 
-    const result = await this.searchByCode(info.code);
+    const result = await this.searchByCode(info.code, ctx);
     result.results = cards;
     result.total = cards.length;
     if (!result.detail) result.fallback = 'sources-only';
     return result;
   }
 
-  /** code 子模式：抓 JavBus 详情页 + 磁力 */
-  private async searchByCode(keyword: string): Promise<JavSearchResult> {
+  /** code 子模式：本地库优先（磁力校验通过即返回），未命中再抓 JavBus 详情页 + 磁力 */
+  private async searchByCode(keyword: string, ctx: SearchContext): Promise<JavSearchResult> {
     const info = inspectJavCode(keyword);
 
     // 未识别格式：不返回硬错误，交由上层走标题回退
@@ -140,6 +146,44 @@ export class JavProvider implements SearchProvider {
     }
 
     const code = info.code;
+
+    // 本地库优先：只做磁力校验，有磁力即返回本地库数据（不做有效期控制）
+    const local = await getLibraryJavDetail(ctx.db, code).catch((err) => {
+      console.error('[jav-provider] library lookup failed:', err);
+      return null;
+    });
+    if (local?.detail && local.detail.magnets.length > 0) {
+      const localDetail = local.detail;
+      return {
+        resultType: 'jav',
+        keyword,
+        page: 1,
+        total: localDetail.magnets.length,
+        errors: { search: null },
+        detail: {
+          code: localDetail.code,
+          title: localDetail.title,
+          cover: localDetail.cover,
+          releaseDate: localDetail.releaseDate,
+          duration: localDetail.duration,
+          director: localDetail.director,
+          maker: localDetail.maker,
+          publisher: localDetail.publisher,
+          series: localDetail.series,
+          tags: localDetail.tags,
+          actresses: localDetail.actresses,
+          detailUrl: localDetail.detailUrl || `https://www.javbus.com/${code}`,
+          magnets: localDetail.magnets.map((m) => ({
+            name: m.name,
+            size: m.size ?? '',
+            date: m.date ?? '',
+            magnet: m.magnet,
+            isHD: m.isHD ?? false,
+          })),
+          fromLibrary: true,
+        },
+      };
+    }
 
     try {
       const fetched = await fetchJavbusDetailWithMagnets(code, 15000);

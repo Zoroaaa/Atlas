@@ -200,9 +200,13 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
           }
 
           // 数据存储：异步落库有效结果（去重，不阻塞响应）
-          c.executionCtx.waitUntil(
-            persistDataRecord(c.env.DB, enrichedData).catch((e) => console.error('[data-storage] persist error:', e))
-          );
+          // 本地库命中的 JAV 详情本身来自 data_records，无需回写
+          const detailFromLibrary = (enrichedData.detail as { fromLibrary?: boolean } | undefined)?.fromLibrary === true;
+          if (!detailFromLibrary) {
+            c.executionCtx.waitUntil(
+              persistDataRecord(c.env.DB, enrichedData).catch((e) => console.error('[data-storage] persist error:', e))
+            );
+          }
 
           // ── Cache Layer: 缓存搜索结果 ──
           const responseBody = JSON.stringify(success(enrichedData, '搜索完成'));
@@ -214,7 +218,11 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
             },
           });
 
-          c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+          // 本地库结果不写缓存：避免「拉取 JavBus 外部源」更新本地库后，
+          // 10 分钟内重复搜索仍命中旧的本地库快照
+          if (!detailFromLibrary) {
+            c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+          }
           return newResponse;
         } catch (err) {
           console.error(`[Provider:${provider.id}] search error:`, err);

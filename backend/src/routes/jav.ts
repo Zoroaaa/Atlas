@@ -352,18 +352,22 @@ javRoutes.get('/detail', async (c) => {
   const code = info.code;
 
   const DETAIL_CACHE_TTL = 3600;
+  // refresh=1：跳过缓存，强制回源 JavBus，并把新数据同步写回本地库
+  const forceRefresh = c.req.query('refresh') === '1';
   // v2：修复导演/制作商/发行商解析后，避免继续命中旧的空字段缓存
   const cacheKey = new Request(`https://internal/jav-detail-v2/${code}`);
   const cache = caches.default;
 
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    return new Response(cached.body, {
-      headers: {
-        ...Object.fromEntries(cached.headers),
-        'X-Cache': 'HIT',
-      },
-    });
+  if (!forceRefresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: {
+          ...Object.fromEntries(cached.headers),
+          'X-Cache': 'HIT',
+        },
+      });
+    }
   }
 
   try {
@@ -391,16 +395,19 @@ javRoutes.get('/detail', async (c) => {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': `public, max-age=${DETAIL_CACHE_TTL}`,
-        'X-Cache': 'MISS',
+        'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
       },
     });
 
-    // 数据存储：补充/更新 JAV 记录的磁力来源（异步，不阻塞响应）
-    c.executionCtx.waitUntil(
-      enrichDataRecordFromDetail(c.env.DB, { detail, magnets, magnetFetchFailed }).catch((e) =>
-        console.error('[data-storage] enrich error:', e)
-      )
-    );
+    // 数据存储：补充/更新 JAV 记录的磁力来源
+    // 强制刷新时同步等待写库完成，保证随后搜索能立即命中最新本地库数据
+    const enrichTask = enrichDataRecordFromDetail(c.env.DB, { detail, magnets, magnetFetchFailed })
+      .catch((e) => console.error('[data-storage] enrich error:', e));
+    if (forceRefresh) {
+      await enrichTask;
+    } else {
+      c.executionCtx.waitUntil(enrichTask);
+    }
 
     c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
     return newResponse;
