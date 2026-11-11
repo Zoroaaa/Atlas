@@ -20,6 +20,8 @@ import {
   Check,
   Tags,
   Play,
+  Square,
+  Pause,
   Loader2,
   AlertTriangle,
   Clock,
@@ -175,7 +177,6 @@ function normalizeJob(value: unknown): JavDetailJob | null {
     id: String(raw.id ?? ''),
     status: raw.status === 'running' ? 'running' : 'done',
     batch_size: toNumber(raw.batch_size),
-    interval_seconds: toNumber(raw.interval_seconds),
     total: toNumber(raw.total),
     processed: toNumber(raw.processed),
     completed: toNumber(raw.completed),
@@ -214,6 +215,8 @@ interface JobViewPatch {
   pending: number;
   due: number;
   scheduled: number;
+  /** 旧后端不返回该字段，缺省按启用处理 */
+  enabled?: boolean;
   stats?: JavDetailStats | null;
   recentFailures?: JavDetailFailure[];
 }
@@ -231,6 +234,7 @@ function normalizeJobView(value: unknown): JobViewPatch | null {
     pending: toNumber(raw.pending),
     due: toNumber(raw.due),
     scheduled: toNumber(raw.scheduled),
+    enabled: raw.enabled === false ? false : true,
     stats: normalizeDetailStats(raw.stats),
     recentFailures: failures,
   };
@@ -243,6 +247,7 @@ function mergeJobView(prev: JavDetailJobView | null, patch: JobViewPatch | null)
     pending: patch.pending,
     due: patch.due,
     scheduled: patch.scheduled,
+    enabled: patch.enabled ?? prev?.enabled ?? true,
     // 启动接口只返回 progress 字段：缺失时沿用上一次 GET 的统计/失败列表
     stats: patch.stats ?? prev?.stats ?? EMPTY_JAV_DETAIL_STATS,
     recentFailures: patch.recentFailures ?? prev?.recentFailures ?? [],
@@ -277,6 +282,8 @@ export const DataStorageTab: React.FC = () => {
   const [genreSyncing, setGenreSyncing] = useState(false);
   const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
   const [jobStarting, setJobStarting] = useState(false);
+  const [jobStopping, setJobStopping] = useState(false);
+  const [jobPausing, setJobPausing] = useState(false);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -356,7 +363,7 @@ export const DataStorageTab: React.FC = () => {
     setJobStarting(true);
     try {
       const patch = normalizeJobView(
-        await dataStorageApi.startDetailJob({ batchSize: 10, intervalSeconds: 60 })
+        await dataStorageApi.startDetailJob({ batchSize: 10 })
       );
       // 启动接口只返回 progress 字段，缺 stats/recentFailures 时沿用已有数据
       if (!patch) throw new Error('empty response');
@@ -367,6 +374,43 @@ export const DataStorageTab: React.FC = () => {
       toast.error(t('admin:dataStorage.batch.startFailed'));
     } finally {
       setJobStarting(false);
+    }
+  };
+
+  const handleStopJob = async () => {
+    setJobStopping(true);
+    try {
+      const patch = normalizeJobView(await dataStorageApi.stopDetailJob());
+      if (!patch) throw new Error('empty response');
+      jobStatusRef.current = patch.job;
+      setJobView((prev) => mergeJobView(prev, patch));
+      toast.success(t('admin:dataStorage.batch.stoppedToast'));
+    } catch {
+      toast.error(t('admin:dataStorage.batch.stopFailed'));
+    } finally {
+      setJobStopping(false);
+    }
+  };
+
+  // 暂停/继续只切开关：任务仍是 running，进度保留，继续后接着跑
+  const handlePauseJob = async (paused: boolean) => {
+    setJobPausing(true);
+    try {
+      const patch = normalizeJobView(
+        paused ? await dataStorageApi.pauseDetailJob() : await dataStorageApi.resumeDetailJob()
+      );
+      if (!patch) throw new Error('empty response');
+      jobStatusRef.current = patch.job;
+      setJobView((prev) => mergeJobView(prev, patch));
+      toast.success(
+        t(paused ? 'admin:dataStorage.batch.pausedToast' : 'admin:dataStorage.batch.resumedToast')
+      );
+    } catch {
+      toast.error(
+        t(paused ? 'admin:dataStorage.batch.pauseFailed' : 'admin:dataStorage.batch.resumeFailed')
+      );
+    } finally {
+      setJobPausing(false);
     }
   };
 
@@ -526,7 +570,15 @@ export const DataStorageTab: React.FC = () => {
             </StatsGrid>
 
             {/* JAV 详情完整度 + 手动批量补全 */}
-            <DetailJobPanel view={jobView} starting={jobStarting} onStart={handleStartJob} />
+            <DetailJobPanel
+              view={jobView}
+              starting={jobStarting}
+              stopping={jobStopping}
+              pausing={jobPausing}
+              onStart={handleStartJob}
+              onStop={handleStopJob}
+              onPause={handlePauseJob}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* 30天新增趋势 */}
@@ -979,14 +1031,36 @@ export const DataStorageTab: React.FC = () => {
 const DetailJobPanel: React.FC<{
   view: JavDetailJobView | null;
   starting: boolean;
+  stopping: boolean;
+  pausing: boolean;
   onStart: () => void;
-}> = ({ view, starting, onStart }) => {
+  onStop: () => void;
+  onPause: (paused: boolean) => void;
+}> = ({ view, starting, stopping, pausing, onStart, onStop, onPause }) => {
   const { t } = useTranslation(['admin']);
   const job = view?.job ?? null;
   const stats = view?.stats;
   // 启动接口不返回 recentFailures，旧后端也可能缺该字段：统一兜底为空数组
   const failures = toArray<JavDetailFailure>(view?.recentFailures);
+  const enabled = view?.enabled !== false;
   const running = job?.status === 'running';
+  // 三态互斥，同一个词只表达一个概念：
+  //   运行中  = 任务在跑且开关开启
+  //   已暂停  = 任务在跑但开关关闭（进度保留，继续后接着跑）
+  //   已停止  = 任务已结束（手动停止或跑完）
+  const paused = running && !enabled;
+  const statusText = running
+    ? paused
+      ? t('admin:dataStorage.batch.paused')
+      : t('admin:dataStorage.batch.running')
+    : job?.status === 'done'
+      ? t('admin:dataStorage.batch.stopped')
+      : t('admin:dataStorage.batch.idle');
+  const statusClass = running
+    ? paused
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-emerald-600 dark:text-emerald-400'
+    : 'text-surface-500';
   const progress = job && job.total > 0 ? Math.min(100, (job.processed / job.total) * 100) : 0;
 
   const statItems: Array<{ key: JavDetailStatus; value: number; className: string }> = stats
@@ -1006,12 +1080,47 @@ const DetailJobPanel: React.FC<{
           <h3 className="font-semibold text-surface-900 dark:text-surface-100">{t('admin:dataStorage.batch.title')}</h3>
           <p className="text-xs text-surface-500 mt-1">{t('admin:dataStorage.batch.desc')}</p>
         </div>
-        <Button size="sm" onClick={onStart} disabled={starting || running}>
-          {starting || running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-          <span className="ml-1">
-            {starting ? t('admin:dataStorage.batch.starting') : running ? t('admin:dataStorage.batch.running') : t('admin:dataStorage.batch.start')}
-          </span>
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {running ? (
+            <>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onPause(!paused)}
+                disabled={pausing || stopping}
+              >
+                {pausing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : paused ? (
+                  <Play className="w-3.5 h-3.5" />
+                ) : (
+                  <Pause className="w-3.5 h-3.5" />
+                )}
+                <span className="ml-1">
+                  {paused ? t('admin:dataStorage.batch.resume') : t('admin:dataStorage.batch.pause')}
+                </span>
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onStop} disabled={stopping || pausing}>
+                {stopping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+                <span className="ml-1">
+                  {stopping ? t('admin:dataStorage.batch.stopping') : t('admin:dataStorage.batch.stop')}
+                </span>
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              onClick={onStart}
+              disabled={starting || !enabled}
+              title={!enabled ? t('admin:dataStorage.batch.disabledHint') : undefined}
+            >
+              {starting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+              <span className="ml-1">
+                {starting ? t('admin:dataStorage.batch.starting') : t('admin:dataStorage.batch.start')}
+              </span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 字段级完整度 */}
@@ -1041,9 +1150,9 @@ const DetailJobPanel: React.FC<{
       {/* 任务进度 */}
       <div className="rounded-lg bg-surface-50 dark:bg-surface-900/50 p-3 space-y-2">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-surface-600 dark:text-surface-300 flex items-center gap-1.5">
+          <span className={clsx('flex items-center gap-1.5 font-medium', statusClass)}>
             <Clock className="w-3.5 h-3.5" />
-            {running ? t('admin:dataStorage.batch.running') : job?.status === 'done' ? t('admin:dataStorage.batch.done') : t('admin:dataStorage.batch.idle')}
+            {statusText}
           </span>
           <span className="text-surface-500">
             {job ? t('admin:dataStorage.batch.progress', { processed: job.processed, total: job.total }) : ''}

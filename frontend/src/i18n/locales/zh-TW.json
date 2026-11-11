@@ -1522,11 +1522,16 @@
       },
       "batch": {
         "title": "JAV 詳情批次補全",
-        "desc": "每分鐘限速 10 筆補全導演、製作商、發行商與磁力；任務狀態持久化，重新整理頁面或服務重啟後繼續。",
+        "desc": "每分鐘限速 10 筆補全導演、製作商、發行商與磁力；任務狀態持久化，重新整理頁面或服務重啟後繼續。此面板可完成全部控制：「暫停」保留進度、分鐘 cron 暫停推進；「繼續」從同一任務接著跑；「停止」結束任務。",
         "start": "開始批次補全",
         "starting": "啟動中...",
-        "running": "任務進行中",
-        "done": "任務已完成",
+        "running": "執行中",
+        "paused": "已暫停（開關關閉，進度保留）",
+        "pause": "暫停",
+        "resume": "繼續",
+        "stop": "停止",
+        "stopping": "停止中...",
+        "stopped": "已停止（任務結束）",
         "idle": "暫無執行中的任務",
         "progress": "已處理 {{processed}} / {{total}}",
         "pending": "待處理",
@@ -1541,7 +1546,14 @@
         "noFailures": "暫無失敗記錄",
         "nextRetry": "{{time}}後重試",
         "startedToast": "批次任務已啟動",
-        "startFailed": "啟動批次任務失敗"
+        "startFailed": "啟動批次任務失敗",
+        "stoppedToast": "批次任務已停止",
+        "stopFailed": "停止批次任務失敗",
+        "pausedToast": "已暫停，進度保留",
+        "resumedToast": "已繼續，任務將按分鐘推進",
+        "pauseFailed": "暫停批次任務失敗",
+        "resumeFailed": "繼續批次任務失敗",
+        "disabledHint": "已在功能開關中關閉，啟用後才能啟動"
       }
     },
     "trends": {

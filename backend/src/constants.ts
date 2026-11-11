@@ -131,6 +131,8 @@ export const DB_CONFIG_KEYS = {
   // 功能开关 — 运营需要动态调整
   ENABLE_REGISTRATION: 'enable_registration',
   COMMUNITY_ENABLED: 'community_enabled',
+  /** JAV 详情批量补全：关闭后每分钟 cron 跳过推进（不删任务、不影响其他定时任务） */
+  JAV_DETAIL_JOB_ENABLED: 'jav_detail_job_enabled',
 
   // 安全限制 — 安全策略需要动态调整
   MAX_LOGIN_ATTEMPTS: 'max_login_attempts',

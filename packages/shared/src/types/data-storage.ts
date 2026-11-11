@@ -96,7 +96,6 @@ export interface JavDetailJob {
   id: string;
   status: 'running' | 'done';
   batch_size: number;
-  interval_seconds: number;
   total: number;
   processed: number;
   completed: number;
@@ -129,6 +128,8 @@ export interface JavDetailJobView {
   pending: number;
   due: number;
   scheduled: number;
+  /** 运行时开关：false 时分钟 cron 跳过推进，任务保持原状等待恢复 */
+  enabled: boolean;
   stats: JavDetailStats;
   recentFailures: JavDetailFailure[];
 }

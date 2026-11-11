@@ -1522,11 +1522,16 @@
       },
       "batch": {
         "title": "JAV detail batch backfill",
-        "desc": "Backfills director, maker, publisher and magnets at 10 records per minute. Task state is persisted and resumes after refresh or restart.",
+        "desc": "Backfills director, maker, publisher and magnets at 10 records per minute. Task state is persisted and resumes after refresh or restart. Everything is controlled here: Pause keeps progress and stops the minute cron; Resume continues the same task; Stop ends the task.",
         "start": "Start batch backfill",
         "starting": "Starting...",
-        "running": "Task running",
-        "done": "Task completed",
+        "running": "Running",
+        "paused": "Paused (switch off, progress kept)",
+        "pause": "Pause",
+        "resume": "Resume",
+        "stop": "Stop",
+        "stopping": "Stopping...",
+        "stopped": "Stopped (task ended)",
         "idle": "No running task",
         "progress": "Processed {{processed}} / {{total}}",
         "pending": "Pending",
@@ -1541,7 +1546,14 @@
         "noFailures": "No failures yet",
         "nextRetry": "Retry {{time}}",
         "startedToast": "Batch task started",
-        "startFailed": "Failed to start batch task"
+        "startFailed": "Failed to start batch task",
+        "stoppedToast": "Batch task stopped",
+        "stopFailed": "Failed to stop batch task",
+        "pausedToast": "Paused, progress kept",
+        "resumedToast": "Resumed; task advances with the minute cron",
+        "pauseFailed": "Failed to pause batch task",
+        "resumeFailed": "Failed to resume batch task",
+        "disabledHint": "Disabled in feature toggles; enable it before starting"
       }
     },
     "trends": {

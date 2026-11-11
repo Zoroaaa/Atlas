@@ -809,11 +809,34 @@ export const dataStorageApi = {
 
   startDetailJob: async (params: {
     batchSize?: number;
-    intervalSeconds?: number;
   } = {}): Promise<JavDetailJobView> => {
     const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
       '/admin/data-storage/detail-jobs',
       params
+    );
+    return response.data;
+  },
+
+  stopDetailJob: async (): Promise<JavDetailJobView> => {
+    const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
+      '/admin/data-storage/detail-jobs/stop',
+      {}
+    );
+    return response.data;
+  },
+
+  pauseDetailJob: async (): Promise<JavDetailJobView> => {
+    const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
+      '/admin/data-storage/detail-jobs/pause',
+      {}
+    );
+    return response.data;
+  },
+
+  resumeDetailJob: async (): Promise<JavDetailJobView> => {
+    const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
+      '/admin/data-storage/detail-jobs/resume',
+      {}
     );
     return response.data;
   },
