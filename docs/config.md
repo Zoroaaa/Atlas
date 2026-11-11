@@ -1,6 +1,6 @@
 # 配置说明
 
-> 适用版本：v1.6.0+
+> 适用版本：v1.7.0+
 > 配置分为三层：`backend/wrangler.toml` 的 `[vars]`（非敏感部署配置）、Cloudflare Secrets（敏感凭据）、D1 `system_config`（运行时动态配置）
 
 ---
@@ -22,7 +22,7 @@
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `APP_VERSION` | `1.6.0` | 版本号，`/api/system/version` 与前端显示使用 |
+| `APP_VERSION` | `1.7.0` | 版本号，`/api/system/version` 与前端显示使用 |
 | `SITE_URL` | `https://atlas.wort.uk` | 站点主地址，邮件模板中的站点链接 |
 | `FRONTEND_URL` | `https://atlas.wort.uk` | 前端地址，OAuth 完成后跳转目标 |
 | `BACKEND_URL` | `https://atlas.wort.uk` | 后端地址，OAuth 回调与邮件退订链接 |

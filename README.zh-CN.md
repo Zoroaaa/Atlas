@@ -7,7 +7,7 @@
 **开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -17,6 +17,7 @@
 ## 目录
 
 - [快速访问](#-快速访问)
+- [v1.7.0 版本亮点](#v170-版本亮点)
 - [项目文档](#-项目文档)
 - [项目特色](#-项目特色)
 - [技术栈概览](#️-技术栈概览)
@@ -37,6 +38,15 @@
 
 </div>
 
+## v1.7.0 版本亮点
+
+- **JAV 本地库优先**：番号搜索命中本地库磁力时直接返回，详情卡「外部源」按钮可回源 JavBus 并写回本地库。
+- **JAV 推荐标签**：按收藏与搜索画像推荐标签，支持按标签浏览作品，JavBus 标签词典每周同步。
+- **数据存储与详情补全**：搜索结果异步去重落库，后台数据管理，支持可暂停 / 恢复的批量详情补全与缺失字段筛选。
+- **PWA 与移动端导航**：支持安装到主屏幕、版本更新提示，新增底部 Tab 与「我的」聚合页。
+- **单 Worker 部署**：前端静态资源与 API 由同一个 Worker `atlas` 同源托管，push 到 `main` 自动构建部署。
+- **帮助中心与文档**：新增「用量、限速与配额」章节，全站按钮文字统一，限流文档补齐。
+
 ## 项目文档
 
 本项目采用模块化文档管理，各专项文档独立维护。
@@ -47,7 +57,7 @@
 |------|------|------|
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、**v1.6.0（帮助中心+统一通知收件箱+邮件投递）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、v1.6.0（帮助中心+统一通知收件箱+邮件投递）、**v1.7.0（本地库优先+JAV推荐标签+PWA/移动端+单 Worker 部署）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -387,7 +397,7 @@ npm run deploy --workspace=backend
 
 [查看详细部署指南](docs/deploy.md)
 [查看配置说明](docs/config.md)
-[查看 v1.6.0 变更日志](docs/CHANGELOG.md)
+[查看 v1.7.0 变更日志](docs/CHANGELOG.md)
 
 ## 性能优化
 

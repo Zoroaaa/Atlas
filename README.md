@@ -7,7 +7,7 @@
 **An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -22,6 +22,7 @@
 ## Table of Contents
 
 - [Quick Access](#-quick-access)
+- [v1.7.0 Highlights](#v170-highlights)
 - [Project Documentation](#-project-documentation)
 - [Project Features](#-project-features)
 - [Technology Stack Overview](#️-technology-stack-overview)
@@ -42,6 +43,15 @@
 
 </div>
 
+## v1.7.0 Highlights
+
+- **JAV library-first search**: Code searches return the local collection immediately when magnets exist; the detail card’s “External source” button re-fetches JavBus and writes the result back to the local collection.
+- **JAV tag recommendations**: Personalized tags based on favorites and search history, tag-based work browsing, and a weekly JavBus tag dictionary sync.
+- **Data storage & detail completion**: Async deduplicated persistence, an admin data console, and resumable batch detail jobs with missing-field filters.
+- **PWA & mobile navigation**: Installable app with update prompts, plus a mobile bottom tab bar and a dedicated “Me” page.
+- **Single Worker deployment**: Frontend assets and API are served from the same Worker `atlas` on one origin; Workers Builds deploys on every push to `main`.
+- **Help center & docs**: New “Usage limits and quotas” section, unified button labels across breakpoints, and expanded rate-limit documentation.
+
 ## Project Documentation
 
 The project uses a modular documentation system, where each specialized documentation is maintained independently.
@@ -52,7 +62,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), **v1.6.0 (help center + unified notification inbox + email delivery)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), **v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 
 ### Frontend Specialized Documentation
@@ -393,7 +403,7 @@ npm run deploy --workspace=backend
 
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
-[See v1.6.0 Changelog](docs/CHANGELOG.md)
+[See v1.7.0 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 
