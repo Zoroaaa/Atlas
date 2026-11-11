@@ -87,4 +87,4 @@ export const MAX_LOCAL_SEARCH_HISTORY = 100;
 /* ==================== 应用信息 ==================== */
 
 /** 构建时版本号，来自打包配置 */
-export const APP_VERSION = '1.6.0' as const;
+export const APP_VERSION = '1.7.0' as const;

@@ -244,9 +244,13 @@ export function useSearchFlow({
         }
         const trimmed = query.trim();
         if (activeTab === 'jav' && isJavCodeLike(trimmed)) {
+          // 搜索响应已带详情（本地库或 JavBus）时不再单独请求，避免重复回源
+          const hasEnrichedDetail = 'resultType' in response.data
+            && response.data.resultType === 'jav'
+            && Boolean((response.data as JavEnrichedData).detail);
           // 只有当前详情不是本次番号时才重新拉取，避免沿用上一个番号的详情
           const normalized = normalizeJavCode(trimmed);
-          if (!javEnrichedDetail || (normalized && javEnrichedDetail.code?.toUpperCase() !== normalized.toUpperCase())) {
+          if (!hasEnrichedDetail && (!javEnrichedDetail || (normalized && javEnrichedDetail.code?.toUpperCase() !== normalized.toUpperCase()))) {
             fetchJavDetail(trimmed);
           }
         } else {

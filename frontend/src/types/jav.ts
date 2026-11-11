@@ -137,4 +137,6 @@ export interface JavDetail {
   actresses: string[];
   magnets: MagnetItem[];
   detailUrl: string;
+  /** 搜索结果显示的来源：true 表示来自本地库，可手动回源 JavBus 刷新 */
+  fromLibrary?: boolean;
 }

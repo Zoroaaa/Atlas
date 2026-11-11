@@ -376,7 +376,12 @@ export const FeedbackTab: React.FC = () => {
             placeholder={t('admin:feedback.searchPlaceholder')}
             className="flex-1 px-3 py-2 text-sm bg-transparent text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none"
           />
-          <button onClick={handleSearch} className="px-3 py-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+          <button
+            onClick={handleSearch}
+            aria-label={t('common:buttons.search')}
+            title={t('common:buttons.search')}
+            className="px-3 py-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+          >
             <Search className="w-4 h-4" />
           </button>
         </div>

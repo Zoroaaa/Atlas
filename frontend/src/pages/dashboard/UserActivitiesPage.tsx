@@ -295,6 +295,8 @@ export const UserActivitiesPage: React.FC = () => {
                   <button
                     onClick={handlePrevPage}
                     disabled={offset === 0}
+                    aria-label={t('dashboard:activities.prevPage')}
+                    title={t('dashboard:activities.prevPage')}
                     className={clsx(
                       'p-2 rounded-xl transition-colors',
                       offset === 0
@@ -307,6 +309,8 @@ export const UserActivitiesPage: React.FC = () => {
                   <button
                     onClick={handleNextPage}
                     disabled={offset + limit >= total}
+                    aria-label={t('dashboard:activities.nextPage')}
+                    title={t('dashboard:activities.nextPage')}
                     className={clsx(
                       'p-2 rounded-xl transition-colors',
                       offset + limit >= total

@@ -16,7 +16,7 @@ let lastFetchTime = 0;
 
 function getDefaultConfig(): PublicConfig {
   return {
-    appVersion: '1.6.0',
+    appVersion: '1.7.0',
     siteName: 'Atlas',
     siteDescription: '搜索全网资源，一步直达',
     allowRegistration: true,

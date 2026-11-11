@@ -99,6 +99,8 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             isFavorited={javFlow.javDetail ? favoritesManager.favoritedCodes.has(javFlow.javDetail.code) : false}
             isAuthenticated={isAuthenticated}
             onLoginRequired={() => navigate('/login')}
+            onPullExternal={javFlow.pullExternalDetail}
+            isPullingExternal={javFlow.isPullingExternal}
           />
           {javRelatedSeed ? (
             <JavRecommendationsPanel

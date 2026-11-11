@@ -239,6 +239,8 @@ export interface JavEnrichedData {
     actresses: string[];
     detailUrl: string;
     magnets: import('./jav').MagnetItem[];
+    /** true 表示详情来自本地库（磁力校验命中），前端提供回源 JavBus 按钮 */
+    fromLibrary?: boolean;
   };
   /** 多源搜索结果（与通用模式格式一致，用于 SearchResultsPanel） */
   results?: Array<{

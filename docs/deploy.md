@@ -1,6 +1,6 @@
 # 部署指南
 
-> 适用版本：v1.6.0+
+> 适用版本：v1.7.0+
 > 本文面向**从零部署一套全新实例**：一个 Cloudflare Worker 同时托管前端静态资源与 API，数据库为 D1，
 > 部署入口为 Workers Builds（直连 GitHub，push 即部署）。文中 `<your-domain>` 请替换为你的自定义域。
 
@@ -75,7 +75,7 @@ database_id = "<返回的 database_id>"
 
 | 变量 | 必填 | 用途 | 缺失/错误后果 |
 |---|---|---|---|
-| `APP_VERSION` | 建议 | `/api`、`/api/system/version`、前端版本展示 | 兜底 `1.6.0`（代码内写死，发版不更新会显示旧版本） |
+| `APP_VERSION` | 建议 | `/api`、`/api/system/version`、前端版本展示 | 兜底 `1.7.0`（代码内写死，发版不更新会显示旧版本） |
 | `SITE_URL` | **必需** | 邮件模板中的「访问站点」链接、反馈通知页脚 | 兜底 `https://example.com`，邮件里的按钮会指向无效页面 |
 | `FRONTEND_URL` | **必需** | OAuth 完成后跳转的前端地址 | 兜底 `https://atlas.wort.uk`，换域名后必须显式配置 |
 | `BACKEND_URL` | **必需** | OAuth callback 构造、邮件退订链接 `${BACKEND_URL}/api/email/unsubscribe` | 兜底 `https://atlas.wort.uk`；错了会导致登录回调 404、退订失效 |
