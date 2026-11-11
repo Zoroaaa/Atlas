@@ -66,7 +66,7 @@ The project uses a modular documentation system, where each specialized document
 ### Core Advantages
 
 #### 1. Open-Source Search Engine with Aggregated Content
-- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v1.4.0 new, data source JavBus)
+- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v1.4.0 new, data source JavBus). Code searches hit the local collection first when magnets exist, and the detail card offers a one-click JavBus refresh that writes back to the local collection.
 - **Anime Search**: Aggregates data from Bangumi, Mikan, and ShowRSS, including subtitles (nyaa source disabled due to deployment environment restrictions, v1.4.0 adjusted)
 - **Movie Search**: Aggregates metadata from TMDB, YTS, EZTV, and TPB, including seeds and magnets
 - **Comic Search**: Aggregates metadata from MangaDex and 13 other search sources

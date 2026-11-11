@@ -2673,7 +2673,9 @@
       "statsFailedLogins": "Failed logins",
       "emptyTitle": "No activity",
       "emptyDesc": "You have no activity yet",
-      "pagination": "{{total}} records, page {{current}}/{{totalPages}}"
+      "pagination": "{{total}} records, page {{current}}/{{totalPages}}",
+      "prevPage": "Previous page",
+      "nextPage": "Next page"
     },
     "settings": {
       "currentEmail": "Current email",
@@ -3292,7 +3294,7 @@
         "caveats": [
           "Registration requires email verification. If the email does not arrive, check spam first.",
           "JAV codes usually follow the “letters-numbers” format. If a code search finds nothing, try title or actress mode.",
-          "Search has a quota. Repeated searches use it up faster."
+          "Search has a quota by account tier. See “Usage limits and quotas” for windows and upgrade rules."
         ]
       },
       "for-you": {
@@ -3471,6 +3473,7 @@
         "summary": "Search by code, actress, or title, with details, rankings, recommendations, and a follow feed.",
         "features": [
           "Code search: enter a code to find a work; matches show details, magnet links, and source entry points.",
+          "Library first: code searches use details and magnets already collected on this site and open instantly. Use “External source” on the detail card to pull the latest data from JavBus.",
           "Actress search: enter an actress name to see her works and follow her directly.",
           "Title search: find works by title or keyword.",
           "Home modules: follow feed, For You, JAV rankings, and trending actresses.",
@@ -3557,7 +3560,8 @@
           "Actresses and follows: click an actress to view her works, or follow her directly.",
           "Magnet links: expand the magnet list to copy a link or open WebTor. A hint appears when no magnet is available.",
           "Recommendations: other works are suggested based on the current work’s tags, actresses, and studio.",
-          "Favorite and share: favorite the current work or share it to the community."
+          "Favorite and share: favorite the current work or share it to the community.",
+          "Local library and external source: when a collected code with magnets is found, the local record is shown immediately. Click “External source” at the top-right of the detail card to pull the latest data from JavBus; the result is written back to the local library."
         ],
         "steps": [
           "Click a code or work in JAV results, notifications, the follow feed, or a community post.",
@@ -3705,6 +3709,7 @@
         "summary": "Verify your email before enabling email notifications. The code has 6 digits.",
         "features": [
           "Send a 6-digit code to the current email from notification settings.",
+          "Codes expire in 15 minutes; you can resend after 60 seconds; after 5 wrong attempts, request a new code.",
           "After verification, the email status becomes “Verified” and email switches become available.",
           "The code has a countdown; you can resend after it ends."
         ],
@@ -3885,6 +3890,30 @@
           "Never enter passwords, verification codes, or payment information into third-party sources from any page.",
           "If emails never arrive, check spam and blocking rules first, then confirm the email is verified and the matching email toggle is on.",
           "Site features and copy may change; the page as displayed is authoritative."
+        ]
+      },
+      "usage-limits": {
+        "title": "Usage limits and quotas",
+        "summary": "Search, favorites, community writes, and registration are rate-limited to prevent abuse and protect data quotas. Admin accounts are exempt.",
+        "features": [
+          "Search quotas are tiered and enforced per minute, hour, and day: Basic 5 / 20 / 100, Active 6 / 30 / 150, Regular 7 / 50 / 250, Core 8 / 80 / 400.",
+          "Tiers upgrade automatically and never downgrade: a 7-day-old account with 5 active days in the last 30 days becomes Active; 30 days plus 5 active days becomes Regular; 90 days, 5 active days, and 500 total searches becomes Core.",
+          "The current tier and this-minute usage are always shown next to the search box; click the question mark to see window usage and upgrade rules.",
+          "Other read endpoints: suggestions 30/min, trending keywords 20/min, tag recommendations 30/min, tag works 20/min.",
+          "Writes: favorites 5/min; posts 6/min, 30/hour, 100/day; comments 10/min, 60/hour, 300/day; post likes and favorites 30/min, 1000/day; reports 6/min, 30/day; custom tags 5/min, 50/day.",
+          "Registration is limited per IP to 5/min, 10/hour, 20/day; test emails are limited to 1/min per user.",
+          "Account data caps: up to 1,000 favorites and 1,000 history entries; follow up to 100 actresses."
+        ],
+        "steps": [
+          "Click the quota question mark next to the search box to see remaining search quota.",
+          "When quota runs out, wait for the matching window to reset (minute, hour, or next day) instead of retrying repeatedly.",
+          "On “too many requests” or HTTP 429, wait for the indicated seconds before retrying.",
+          "To raise your search quota, stay active and accumulate searches; tiers usually refresh automatically within 24 hours."
+        ],
+        "caveats": [
+          "When signed out, search is counted by IP and uses the Basic tier quota; suggestions and trending are also counted by IP.",
+          "Multiple tabs share the same account quota; the per-minute window is a burst guard.",
+          "Values may vary with deployment configuration; the quota popover and live messages are authoritative."
         ]
       },
       "faq-search": {

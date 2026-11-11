@@ -321,10 +321,10 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 disabled={isPullingExternal}
                 aria-label={t('jav:detail.pullExternal')}
                 title={t('jav:detail.pullExternal')}
-                className="flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-600 disabled:opacity-60 dark:text-surface-400 dark:hover:bg-primary-900/20 sm:h-8 sm:w-8 sm:justify-center sm:px-0"
+                className="flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-600 disabled:opacity-60 dark:text-surface-400 dark:hover:bg-primary-900/20 sm:h-8"
               >
                 <RefreshCw className={clsx('h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4', isPullingExternal && 'animate-spin')} />
-                <span className="whitespace-nowrap sm:hidden">{t('jav:detail.pullExternalShort')}</span>
+                <span className="whitespace-nowrap">{t('jav:detail.pullExternalShort')}</span>
               </button>
             ) : null}
             {onFavorite && detail && status === 'success' ? (
@@ -332,14 +332,14 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 type="button"
                 onClick={() => onFavorite(detail)}
                 aria-label={isFavorited ? t('jav:detail.unfavorite') : t('jav:detail.favorite')}
-                className={`flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors sm:h-8 sm:w-8 sm:justify-center sm:px-0 ${
+                className={`flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors sm:h-8 ${
                   isFavorited
                     ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
                     : 'text-surface-500 hover:bg-error-50 hover:text-error-500 dark:text-surface-400 dark:hover:bg-error-900/20'
                 }`}
               >
                 <Heart className={`h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 ${isFavorited ? 'fill-current' : ''}`} />
-                <span className="whitespace-nowrap sm:hidden">
+                <span className="whitespace-nowrap">
                   {isFavorited ? t('jav:detail.favorited') : t('jav:detail.favoriteShort')}
                 </span>
               </button>

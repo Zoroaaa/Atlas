@@ -74,7 +74,7 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
   {
     id: 'notices',
     icon: AlertTriangle,
-    sections: ['general-notices'],
+    sections: ['general-notices', 'usage-limits'],
   },
   {
     id: 'faq',

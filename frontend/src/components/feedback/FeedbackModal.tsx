@@ -115,6 +115,8 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
           <button
             onClick={handleClose}
+            aria-label={t('feedback:modal.close')}
+            title={t('feedback:modal.close')}
             className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700 transition-all"
           >
             <X className="w-4 h-4" />

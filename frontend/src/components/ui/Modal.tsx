@@ -2,6 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 interface ModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   footer,
 }) => {
+  const { t } = useTranslation(['common']);
   if (!isOpen) return null;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -63,6 +65,8 @@ export const Modal: React.FC<ModalProps> = ({
             {showCloseButton && (
               <button
                 onClick={onClose}
+                aria-label={t('buttons.close')}
+                title={t('buttons.close')}
                 className="p-2 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 dark:hover:text-surface-300 transition-colors"
               >
                 <X className="w-5 h-5" />
