@@ -186,6 +186,10 @@ function normalizeJob(value: unknown): JavDetailJob | null {
     skipped: toNumber(raw.skipped),
     last_error: typeof raw.last_error === 'string' ? raw.last_error : null,
     created_by: typeof raw.created_by === 'string' ? raw.created_by : null,
+    // 旧后端不返回该字段，按「不限」处理
+    filter_missing: DETAIL_FIELD_KEYS.includes(raw.filter_missing as JavDetailFieldName)
+      ? (raw.filter_missing as JavDetailFieldName)
+      : null,
     created_at: toNumber(raw.created_at),
     updated_at: toNumber(raw.updated_at),
     finished_at: raw.finished_at == null ? null : toNumber(raw.finished_at),
@@ -281,7 +285,7 @@ export const DataStorageTab: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [genreSyncing, setGenreSyncing] = useState(false);
   const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
-  const [jobStarting, setJobStarting] = useState(false);
+  const [jobStartingField, setJobStartingField] = useState<JavDetailFieldName | null>(null);
   const [jobStopping, setJobStopping] = useState(false);
   const [jobPausing, setJobPausing] = useState(false);
 
@@ -359,11 +363,12 @@ export const DataStorageTab: React.FC = () => {
     };
   }, [loadStats, loadRecords]);
 
-  const handleStartJob = async () => {
-    setJobStarting(true);
+  // 四个入口各自启动：筛选只决定选哪些记录，抓取仍然是完整详情
+  const handleStartJob = async (missing: JavDetailFieldName) => {
+    setJobStartingField(missing);
     try {
       const patch = normalizeJobView(
-        await dataStorageApi.startDetailJob({ batchSize: 10 })
+        await dataStorageApi.startDetailJob({ batchSize: 10, missing })
       );
       // 启动接口只返回 progress 字段，缺 stats/recentFailures 时沿用已有数据
       if (!patch) throw new Error('empty response');
@@ -373,7 +378,7 @@ export const DataStorageTab: React.FC = () => {
     } catch {
       toast.error(t('admin:dataStorage.batch.startFailed'));
     } finally {
-      setJobStarting(false);
+      setJobStartingField(null);
     }
   };
 
@@ -572,7 +577,7 @@ export const DataStorageTab: React.FC = () => {
             {/* JAV 详情完整度 + 手动批量补全 */}
             <DetailJobPanel
               view={jobView}
-              starting={jobStarting}
+              startingField={jobStartingField}
               stopping={jobStopping}
               pausing={jobPausing}
               onStart={handleStartJob}
@@ -1030,13 +1035,14 @@ export const DataStorageTab: React.FC = () => {
 
 const DetailJobPanel: React.FC<{
   view: JavDetailJobView | null;
-  starting: boolean;
+  /** 正在启动的字段入口；null 表示没有启动请求在途 */
+  startingField: JavDetailFieldName | null;
   stopping: boolean;
   pausing: boolean;
-  onStart: () => void;
+  onStart: (missing: JavDetailFieldName) => void;
   onStop: () => void;
   onPause: (paused: boolean) => void;
-}> = ({ view, starting, stopping, pausing, onStart, onStop, onPause }) => {
+}> = ({ view, startingField, stopping, pausing, onStart, onStop, onPause }) => {
   const { t } = useTranslation(['admin']);
   const job = view?.job ?? null;
   const stats = view?.stats;
@@ -1044,6 +1050,9 @@ const DetailJobPanel: React.FC<{
   const failures = toArray<JavDetailFailure>(view?.recentFailures);
   const enabled = view?.enabled !== false;
   const running = job?.status === 'running';
+  const starting = startingField !== null;
+  // 本次任务只补哪一类（任务行自带筛选条件；null 表示不限）
+  const jobFilter = job?.filter_missing ?? null;
   // 三态互斥，同一个词只表达一个概念：
   //   运行中  = 任务在跑且开关开启
   //   已暂停  = 任务在跑但开关关闭（进度保留，继续后接着跑）
@@ -1081,7 +1090,7 @@ const DetailJobPanel: React.FC<{
           <p className="text-xs text-surface-500 mt-1">{t('admin:dataStorage.batch.desc')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {running ? (
+          {running && (
             <>
               <Button
                 size="sm"
@@ -1107,21 +1116,70 @@ const DetailJobPanel: React.FC<{
                 </span>
               </Button>
             </>
-          ) : (
-            <Button
-              size="sm"
-              onClick={onStart}
-              disabled={starting || !enabled}
-              title={!enabled ? t('admin:dataStorage.batch.disabledHint') : undefined}
-            >
-              {starting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              <span className="ml-1">
-                {starting ? t('admin:dataStorage.batch.starting') : t('admin:dataStorage.batch.start')}
-              </span>
-            </Button>
           )}
         </div>
       </div>
+
+      {/* 四个入口：每类缺失各自启动。筛选只决定选哪些记录，抓到后仍然写完整详情 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+        {DETAIL_FIELD_KEYS.map((field) => {
+          const isStarting = startingField === field;
+          return (
+            <div
+              key={field}
+              className="rounded-lg border border-surface-200 dark:border-surface-700 p-2.5 flex items-center justify-between gap-2"
+            >
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-surface-700 dark:text-surface-200">
+                  {t(`admin:dataStorage.detailField.${field}`)}
+                </div>
+                <div className="text-[10px] text-surface-400">
+                  {t('admin:dataStorage.batch.fieldMissingCount', {
+                    count: toNumber(stats?.missing?.[field]),
+                  })}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onStart(field)}
+                disabled={starting || stopping || running || !enabled}
+                title={
+                  !enabled
+                    ? t('admin:dataStorage.batch.disabledHint')
+                    : running
+                      ? t('admin:dataStorage.batch.runningHint')
+                      : t('admin:dataStorage.batch.fillThisHint')
+                }
+              >
+                {isStarting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                <span className="ml-1">
+                  {isStarting
+                    ? t('admin:dataStorage.batch.starting')
+                    : t('admin:dataStorage.batch.fillThis')}
+                </span>
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 重补逻辑说明：用户需要知道什么条件会被补、自动与手动的边界、补一次写什么、失败怎么退避 */}
+      <details className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50/60 dark:bg-surface-900/40 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-medium text-surface-600 dark:text-surface-300 select-none">
+          {t('admin:dataStorage.batch.explainTitle')}
+        </summary>
+        <ul className="mt-2 space-y-1.5 text-xs text-surface-500 leading-relaxed list-disc pl-4">
+          <li>{t('admin:dataStorage.batch.explainAuto')}</li>
+          <li>{t('admin:dataStorage.batch.explainManual')}</li>
+          <li>{t('admin:dataStorage.batch.explainWrite')}</li>
+          <li>{t('admin:dataStorage.batch.explainBackoff')}</li>
+        </ul>
+      </details>
 
       {/* 字段级完整度 */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -1158,6 +1216,13 @@ const DetailJobPanel: React.FC<{
             {job ? t('admin:dataStorage.batch.progress', { processed: job.processed, total: job.total }) : ''}
           </span>
         </div>
+        {jobFilter && (
+          <div className="text-[11px] text-surface-500">
+            {t('admin:dataStorage.batch.runningScope', {
+              field: t(`admin:dataStorage.detailField.${jobFilter}`),
+            })}
+          </div>
+        )}
         <div className="h-2 rounded-full bg-surface-200 dark:bg-surface-700 overflow-hidden">
           <div
             className="h-2 rounded-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all"
@@ -1235,23 +1300,34 @@ const TrendBarChart: React.FC<{ data: Array<{ date: string; count: number }> }> 
     count: toNumber(item?.count),
   }));
   const maxCount = Math.max(...rows.map((d) => d.count), 1);
-  if (rows.length === 0) {
+  const totalCount = rows.reduce((sum, d) => sum + d.count, 0);
+  if (rows.length === 0 || totalCount === 0) {
     return <p className="text-sm text-surface-400 py-8 text-center">{t('admin:dataStorage.trendEmpty')}</p>;
   }
   return (
-    <div className="flex items-end gap-0.5 h-32">
-      {rows.map((d) => (
-        <div
-          key={d.date}
-          className="flex-1 group relative"
-          title={t('admin:dataStorage.trendTooltip', { date: d.date, count: d.count })}
-        >
+    <div>
+      <div className="flex items-end gap-0.5 h-32">
+        {rows.map((d) => (
+          // 柱子的高度是百分比，必须让每列撑满容器高度（h-full）才有确定的高度可参照；
+          // 否则百分比算不出像素，会被 minHeight 兜成一条 2px 的贴底线，看起来像没有数据。
           <div
-            className="w-full bg-gradient-to-t from-rose-400 to-pink-400 dark:from-rose-600 dark:to-pink-600 rounded-sm transition-all hover:from-rose-500 hover:to-pink-500"
-            style={{ height: `${Math.max((d.count / maxCount) * 100, 2)}%`, minHeight: '2px' }}
-          />
-        </div>
-      ))}
+            key={d.date}
+            className="flex-1 h-full flex items-end group relative"
+            title={t('admin:dataStorage.trendTooltip', { date: d.date, count: d.count })}
+          >
+            <div
+              className="w-full bg-gradient-to-t from-rose-400 to-pink-400 dark:from-rose-600 dark:to-pink-600 rounded-sm transition-all hover:from-rose-500 hover:to-pink-500"
+              style={{
+                height: d.count === 0 ? '0px' : `${Math.max((d.count / maxCount) * 100, 3)}%`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between mt-1.5 text-[10px] text-surface-400">
+        <span>{rows[0].date}</span>
+        <span>{rows[rows.length - 1].date}</span>
+      </div>
     </div>
   );
 };

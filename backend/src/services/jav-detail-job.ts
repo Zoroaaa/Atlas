@@ -4,6 +4,8 @@
  * - 手动启动后按批次运行（默认每批 10 条、批内间隔 4 秒），由每分钟 cron 驱动；
  * - 任务状态写 D1（detail_fetch_jobs），刷新页面 / Worker 重启后继续；
  * - 源站缺失累计 3 次后不再重试；暂时失败只退避，不消耗次数；
+ * - 缺导演 / 制作商 / 发行商的记录不会进入每小时自动补全，只能由本任务的
+ *   手动批次补（见 MANUAL_ONLY_PREDICATE）。
  * - 无新增 cron 时，也可以由现有每小时 cron 兜底推进。
  */
 import { DB_CONFIG_KEYS } from '@/constants';
@@ -11,6 +13,7 @@ import { generateId } from '@/utils';
 import { ConfigService } from './config';
 import { withCronLock } from './cron-lock';
 import {
+  DETAIL_FIELD_BITS,
   DETAIL_MAX_ATTEMPTS,
   readJavDetailMeta,
   saveJavDetailMeta,
@@ -23,6 +26,58 @@ const LOCK_KEY = 'jav-detail-batch';
 const LOCK_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_BATCH_SIZE = 10;
 const RECORD_GAP_MS = 4000;
+
+/** 手动批次可选的字段筛选：只决定筛哪些记录，抓取内容不受影响 */
+export type JavDetailMissingFilter = 'director' | 'maker' | 'publisher' | 'magnets';
+
+export function isJavDetailMissingFilter(value: unknown): value is JavDetailMissingFilter {
+  return value === 'director' || value === 'maker' || value === 'publisher' || value === 'magnets';
+}
+
+/** 从库中读出的筛选条件：不认识的值一律当作「不限」，不让脏数据卡死任务 */
+function normalizeFilter(value: unknown): JavDetailMissingFilter | null {
+  return isJavDetailMissingFilter(value) ? value : null;
+}
+
+/**
+ * 字段筛选谓词：只选「缺这一类」的记录。
+ *
+ * 从未抓过详情（没有 meta 行）的记录四个字段全都缺，四个筛选都应当命中；
+ * 命中之后仍然抓取完整详情页，不是只补这一个字段。
+ *
+ * missing_mask = 0 且状态未完成，代表「缺哪些字段无法判定」（例如磁力接口暂时失败，
+ * 不能断言源站没有磁力）。这种记录必须至少被某一类筛选选中，否则哪个按钮都补不到它。
+ */
+function filterPredicate(filter: JavDetailMissingFilter | null): string {
+  if (!filter) return '';
+  const bit = DETAIL_FIELD_BITS[filter];
+  return `AND (
+      m.record_id IS NULL
+      OR (COALESCE(m.missing_mask, 0) & ${bit}) <> 0
+      OR COALESCE(m.missing_mask, 0) = 0
+    )`;
+}
+
+/**
+ * 「部分成功」的记录：抓到过详情，但至少缺一个字段。
+ *
+ * 缺导演 / 制作商 / 发行商的记录已被移出每小时自动补全，只能由管理端手动补；
+ * 缺磁力的记录虽仍在自动补全里，但重试满 3 次后也会停。
+ * 手动补视为「用户现在就要补」，因此这类记录不受 30 天重试间隔与 3 次上限约束，
+ * 否则会出现「自动流程不收、手动按钮也选不到」的永久卡死。
+ *
+ * 源站缺失（absent）不在此列：那类记录重试只会白发请求，仍按间隔与上限控制。
+ */
+const MANUAL_ONLY_PREDICATE = `m.status = 'partial'`;
+
+/** 手动批次里「未收尾」的记录：未耗尽重试，或属于部分成功的那一类 */
+const MANUAL_PENDING_PREDICATE = `(COALESCE(m.retry_exhausted, 0) = 0 OR ${MANUAL_ONLY_PREDICATE})`;
+
+/** 手动批次里「当前可处理」的记录：已到重试时间，或属于部分成功的那一类 */
+const MANUAL_DUE_PREDICATE = `(
+    (COALESCE(m.retry_exhausted, 0) = 0 AND COALESCE(m.next_retry_at, 0) <= ?)
+    OR ${MANUAL_ONLY_PREDICATE}
+  )`;
 
 export interface JavDetailJobRow {
   id: string;
@@ -37,6 +92,8 @@ export interface JavDetailJobRow {
   skipped: number;
   last_error: string | null;
   created_by: string | null;
+  /** 只补哪一类缺失；null 表示不限 */
+  filter_missing: JavDetailMissingFilter | null;
   created_at: number;
   updated_at: number;
   finished_at: number | null;
@@ -94,7 +151,10 @@ async function getLatestJob(db: D1Database): Promise<JavDetailJobRow | null> {
  * COUNT(*) 必须扫完整个候选集才能得到数字；这里只判断存在性，
  * 命中第一条即返回，任务运行中的收尾判断用它替代一次全量统计。
  */
-async function hasDueRecords(db: D1Database): Promise<boolean> {
+async function hasDueRecords(
+  db: D1Database,
+  filter: JavDetailMissingFilter | null
+): Promise<boolean> {
   const row = await db
     .prepare(
       `SELECT 1 AS one
@@ -104,9 +164,9 @@ async function hasDueRecords(db: D1Database): Promise<boolean> {
          AND d.status = 'active'
          AND d.detail_completed = 0
          AND d.code IS NOT NULL
-         AND COALESCE(m.retry_exhausted, 0) = 0
          AND COALESCE(m.status, 'pending') <> 'complete'
-         AND COALESCE(m.next_retry_at, 0) <= ?
+         AND ${MANUAL_DUE_PREDICATE}
+         ${filterPredicate(filter)}
        LIMIT 1`
     )
     .bind(Date.now())
@@ -114,7 +174,11 @@ async function hasDueRecords(db: D1Database): Promise<boolean> {
   return row !== null;
 }
 
-async function countPending(db: D1Database, dueOnly: boolean): Promise<number> {
+async function countPending(
+  db: D1Database,
+  dueOnly: boolean,
+  filter: JavDetailMissingFilter | null
+): Promise<number> {
   const now = Date.now();
   const row = await db
     .prepare(
@@ -125,9 +189,9 @@ async function countPending(db: D1Database, dueOnly: boolean): Promise<number> {
          AND d.status = 'active'
          AND d.detail_completed = 0
          AND d.code IS NOT NULL
-         AND COALESCE(m.retry_exhausted, 0) = 0
          AND COALESCE(m.status, 'pending') <> 'complete'
-         ${dueOnly ? 'AND COALESCE(m.next_retry_at, 0) <= ?' : ''}`
+         AND ${dueOnly ? MANUAL_DUE_PREDICATE : MANUAL_PENDING_PREDICATE}
+         ${filterPredicate(filter)}`
     )
     .bind(...(dueOnly ? [now] : []))
     .first<{ n: number }>();
@@ -156,27 +220,28 @@ export async function isJavDetailJobEnabled(db: D1Database): Promise<boolean> {
 
 export async function getJavDetailJobView(db: D1Database): Promise<JavDetailJobView> {
   const now = Date.now();
+  const [job, enabled] = await Promise.all([getLatestJob(db), isJavDetailJobEnabled(db)]);
+  // 运行中的任务自带筛选条件：pending/due 必须与它实际会处理的候选集一致，
+  // 否则面板显示「还有 500 条」，任务却只认 20 条，进度条永远到不了头。
+  const filter = job?.status === 'running' ? normalizeFilter(job.filter_missing) : null;
   // pending 与 due 用一次扫描同时算出来：管理页运行时每 15 秒轮询一次，
   // 拆成两条 COUNT 会让候选集被完整扫描两遍。
-  const [job, counts, enabled] = await Promise.all([
-    getLatestJob(db),
-    db
-      .prepare(
-        `SELECT COUNT(*) AS n,
-                SUM(CASE WHEN COALESCE(m.next_retry_at, 0) <= ? THEN 1 ELSE 0 END) AS due
-         FROM data_records d
-         LEFT JOIN jav_detail_meta m ON m.record_id = d.id
-         WHERE d.record_type = 'jav'
-           AND d.status = 'active'
-           AND d.detail_completed = 0
-           AND d.code IS NOT NULL
-           AND COALESCE(m.retry_exhausted, 0) = 0
-           AND COALESCE(m.status, 'pending') <> 'complete'`
-      )
-      .bind(now)
-      .first<{ n: number; due: number | null }>(),
-    isJavDetailJobEnabled(db),
-  ]);
+  const counts = await db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              SUM(CASE WHEN ${MANUAL_DUE_PREDICATE} THEN 1 ELSE 0 END) AS due
+       FROM data_records d
+       LEFT JOIN jav_detail_meta m ON m.record_id = d.id
+       WHERE d.record_type = 'jav'
+         AND d.status = 'active'
+         AND d.detail_completed = 0
+         AND d.code IS NOT NULL
+         AND COALESCE(m.status, 'pending') <> 'complete'
+         AND ${MANUAL_PENDING_PREDICATE}
+         ${filterPredicate(filter)}`
+    )
+    .bind(now)
+    .first<{ n: number; due: number | null }>();
   const pending = counts?.n ?? 0;
   const due = counts?.due ?? 0;
   return { job, pending, due, scheduled: Math.max(pending - due, 0), enabled };
@@ -234,12 +299,15 @@ export async function getJavDetailStats(db: D1Database): Promise<JavDetailStats>
 
 export async function startJavDetailJob(
   db: D1Database,
-  options: { batchSize?: number; createdBy?: string } = {}
+  options: { batchSize?: number; createdBy?: string; missing?: JavDetailMissingFilter | null } = {}
 ): Promise<JavDetailJobView> {
   const running = await getRunningJob(db);
   if (running) return getJavDetailJobView(db);
 
-  const total = await countPending(db, false);
+  // 筛选条件必须落库：任务由每分钟 cron 分多次推进，只在启动请求里带一次，
+  // 后续 tick 无从得知「这次只补哪一类」，筛选形同虚设。
+  const filter = normalizeFilter(options.missing);
+  const total = await countPending(db, false, filter);
   if (total === 0) return getJavDetailJobView(db);
 
   const now = Date.now();
@@ -250,14 +318,15 @@ export async function startJavDetailJob(
         `INSERT INTO detail_fetch_jobs
            (id, status, batch_size, total, processed, completed,
             partial, absent, transient_failed, skipped, last_error, created_by,
-            created_at, updated_at, finished_at)
-         VALUES (?, 'running', ?, ?, 0, 0, 0, 0, 0, 0, NULL, ?, ?, ?, NULL)`
+            filter_missing, created_at, updated_at, finished_at)
+         VALUES (?, 'running', ?, ?, 0, 0, 0, 0, 0, 0, NULL, ?, ?, ?, ?, NULL)`
       )
       .bind(
         id,
         options.batchSize ?? DEFAULT_BATCH_SIZE,
         total,
         options.createdBy ?? null,
+        filter,
         now,
         now
       )
@@ -321,7 +390,11 @@ export async function setJavDetailJobPaused(
   return getJavDetailJobView(db);
 }
 
-async function selectDueRecords(db: D1Database, limit: number): Promise<DueRecord[]> {
+async function selectDueRecords(
+  db: D1Database,
+  limit: number,
+  filter: JavDetailMissingFilter | null
+): Promise<DueRecord[]> {
   const rows = await db
     .prepare(
       `SELECT d.id, d.code, d.title
@@ -331,9 +404,9 @@ async function selectDueRecords(db: D1Database, limit: number): Promise<DueRecor
          AND d.status = 'active'
          AND d.detail_completed = 0
          AND d.code IS NOT NULL
-         AND COALESCE(m.retry_exhausted, 0) = 0
          AND COALESCE(m.status, 'pending') <> 'complete'
-         AND COALESCE(m.next_retry_at, 0) <= ?
+         AND ${MANUAL_DUE_PREDICATE}
+         ${filterPredicate(filter)}
        ORDER BY COALESCE(m.next_retry_at, 0), d.last_updated_at ASC
        LIMIT ?`
     )
@@ -489,7 +562,9 @@ export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boole
       const job = await getRunningJob(db);
       if (!job) return { ran: false, processed: 0 };
 
-      const records = await selectDueRecords(db, Math.max(1, job.batch_size));
+      // 筛选条件来自任务行：每个 tick 都按同一条件取候选集
+      const filter = normalizeFilter(job.filter_missing);
+      const records = await selectDueRecords(db, Math.max(1, job.batch_size), filter);
       if (records.length === 0) {
         await db
           .prepare(
@@ -512,7 +587,7 @@ export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boole
         processed++;
 
         const isLast = i === records.length - 1;
-        const dueAfter = isLast ? await hasDueRecords(db) : false;
+        const dueAfter = isLast ? await hasDueRecords(db, filter) : false;
         // 最后一条处理完且没有到期记录时才收尾；未到重试时间的记录留给后续任务
         const finished = isLast && !dueAfter;
 

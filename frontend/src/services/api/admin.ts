@@ -8,6 +8,7 @@ import type {
   DataRecordsQuery,
   DataRecordStatus,
   JavDetailJobView,
+  JavDetailFieldName,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -809,6 +810,8 @@ export const dataStorageApi = {
 
   startDetailJob: async (params: {
     batchSize?: number;
+    /** 只补哪一类缺失；不传表示不限 */
+    missing?: JavDetailFieldName;
   } = {}): Promise<JavDetailJobView> => {
     const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
       '/admin/data-storage/detail-jobs',

@@ -105,6 +105,8 @@ export interface JavDetailJob {
   skipped: number;
   last_error: string | null;
   created_by: string | null;
+  /** 只补哪一类缺失（筛选条件，不影响抓取内容）；null 表示不限 */
+  filter_missing: JavDetailFieldName | null;
   created_at: number;
   updated_at: number;
   finished_at: number | null;
