@@ -1,9 +1,8 @@
 name: Deploy to Cloudflare Workers
 
 on:
-  push:
-    branches: [ main ]
-    paths: ['backend/**']
+  # 部署入口已迁移到 Cloudflare Workers Builds（连接 GitHub，push 自动构建部署）。
+  # 这里保留 workflow_dispatch 作为应急手动部署入口，避免两条流水线同时部署互相覆盖。
   workflow_dispatch:
     inputs:
       environment:
@@ -42,6 +41,10 @@ jobs:
 
       - name: Lint
         run: npm run lint --workspace=backend
+
+      # Worker 现在同时托管前端静态资源，部署前必须先生成 frontend/dist
+      - name: Build Frontend (Static Assets)
+        run: npm run build --workspace=frontend
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3

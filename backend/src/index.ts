@@ -79,7 +79,8 @@ app.use('*', secureHeaders({
   crossOriginResourcePolicy: false,
 }));
 
-app.get('/', (c) => {
+// 根路径 `/` 交给前端静态资源（SPA 首页），API 信息挂在 `/api`
+app.get('/api', (c) => {
   return c.json({
     name: 'CodeSeek API',
     version: c.env.APP_VERSION || '1.6.0',

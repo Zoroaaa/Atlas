@@ -1,6 +1,8 @@
 name = "codeseek-backend"
 main = "src/index.ts"
-compatibility_date = "2025-01-01"
+# 必须 ≥ 2025-04-01：低于该版本的导航请求默认会进入 Worker，
+# 与静态资源 SPA 回退配合时会导致深链直接刷新返回 JSON 404
+compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 preview_urls = false
 
@@ -63,3 +65,16 @@ enabled = true
 # 小时任务错开 :05，避免与 */30 的 :00 轮次在同一分钟抢 D1 写；
 # * * * * * 用于管理看板手动触发的 JAV 详情补全批次（Cloudflare 免费计划上限 5 个 cron）
 crons = ["5 * * * *", "*/30 * * * *", "* * * * *"]
+
+# =====================================================================
+# [assets] — 前端静态资源（与 API 同一个 Worker）
+# directory 相对本文件所在目录（backend/），即仓库根的 frontend/dist
+# run_worker_first 必须同时列裸路径与通配符：/api/* 不匹配 /api 本身，
+# 而 /api 由 systemRoutes 提供（GET /api/health 等），漏了会返回 index.html
+# 前端导航路径不要放进 run_worker_first：会消耗 Worker 请求配额且超限直接 429
+# =====================================================================
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api", "/api/*"]

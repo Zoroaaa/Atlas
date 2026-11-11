@@ -1,2 +1,4 @@
 /brand.html     /brand.html     200
-/*      /index.html   200
+# 全量回退 `/* /index.html 200` 已删除：Worker 静态资源上传时校验判定为死循环
+# （目标 /index.html 被归一化回 / 后又命中本规则，code 100324），导致 deploy 失败。
+# Worker 侧的 SPA 回退由 wrangler.toml 的 not_found_handling = "single-page-application" 提供。

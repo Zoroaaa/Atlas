@@ -7,17 +7,26 @@
 
 ## 一、部署架构
 
+> **变更进行中（路线 A）**：后端 Worker 已支持同时托管前端静态资源（`[assets]`），但域名尚未切换，
+> 前端仍由 Pages 在 `atlas.wort.uk` 服务。操作步骤与门禁见
+> [workers-consolidation-assessment.md](./workers-consolidation-assessment.md#10-路线-a-实施记录与人工操作清单2026-11-11)。
+
+当前实际链路（域名切换前）：
+
 ```
 用户浏览器
    │
-   ├─ Cloudflare Pages（frontend 构建产物）
-   │     └─ /api/* 反向代理到 Workers
+   ├─ https://atlas.wort.uk      → Cloudflare Pages（frontend/dist 静态产物）
+   │       └─ 前端 JS 直接请求 https://atlasapi.wort.uk/api（跨域，CORS 白名单）
    │
-   └─ Cloudflare Workers（backend，Hono）
+   └─ https://atlasapi.wort.uk   → Cloudflare Workers（backend，Hono）
          ├─ D1（绑定名 DB，database_name = codeseek）
          ├─ Cron Triggers（每小时清理 / 每 30 分钟关注检测 + 邮件摘要）
          └─ 外部服务（GitHub OAuth / Google OAuth / Resend / 搜索源）
 ```
+
+> 注意：Pages **没有** `/api` 反向代理，前端是硬编码绝对地址直连（`frontend/src/constants.ts` 与
+> `frontend/src/services/api/client.ts` 各有一份）。合并完成后由 Worker 同时提供静态资源与 `/api`。
 
 - 不使用 R2 或 KV；所有持久化数据都在 D1
 - 前端为静态站点，后端为单一 Worker

@@ -1,6 +1,7 @@
 # 前后端合并为单一 Worker（Workers Builds）改造评估 · v2
 
 > v2 修订（2026-11-11）：以《前后端分离 → 单 Worker + Workers Builds 实施手册》（下称"手册"）为参照系，逐条做取舍。
+> **实施状态（2026-11-11）**：路线 A 的仓库侧改动已完成于分支 `feat/workers-single-deploy`（本地验证通过），**尚未合入 main**；等待控制台操作，按第 10 节清单执行。
 > 判定标记：**[采用]** 直接采用手册做法 / **[改写]** 原则可用但落点必须按本项目改 / **[不适用]** 本项目无对应前提或与既定规则冲突。
 > v1 中的现状核实、收益与代价分析保留；工作量按修订结果**上调**（见第 7 节）。
 
@@ -82,8 +83,8 @@ run_worker_first = ["/api", "/api/*"]
 
 | 文件 | 处理 | 理由 |
 |---|---|---|
-| `_headers` | **保留**，删掉 `/api/*` 规则，其余保留 | `/sw.js` 的 `no-store` 是 SW 更新机制的前提；`/assets/*` immutable 是首屏性能前提。**必须实测响应头**（Step 4 验收），若不生效再改 Worker 中间件 |
-| `_redirects` | **删除 `/* /index.html 200`**，保留 `/brand.html` 规则 | 全量回退与 `not_found_handling: single-page-application` 叠加，存在吞掉 `/api` 的风险，且行为不可预测 |
+| `_headers` | **保留**（已实测生效）；`/api/*` 规则由 Worker 接管后失效，随切域后的清理一并删除 | `/sw.js` 的 `no-store` 是 SW 更新机制的前提；`/assets/*` immutable 是首屏性能前提。实测结果见 2.5 |
+| `_redirects` | **切域之后再删** `/* /index.html 200`，保留 `/brand.html` 规则 | 全量回退与 `not_found_handling: single-page-application` 重复；但 **Pages 同样读取本文件**，在合并到切域之间删除会让 `atlas.wort.uk` 深链立刻 404。已实测两者共存不冲突（见 2.5） |
 | `_routes.json` / `functions/` | 不存在，无需处理 | 手册对应项不适用 |
 
 ### 2.3 Step 6：本项目的 monorepo 落点
@@ -118,6 +119,23 @@ run_worker_first = ["/api", "/api/*"]
 1. 切换**前**在预览域验证 `/sw.js` 响应的 `Cache-Control` 含 `no-store`（`_headers` 是否在新栈生效）。不生效则浏览器会按默认策略缓存 SW，用户最长 24 小时看不到更新。
 2. 切换**后**用无痕窗口 + Application → Service Workers 确认新 SW 装的是新版本号（`atlas-static-v<时间戳>`），并确认旧缓存（`atlas-*`/`codeseek-*`）在 activate 时被清掉。
 3. 若走路线 B（同源 `/api`）：`sw.js:193-207` 从死代码变活，必须复核 `API_BYPASS_PREFIXES`（目前只有 `/api/config/`、`/api/admin/`），把用户态 GET 接口（`/api/user/`、`/api/notifications`、`/api/follows`、`/api/community/`）加入 bypass，否则会缓存登录态数据并跨账号复用。
+
+### 2.5 本地实测结论（2026-11-11，wrangler 4.160 + wrangler dev）
+
+以下结论已用 `wrangler dev` 实际打请求验证，不再是推断：
+
+| 请求 | 结果 | 说明 |
+|---|---|---|
+| `GET /api/health` | 200 `application/json` | `run_worker_first` 生效，API 未被静态资源拦截 |
+| `GET /api` | 200 `application/json`（`{"name":"CodeSeek API",...}`） | 裸路径已迁移生效；只写 `/api/*` 会漏掉它 |
+| `GET /search?q=test` | 200 `text/html` | SPA 回退生效（日志：`Sec-Fetch-Mode: navigate` → `not_found_handling`） |
+| `GET /` | 200 `text/html` | 根路径已让位给前端 |
+| `GET /brand.html` | 307 → `/brand` → 200 | `_redirects` 规则被解析（日志：`Parsed 1 valid redirect rule`） |
+| `GET /sw.js` | 200，`Cache-Control: no-store, must-revalidate, no-cache` | **`_headers` 在 Workers 静态资源上确实生效**（手册"不支持"的结论已过时） |
+| `GET /assets/index-*.js` | 200，`public, max-age=31536000, immutable` | 同上（17 条 header 规则全部解析） |
+| `wrangler deploy --dry-run` | 成功 | `Read 39 files from the assets directory`；绑定含 `env.DB (D1)` + `env.ASSETS` |
+
+结论：`_redirects` 全量回退与 `run_worker_first` **可以共存**，不会吞掉 `/api`。因此按"切域后再删"的顺序执行是安全的，不需要为了 Pages 兼容而保留永久例外。
 
 ---
 
@@ -160,8 +178,10 @@ run_worker_first = ["/api", "/api/*"]
 ### Step 2 根路径让位（0.25d）
 `index.ts:82` 的 `GET /` 改为 `GET /api`（或 `/api/version`）。**验证**：`curl -s -o /dev/null -w "%{http_code} %{content_type}\n"` 分别打 `/`、`/api`、`/api/health`（若没有 health 就换实际存在的 `/api/search-sources`）。
 
-### Step 3 `_redirects` / `_headers`（0.25d）
-删 `/* /index.html 200`，保留 `/brand.html`；删 `_headers` 里的 `/api/*`。**验证**：部署后 `curl -I /sw.js | grep -i cache-control` 必须含 `no-store`；`curl -I /assets/<hash>.js` 必须含 `immutable`；直接访问任意深链返回 `text/html`。
+### Step 3 `_redirects` / `_headers`（0.25d，实际拆成两次）
+- 合并前：**只加注释，不删规则**——Pages 仍读同一文件，提前删会让 `atlas.wort.uk` 深链 404。
+- 切域后：单独提交删除 `/* /index.html 200`，顺带删 `_headers` 里已失效的 `/api/*` 规则。
+- **验证**（标准见 2.5，本地已通过）：`/sw.js` 必须 `no-store`；`/assets/*` 必须 `immutable`；深链必须 200 `text/html`；`/api` 裸路径必须 JSON。
 
 ### Step 4 本地全链路验收（0.5d）
 `wrangler dev` + 构建产物一起跑：深链、`/api` 裸路径、`/brand.html`、`/assets/*`、`/sw.js` 头。**验证**：本地无痕窗口装 SW，确认版本号与提示更新流程正常。
@@ -239,7 +259,7 @@ OAuth 登录（GitHub/Google 回调仍落 `atlasapi`，state cookie 自洽，无
 | wrangler 3.78 → 4.20 升级 + 回归 | 0.5–1d | 必做 | 0.5d（低估） |
 | `[assets]` + `run_worker_first` + compat date | 0.5d | 必做 | 0.5d |
 | 根路径 `GET /` 让位 | 0.25d | 必做 | 0.25d |
-| `_redirects` 删除全量回退 | 0.25d | 必做 | 0.25d |
+| `_redirects` 清理（拆到切域后） | 0.25d | 必做 | 0.25d |
 | `_headers` 实测与调整（含 sw.js / assets 缓存头） | 0.5d | 必做 | 未单列（低估） |
 | Workers Builds 接入（root=backend、构建命令、watch paths） | 0.5d | 必做 | 0.5d |
 | Actions 收窄 + 构建闸门迁移 | 0.25d | 必做 | 0.25d |
@@ -298,3 +318,118 @@ OAuth 登录（GitHub/Google 回调仍落 `atlasapi`，state cookie 自洽，无
 - `frontend/public/sw.js`（用户态接口 bypass）
 
 不涉及：D1 结构与脚本执行、cron、7 个 secret 值、OAuth 应用回调、`javdb-ranking-*.yml`。
+
+---
+
+## 10. 路线 A 实施记录与人工操作清单（2026-11-11）
+
+### 10.1 仓库侧已完成（分支 `feat/workers-single-deploy`，**未合入 main**）
+
+| 文件 | 改动 | 验证结果 |
+|---|---|---|
+| `backend/wrangler.toml` | `compatibility_date` 2025-01-01 → 2025-04-01；新增 `[assets]`（`directory="../frontend/dist"`、`binding="ASSETS"`、`not_found_handling="single-page-application"`、`run_worker_first=["/api","/api/*"]`） | `deploy --dry-run` 通过：`Read 39 files`，绑定含 `env.DB` + `env.ASSETS` |
+| `backend/src/index.ts` | `GET /` 的 API 信息 JSON 迁到 `GET /api` | 本地 200 JSON |
+| `frontend/public/_redirects` | **只加顺序注释，规则未动**（删全量回退留到切域后） | 本地解析 1 条规则，深链 200 HTML |
+| `frontend/public/_headers` | 未改 | 本地实测 `/sw.js` no-store、`/assets/*` immutable |
+| `backend/package.json`、`package-lock.json` | wrangler `^3.78` → `^4.160.0` | `wrangler --version` = 4.160.0 |
+| `.github/workflows/backend-deploy.yml` | 移除 `push` 触发，保留 `workflow_dispatch`；部署前新增 `Build Frontend (Static Assets)` 步骤 | 结构与逻辑本地复核（未在 GitHub 实跑） |
+| `docs/workers-consolidation-assessment.md` | 本文档 | — |
+
+刻意**未**做：前端 API 地址改造（路线 B）、域名切换、删除 Pages 项目、删除 workflow 文件。
+
+### 10.2 为什么放在分支而不是 main
+
+1. `[assets]` 生效后 Worker 的请求处理方式改变（`GET /` 从 JSON 变 HTML、非 `/api` 路径返回 SPA），这属于"会导致线上行为变化的改动"，直接推 main 会立刻改变 `atlasapi.wort.uk` 的现有行为。
+2. Pages 与 Worker 同盯 `main`：合并会触发 Pages 重建。虽然 `_redirects` 已保留回退、重建也安全，但没必要在控制台未就绪时制造一次无意义发布。
+3. 分支推送不触发任何部署（`backend-deploy.yml` 已无 push 触发，Workers Builds 尚未连接），改动可版本化、可备份、可随时丢弃。
+
+### 10.3 需要你在控制台完成的步骤（按顺序执行）
+
+**阶段 0：只读确认（2 分钟）**
+
+1. Workers & Pages → `codeseek-backend` → Settings → Domains & Routes：记录当前自定义域（应为 `atlasapi.wort.uk`），确认 workers.dev 是否启用。
+2. Deployments：记录当前 Active 版本时间/ID（回滚基线）。
+3. Pages 项目：记录项目名与 `atlas.wort.uk` 绑定状态。
+
+**阶段 1：连接 Workers Builds（不改变任何线上行为）**
+
+4. `codeseek-backend` → Settings → Builds → Connect → GitHub → 仓库 `Zoroaaa/Atlas` → 生产分支 `main`。
+5. 按原文填写：
+
+| 字段 | 值 |
+|---|---|
+| Root directory | `backend` |
+| Build command | `cd .. && npm install && npm run typecheck --workspace=backend && npm run lint --workspace=backend && npm run build --workspace=frontend` |
+| Deploy command | `npm run deploy` |
+| Preview command | 留空（本次不启用预览） |
+| Watch paths（Include） | `backend/**`、`frontend/**`、`packages/**`、`package-lock.json` |
+| Environment variables | **不填任何值**（7 个 secret 已在 Worker 上；前端无构建期变量） |
+
+6. 保存后手动触发一次构建（Deployments → View build history → 重试/部署）。
+7. **验收**：日志出现 `Read 39 files from the assets directory` 与 `env.ASSETS`；版本时间更新；`curl -s https://atlasapi.wort.uk/api/health` 仍 200 JSON；`curl -s https://atlasapi.wort.uk/` **此时仍返回 JSON**（main 还没有 assets，符合预期）。
+8. **停点 1**：此阶段完成后告诉我，我再合并分支。若构建失败，把日志发我，线上不受影响。
+
+**阶段 2：合并分支（我执行，你确认后）**
+
+9. `feat/workers-single-deploy` → `main`，Builds 自动构建部署。
+10. **验收**（`atlas.wort.uk` 不受影响）：
+
+```bash
+curl -s  https://atlasapi.wort.uk/api/health          # application/json
+curl -s  https://atlasapi.wort.uk/api                 # {"name":"CodeSeek API",...}
+curl -sI https://atlasapi.wort.uk/                    # 200 text/html
+curl -sI https://atlasapi.wort.uk/sw.js               # Cache-Control: no-store
+curl -sI https://atlasapi.wort.uk/assets/<任一hash>.js # immutable
+```
+
+11. 若异常：Dashboard → Deployments → Rollback（或 `wrangler rollback`）回上一版本。
+12. **注意**：从这一刻起后端不再由 Actions 自动部署；应急入口为 Actions → Backend Deploy → Run workflow。
+
+**阶段 3：切域名（你操作，窗口 5–10 分钟）**
+
+13. Workers → `codeseek-backend` → Settings → Domains & Routes → Add → Custom domain → `atlas.wort.uk`。
+14. 若提示 hostname 已被占用：Pages 项目 → Custom domains → 删除 `atlas.wort.uk`（**只删绑定，不删项目**），再回到第 13 步。
+15. 等证书 Active（通常 1–5 分钟）。
+16. **验收**（全部用无痕窗口）：首页；深链刷新 `/search?q=test`、`/dashboard/overview`；GitHub/Google 登录（回调仍落 atlasapi）；搜索；收藏；PWA 安装与"有新版本"提示；DevTools → Application → Service Workers 版本号为新的 `v<时间戳>`；`curl -I https://atlas.wort.uk/sw.js` 含 `no-store`。
+17. 观察 24–48 小时：`wrangler tail` + Analytics 看 5xx。
+
+**阶段 4：切域后的代码清理（我执行）**
+
+18. 删除 `_redirects` 的 `/* /index.html 200`、删除 `_headers` 的 `/api/*` 规则，Builds 自动部署。
+19. **验收**：深链仍 200 HTML（改由 `not_found_handling` 兜底）；`/api/health` 仍 JSON。
+
+**阶段 5：收尾（观察期满，你操作）**
+
+20. Pages 项目 → 断开 GitHub 连接，或直接删除项目。
+21. `atlasapi.wort.uk` 的退役属路线 B，本次不做。
+
+### 10.4 我无法验证、需要你确认的未知项
+
+| 未知项 | 影响 | 兜底 |
+|---|---|---|
+| Builds 面板字段的实际名称/层级（Root directory、Build command） | 填错会构建失败 | 失败不发版，改配置重试 |
+| Builds 环境能否用 `npm run deploy` 解析到 hoisted wrangler | 部署步骤报 command not found | 改用 `npx wrangler@4.160.0 deploy` |
+| workers.dev 是否启用 | 阶段 2 的验证域名选择 | 直接用 `atlasapi.wort.uk` 验证，不依赖 workers.dev |
+| Pages 是否配置了"仅生产分支部署"等策略 | 合并后 Pages 是否重建 | `_redirects` 已保留回退，重建也安全 |
+| Builds 免费额度（3000 分钟/月、并发 1）是否够用 | 预览与生产构建排队 | 本项目构建约 1–2 分钟，够用 |
+
+### 10.5 回滚（按阶段）
+
+| 阶段 | 回滚动作 | 影响 |
+|---|---|---|
+| 阶段 1 后 | 不做任何事，删除 Builds 连接即可 | 线上无变化 |
+| 阶段 2 后 | Dashboard → Deployments → Rollback，或 `wrangler rollback` | `atlasapi` 回到旧版本；`atlas.wort.uk` 仍由 Pages 服务 |
+| 阶段 3 后 | 解绑 Worker 的 `atlas.wort.uk` → Pages 重新绑定该域（项目未删） | 分钟级；`atlasapi` 始终在 Worker，API 不断 |
+
+### 10.6 本地复现验证（可选）
+
+```bash
+npm install                                  # 仓库根
+npm run typecheck --workspace=backend
+npm run lint --workspace=backend
+npm run build --workspace=frontend
+cd backend && npx wrangler deploy --dry-run  # 应输出 Read N files + env.ASSETS
+npx wrangler dev --port 8788                 # 再依次 curl /api/health、/api、/search?q=x、/sw.js
+```
+
+> 注：本机曾因 `%APPDATA%\xdg.config\.wrangler` 权限问题导致 `wrangler dev` 报 EPERM，可用 `XDG_CONFIG_HOME` 指向可写目录规避；Builds 环境不存在该问题。
