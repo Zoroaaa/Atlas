@@ -1522,11 +1522,16 @@
       },
       "batch": {
         "title": "JAV 详情批量补全",
-        "desc": "按每分钟 10 条限速补全导演、制作商、发行商与磁力；任务状态持久化，刷新页面或服务重启后继续。",
+        "desc": "按每分钟 10 条限速补全导演、制作商、发行商与磁力；任务状态持久化，刷新页面或服务重启后继续。此面板可完成全部控制：「暂停」保留进度、分钟 cron 暂停推进；「继续」从同一任务接着跑；「停止」结束任务。",
         "start": "开始批量补全",
         "starting": "启动中...",
-        "running": "任务进行中",
-        "done": "任务已完成",
+        "running": "运行中",
+        "paused": "已暂停（开关关闭，进度保留）",
+        "pause": "暂停",
+        "resume": "继续",
+        "stop": "停止",
+        "stopping": "停止中...",
+        "stopped": "已停止（任务结束）",
         "idle": "暂无运行中的任务",
         "progress": "已处理 {{processed}} / {{total}}",
         "pending": "待处理",
@@ -1541,7 +1546,14 @@
         "noFailures": "暂无失败记录",
         "nextRetry": "{{time}}后重试",
         "startedToast": "批量任务已启动",
-        "startFailed": "启动批量任务失败"
+        "startFailed": "启动批量任务失败",
+        "stoppedToast": "批量任务已停止",
+        "stopFailed": "停止批量任务失败",
+        "pausedToast": "已暂停，进度保留",
+        "resumedToast": "已继续，任务将按分钟推进",
+        "pauseFailed": "暂停批量任务失败",
+        "resumeFailed": "继续批量任务失败",
+        "disabledHint": "已在功能开关中关闭，启用后才能启动"
       }
     },
     "trends": {

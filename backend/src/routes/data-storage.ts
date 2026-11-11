@@ -20,7 +20,10 @@ import {
 import {
   getJavDetailJobView,
   getJavDetailStats,
+  isJavDetailJobEnabled,
+  setJavDetailJobPaused,
   startJavDetailJob,
+  stopJavDetailJob,
 } from '@/services/jav-detail-job';
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
@@ -509,7 +512,7 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
     return c.json(error('RATE_LIMITED', '任务启动过于频繁，请稍后再试'), 429);
   }
 
-  let body: { batchSize?: unknown; intervalSeconds?: unknown } = {};
+  let body: { batchSize?: unknown } = {};
   try {
     body = (await c.req.json()) as typeof body;
   } catch {
@@ -517,12 +520,15 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
   }
 
   const batchSize = Math.min(50, Math.max(1, Number(body.batchSize) || 10));
-  const intervalSeconds = Math.min(3600, Math.max(30, Number(body.intervalSeconds) || 60));
+
+  // 开关关闭时不允许新建任务：否则会留下一个永不推进的 running 行
+  if (!(await isJavDetailJobEnabled(c.env.DB))) {
+    return c.json(error('FORBIDDEN', 'JAV 详情补全已在功能开关中关闭'), 403);
+  }
 
   try {
     const view = await startJavDetailJob(c.env.DB, {
       batchSize,
-      intervalSeconds,
       createdBy: userId,
     });
     return c.json(
@@ -531,6 +537,37 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
   } catch (err) {
     console.error('[data-storage] start detail job error:', err);
     return c.json(error('SERVER_ERROR', '启动批量任务失败'), 500);
+  }
+});
+
+dataStorageRoutes.post('/detail-jobs/stop', async (c) => {
+  try {
+    const view = await stopJavDetailJob(c.env.DB);
+    return c.json(success(view, '批量任务已停止'));
+  } catch (err) {
+    console.error('[data-storage] stop detail job error:', err);
+    return c.json(error('SERVER_ERROR', '停止批量任务失败'), 500);
+  }
+});
+
+// 暂停/继续：写 system_config.jav_detail_job_enabled，与系统配置页是同一行
+dataStorageRoutes.post('/detail-jobs/pause', async (c) => {
+  try {
+    const view = await setJavDetailJobPaused(c.env.DB, true);
+    return c.json(success(view, '批量任务已暂停'));
+  } catch (err) {
+    console.error('[data-storage] pause detail job error:', err);
+    return c.json(error('SERVER_ERROR', '暂停批量任务失败'), 500);
+  }
+});
+
+dataStorageRoutes.post('/detail-jobs/resume', async (c) => {
+  try {
+    const view = await setJavDetailJobPaused(c.env.DB, false);
+    return c.json(success(view, '批量任务已继续'));
+  } catch (err) {
+    console.error('[data-storage] resume detail job error:', err);
+    return c.json(error('SERVER_ERROR', '继续批量任务失败'), 500);
   }
 });
 
