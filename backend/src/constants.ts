@@ -22,7 +22,7 @@ export const CONFIG = {
 
   DEFAULT_URLS: {
     FRONTEND: 'https://atlas.wort.uk',
-    BACKEND: 'https://atlasapi.wort.uk',
+    BACKEND: 'https://atlas.wort.uk',
   },
 
   // ==================================================================

@@ -1,4 +1,7 @@
-name = "codeseek-backend"
+# Worker 名（2026-11-11 由 codeseek-backend 改名为 atlas，面板同步改过）。
+# wrangler 按此名定位脚本：与面板不一致时会部署到另一个 Worker，出现"部署成功但流量没变"。
+# 自定义域、cron、D1 绑定、secrets 都挂在服务上，改名后仍跟随；D1 的 database_name 保持不变。
+name = "atlas"
 main = "src/index.ts"
 # 必须 ≥ 2025-04-01：低于该版本的导航请求默认会进入 Worker，
 # 与静态资源 SPA 回退配合时会导致深链直接刷新返回 JSON 404
@@ -15,20 +18,18 @@ preview_urls = false
 # =====================================================================
 [vars]
 
-# 应用版本（CI/CD 流程中可通过 --var 覆盖）
+# 应用版本（展示用：/api、/api/system/version；代码兜底 1.6.0）
 APP_VERSION = "1.6.0"
 
-# 运行环境标识（区分 development / production 行为）
-APP_ENV = "production"
-
-# 网站域名 — 与 DNS/CORS/邮件发件域强绑定，改了必须重新部署
-SITE_URL = "https://mail.wort.uk"
+# 站点主地址 — 邮件模板里的「访问站点」链接、反馈通知页脚
+# 必须与真实访问域一致，否则邮件里的链接指向错误页面
+SITE_URL = "https://atlas.wort.uk"
 
 # 前端域名 — OAuth 回调后跳转目标
 FRONTEND_URL = "https://atlas.wort.uk"
 
-# 后端 API 域名 — 用于 OAuth callback URI 构造
-BACKEND_URL = "https://atlasapi.wort.uk"
+# 后端 API 域名 — 用于 OAuth callback URI 构造；前端已同源，API 不再单独用子域
+BACKEND_URL = "https://atlas.wort.uk"
 
 # 邮件发件人 — 与邮件服务商域名验证绑定，改了必须重新部署
 DEFAULT_FROM_EMAIL = "noreply@mail.wort.uk"
@@ -44,6 +45,7 @@ ENABLE_ACTION_LOGGING = "true"
 # 以下配置通过 `wrangler secret put` 注入（不得写入此文件中）：
 # 🔐 JWT_SECRET
 # 🔐 RESEND_API_KEY
+# 🔐 TMDB_API_KEY            (影视元数据搜索，缺失时该来源静默跳过)
 # 🔐 GITHUB_CLIENT_ID        (GitHub OAuth App Client ID)
 # 🔐 GITHUB_CLIENT_SECRET    (GitHub OAuth App Client Secret)
 # 🔐 GOOGLE_CLIENT_ID        (Google OAuth 2.0 Client ID, Google Cloud Console 创建)

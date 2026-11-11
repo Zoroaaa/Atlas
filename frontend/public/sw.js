@@ -21,21 +21,15 @@ const STATIC_ASSETS = [
  * 必须精确匹配：/api/config 的前缀规则会把 /api/config/all、/api/config/groups
  * 一起纳入 stale-while-revalidate，导致管理端刚保存的配置在刷新后又被旧缓存覆盖
  * （表现为「关掉开关，刷新又自动打开」）。
- * 其余 /api/* 走默认 networkFirst。
+ *
+ * 同源部署后 /api/* 全部落在本 SW 作用域内，因此规则反过来：
+ * **只有本白名单内的公共接口允许缓存，其余一律直连网络、绝不写缓存**。
+ * 用户态响应（/api/auth/me、通知、收藏、后台等）一旦被缓存，
+ * 换账号或刚写完就会看到别人的/过期的数据。
  */
 const API_CACHE_CONFIG = {
   '/api/config/public': { strategy: 'stale-while-revalidate' }
 };
-
-/**
- * 后台/配置类接口一律直连网络，不进任何缓存。
- * 这些响应依赖登录态与刚刚发生的写操作，缓存只会造成「看起来没保存成功」。
- */
-const API_BYPASS_PREFIXES = ['/api/config/', '/api/admin/'];
-
-function isApiCacheBypassed(pathname) {
-  return API_BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
 
 function getApiCacheConfig(url) {
   const pathname = new URL(url).pathname;
@@ -192,17 +186,14 @@ self.addEventListener('fetch', (event) => {
   
   if (url.pathname.startsWith('/api/')) {
     const config = getApiCacheConfig(request.url);
-    if (config) {
-      if (config.strategy === 'network-first') {
-        event.respondWith(networkFirst(request, API_CACHE_NAME));
-      } else {
-        event.respondWith(staleWhileRevalidate(request, API_CACHE_NAME));
-      }
-    } else if (isApiCacheBypassed(url.pathname)) {
-      // 直连网络：不 respondWith，交给浏览器默认行为，也绝不写缓存
+    if (!config) {
+      // 同源后默认动作：直连网络，不 respondWith、不写缓存
       return;
-    } else {
+    }
+    if (config.strategy === 'network-first') {
       event.respondWith(networkFirst(request, API_CACHE_NAME));
+    } else {
+      event.respondWith(staleWhileRevalidate(request, API_CACHE_NAME));
     }
     return;
   }

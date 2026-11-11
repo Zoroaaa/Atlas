@@ -29,8 +29,8 @@
 - **sw.js** - Service Worker
 - **robots.txt** - 搜索引擎爬虫配置
 - **sitemap.xml** - 站点地图
-- **_headers** - Cloudflare Pages 响应头配置
-- **_redirects** - Cloudflare Pages 路由回退配置
+- **_headers** - Cloudflare Workers 静态资源响应头配置
+- **_redirects** - 路由归一化规则（全量 SPA 回退由 `not_found_handling` 提供，不在此文件）
 - **browserconfig.xml** - Microsoft Tile 配置
 
 ## 设计规范

@@ -10,7 +10,7 @@
 - [日常推送](#日常推送)
 - [常见问题](#常见问题)
 - [最佳实践](#最佳实践)
-- [GitHub Actions自动部署](#github-actions自动部署)
+- [部署方式](#部署方式)
 
 ---
 
@@ -315,22 +315,22 @@ git branch -d feature/amazing-feature
 3. 在 `docs/CHANGELOG.md` 按「新增 / 修改 / 修复 / 优化」补版本章节
 4. 按功能分组提交（例如 `feat(help): ...`、`fix(community): ...`、`docs: ...`、`chore(release): ...`）
 5. 普通推送：`git push origin main`。不要 force push，不要跳过 hook
-6. 推送后确认 GitHub Actions 的 `Deploy to Cloudflare Workers` 运行成功
+6. 推送后确认 Cloudflare → Workers & Pages → `atlas` → Deployments 里出现本次提交触发的构建且状态为成功
 
 ---
 
-## GitHub Actions自动部署
+## 部署方式
 
-项目已配置GitHub Actions，可实现自动部署。
+项目采用 **Workers Builds 直连 GitHub** 部署：推送到 `main` 即自动构建（前端产物 + Worker）并部署到 Worker `atlas`。配置见 [deploy.md](./deploy.md) 第三节第 7 步。
 
-### 配置文件位置
+### 应急手动部署
 
-`.github/workflows/backend-deploy.yml`
+配置文件位置：`.github/workflows/backend-deploy.yml`
 
 ### 触发条件
 
-- 推送到 `main` 分支且改动 `backend/**`
-- 手动触发（`workflow_dispatch`）
+- 仅在 Actions 页面手动触发（`workflow_dispatch`）；push **不会**触发，避免与 Workers Builds 双写互相覆盖
+- 流程与 Workers Builds 等价（typecheck → lint → 构建前端 → `wrangler deploy`）
 
 ### 所需Secrets
 

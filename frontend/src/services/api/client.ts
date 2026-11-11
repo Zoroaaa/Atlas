@@ -1,17 +1,6 @@
-import { API_BASE_URL, API_CONFIG } from '@/constants';
+import { getApiBaseUrl, API_CONFIG } from '@/constants';
 import { useAuthStore } from '@/stores/authStore';
 import i18next from '@/i18n';
-
-const getApiBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return API_BASE_URL.LOCAL;
-    }
-    return API_BASE_URL.PRODUCTION;
-  }
-  return API_BASE_URL.LOCAL;
-};
 
 const BASE_URL = getApiBaseUrl();
 

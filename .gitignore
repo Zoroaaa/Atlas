@@ -45,16 +45,12 @@ coverage/
 # Old code backup
 codeseek-v1.0/
 .trae/
+.workbuddy/
 
 # Frontend specific
 frontend/dist/
 frontend/node_modules/
 frontend/.vite/
-
-# Backend specific
-codeseek-backend/node_modules/
-codeseek-backend/dist/
-codeseek-backend/.wrangler/
 
 # Wrangler
 .wrangler/

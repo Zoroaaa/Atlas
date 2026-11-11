@@ -103,7 +103,7 @@ googleOAuthRoutes.get('/google', async (c) => {
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await computeCodeChallenge(codeVerifier);
 
-  const backendUrl = (c.env.BACKEND_URL || 'https://atlasapi.wort.uk').replace(/\/$/, '');
+  const backendUrl = (c.env.BACKEND_URL || 'https://atlas.wort.uk').replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/google/callback`;
 
   const params = new URLSearchParams({

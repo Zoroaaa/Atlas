@@ -23,11 +23,10 @@
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `APP_VERSION` | `1.6.0` | 版本号，`/api/system/version` 与前端显示使用 |
-| `APP_ENV` | `production` | 运行环境标识 |
-| `SITE_URL` | `https://atlas.example.com` | 站点主地址，用于邮件与绝对链接 |
-| `FRONTEND_URL` | `https://atlas.example.com` | 前端地址，用于邮件中的跳转链接 |
-| `BACKEND_URL` | `https://api-atlas.example.com` | 后端地址，用于 OAuth 回调与公告链接 |
-| `DEFAULT_FROM_EMAIL` | `noreply@atlas.example.com` | 默认发件邮箱（需与 Resend 已验证域名一致） |
+| `SITE_URL` | `https://atlas.wort.uk` | 站点主地址，邮件模板中的站点链接 |
+| `FRONTEND_URL` | `https://atlas.wort.uk` | 前端地址，OAuth 完成后跳转目标 |
+| `BACKEND_URL` | `https://atlas.wort.uk` | 后端地址，OAuth 回调与邮件退订链接 |
+| `DEFAULT_FROM_EMAIL` | `noreply@mail.wort.uk` | 默认发件邮箱（需与 Resend 已验证域名一致） |
 | `DEFAULT_FROM_NAME` | `Atlas` | 默认发件人名称 |
 | `JWT_EXPIRY_DAYS` | `30` | 登录令牌有效期（天） |
 | `ENABLE_ACTION_LOGGING` | `true` | 是否记录用户行为日志 |

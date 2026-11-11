@@ -75,7 +75,7 @@
 - **Zustand 状态管理**: 轻量级状态管理方案，自动持久化存储
 
 #### 3. 云原生边缘计算
-- **Cloudflare 全栈部署**: 前端 Pages + 后端 Workers + 数据库 D1，完全 Serverless 架构
+- **Cloudflare 全栈部署**: 单个 Worker 同时托管前端静态资源（Workers Static Assets）与 API，数据库 D1，完全 Serverless 架构
 - **全球 CDN 加速**: 利用 Cloudflare 全球 300+ 边缘节点，用户就近访问
 - **零运维成本**: 无需购买服务器，免费额度即可支撑中小型应用
 - **自动弹性伸缩**: 流量高峰自动扩容，无需担心服务器宕机
@@ -320,7 +320,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - 工作台组件 + 三语国际化（v1.5.0）
 - HelpCenterPage + 帮助内容定义（v1.6.0）
 - 通知铃铛 / 收件箱 / 通知偏好页面（v1.6.0）
-- 部署：Cloudflare Pages
+- 部署：Cloudflare Workers（Workers Builds 直连 GitHub）
 
 **Provider 层 (v1.6.0)**
 - SearchProvider 接口 + ProviderRegistry 注册中心
