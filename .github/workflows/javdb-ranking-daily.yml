@@ -27,9 +27,20 @@ jobs:
         with:
           go-version: 'stable'
 
+      # 使用 fork 并从源码构建：fork 保留了上游 module path（github.com/FlanChanXwO/javdb-cli），
+      # 无法用 go install github.com/Zoroaaa/javdb-cli/... 直接安装。
+      # ref 钉死 commit SHA（v0.8.2，与原先 @latest 解析到的版本一致），不可被上游改动影响。
+      - name: Checkout javdb-cli fork (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: Zoroaaa/javdb-cli
+          ref: 3861e65aa7959ae826dca8071c398cec2d2f17f9
+          path: .javdb-cli
+
       - name: Install javdb-cli
+        working-directory: .javdb-cli
         run: |
-          go install github.com/FlanChanXwO/javdb-cli/cmd/javdb@latest
+          go install ./cmd/javdb
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Fetch weekly and monthly rankings
