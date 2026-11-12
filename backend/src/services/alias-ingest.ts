@@ -9,7 +9,7 @@ import {
   type EntityAliasInput,
   type EntityType,
 } from '@/repositories/entity-alias-repository';
-import { toVariantLang } from '@/services/query-normalizer';
+import { toSourceSearchText, toVariantLang } from '@/services/query-normalizer';
 
 const UA = 'Atlas/1.0 (alias-ingest)';
 const TIMEOUT_MS = 8000;
@@ -68,8 +68,9 @@ export async function ingestTmdbAliases(
   const inputs: EntityAliasInput[] = [];
   for (const item of data.titles) {
     const lang = item.iso_3166_1 ? TMDB_REGION_LANG[item.iso_3166_1] : undefined;
-    const alias = item.title?.trim();
-    if (!lang || !alias) continue;
+    // 清洗厂牌前缀与消歧后缀：Marvel Studios' Iron Man -> Iron Man
+    const alias = toSourceSearchText(item.title?.trim() ?? '');
+    if (!lang || !alias || alias.length < 2) continue;
     inputs.push({ entityType: 'work', canonicalId, lang, alias, source: 'tmdb', confidence: 0.9 });
   }
   return upsertAliasRows(db, inputs);

@@ -69,6 +69,72 @@ export function toVariantLang(lang: string): VariantLang | null {
   return null;
 }
 
+/**
+ * 厂牌/发行方营销前缀，如：
+ *   Marvel Studios' Iron Man / Disney's Frozen / Warner Bros. Pictures' Dune
+ * 这些是 TMDB 的地区别名，不是 TPB 索引的发布名，必须剥掉才能搜到。
+ */
+const BRAND_PREFIX_RE = new RegExp(
+  '^(?:' +
+    [
+      'marvel\\s+studios', 'marvel', 'disney', 'walt\\s+disney(?:\\s+pictures)?',
+      'pixar', 'dreamworks(?:\\s+animation)?', 'warner\\s+bros\\.?(?:\\s+pictures)?',
+      'dc(?:\\s+studios)?', 'sony\\s+pictures', 'universal\\s+pictures',
+      'paramount(?:\\s+pictures)?', 'lionsgate', 'netflix', 'a24',
+      'blumhouse(?:\\s+productions)?', 'legendary(?:\\s+pictures)?',
+      'studio\\s+ghibli', 'ghibli', 'toei(?:\\s+animation)?',
+      '20th\\s+century(?:\\s+studios)?', 'searchlight\\s+pictures', 'new\\s+line\\s+cinema',
+    ].join('|') +
+  // 必须带所有格（'s）或冒号，避免误伤「DC League of Super-Pets」这类片名
+  ')\\s*(?:[\'’]s?\\s*|[:：]\\s*)',
+  'i'
+);
+
+/** 中文厂牌前缀：只有带「：」或书名号时才剥，避免误伤「漫威蜘蛛侠」这类片名 */
+const CN_BRAND_PREFIX_RE =
+  /^(?:漫威影业|漫威|迪士尼影业|华特迪士尼|皮克斯|梦工厂|华纳兄弟|索尼影业|环球影业|派拉蒙影业|派拉蒙|狮门影业|奈飞|网飞)\s*(?:[:：]\s*|(?=[《「『]))/u;
+
+/**
+ * 把片名清洗成「源站可检索」的纯标题。
+ *
+ * 维基/元数据的标题常带消歧后缀、厂牌前缀或包裹符号，例如：
+ *   Up (2009 film) / 奥本海默（电影）/ Marvel Studios' Iron Man / 《奥本海默》
+ * 这些直接丢给 TPB 这类按词匹配的站点会返回 0 条，必须先剥掉。
+ * 仅用于查询词，不改变 entity_aliases 里的原文（TMDB 灌入时另做清洗）。
+ */
+export function toSourceSearchText(input: string): string {
+  let text = normalizeDisplay(input);
+  if (!text) return text;
+  const original = text;
+
+  // 厂牌/发行方前缀（英文）
+  text = text.replace(BRAND_PREFIX_RE, '').trim();
+  // 中文厂牌前缀
+  text = text.replace(CN_BRAND_PREFIX_RE, '').trim();
+
+  // 整段被书名号/引号包裹
+  const wrapped = text.match(/^[《「『"“]([^》」』"”]+)[》」』"”]$/u);
+  if (wrapped) text = wrapped[1].trim();
+
+  // 开头的分类标签：[电影] / 【动画】
+  text = text.replace(/^[[【][^\]】]{1,20}[\]】]\s*/u, '');
+
+  // 开头的「电影：」「Movie:」等分类前缀
+  text = text.replace(
+    /^(?:电影|影片|动画|剧场版|电视剧|剧集|Movie|Film|TV\s*Series)\s*[:：]\s*/iu,
+    ''
+  );
+
+  // 结尾的消歧括号：Up (2009 film) / 奥本海默（电影），循环处理多层括号
+  let previous = '';
+  while (previous !== text) {
+    previous = text;
+    text = text.replace(/\s*[（(][^（）()]{1,40}[)）]\s*$/u, '').trim();
+  }
+
+  return text || original;
+}
+
 // ─── OpenCC 转换器（懒加载）────────────────────────────────────────────
 
 type Converter = (text: string) => string;

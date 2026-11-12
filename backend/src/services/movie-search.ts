@@ -80,6 +80,7 @@ import { classifySearchError, sanitizeError, type SearchErrorKind } from '@/util
 import { groupResourcesBySubject } from '@/utils/title-grouping';
 import { lookupQueryVariants, resolveQuery } from '@/services/alias-resolver';
 import { ingestTmdbAliases } from '@/services/alias-ingest';
+import { toSourceSearchText } from '@/services/query-normalizer';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -130,7 +131,9 @@ async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-
 async function searchTPB(keyword: string): Promise<ResourceItem[]> {
   // apibay 的 q 区分大小写：实测 "Inception" 返回 0 条、"inception" 返回 100 条。
   // TMDB 英文标题首字母大写，必须转小写再查，否则整个 TPB 源恒为空。
-  const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword.toLowerCase())}&cat=0`;
+  // 同时剥掉维基消歧后缀（Up (2009 film)），否则按词匹配同样返回 0 条。
+  const cleaned = toSourceSearchText(keyword);
+  const url = `https://apibay.org/q.php?q=${encodeURIComponent(cleaned.toLowerCase())}&cat=0`;
   const r = await fetchWithRetry(url, {
     headers: { 'Accept': 'application/json', 'User-Agent': UA },
     signal: AbortSignal.timeout(30000),
