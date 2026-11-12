@@ -5,6 +5,10 @@
  * 避免同一 SQL 散落在 search 路由与各 Provider 中重复出现。
  */
 import type { SearchSource } from '@/types';
+import type { EntityType } from '@/repositories/entity-alias-repository';
+import { lookupQueryVariants } from '@/services/alias-resolver';
+import { buildQueryVariants, type QueryVariant } from '@/services/query-normalizer';
+import { pickKeywordForSource } from '@/services/source-language';
 
 /** 结果卡片：多源跳转卡片与通用模式结果共用同一形态 */
 export interface SearchSourceCard {
@@ -88,17 +92,29 @@ export function filterEnabledSources(
   return disabled && disabled.size > 0 ? sources.filter(s => !disabled.has(s.id)) : sources;
 }
 
-/** 搜索源 → 结果卡片（替换 url 模板中的关键词占位符） */
-export function toSourceCards(sources: SearchSource[], keyword: string): SearchSourceCard[] {
-  const encoded = encodeURIComponent(keyword);
-  return sources.map(source => ({
-    id: source.id,
-    name: source.name,
-    subtitle: source.subtitle,
-    icon: source.icon,
-    url: source.url_template.replace('{keyword}', encoded),
-    siteType: source.site_type,
-    category: source.category_id,
-    description: source.description,
-  }));
+/** 搜索源 → 结果卡片（按源的语言能力替换关键词占位符） */
+export async function toSourceCards(
+  db: D1Database,
+  sources: SearchSource[],
+  keyword: string,
+  options: { variants?: QueryVariant[]; entityType?: EntityType } = {}
+): Promise<SearchSourceCard[]> {
+  const deterministic = buildQueryVariants(keyword);
+  const variants =
+    options.variants ??
+    (await lookupQueryVariants(db, keyword, options.entityType ?? 'work'));
+
+  return sources.map(source => {
+    const picked = pickKeywordForSource(source.id, keyword, variants, deterministic);
+    return {
+      id: source.id,
+      name: source.name,
+      subtitle: source.subtitle,
+      icon: source.icon,
+      url: source.url_template.replace('{keyword}', encodeURIComponent(picked.text)),
+      siteType: source.site_type,
+      category: source.category_id,
+      description: source.description,
+    };
+  });
 }

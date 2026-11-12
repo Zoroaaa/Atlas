@@ -16,6 +16,10 @@ import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils
 import { validateBody, schemas } from '@/validation';
 import { findPostNotificationTarget } from '@/repositories/community-repository';
 import { emitNotification } from '@/services/notification-service';
+import { ingestAliasesForKeyword } from '@/services/alias-ingest';
+import { resolveQuery } from '@/services/alias-resolver';
+import { suggestAliasesWithAi } from '@/services/alias-ai';
+import { upsertAliasRows } from '@/repositories/entity-alias-repository';
 import {
   listRoles,
   findRoleById,
@@ -1448,5 +1452,100 @@ adminRoutes.delete('/errors/:id', async (c) => {
   } catch (err) {
     console.error('Delete error failed:', err);
     return c.json(error('SERVER_ERROR', '删除失败'), 500);
+  }
+});
+
+// ====================================================================
+// 跨语言实体别名
+// ====================================================================
+
+/**
+ * 手动灌入别名
+ * POST /api/admin/aliases/ingest  { keyword: "肖申克的救赎" }
+ *
+ * 从 TMDB / Bangumi / MangaDex 拉取同一实体的多语言写法并落库。
+ * 同步返回本次写入量与解析结果，便于运营确认是否命中正确实体。
+ */
+adminRoutes.post('/aliases/ingest', async (c) => {
+  try {
+    const body = await c.req
+      .json<{ keyword?: string }>()
+      .catch((): { keyword?: string } => ({}));
+    const keyword = body.keyword?.trim();
+    if (!keyword) {
+      return c.json(error('VALIDATION_ERROR', 'keyword 不能为空'), 400);
+    }
+
+    const report = await ingestAliasesForKeyword(c.env.DB, keyword, {
+      tmdbApiKey: c.env.TMDB_API_KEY,
+    });
+    // 免费数据源兜底：Wikipedia / Wikidata
+    const resolved = await resolveQuery(c.env.DB, keyword, {
+      entityType: 'work',
+      allowNetwork: true,
+      bypassCache: true,
+    });
+
+    return c.json(success({
+      report,
+      resolved: {
+        from: resolved.from,
+        canonicalIds: resolved.canonicalIds,
+        variants: resolved.variants.map(variant => ({
+          text: variant.text,
+          lang: variant.lang,
+          source: variant.transform,
+          confidence: variant.confidence,
+        })),
+      },
+    }));
+  } catch (err) {
+    console.error('Alias ingest failed:', err);
+    return c.json(error('SERVER_ERROR', '别名灌入失败'), 500);
+  }
+});
+
+/**
+ * AI 候选生成（旁路）
+ * POST /api/admin/aliases/suggest  { keyword: "深田咏美", lang: "ja" }
+ *
+ * 只有经 Wikidata 校验通过的候选才会写库（source=ai, confidence=0.5）。
+ * 需要 Workers AI 绑定且 ENABLE_ALIAS_AI=1。
+ */
+adminRoutes.post('/aliases/suggest', async (c) => {
+  try {
+    const body = await c.req
+      .json<{ keyword?: string; lang?: string }>()
+      .catch((): { keyword?: string; lang?: string } => ({}));
+    const keyword = body.keyword?.trim();
+    const lang = body.lang === 'en' ? 'en' : 'ja';
+    if (!keyword) {
+      return c.json(error('VALIDATION_ERROR', 'keyword 不能为空'), 400);
+    }
+
+    const suggestions = await suggestAliasesWithAi(c.env, keyword, lang);
+    const verified = suggestions.filter(item => item.verified);
+    if (verified.length > 0) {
+      await upsertAliasRows(
+        c.env.DB,
+        verified.map(item => ({
+          entityType: 'person' as const,
+          canonicalId: `ai:${keyword}`,
+          lang: item.lang,
+          alias: item.text,
+          source: 'ai',
+          confidence: 0.5,
+        }))
+      );
+    }
+
+    return c.json(success({
+      enabled: Boolean(c.env.AI) && c.env.ENABLE_ALIAS_AI === '1',
+      suggestions,
+      written: verified.length,
+    }));
+  } catch (err) {
+    console.error('Alias AI suggest failed:', err);
+    return c.json(error('SERVER_ERROR', 'AI 候选生成失败'), 500);
   }
 });

@@ -7,6 +7,8 @@
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment } from '@/services/search-provider';
 import { searchManga } from '@/services/manga-search';
 import { resolveLiveSources } from '@/services/live-sources';
+import { lookupQueryVariants } from '@/services/alias-resolver';
+import { ingestMangaDexByKeyword } from '@/services/alias-ingest';
 
 export class MangaProvider implements SearchProvider {
   readonly id = 'manga';
@@ -23,6 +25,14 @@ export class MangaProvider implements SearchProvider {
       keyword,
     });
     const result = await searchManga(keyword, page, skip);
+    // 别名覆盖不足时异步灌入 MangaDex altTitles，供其他源站复用
+    if (ctx.waitUntil) {
+      const variants = await lookupQueryVariants(ctx.db, keyword, 'work').catch(() => []);
+      const hasDbAliases = variants.some(variant => variant.transform.startsWith('db:'));
+      if (!hasDbAliases) {
+        ctx.waitUntil(ingestMangaDexByKeyword(ctx.db, keyword).catch(() => 0));
+      }
+    }
     return { ...result, sourceCards: cards } as unknown as SearchResultBase;
   }
 

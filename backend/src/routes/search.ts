@@ -187,6 +187,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
             subMode: javSubMode,
             disabledSources,
             apiKeys: { TMDB_API_KEY: c.env.TMDB_API_KEY ?? '' },
+            waitUntil: (task) => c.executionCtx.waitUntil(task),
           })) as unknown as Record<string, unknown>;
 
           // 增强搜索历史记录（方案 B）：交由 Provider 从结果形态提取增强字段
@@ -248,7 +249,8 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
         })
       : await listDefaultSources(c.env.DB, userPayload?.userId || '');
 
-    const searchResults = toSourceCards(
+    const searchResults = await toSourceCards(
+      c.env.DB,
       filterEnabledSources(sources, disabledSources),
       trimmedKeyword
     );

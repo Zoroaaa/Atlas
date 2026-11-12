@@ -43,7 +43,10 @@ export class MovieProvider implements SearchProvider {
       disabledSources: ctx.disabledSources,
       keyword,
     });
-    const result = await searchMovie(keyword, page, ctx.apiKeys?.['TMDB_API_KEY'], skip);
+    const result = await searchMovie(keyword, page, ctx.apiKeys?.['TMDB_API_KEY'], skip, {
+      db: ctx.db,
+      waitUntil: ctx.waitUntil,
+    });
     return { ...result, resultType: 'movie', sourceCards: cards } as unknown as SearchResultBase;
   }
 

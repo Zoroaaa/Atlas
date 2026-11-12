@@ -34,6 +34,8 @@ export interface SearchContext {
   disabledSources?: Set<string> | null;
   /** API Key 等外部依赖（如 TMDB_API_KEY） */
   apiKeys?: Record<string, string>;
+  /** 异步任务入口（Provider 用于别名灌入等不阻塞响应的后台工作） */
+  waitUntil?: (task: Promise<unknown>) => void;
 }
 
 /** 搜索历史增强字段：由 Provider 从自身结果形态提取，路由负责落库 */

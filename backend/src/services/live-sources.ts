@@ -17,6 +17,7 @@ import {
   toSourceCards,
   type SearchSourceCard,
 } from '@/repositories/search-source-repository';
+import { lookupQueryVariants } from '@/services/alias-resolver';
 
 interface ScraperSpec {
   /** 抓取器 key，与各 search 服务的 skip 集合一致 */
@@ -77,6 +78,7 @@ export async function resolveLiveSources(
   });
   const enabled = filterEnabledSources(rows, opts.disabledSources ?? null);
   const enabledIds = new Set(enabled.map(row => row.id));
+  const variants = await lookupQueryVariants(db, opts.keyword, 'work').catch(() => undefined);
 
   const cards: SearchSourceCard[] = [];
   const skip = new Set<string>();
@@ -92,7 +94,7 @@ export async function resolveLiveSources(
       skip.add(spec.key);
       continue;
     }
-    cards.push(...toSourceCards([active[0]], opts.keyword));
+    cards.push(...await toSourceCards(db, [active[0]], opts.keyword, { variants }));
   }
 
   return { cards, skip };

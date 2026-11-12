@@ -13,9 +13,12 @@
   },
   "dependencies": {
     "@codeseek/shared": "*",
+    "fuzzball": "^2.2.6",
     "hono": "^4.6.0",
     "jose": "^5.9.0",
     "opencc-js": "^1.4.1",
+    "pinyin-pro": "^3.29.5",
+    "wanakana": "^5.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

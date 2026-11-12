@@ -125,10 +125,13 @@ const MAX_DETAIL_FETCH = 10; // 最多并发抓取资料页数量
  * 抛出异常仅在「资料源不可用」时（无响应 / 返回非 JavBus 结果页），
  * 以便上层把失败透出给用户；真正「未匹配到女优」返回空数组。
  */
-export async function fetchActresses(keyword: string): Promise<ActressProfile[]> {
+export async function fetchActresses(
+  keyword: string,
+  normalizedKeyword?: string
+): Promise<ActressProfile[]> {
   if (!keyword.trim()) return [];
 
-  const normalized = normalizeActressKeyword(keyword);
+  const normalized = normalizedKeyword ?? normalizeActressKeyword(keyword);
   const searchUrl = `${JAVBUS_BASE}/searchstar/${encodeURIComponent(normalized)}`;
   const html = await getHtml(searchUrl, 15000);
 
@@ -169,8 +172,11 @@ export async function fetchActresses(keyword: string): Promise<ActressProfile[]>
  */
 const JAVBUS_ACTRESS_WORKS_LIMIT = 20;
 
-export async function fetchActressWorks(keyword: string): Promise<JavItem[]> {
-  const normalized = normalizeActressKeyword(keyword);
+export async function fetchActressWorks(
+  keyword: string,
+  normalizedKeyword?: string
+): Promise<JavItem[]> {
+  const normalized = normalizedKeyword ?? normalizeActressKeyword(keyword);
   if (!normalized.trim()) return [];
 
   const searchUrl = `${JAVBUS_BASE}/search/${encodeURIComponent(normalized)}`;

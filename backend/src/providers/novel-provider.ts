@@ -36,7 +36,8 @@ export class NovelProvider implements SearchProvider {
       categoryId: ctx.categoryId,
       userId: ctx.user?.userId || '',
     });
-    result.results = toSourceCards(
+    result.results = await toSourceCards(
+      ctx.db,
       filterEnabledSources(sources, ctx.disabledSources ?? null),
       keyword
     );

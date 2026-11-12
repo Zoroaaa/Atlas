@@ -41,6 +41,11 @@ JWT_EXPIRY_DAYS = "30"
 # 用户行为日志 — 生产/开发环境可能不同，属于环境级开关
 ENABLE_ACTION_LOGGING = "true"
 
+# AI 别名候选生成（旁路）：默认关闭；开启前需在下方声明 [ai] binding 并部署
+ENABLE_ALIAS_AI = "0"
+# 可选：覆盖默认翻译模型
+# ALIAS_AI_MODEL = "@cf/meta/m2m100-1.2b"
+
 # =====================================================================
 # 以下配置通过 `wrangler secret put` 注入（不得写入此文件中）：
 # 🔐 JWT_SECRET
@@ -58,6 +63,11 @@ ENABLE_ACTION_LOGGING = "true"
 binding = "DB"
 database_name = "codeseek"
 database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
+
+# Workers AI（可选）：启用 ENABLE_ALIAS_AI 时取消注释。
+# 账号未开通 Workers AI 时保留注释，否则部署会失败。
+# [ai]
+# binding = "AI"
 
 # 监控
 [observability]

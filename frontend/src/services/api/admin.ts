@@ -102,6 +102,39 @@ export interface ActivityRanking {
   };
 }
 
+export interface AliasVariant {
+  text: string;
+  lang: string;
+  source: string;
+  confidence: number;
+}
+
+export interface AliasIngestResult {
+  report: {
+    tmdb: number;
+    bangumi: number;
+    mangadex: number;
+    failed: string[];
+  };
+  resolved: {
+    from: 'deterministic' | 'database' | 'network';
+    canonicalIds: string[];
+    variants: AliasVariant[];
+  };
+}
+
+export interface AliasSuggestion {
+  text: string;
+  lang: 'ja' | 'en';
+  verified: boolean;
+}
+
+export interface AliasSuggestResult {
+  enabled: boolean;
+  suggestions: AliasSuggestion[];
+  written: number;
+}
+
 export const adminApi = {
   getRoles: async (): Promise<Role[]> => {
     const response = await apiClient.get<{ success: boolean; data: { roles: Role[] } }>('/admin/roles');
@@ -697,6 +730,22 @@ export const adminApi = {
       pageSize: response.data.pageSize,
       totalPages: Math.ceil(response.data.total / response.data.pageSize),
     };
+  },
+
+  ingestAliases: async (keyword: string): Promise<AliasIngestResult> => {
+    const response = await apiClient.post<{ success: boolean; data: AliasIngestResult }>(
+      '/admin/aliases/ingest',
+      { keyword }
+    );
+    return response.data;
+  },
+
+  suggestAliases: async (keyword: string, lang: 'ja' | 'en' = 'ja'): Promise<AliasSuggestResult> => {
+    const response = await apiClient.post<{ success: boolean; data: AliasSuggestResult }>(
+      '/admin/aliases/suggest',
+      { keyword, lang }
+    );
+    return response.data;
   },
 };
 
