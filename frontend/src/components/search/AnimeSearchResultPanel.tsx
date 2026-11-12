@@ -12,7 +12,7 @@ import type {
   BangumiSubject,
   MikanItem,
   NyaaTorrent,
-  ShowRssItem,
+  DmhyItem,
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
@@ -117,16 +117,31 @@ function MikanCard({ item }: { item: MikanItem }) {
         )
       }
       meta={[item.size, item.pubDate].filter(Boolean) as React.ReactNode[]}
-      trailing={item.magnet ? <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} /> : undefined}
+      trailing={
+        <>
+          {!item.magnet && item.detailUrl ? (
+            <a
+              href={item.detailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('search:anime.dmhyDetail')}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+          {item.magnet ? <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} /> : null}
+        </>
+      }
     />
   );
 }
 
-function ShowRssCard({ item }: { item: ShowRssItem }) {
+function DmhyCard({ item }: { item: DmhyItem }) {
   const { t } = useTranslation(['search']);
   return (
     <ResourceRow
-      badges={<Chip tone="source" size="xs">SR</Chip>}
+      badges={<Chip tone="source" size="xs">DMHY</Chip>}
       title={
         item.magnet ? (
           <a href={item.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={t('search:anime.btDownloadHint', { title: item.title })}>
@@ -136,7 +151,27 @@ function ShowRssCard({ item }: { item: ShowRssItem }) {
           <span className="block truncate text-[12px] text-surface-700 dark:text-surface-300" title={item.title}>{item.title}</span>
         )
       }
-      trailing={item.magnet ? <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} /> : undefined}
+      meta={[
+        item.group ? <Chip key="group" tone="neutral" size="xs">{item.group}</Chip> : null,
+        item.size,
+        item.pubDate,
+      ].filter(Boolean) as React.ReactNode[]}
+      trailing={
+        <>
+          {item.detailUrl ? (
+            <a
+              href={item.detailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('search:anime.dmhyDetail')}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+          {item.magnet ? <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} /> : null}
+        </>
+      }
     />
   );
 }
@@ -290,7 +325,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const [localPage, setLocalPage] = useState(1);
   const [atosPage, setAtosPage] = useState(1);
   const [mikanPage, setMikanPage] = useState(1);
-  const [srPage, setSrPage] = useState(1);
+  const [dmhyPage, setDmhyPage] = useState(1);
   const SOURCE_PAGE_SIZE = 10;
   const PAGE_SIZE = 10;
 
@@ -302,7 +337,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
     setLocalPage(1);
     setAtosPage(1);
     setMikanPage(1);
-    setSrPage(1);
+    setDmhyPage(1);
     setViewMode(hasGrouped ? 'grouped' : 'sources');
   }, [data.keyword, data.page, hasGrouped]);
 
@@ -310,8 +345,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const nyaaList = data.nyaa ?? [];
   const atosList = data.animetosho ?? [];
   const mikanList = data.mikan ?? [];
-  const showrssList = data.showrss ?? [];
-  const hasResults = nyaaList.length > 0 || atosList.length > 0 || mikanList.length > 0 || showrssList.length > 0;
+  const dmhyList = data.dmhy ?? [];
+  const hasResults = nyaaList.length > 0 || atosList.length > 0 || mikanList.length > 0 || dmhyList.length > 0;
 
   const isBgmFavorited = (url: string) => favorites.some((favorite) => favorite.url === url);
 
@@ -322,14 +357,14 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const hasNyaaError = !!data.errors?.nyaa;
   const hasAtosError = !!data.errors?.animetosho;
   const hasMikanError = !!data.errors?.mikan;
-  const hasSrError = !!data.errors?.showrss;
+  const hasDmhyError = !!data.errors?.dmhy;
 
   const errorNotices = [
     data.errors?.bangumi ? { key: 'bangumi', text: t('search:anime.bangumiError', { error: data.errors.bangumi }) } : null,
     data.errors?.nyaa ? { key: 'nyaa', text: t('search:anime.nyaaError', { error: data.errors.nyaa }) } : null,
     data.errors?.animetosho ? { key: 'animetosho', text: t('search:anime.animetoshoError', { error: data.errors.animetosho }) } : null,
     data.errors?.mikan ? { key: 'mikan', text: t('search:anime.mikanError', { error: data.errors.mikan }) } : null,
-    data.errors?.showrss ? { key: 'showrss', text: t('search:anime.showrssError', { error: data.errors.showrss }) } : null,
+    data.errors?.dmhy ? { key: 'dmhy', text: t('search:anime.dmhyError', { error: data.errors.dmhy }) } : null,
   ].filter(Boolean) as { key: string; text: string }[];
 
   return (
@@ -345,7 +380,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                   {nyaaList.length > 0 ? <Chip tone="source" size="xs">Nyaa {nyaaList.length}</Chip> : null}
                   {atosList.length > 0 ? <Chip tone="source" size="xs">AT {atosList.length}</Chip> : null}
                   {mikanList.length > 0 ? <Chip tone="source" size="xs">Mikan {mikanList.length}</Chip> : null}
-                  {showrssList.length > 0 ? <Chip tone="source" size="xs">SR {showrssList.length}</Chip> : null}
+                  {dmhyList.length > 0 ? <Chip tone="source" size="xs">DMHY {dmhyList.length}</Chip> : null}
                 </>
               ) : (
                 <span className="type-meta">{t('search:anime.magnetTotal', { count: data.total })}</span>
@@ -367,7 +402,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                         nyaa: data.nyaa,
                         mikan: data.mikan,
                         animetosho: data.animetosho,
-                        showrss: data.showrss,
+                        dmhy: data.dmhy,
                       }),
                     }}
                     isAuthenticated={isAuthenticated}
@@ -402,7 +437,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
         </div>
       ) : null}
 
-      {!hasResults && bgmList.length === 0 && !hasBgmError && !hasNyaaError && !hasAtosError && !hasMikanError && !hasSrError ? (
+      {!hasResults && bgmList.length === 0 && !hasBgmError && !hasNyaaError && !hasAtosError && !hasMikanError && !hasDmhyError ? (
         <div className="px-4 pb-4 sm:px-5 sm:pb-5">
           <EmptyBlock
             icon={<Wifi className="h-7 w-7" />}
@@ -548,28 +583,28 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                 );
               })() : null}
 
-              {showrssList.length > 0 ? (() => {
-                const srTotalPages = Math.max(1, Math.ceil(showrssList.length / SOURCE_PAGE_SIZE));
-                const pagedSr = showrssList.slice((srPage - 1) * SOURCE_PAGE_SIZE, srPage * SOURCE_PAGE_SIZE);
+              {dmhyList.length > 0 ? (() => {
+                const dmhyTotalPages = Math.max(1, Math.ceil(dmhyList.length / SOURCE_PAGE_SIZE));
+                const pagedDmhy = dmhyList.slice((dmhyPage - 1) * SOURCE_PAGE_SIZE, dmhyPage * SOURCE_PAGE_SIZE);
                 return (
                   <div className="border-t border-surface-100 pt-2 dark:border-surface-800/70">
                     <div className="flex items-center justify-between border-b border-surface-100 pb-1 dark:border-surface-800/70">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[12px] font-semibold text-surface-800 dark:text-surface-200">ShowRSS</span>
-                        <CountBadge>{showrssList.length}</CountBadge>
+                        <span className="text-[12px] font-semibold text-surface-800 dark:text-surface-200">DMHY</span>
+                        <CountBadge>{dmhyList.length}</CountBadge>
                       </div>
-                      <a href="https://showrss.info" target="_blank" rel="noopener noreferrer" className="type-micro text-primary-500 hover:underline">
-                        {t('search:anime.showrssSearch')}
+                      <a href={`https://share.dmhy.org/topics/list?keyword=${encodeURIComponent(data.keyword)}`} target="_blank" rel="noopener noreferrer" className="type-micro text-primary-500 hover:underline">
+                        {t('search:anime.dmhySearch')}
                       </a>
                     </div>
-                    <div>{pagedSr.map((item, index) => <ShowRssCard key={index} item={item} />)}</div>
+                    <div>{pagedDmhy.map((item, index) => <DmhyCard key={`${item.magnet}-${index}`} item={item} />)}</div>
                     <Pagination
-                      page={srPage}
-                      totalPages={srTotalPages}
-                      onChange={setSrPage}
+                      page={dmhyPage}
+                      totalPages={dmhyTotalPages}
+                      onChange={setDmhyPage}
                       prevLabel={t('search:anime.prevPage')}
                       nextLabel={t('search:anime.nextPage')}
-                      totalLabel={t('search:anime.totalCount', { count: showrssList.length })}
+                      totalLabel={t('search:anime.totalCount', { count: dmhyList.length })}
                     />
                   </div>
                 );
@@ -584,7 +619,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
                 />
               ) : null}
 
-              {onPageChange && nyaaList.length >= 60 && localPage >= totalPages ? (
+              {onPageChange && (data.hasMore || data.page > 1) && localPage >= totalPages ? (
                 <div className="flex justify-center gap-2 py-1">
                   <button
                     type="button"

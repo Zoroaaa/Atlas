@@ -54,7 +54,7 @@ function extractQuality(title: string): string {
 }
 
 type SortKey = 'seeders' | 'date' | 'size';
-type FilterSource = 'all' | 'nyaa' | 'mikan' | 'animetosho' | 'showrss';
+type FilterSource = 'all' | 'nyaa' | 'mikan' | 'animetosho' | 'dmhy';
 type FilterQuality = 'all' | '4K' | '1080p' | '720p';
 
 // ─── 统一资源卡片 ──────────────────────────────────────────────────
@@ -63,7 +63,7 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
   const { t } = useTranslation(['search']);
   const quality = extractQuality(item.title);
   const sourceTone = (source: string): ChipTone =>
-    source === 'mikan' ? 'success' : source === 'animetosho' ? 'accent' : source === 'showrss' ? 'warning' : 'source';
+    source === 'mikan' ? 'success' : source === 'animetosho' ? 'accent' : source === 'dmhy' ? 'warning' : 'source';
 
   return (
     <ResourceRow
@@ -83,7 +83,7 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
       meta={[item.size, item.date].filter(Boolean) as React.ReactNode[]}
       trailing={
         <>
-          {item.source !== 'showrss' && item.source !== 'mikan' ? (
+          {item.source !== 'dmhy' && item.source !== 'mikan' ? (
             <span className={`mr-1 text-[11px] font-medium tabular-nums ${fmt.seedColor(item.seeders)}`}>
               {item.seeders}<span className="mx-0.5 text-surface-400">/</span><span className="text-error-400">{item.leechers}</span>
             </span>

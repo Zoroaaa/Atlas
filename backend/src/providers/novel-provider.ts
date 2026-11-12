@@ -2,7 +2,7 @@
  * NovelProvider — 小说搜索适配器
  *
  * 包装 novel-search.ts 的 searchNovel 函数，实现 SearchProvider 接口。
- * 数据源：Anna's Archive（HTML 抓取解析）
+ * 数据源：知轩藏书（HTML 抓取解析）
  * 额外注入「按用户过滤的多源跳转卡片」（与 JAV 机制一致），但保持自身 total（前端分页依赖）。
  */
 import {
@@ -57,7 +57,7 @@ export class NovelProvider implements SearchProvider {
     const fields: string[] = [];
     const values: (string | number)[] = [];
 
-    // 小说 NovelItem 置顶顺序：zxcs（知轩藏书） → 奇书网
+    // 小说 NovelItem 抓取源只剩知轩藏书
     // 跳转卡片源（Z-Library/Anna等）由 search_sources 表注入，不在此处理
     const novels = (result as {
       novels?: Array<{
@@ -74,7 +74,6 @@ export class NovelProvider implements SearchProvider {
     }).novels;
     const firstNovel =
       novels?.find(n => n.source === '知轩藏书')
-      || novels?.find(n => n.source === '奇书网')
       || novels?.[0];
 
     if (firstNovel) {

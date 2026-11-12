@@ -138,7 +138,10 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
     );
   };
 
-  const showRail = Boolean(enrichedData) && hasSourceLinks && (isActressMode || hasJavPrimary || resultType === 'novel');
+  // 右侧源栏：JAV 保持原行为；动漫/影视/漫画只在确实有 ≥2 个可点源时渲染
+  // （只剩 1 个源时开关没有意义，不渲染一个无意义的开关）
+  const showRail = Boolean(enrichedData) && hasSourceLinks
+    && (isActressMode || hasJavPrimary || searchFlow.searchResults.length >= 2);
   const showEmpty = !searchFlow.isSearching && !enrichedData && searchFlow.searchResults.length === 0;
 
   return (

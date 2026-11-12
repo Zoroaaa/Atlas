@@ -156,7 +156,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
     ...(data.nyaa || []),
     ...(data.mikan || []),
     ...(data.animetosho || []),
-    ...(data.showrss || []),
+    ...(data.dmhy || []),
   ];
 
   return (
@@ -203,7 +203,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
           {data.nyaa?.length > 0 && <Badge variant="default" size="sm">Nyaa {data.nyaa.length}</Badge>}
           {data.mikan?.length > 0 && <Badge variant="default" size="sm">Mikan {data.mikan.length}</Badge>}
           {data.animetosho?.length > 0 && <Badge variant="default" size="sm">AnimeTosho {data.animetosho.length}</Badge>}
-          {data.showrss?.length > 0 && <Badge variant="default" size="sm">ShowRSS {data.showrss.length}</Badge>}
+          {data.dmhy?.length > 0 && <Badge variant="default" size="sm">DMHY {data.dmhy.length}</Badge>}
         </div>
       )}
 

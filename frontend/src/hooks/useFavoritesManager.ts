@@ -124,9 +124,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
 
   const handleToggleFavoriteMovie = async (item: TMDBResult) => {
     if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const url = item.source === 'douban'
-      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
-      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    const url = `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
     const existingFavoriteId = getFavoriteId(url);
     if (existingFavoriteId) {
       try {

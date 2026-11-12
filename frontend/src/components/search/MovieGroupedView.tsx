@@ -40,7 +40,7 @@ function extractQuality(title: string): string {
   return '';
 }
 
-type SortKey = 'date' | 'size';
+type SortKey = 'seeders' | 'date' | 'size';
 type FilterQuality = 'all' | '4K' | '1080p' | '720p';
 
 // ─── 资源卡片 ──────────────────────────────────────────────────
@@ -72,7 +72,12 @@ function MovieResourceCard({ item }: { item: ResourceItem }) {
           <span className="block truncate text-[12px] text-surface-700 dark:text-surface-300" title={item.title}>{item.title}</span>
         )
       }
-      meta={[item.size, item.date, item.sourceLabel].filter(Boolean) as React.ReactNode[]}
+      meta={[
+        item.size,
+        item.date,
+        item.sourceLabel,
+        typeof item.seeders === 'number' ? `↑${item.seeders}${typeof item.leechers === 'number' ? ` ↓${item.leechers}` : ''}` : null,
+      ].filter(Boolean) as React.ReactNode[]}
       trailing={
         item.resourceType === 'drive' && item.driveUrl ? (
           <>
@@ -123,7 +128,7 @@ function GroupedMovieCard({
 }) {
   const { t } = useTranslation(['search']);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [sortBy, setSortBy] = useState<SortKey>('date');
+  const [sortBy, setSortBy] = useState<SortKey>('seeders');
   const [filterQuality, setFilterQuality] = useState<FilterQuality>('all');
 
   const processedResources = useMemo(() => {
@@ -131,6 +136,7 @@ function GroupedMovieCard({
     if (filterQuality !== 'all') r = r.filter(x => extractQuality(x.title) === filterQuality);
     const sorted = [...r];
     switch (sortBy) {
+      case 'seeders': sorted.sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1)); break;
       case 'date': sorted.sort((a, b) => (b.date || '').localeCompare(a.date || '')); break;
       case 'size': sorted.sort((a, b) => parseFloat(b.size) - parseFloat(a.size)); break;
     }
@@ -156,9 +162,7 @@ function GroupedMovieCard({
 
   const changeFilter = <T,>(setter: (v: T) => void, val: T) => { setter(val); setResPage(1); };
 
-  const externalUrl = subject.source === 'douban'
-    ? `https://movie.douban.com/subject/${Math.abs(subject.id)}/`
-    : `https://www.themoviedb.org/${subject.mediaType}/${subject.id}`;
+  const externalUrl = `https://www.themoviedb.org/${subject.mediaType}/${subject.id}`;
 
   return (
     <div className={`border-t border-surface-100 first:border-t-0 dark:border-surface-800/70 ${
@@ -187,9 +191,7 @@ function GroupedMovieCard({
         subtitle={subject.originalTitle !== subject.title ? subject.originalTitle : undefined}
         badges={
           <>
-            <Chip tone={subject.source === 'douban' ? 'success' : 'source'} size="xs">
-              {subject.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
-            </Chip>
+            <Chip tone="source" size="xs">{t('search:movie.sourceTMDB')}</Chip>
             <Chip tone={subject.mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
               {mediaTypeLabel(t, subject.mediaType)}
             </Chip>
@@ -253,6 +255,7 @@ function GroupedMovieCard({
           <GroupedFilterBar
             sortLabel={t('search:movie.sort')}
             sortOptions={[
+              { value: 'seeders', label: t('search:movie.sortBySeeders') },
               { value: 'date', label: t('search:movie.sortByDate') },
               { value: 'size', label: t('search:movie.sortBySize') },
             ]}
@@ -338,9 +341,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
   if (!grouped) return null;
 
   const isMovieFavorited = (item: TMDBResult) => {
-    const url = item.source === 'douban'
-      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
-      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    const url = `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
     return favorites.some(f => f.url === url);
   };
 
@@ -387,9 +388,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
           />
           <div className="grid grid-cols-1 gap-3 px-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 lg:grid-cols-3">
             {withoutResources.map((group) => {
-              const externalUrl = group.subject.source === 'douban'
-                ? `https://movie.douban.com/subject/${Math.abs(group.subject.id)}/`
-                : `https://www.themoviedb.org/${group.subject.mediaType}/${group.subject.id}`;
+              const externalUrl = `https://www.themoviedb.org/${group.subject.mediaType}/${group.subject.id}`;
               return (
                 <MediaCard
                   key={`${group.subject.mediaType}-${group.subject.id}`}
@@ -406,7 +405,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
                         </span>
                       ) : null}
                       <Chip tone="source" size="xs">
-                        {group.subject.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
+                        {t('search:movie.sourceTMDB')}
                       </Chip>
                     </>
                   }

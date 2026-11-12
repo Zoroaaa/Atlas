@@ -33,7 +33,7 @@ export type {
 //     BangumiSubject  ←→ backend/src/services/anime-search.ts
 //     NyaaTorrent      ←→ backend/src/services/anime-search.ts
 //     MikanItem         ←→ backend/src/services/anime-search.ts
-//     ShowRssItem       ←→ backend/src/services/anime-search.ts
+//     DmhyItem          ←→ backend/src/services/anime-search.ts
 //     AnimeEnrichedData ←→ backend/src/routes/search.ts (聚合响应)
 //     TMDBResult        ←→ backend/src/services/movie-search.ts
 //     ResourceItem      ←→ backend/src/services/movie-search.ts
@@ -91,13 +91,17 @@ export interface MikanItem {
   size: string;
   pubDate: string;
   group: string;
-  /** 原站详情页链接 */
-  detailUrl?: string;
+  /** 原站详情页链接（未解析出磁力的条目用） */
+  detailUrl: string;
 }
 
-export interface ShowRssItem {
+export interface DmhyItem {
   title: string;
   magnet: string;
+  size: string;
+  pubDate: string;
+  group: string;
+  detailUrl: string;
 }
 
 /** 女优资料（JavBus star 页抓取） */
@@ -132,7 +136,7 @@ export interface ActressProfile {
 
 /** 统一资源类型（归组用，合并各源资源） */
 export interface AnimeUnifiedResource {
-  source: 'nyaa' | 'mikan' | 'animetosho' | 'showrss';
+  source: 'nyaa' | 'mikan' | 'animetosho' | 'dmhy';
   sourceLabel: string;
   title: string;
   magnet: string;
@@ -142,6 +146,8 @@ export interface AnimeUnifiedResource {
   leechers: number;
   group?: string;
   trusted?: boolean;
+  /** 原站详情页 */
+  detailUrl?: string;
 }
 
 /** 归组结果项 */
@@ -158,9 +164,11 @@ export interface AnimeEnrichedData {
   nyaa: NyaaTorrent[];
   mikan: MikanItem[];
   animetosho: NyaaTorrent[];
-  showrss: ShowRssItem[];
+  dmhy: DmhyItem[];
   total: number;
-  errors: { bangumi: string | null; nyaa: string | null; mikan: string | null; animetosho: string | null; showrss: string | null };
+  /** 是否还有下一页（后端 Bangumi 分页结果） */
+  hasMore?: boolean;
+  errors: { bangumi: string | null; nyaa: string | null; mikan: string | null; animetosho: string | null; dmhy: string | null };
   /** 作品级归组结果 */
   grouped?: {
     groups: AnimeGroupedItem[];
@@ -180,7 +188,7 @@ export interface TMDBResult {
   rating: number;
   voteCount: number;
   mediaType: 'movie' | 'tv';
-  source: 'tmdb' | 'douban';
+  source: 'tmdb';
 }
 
 export interface ResourceItem {
@@ -195,6 +203,10 @@ export interface ResourceItem {
   driveCode?: string;
   /** 原站详情页链接 */
   detailUrl?: string;
+  /** 做种数（TPB/EZTV 提供） */
+  seeders?: number;
+  /** 下载者数（TPB/EZTV 提供） */
+  leechers?: number;
 }
 
 export interface MovieEnrichedData {
@@ -206,9 +218,10 @@ export interface MovieEnrichedData {
   total: number;
   resourceTotal: number;
   tmdbError: string | null;
-  doubanError: string | null;
   tpbError: string | null;
   eztvError: string | null;     // NEW
+  /** 按源的失败语义（与后端 SearchResultBase.errorKinds 对应） */
+  errorKinds?: Record<string, 'NOT_FOUND' | 'SOURCE_UNAVAILABLE' | 'RATE_LIMITED' | 'PARSE_FAILED'>;
   resourceSources?: string[];
   /** 作品级归组结果 */
   grouped?: {
@@ -268,13 +281,22 @@ export interface MangaEnrichedData {
   keyword: string;
   page: number;
   total: number;
+  /** 是否还有下一页（后端 hasMore，前端加载更多依据） */
+  hasMore?: boolean;
   errors: Record<string, string | null>;
+  /** 按源的失败语义（与后端 SearchResultBase.errorKinds 对应） */
+  errorKinds?: Record<string, 'NOT_FOUND' | 'SOURCE_UNAVAILABLE' | 'RATE_LIMITED' | 'PARSE_FAILED'>;
   manga: Array<{
     id: string;
     title: string;
     cover: string;
     status: string;
     tags: string[];
+    year?: string;
+    rating?: number;
+    description?: string;
+    source?: 'mangadex' | 'mangaupdates';
+    detailUrl?: string;
   }>;
 }
 
@@ -305,6 +327,8 @@ export interface NovelItem {
   source: string;
   /** 详情页/下载页 URL */
   detailUrl: string;
+  /** 源站书籍详情页（与 detailUrl 的 txt 直链区分） */
+  siteUrl?: string;
 }
 
 export interface NovelEnrichedData {
@@ -312,7 +336,11 @@ export interface NovelEnrichedData {
   keyword: string;
   page: number;
   total: number;
+  /** 是否还有下一页（后端分页契约） */
+  hasMore?: boolean;
   errors: Record<string, string | null>;
+  /** 按源的失败语义（与后端 SearchResultBase.errorKinds 对应） */
+  errorKinds?: Record<string, 'NOT_FOUND' | 'SOURCE_UNAVAILABLE' | 'RATE_LIMITED' | 'PARSE_FAILED'>;
   novels: NovelItem[];
   /** 多源跳转卡片（与 JAV 的 results 结构一致，由后端从数据库注入） */
   results?: Array<{

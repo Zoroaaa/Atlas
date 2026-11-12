@@ -108,7 +108,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
             </Badge>
           )}
           {post.postType === 'anime' && (() => {
-            const resCount = (contentData.nyaa?.length || 0) + (contentData.mikan?.length || 0) + (contentData.animetosho?.length || 0) + (contentData.showrss?.length || 0);
+            const resCount = (contentData.nyaa?.length || 0) + (contentData.mikan?.length || 0) + (contentData.animetosho?.length || 0) + (contentData.dmhy?.length || 0);
             const rating = contentData.bgm?.[0]?.rating;
             return (resCount > 0 || rating) ? (
               <Badge variant="default" size="sm" className="bg-black/60 text-white backdrop-blur-sm border-0">

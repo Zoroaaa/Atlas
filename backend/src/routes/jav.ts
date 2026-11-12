@@ -54,7 +54,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'covers.z-lib.se',
   'covers.z-lib.org',
   'covers1.z-lib.sk',
-  // 小说封面：奇书网（详情页封面，需 Referer 防盗链）
+  // 小说封面：奇书网（历史社区帖封面仍可能引用；源站已下线，仅保留代理兼容）
   'www.xqishuta.org',
   // 历史遗留：v1.4.0 女优资料曾用 minnano-av.com，社区历史帖封面仍引用其图片 URL
   'www.minnano-av.com',
@@ -116,7 +116,7 @@ javRoutes.get('/proxy-image', async (c) => {
     'pics.javbus.com': 'https://www.javbus.com/',
     'img.javbus.com': 'https://www.javbus.com/',
     'tp.spfcas.com': 'https://javdb.com/',
-    'www.xqishuta.org': 'http://www.xqishuta.org/',
+    'www.xqishuta.org': 'https://www.xqishuta.org/',
     'www.minnano-av.com': 'https://www.minnano-av.com/',
   };
   const imageFetchHeaders: Record<string, string> = {

@@ -66,7 +66,19 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
   );
 
   return (
-    <header className={clsx('panel-header', className)}>
+    <header
+      className={clsx('panel-header', onToggle && 'cursor-pointer', className)}
+      onClick={
+        onToggle
+          ? (event) => {
+              // 整条横条可点击折叠；内部链接/按钮保持原有行为，不触发折叠
+              const target = event.target as HTMLElement;
+              if (target.closest('a,button,input,select,textarea,[role="button"]')) return;
+              onToggle();
+            }
+          : undefined
+      }
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {onToggle ? (
           <button
@@ -84,12 +96,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
         {info ? <span className="shrink-0">{info}</span> : null}
       </div>
       {actions ? (
-        <div
-          className="flex shrink-0 items-center gap-1"
-          onClick={onToggle ? (event) => event.stopPropagation() : undefined}
-        >
-          {actions}
-        </div>
+        <div className="flex shrink-0 items-center gap-1">{actions}</div>
       ) : null}
     </header>
   );

@@ -2,10 +2,11 @@
  * AnimeProvider — 动漫搜索适配器
  *
  * 包装 anime-search.ts 的 searchAnime 函数，实现 SearchProvider 接口。
- * 数据源：Bangumi（元数据）+ Nyaa.si / Mikan / AnimeTosho / showRSS（磁力）
+ * 数据源：Bangumi（元数据）+ Nyaa.si / Mikan / AnimeTosho / DMHY（磁力）
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchAnime } from '@/services/anime-search';
+import { resolveLiveSources } from '@/services/live-sources';
 
 /** Bangumi 搜索/热门 API 返回的条目 */
 interface BgmApiSubject {
@@ -21,10 +22,19 @@ export class AnimeProvider implements SearchProvider {
   readonly id = 'anime';
   readonly name = '动漫搜索';
   readonly supportedCategories = ['anime_sources'];
+  /** 响应含按用户过滤的源卡片，缓存键需按用户隔离 */
+  readonly injectsUserSources = true;
 
-  async search(keyword: string, page: number, _ctx: SearchContext): Promise<SearchResultBase> {
-    const result = await searchAnime(keyword, page);
-    return { ...result, resultType: 'anime' } as unknown as SearchResultBase;
+  async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
+    // 只为真实在跑的抓取器出卡片；用户关掉的源同时跳过其抓取
+    const { cards, skip } = await resolveLiveSources(ctx.db, {
+      categoryId: ctx.categoryId,
+      userId: ctx.user?.userId || '',
+      disabledSources: ctx.disabledSources,
+      keyword,
+    });
+    const result = await searchAnime(keyword, page, skip);
+    return { ...result, resultType: 'anime', sourceCards: cards } as unknown as SearchResultBase;
   }
 
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
@@ -81,8 +91,9 @@ export class AnimeProvider implements SearchProvider {
 
   async trending(): Promise<TrendingItem[]> {
     try {
-      // Bangumi 热门番剧 API（按收藏数排序）
-      const url = 'https://api.bgm.tv/search/subject/%E3%83%9E%E3%83%B3%E3%82%AC?responseGroup=small&type=2&limit=10&sort=collect';
+      // Bangumi v0 排行榜：type=2 动画，sort=rank 按站内排名。
+      // 旧实现拿关键词「マンガ」以 type=2 去搜，返回的是「与漫画相关的动画」，语义是错的。
+      const url = 'https://api.bgm.tv/v0/subjects?type=2&sort=rank&limit=10';
       const r = await fetch(url, {
         headers: {
           'User-Agent': 'codeseek/1.0 (https://github.com/Zoroaaa)',
@@ -91,10 +102,10 @@ export class AnimeProvider implements SearchProvider {
         signal: AbortSignal.timeout(10000),
       });
       if (!r.ok) return [];
-      const data = await r.json() as { list?: BgmApiSubject[] };
-      if (!data.list?.length) return [];
+      const data = await r.json() as { data?: BgmApiSubject[] };
+      if (!data.data?.length) return [];
 
-      return data.list.slice(0, 10).map((s: BgmApiSubject) => ({
+      return data.data.slice(0, 10).map((s: BgmApiSubject) => ({
         keyword: s.name_cn || s.name || '',
         count: s.collection?.collect || 0,
         cover: s.images?.common || '',

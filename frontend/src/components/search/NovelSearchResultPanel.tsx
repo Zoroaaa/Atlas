@@ -23,6 +23,7 @@ interface NovelEnrichedData {
   keyword: string;
   page: number;
   total: number;
+  hasMore?: boolean;
   errors: Record<string, string | null>;
   novels: NovelItem[];
 }
@@ -44,7 +45,10 @@ const NovelItemCard: React.FC<{
 }> = ({ item, isAuthenticated, isFavorited, isProxyEnabled, onToggleFavorite }) => {
   const { t } = useTranslation(['search']);
   const [descExpanded, setDescExpanded] = useState(false);
-  const link = isProxyEnabled ? convertToProxyUrl(item.detailUrl) : item.detailUrl;
+  const toLink = (url: string) => (isProxyEnabled ? convertToProxyUrl(url) : url);
+  // 源站详情与 txt 下载是两种行为：站点页用于查看，detailUrl 是文件本体
+  const siteLink = toLink(item.siteUrl || item.detailUrl);
+  const downloadLink = item.detailUrl && item.detailUrl !== item.siteUrl ? toLink(item.detailUrl) : '';
 
   const authorLine = [item.author, item.publisher, item.category].filter(Boolean).join(' · ');
 
@@ -52,7 +56,7 @@ const NovelItemCard: React.FC<{
     <MediaCard
       cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
       coverFallback={<BookOpen className="h-5 w-5" />}
-      href={link}
+      href={siteLink}
       title={item.title}
       badges={
         <>
@@ -97,16 +101,30 @@ const NovelItemCard: React.FC<{
               onClick={() => onToggleFavorite(item)}
             />
           ) : null}
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={t('search:novel.detailDownload')}
-            className="flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          <div className="flex flex-col items-stretch gap-0.5">
+            <a
+              href={siteLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t('search:novel.viewSourceHint')}
+              className="flex h-7 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              {t('search:novel.viewSource')}
+            </a>
+            {downloadLink ? (
+              <a
+                href={downloadLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t('search:novel.downloadTxtHint')}
+                className="flex h-7 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] font-medium text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+              >
+                <Download className="h-3.5 w-3.5 shrink-0" />
+                {t('search:novel.downloadTxt')}
+              </a>
+            ) : null}
+          </div>
         </>
       }
     />
@@ -119,6 +137,7 @@ interface NovelSearchResultPanelProps {
   isProxyEnabled?: boolean;
   favorites?: FavoriteRef[];
   onRefresh?: () => void;
+  onPageChange?: (page: number) => void;
   onToggleFavorite?: (item: NovelItem) => void;
   onLoginRequired?: () => void;
 }
@@ -129,6 +148,7 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   isProxyEnabled = false,
   favorites = [],
   onRefresh,
+  onPageChange,
   onToggleFavorite,
   onLoginRequired,
 }) => {
@@ -146,7 +166,7 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
   const paged = list.slice((localPage - 1) * PAGE_SIZE, localPage * PAGE_SIZE);
   const isFavorited = (id: string) => favorites.some((favorite) => favorite.url?.includes(id));
   const zxcsError = data.errors?.zxcs;
-  const xqsError = data.errors?.xqishuta;
+  const qishuError = data.errors?.qishu;
 
   return (
     <PanelSection>
@@ -174,9 +194,9 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
 
       <div className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
         {zxcsError ? <Notice tone="warning" className="mb-3">{t('search:novel.zxcsError', { error: zxcsError })}</Notice> : null}
-        {xqsError ? <Notice tone="warning" className="mb-3">{t('search:novel.qishuError', { error: xqsError })}</Notice> : null}
+        {qishuError ? <Notice tone="warning" className="mb-3">{t('search:novel.qishuError', { error: qishuError })}</Notice> : null}
 
-        {list.length === 0 && !zxcsError && !xqsError ? (
+        {list.length === 0 && !zxcsError && !qishuError ? (
           <EmptyBlock icon={<BookOpen className="h-7 w-7" />} title={t('search:novel.empty')} className="bg-transparent" />
         ) : (
           <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -200,6 +220,19 @@ export const NovelSearchResultPanel: React.FC<NovelSearchResultPanelProps> = ({
           prevLabel={t('search:novel.prevPage')}
           nextLabel={t('search:novel.nextPage')}
         />
+
+        {onPageChange && data.hasMore ? (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => onPageChange(data.page + 1)}
+              className="inline-flex h-8 items-center gap-1 rounded-lg px-3 text-[11px] text-primary-600 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/20"
+            >
+              {t('search:novel.loadMore')}
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        ) : null}
       </div>
     </PanelSection>
   );
