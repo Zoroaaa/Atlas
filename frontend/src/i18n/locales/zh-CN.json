@@ -778,6 +778,31 @@
       "emailChangeFailedDefault": "验证码错误"
     },
     "admin": {
+      "userStatusChangedEnabledTitle": "用户已启用",
+      "userStatusChangedDisabledTitle": "用户已禁用",
+      "userStatusChangeFailedTitle": "操作失败",
+      "userStatusChangeFailedMessage": "无法更新用户状态",
+      "userRoleChangedTitle": "角色已更新",
+      "userRoleChangeFailedTitle": "操作失败",
+      "userRoleChangeFailedMessage": "无法更新用户角色",
+      "loadFailedTitle": "加载失败",
+      "loadFailedMessage": "无法加载{{resource}}数据"
+    },
+    "common": {
+      "validationErrorTitle": "请填写必填字段",
+      "validationErrorMessage": "{{field}}不能为空",
+      "networkErrorTitle": "网络错误",
+      "networkErrorMessage": "请检查网络连接后重试",
+      "unknownErrorTitle": "操作失败",
+      "unknownErrorMessage": "请稍后重试",
+      "comingSoonTitle": "功能开发中",
+      "comingSoonMessage": "{{feature}}功能即将上线",
+      "loginRequiredTitle": "请先登录",
+      "loginRequiredMessage": "登录后才能使用此功能"
+    }
+  },
+
+  "admin": {
     "aliases": {
       "title": "别名管理",
       "subtitle": "跨语言查询词解析",
@@ -818,31 +843,6 @@
         "network": "Wikipedia / Wikidata"
       }
     },
-      "userStatusChangedEnabledTitle": "用户已启用",
-      "userStatusChangedDisabledTitle": "用户已禁用",
-      "userStatusChangeFailedTitle": "操作失败",
-      "userStatusChangeFailedMessage": "无法更新用户状态",
-      "userRoleChangedTitle": "角色已更新",
-      "userRoleChangeFailedTitle": "操作失败",
-      "userRoleChangeFailedMessage": "无法更新用户角色",
-      "loadFailedTitle": "加载失败",
-      "loadFailedMessage": "无法加载{{resource}}数据"
-    },
-    "common": {
-      "validationErrorTitle": "请填写必填字段",
-      "validationErrorMessage": "{{field}}不能为空",
-      "networkErrorTitle": "网络错误",
-      "networkErrorMessage": "请检查网络连接后重试",
-      "unknownErrorTitle": "操作失败",
-      "unknownErrorMessage": "请稍后重试",
-      "comingSoonTitle": "功能开发中",
-      "comingSoonMessage": "{{feature}}功能即将上线",
-      "loginRequiredTitle": "请先登录",
-      "loginRequiredMessage": "登录后才能使用此功能"
-    }
-  },
-
-  "admin": {
     "actions": {
       "login": "登录成功",
       "login_failed": "登录失败",

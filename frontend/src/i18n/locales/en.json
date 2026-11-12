@@ -778,6 +778,31 @@
       "emailChangeFailedDefault": "Incorrect verification code"
     },
     "admin": {
+      "userStatusChangedEnabledTitle": "User enabled",
+      "userStatusChangedDisabledTitle": "User disabled",
+      "userStatusChangeFailedTitle": "Operation failed",
+      "userStatusChangeFailedMessage": "Unable to update user status",
+      "userRoleChangedTitle": "Role updated",
+      "userRoleChangeFailedTitle": "Operation failed",
+      "userRoleChangeFailedMessage": "Unable to update user role",
+      "loadFailedTitle": "Load failed",
+      "loadFailedMessage": "Unable to load {{resource}} data"
+    },
+    "common": {
+      "validationErrorTitle": "Please fill in required fields",
+      "validationErrorMessage": "{{field}} cannot be empty",
+      "networkErrorTitle": "Network error",
+      "networkErrorMessage": "Please check your network connection and retry",
+      "unknownErrorTitle": "Operation failed",
+      "unknownErrorMessage": "Please try again later",
+      "comingSoonTitle": "Under development",
+      "comingSoonMessage": "{{feature}} is coming soon",
+      "loginRequiredTitle": "Please log in first",
+      "loginRequiredMessage": "This feature is available after login"
+    }
+  },
+
+  "admin": {
     "aliases": {
       "title": "Alias Management",
       "subtitle": "Cross-language query resolution",
@@ -818,31 +843,6 @@
         "network": "Wikipedia / Wikidata"
       }
     },
-      "userStatusChangedEnabledTitle": "User enabled",
-      "userStatusChangedDisabledTitle": "User disabled",
-      "userStatusChangeFailedTitle": "Operation failed",
-      "userStatusChangeFailedMessage": "Unable to update user status",
-      "userRoleChangedTitle": "Role updated",
-      "userRoleChangeFailedTitle": "Operation failed",
-      "userRoleChangeFailedMessage": "Unable to update user role",
-      "loadFailedTitle": "Load failed",
-      "loadFailedMessage": "Unable to load {{resource}} data"
-    },
-    "common": {
-      "validationErrorTitle": "Please fill in required fields",
-      "validationErrorMessage": "{{field}} cannot be empty",
-      "networkErrorTitle": "Network error",
-      "networkErrorMessage": "Please check your network connection and retry",
-      "unknownErrorTitle": "Operation failed",
-      "unknownErrorMessage": "Please try again later",
-      "comingSoonTitle": "Under development",
-      "comingSoonMessage": "{{feature}} is coming soon",
-      "loginRequiredTitle": "Please log in first",
-      "loginRequiredMessage": "This feature is available after login"
-    }
-  },
-
-  "admin": {
     "actions": {
       "login": "Login success",
       "login_failed": "Login failed",

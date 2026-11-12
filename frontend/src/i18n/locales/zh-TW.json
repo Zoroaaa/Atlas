@@ -778,6 +778,31 @@
       "emailChangeFailedDefault": "驗證碼錯誤"
     },
     "admin": {
+      "userStatusChangedEnabledTitle": "使用者已啟用",
+      "userStatusChangedDisabledTitle": "使用者已停用",
+      "userStatusChangeFailedTitle": "操作失敗",
+      "userStatusChangeFailedMessage": "無法更新使用者狀態",
+      "userRoleChangedTitle": "角色已更新",
+      "userRoleChangeFailedTitle": "操作失敗",
+      "userRoleChangeFailedMessage": "無法更新使用者角色",
+      "loadFailedTitle": "載入失敗",
+      "loadFailedMessage": "無法載入{{resource}}資料"
+    },
+    "common": {
+      "validationErrorTitle": "請填寫必填欄位",
+      "validationErrorMessage": "{{field}}不能為空",
+      "networkErrorTitle": "網路錯誤",
+      "networkErrorMessage": "請檢查網路連線後重試",
+      "unknownErrorTitle": "操作失敗",
+      "unknownErrorMessage": "請稍後重試",
+      "comingSoonTitle": "功能開發中",
+      "comingSoonMessage": "{{feature}}功能即將上線",
+      "loginRequiredTitle": "請先登入",
+      "loginRequiredMessage": "登入後才能使用此功能"
+    }
+  },
+
+  "admin": {
     "aliases": {
       "title": "別名管理",
       "subtitle": "跨語言查詢詞解析",
@@ -818,31 +843,6 @@
         "network": "Wikipedia / Wikidata"
       }
     },
-      "userStatusChangedEnabledTitle": "使用者已啟用",
-      "userStatusChangedDisabledTitle": "使用者已停用",
-      "userStatusChangeFailedTitle": "操作失敗",
-      "userStatusChangeFailedMessage": "無法更新使用者狀態",
-      "userRoleChangedTitle": "角色已更新",
-      "userRoleChangeFailedTitle": "操作失敗",
-      "userRoleChangeFailedMessage": "無法更新使用者角色",
-      "loadFailedTitle": "載入失敗",
-      "loadFailedMessage": "無法載入{{resource}}資料"
-    },
-    "common": {
-      "validationErrorTitle": "請填寫必填欄位",
-      "validationErrorMessage": "{{field}}不能為空",
-      "networkErrorTitle": "網路錯誤",
-      "networkErrorMessage": "請檢查網路連線後重試",
-      "unknownErrorTitle": "操作失敗",
-      "unknownErrorMessage": "請稍後重試",
-      "comingSoonTitle": "功能開發中",
-      "comingSoonMessage": "{{feature}}功能即將上線",
-      "loginRequiredTitle": "請先登入",
-      "loginRequiredMessage": "登入後才能使用此功能"
-    }
-  },
-
-  "admin": {
     "actions": {
       "login": "登入成功",
       "login_failed": "登入失敗",
