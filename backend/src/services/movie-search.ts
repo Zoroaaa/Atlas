@@ -323,13 +323,18 @@ export async function searchMovie(
       const batchResults = await Promise.allSettled(batch);
       tpbRes.push(...batchResults);
     }
+    let tpbFulfilled = 0;
     for (const res of tpbRes) {
       if (res.status === 'fulfilled') {
+        tpbFulfilled++;
         allTpbResults.push(...res.value);
       } else if (!tpbError) {
         tpbError = res.reason instanceof Error ? res.reason.message : String(res.reason);
       }
     }
+    // 只要有一个关键词请求成功，TPB 源就是可用的。
+    // 部分标题变体失败不应让已返回的资源上方出现「TPB 请求失败」。
+    if (tpbFulfilled > 0) tpbError = null;
     // 按 btih 去重
     const seenHashes = new Set<string>();
     allTpbResults = allTpbResults.filter(r => {
@@ -352,14 +357,18 @@ export async function searchMovie(
       return [] as ResourceItem[];
     });
     const eztvAll = await Promise.allSettled(eztvPromises);
+    let eztvFulfilled = 0;
     for (const r of eztvAll) {
       if (r.status === 'fulfilled') {
+        eztvFulfilled++;
         eztvResults.push(...r.value);
       } else if (!eztvError) {
         // 单个剧集失败只降级该剧，不拖垮整批
         eztvError = r.reason instanceof Error ? r.reason.message : String(r.reason);
       }
     }
+    // 同 TPB：部分剧集查询失败、但其他剧集成功时不报整源错误
+    if (eztvFulfilled > 0) eztvError = null;
   }
 
   // ── 合并所有资源 + 去重 + 排序 ──

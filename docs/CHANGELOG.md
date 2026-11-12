@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 ### 修复
 
 - TPB 查询词清洗：剥离 TMDB 片名中的厂牌营销前缀（`Marvel Studios' Iron Man` → `Iron Man`）、维基消歧后缀（`Up (2009 film)` → `Up`）与书名号包裹，避免按词匹配的源站返回 0 条；TMDB 别名灌入时同步清洗
+- TPB / EZTV 部分请求失败不再误报整源错误：只要有一个关键词或剧集查询成功，就保留已返回资源，不显示「请求失败」
 
 ## [v1.7.0] - 2026-11-11
 
