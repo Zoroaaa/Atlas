@@ -78,6 +78,8 @@ import { fetchWithRetry } from '@/utils/fetch';
 import { formatBytes } from '@/utils/format';
 import { classifySearchError, sanitizeError, type SearchErrorKind } from '@/utils/error';
 import { groupResourcesBySubject } from '@/utils/title-grouping';
+import { lookupQueryVariants, resolveQuery } from '@/services/alias-resolver';
+import { ingestTmdbAliases } from '@/services/alias-ingest';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -225,8 +227,24 @@ export async function searchMovie(
   page = 1,
   tmdbKey?: string,
   skip: Set<string> = new Set(),
+  options: { db?: D1Database; waitUntil?: (task: Promise<unknown>) => void } = {}
 ): Promise<MovieSearchResult> {
   const useTmdb = !!tmdbKey && !skip.has('tmdb');
+  // 本地别名表兜底：TMDB 不可用时仍能为 TPB 生成英文检索词
+  const aliasVariants = options.db
+    ? await lookupQueryVariants(options.db, keyword, 'work').catch(() => [])
+    : [];
+  const aliasEnglishTitles = aliasVariants
+    .filter(variant => variant.lang === 'en')
+    .map(variant => variant.text)
+    .filter(title => title.length > 1);
+  const hasDbAliases = aliasVariants.some(variant => variant.transform.startsWith('db:'));
+  if (options.db && !hasDbAliases && options.waitUntil) {
+    // 别名未命中时异步预热，不阻塞本次搜索；下一次同词搜索即可命中
+    options.waitUntil(
+      resolveQuery(options.db, keyword, { entityType: 'work', allowNetwork: true }).catch(() => null)
+    );
+  }
   // Phase 1: 元数据 — 中文 TMDB + 英文 TMDB（拿英文名搜 TPB）两路并行
   const [zhMetaRes, enMetaRes] = await Promise.allSettled([
     useTmdb ? searchTMDB(keyword, tmdbKey!, page, 'zh-CN').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
@@ -252,6 +270,15 @@ export async function searchMovie(
     if (item.id > 0 && item.title) idToEnglishTitle.set(item.id, item.title);
   }
 
+  // 异步灌入 TMDB 各地区片名，供后续搜索及其他源站复用
+  // 仅在别名覆盖不足时触发，避免每次搜索都额外打 TMDB
+  if (options.db && tmdbKey && options.waitUntil && results.length > 0 && !hasDbAliases) {
+    const jobs = results
+      .slice(0, 3)
+      .map(item => ingestTmdbAliases(options.db!, item.mediaType, item.id, tmdbKey));
+    options.waitUntil(Promise.allSettled(jobs));
+  }
+
   // 收集关键词：英文名 + 英文名+年份，去重
   const tpbKeywords: string[] = [];
   for (const r of results.slice(0, 8)) {
@@ -263,6 +290,10 @@ export async function searchMovie(
         tpbKeywords.push(`${en} ${r.year}`);
       }
     }
+  }
+  // 本地别名表补位：TMDB 无结果/未配置时，仍能用英文别名查询 TPB
+  for (const en of aliasEnglishTitles) {
+    if (!tpbKeywords.includes(en)) tpbKeywords.push(en);
   }
 
   // ── TPB 并发搜索（所有关键词）──

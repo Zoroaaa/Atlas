@@ -7,9 +7,17 @@
 // Env — 对应 wrangler.toml [vars] + secrets
 // 只包含 Layer 1（部署级）配置，业务配置已全部迁移至 DB
 // =====================================================================
+
+/** Workers AI 绑定的最小接口（避免依赖具体 workers-types 版本） */
+export interface WorkersAiBinding {
+  run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
+}
+
 export interface Env {
   // 基础设施绑定
   DB: D1Database;
+  /** Workers AI（可选：仅在启用别名候选生成时需要） */
+  AI?: WorkersAiBinding;
 
   // Secrets（通过 `wrangler secret put` 注入，不在 wrangler.toml 中出现）
   JWT_SECRET: string;
@@ -38,6 +46,10 @@ export interface Env {
 
   // 榜单导入密钥（GitHub Actions 调用内部导入接口）
   RANKINGS_IMPORT_SECRET?: string;
+
+  // AI 别名候选生成（旁路，默认关闭）
+  ENABLE_ALIAS_AI?: string;
+  ALIAS_AI_MODEL?: string;
 }
 
 // =====================================================================

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 新增
+
+- **跨语言查询解析**：新增 `entity_aliases` 别名表（`database/32_schema_entity_aliases.sql`），按 `alias_key` 查询同一实体的中/日/英/罗马音写法；新增 `query-normalizer`（NFKC、大小写、OpenCC、假名罗马音、拼音）与 `source-language` 源站语言能力注册表
+- **搜索源按语言挑词**：`toSourceCards` 按源站索引语言生成查询词（如 JavBus 用日文艺名、TPB 用英文小写），未收录的源保持原文透传
+- **别名灌入**：TMDB 各地区片名、Bangumi、MangaDex、Wikipedia langlinks、Wikidata labels/aliases 可写入别名表；新增管理端 `POST /api/admin/aliases/ingest`、`POST /api/admin/aliases/suggest`
+- **AI 候选旁路**：Workers AI（`@cf/meta/m2m100-1.2b`）生成候选，经 Wikidata 校验后才以 `source=ai`、`confidence=0.5` 入库；默认关闭（`ENABLE_ALIAS_AI=0`）
+
+### 变更
+
+- 影视搜索：TMDB 不可用或别名命中时，TPB 关键词可由本地别名表补充；TMDB 命中后异步灌入 alternative titles
+- 动漫 / 漫画：命中结果后异步灌入 Bangumi / MangaDex 多语言标题（仅在别名覆盖不足时触发）
+- JAV 女优：搜索前先查 person 别名表，未命中再回退人工映射表 + OpenCC
+- `SearchContext` 新增 `waitUntil`，Provider 可提交不阻塞响应的后台任务
+
 ## [v1.7.0] - 2026-11-11
 
 本次版本覆盖 v1.6.0 以来的全部变更，核心变化：JAV 搜索接入本地库优先与 JavBus 外部源回源；新增 JAV 推荐标签与标签作品；数据存储与 JAV 详情补全形成闭环；新增 PWA 与移动端底部导航；部署收敛为单一 Worker（前端静态资源同源托管）；帮助中心与文档补齐用量限速说明。

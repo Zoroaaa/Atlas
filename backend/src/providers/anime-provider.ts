@@ -7,6 +7,8 @@
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchAnime } from '@/services/anime-search';
 import { resolveLiveSources } from '@/services/live-sources';
+import { lookupQueryVariants } from '@/services/alias-resolver';
+import { ingestBangumiSubjects } from '@/services/alias-ingest';
 
 /** Bangumi 搜索/热门 API 返回的条目 */
 interface BgmApiSubject {
@@ -34,6 +36,15 @@ export class AnimeProvider implements SearchProvider {
       keyword,
     });
     const result = await searchAnime(keyword, page, skip);
+    // 别名覆盖不足时，用本次 Bangumi 结果异步补别名（不额外发请求）
+    if (ctx.waitUntil) {
+      const variants = await lookupQueryVariants(ctx.db, keyword, 'work').catch(() => []);
+      const hasDbAliases = variants.some(variant => variant.transform.startsWith('db:'));
+      const bgm = (result as { bgm?: Array<{ id: number; name: string; nameCN: string }> }).bgm ?? [];
+      if (!hasDbAliases && bgm.length > 0) {
+        ctx.waitUntil(ingestBangumiSubjects(ctx.db, bgm).catch(() => 0));
+      }
+    }
     return { ...result, resultType: 'anime', sourceCards: cards } as unknown as SearchResultBase;
   }
 

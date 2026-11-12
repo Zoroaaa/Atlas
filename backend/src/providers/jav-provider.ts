@@ -26,7 +26,7 @@ import {
   type MagnetItem,
 } from '@/services/jav-utils';
 import { fetchActresses, fetchActressWorks, type ActressProfile } from '@/services/actress-search';
-import { normalizeActressKeyword } from '@/services/actress-name-map';
+import { resolveActressKeyword, lookupQueryVariants } from '@/services/alias-resolver';
 import { getLibraryJavDetail } from '@/services/library-detail';
 import {
   listSourcesByCategory,
@@ -240,19 +240,20 @@ export class JavProvider implements SearchProvider {
   ): Promise<JavSearchResult> {
     let actresses: ActressProfile[] = [];
     let actressError: string | null = null;
+    // 先解析日文艺名：DB 别名优先，回退人工映射表 + OpenCC
+    const normalizedKeyword = await resolveActressKeyword(ctx.db, keyword);
     try {
-      actresses = await fetchActresses(keyword);
+      actresses = await fetchActresses(keyword, normalizedKeyword);
     } catch (e) {
       actressError = e instanceof Error ? e.message : String(e);
       console.error('[jav-provider] javbus actress search failed:', e);
     }
 
     // 作品列表与女优资料抓取解耦：资料源失败时仍尽量展示 JavBus 作品
-    // 关键词复用 normalizeActressKeyword 归一化结果（日文名），确保 JavBus 可命中
     let actressWorks: JavItem[] = [];
     let worksError: string | null = null;
     try {
-      actressWorks = await fetchActressWorks(keyword);
+      actressWorks = await fetchActressWorks(keyword, normalizedKeyword);
     } catch (e) {
       worksError = e instanceof Error ? e.message : String(e);
       console.error('[jav-provider] javbus actress works fetch failed:', e);
@@ -264,7 +265,7 @@ export class JavProvider implements SearchProvider {
       resultType: 'jav',
       keyword,
       // 归一化后的日文名：供前端「JavBus 女优搜索」链接使用（原文搜不到含假名女优）
-      normalizedKeyword: normalizeActressKeyword(keyword),
+      normalizedKeyword,
       page,
       total: results.length,
       errors: { search: actressError, works: worksError },
@@ -284,7 +285,15 @@ export class JavProvider implements SearchProvider {
       categoryId: ctx.categoryId,
       userId: ctx.user?.userId || '',
     });
-    return toSourceCards(filterEnabledSources(sources, ctx.disabledSources ?? null), keyword);
+    // 人物子模式优先用 person 别名，其余按作品名处理
+    const entityType = ctx.subMode === 'actress' ? 'person' : 'work';
+    const variants = await lookupQueryVariants(ctx.db, keyword, entityType).catch(() => undefined);
+    return toSourceCards(
+      ctx.db,
+      filterEnabledSources(sources, ctx.disabledSources ?? null),
+      keyword,
+      { variants, entityType }
+    );
   }
 
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {

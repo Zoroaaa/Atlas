@@ -171,7 +171,8 @@
         "config": "System Config",
         "cleanup": "Data Cleanup",
         "feedback": "User Feedback",
-        "announcements": "Announcements"
+        "announcements": "Announcements",
+    "aliases": "Alias Management"
       }
     },
     "dashboard": {
@@ -777,6 +778,46 @@
       "emailChangeFailedDefault": "Incorrect verification code"
     },
     "admin": {
+    "aliases": {
+      "title": "Alias Management",
+      "subtitle": "Cross-language query resolution",
+      "introTitle": "What this page solves",
+      "intro": "Each site indexes a different language: JavBus indexes Japanese performer names, TPB indexes English release names, and MangaDex indexes multilingual altTitles. A user usually has only one spelling, so sending it verbatim often returns nothing. This page stores the same entity under multiple languages in entity_aliases, and search picks the right term per source.",
+      "stepsTitle": "Resolution pipeline",
+      "step1": "L1 deterministic normalization — NFKC, case, Simplified/Traditional, Japanese shinjitai, kana/romaji, pinyin",
+      "step2": "L2 entity alias resolution — local entity_aliases → Wikipedia / Wikidata → deterministic fallback",
+      "step3": "L3 per-source query term — registered sources pick by index language; others keep the original",
+      "step4": "AI sidecar — candidates must be verified by Wikidata before writing; disabled by default",
+      "sourceTitle": "Alias sources",
+      "sources": "TMDB alternative titles / Bangumi / MangaDex altTitles / Wikipedia langlinks / Wikidata / manual map",
+      "note": "The first search may still use the original term; after async ingestion, the next search with the same term will hit.",
+      "keywordLabel": "Title / person name",
+      "placeholder": "e.g. The Shawshank Redemption, Yua Mikami",
+      "ingest": "Ingest aliases",
+      "ingesting": "Ingesting...",
+      "suggest": "AI candidates (opt-in)",
+      "suggesting": "Generating...",
+      "resultTitle": "Result",
+      "written": "Rows written",
+      "from": "Resolved from",
+      "canonical": "Matched entities",
+      "variants": "Available variants",
+    "lang": "Lang",
+    "variant": "Variant",
+    "source": "Source",
+    "confidence": "Confidence",
+      "emptyVariants": "No variants resolved",
+      "failed": "Request failed, please retry",
+      "needKeyword": "Enter a keyword",
+      "aiOff": "AI candidates are disabled (Workers AI required)",
+      "quickHint": "Enter a title or name, then ingest to inspect the resolution source and language variants.",
+      "statusWritten": "Wrote {{count}} aliases",
+      "fromMap": {
+        "deterministic": "Deterministic",
+        "database": "Local alias table",
+        "network": "Wikipedia / Wikidata"
+      }
+    },
       "userStatusChangedEnabledTitle": "User enabled",
       "userStatusChangedDisabledTitle": "User disabled",
       "userStatusChangeFailedTitle": "Operation failed",

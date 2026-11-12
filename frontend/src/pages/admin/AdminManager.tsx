@@ -15,8 +15,9 @@ import { AnnouncementTab } from './AnnouncementTab';
 import { ObservabilityTab } from './ObservabilityTab';
 import { DataStorageTab } from './DataStorageTab';
 import { ActivityRankingTab } from './ActivityRankingTab';
+import { AliasTab } from './AliasTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage';
+type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage' | 'aliases';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
@@ -36,6 +37,7 @@ export const AdminManager: React.FC = () => {
     if (p.includes('/cleanup')) return 'cleanup';
     if (p.includes('/feedback')) return 'feedback';
     if (p.includes('/announcements')) return 'announcements';
+    if (p.includes('/aliases')) return 'aliases';
     if (p.includes('/data-storage')) return 'data-storage';
     return 'users';
   }, [location.pathname]);
@@ -60,6 +62,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'feedback' && <FeedbackTab />}
       {activeTab === 'announcements' && <AnnouncementTab />}
       {activeTab === 'data-storage' && <DataStorageTab />}
+      {activeTab === 'aliases' && <AliasTab />}
     </div>
   );
 };

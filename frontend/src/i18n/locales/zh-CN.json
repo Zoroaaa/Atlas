@@ -171,7 +171,8 @@
         "config": "系统配置",
         "cleanup": "数据清理",
         "feedback": "用户反馈",
-        "announcements": "网站公告"
+        "announcements": "网站公告",
+    "aliases": "别名管理"
       }
     },
     "dashboard": {
@@ -777,6 +778,46 @@
       "emailChangeFailedDefault": "验证码错误"
     },
     "admin": {
+    "aliases": {
+      "title": "别名管理",
+      "subtitle": "跨语言查询词解析",
+      "introTitle": "这个页面解决什么",
+      "intro": "不同网站按不同语言建立搜索索引：JavBus 用日文艺名，TPB 用英文发布名，MangaDex 用多语言 altTitles。用户通常只有一种写法，原文直接发过去往往搜不到。这里把同一实体的多语言写法沉淀到 entity_aliases 表，搜索时再按源站索引语言挑词。",
+      "stepsTitle": "解析链路",
+      "step1": "L1 确定性归一化：NFKC、大小写、简繁、日文新字体、假名罗马音、拼音",
+      "step2": "L2 实体别名解析：本地 entity_aliases → Wikipedia / Wikidata → 确定性变体兜底",
+      "step3": "L3 按源生成查询词：已登记源按索引语言挑词，未登记源保持原文",
+      "step4": "AI 旁路：候选必须经 Wikidata 校验才入库，默认关闭",
+      "sourceTitle": "别名来源",
+      "sources": "TMDB alternative titles / Bangumi / MangaDex altTitles / Wikipedia langlinks / Wikidata / 人工映射表",
+      "note": "首次搜索可能仍用原文；异步灌入完成后，下一次同词搜索会命中。",
+      "keywordLabel": "作品名 / 人物名",
+      "placeholder": "例如：肖申克的救赎、深田咏美",
+      "ingest": "灌入别名",
+      "ingesting": "灌入中...",
+      "suggest": "AI 候选（需开启）",
+      "suggesting": "生成中...",
+      "resultTitle": "本次结果",
+      "written": "写入条数",
+      "from": "解析来源",
+      "canonical": "命中的实体",
+      "variants": "可用变体",
+    "lang": "语言",
+    "variant": "变体",
+    "source": "来源",
+    "confidence": "置信度",
+      "emptyVariants": "未解析出变体",
+      "failed": "操作失败，请稍后重试",
+      "needKeyword": "请输入关键词",
+      "aiOff": "AI 候选未开启（需配置 Workers AI）",
+      "quickHint": "输入一个中文名，灌入后查看解析来源与各语言变体。",
+      "statusWritten": "已写入 {{count}} 条别名",
+      "fromMap": {
+        "deterministic": "确定性变体",
+        "database": "本地别名表",
+        "network": "Wikipedia / Wikidata"
+      }
+    },
       "userStatusChangedEnabledTitle": "用户已启用",
       "userStatusChangedDisabledTitle": "用户已禁用",
       "userStatusChangeFailedTitle": "操作失败",

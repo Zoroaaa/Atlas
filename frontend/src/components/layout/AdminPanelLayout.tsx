@@ -26,6 +26,7 @@ import {
   Database,
   Trophy,
   Mail,
+  Languages,
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
@@ -50,6 +51,7 @@ const navItems: NavItem[] = [
   { id: 'trends', label: 'nav:adminPanel.items.trends', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
   { id: 'activity-ranking', label: 'nav:adminPanel.items.activityRanking', icon: <Trophy className="w-[18px] h-[18px]" />, path: '/admin-panel/activity-ranking' },
   { id: 'data-storage', label: 'nav:adminPanel.items.dataStorage', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
+  { id: 'aliases', label: 'nav:adminPanel.items.aliases', icon: <Languages className="w-[18px] h-[18px]" />, path: '/admin-panel/aliases' },
   { id: 'reports', label: 'nav:adminPanel.items.reports', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
   { id: 'roles', label: 'nav:adminPanel.items.roles', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },
   { id: 'config', label: 'nav:adminPanel.items.config', icon: <Settings className="w-[18px] h-[18px]" />, path: '/admin-panel/config' },

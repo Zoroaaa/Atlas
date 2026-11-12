@@ -1,5 +1,6 @@
 export { AdminManager } from './AdminManager';
 export { AdminPanelOverview } from './AdminPanelOverview';
+export { AliasTab } from './AliasTab';
 export { UsersTab } from './UsersTab';
 export { SessionsTab } from './SessionsTab';
 export { ActionsTab } from './ActionsTab';
