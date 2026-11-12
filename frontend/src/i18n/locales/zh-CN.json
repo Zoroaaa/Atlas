@@ -3052,6 +3052,29 @@
       "reqAccountAge": "注册",
       "reqActiveDays": "活跃",
       "reqTotalSearches": "累计搜索"
+    },
+    "libraryDetail": {
+      "title": "本地存档详情",
+      "type": {
+        "jav": "JAV",
+        "anime": "动漫",
+        "movie": "影视",
+        "manga": "漫画",
+        "novel": "小说"
+      },
+      "loading": "正在读取本地存档…",
+      "notFoundTitle": "暂无本地存档",
+      "notFoundHint": "该条目在本地库中没有对应记录，可点击下方按钮重新搜索查看。",
+      "searchAgain": "去搜索",
+      "loadFailedTitle": "读取本地存档失败",
+      "loadFailedHint": "请稍后重试；如果一直失败，可以重新搜索该条目。",
+      "copyMagnet": "复制磁力链接",
+      "openDetail": "查看详情页",
+      "studio": "制作公司",
+      "resources": "下载资源",
+      "noResources": "本地库暂无下载资源",
+      "releaseDate": "发行时间",
+      "description": "简介"
     }
   },
   "follow": {

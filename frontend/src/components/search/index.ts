@@ -1,6 +1,8 @@
 export { FavoritesPanel } from './FavoritesPanel';
 export { QuickActionsPanel } from './QuickActionsPanel';
 export { SearchHistoryPanel } from './SearchHistoryPanel';
+export { LibraryDetailModal } from './LibraryDetailModal';
+export type { LibraryDetailTarget } from './LibraryDetailModal';
 export { SearchResultsPanel } from './SearchResultsPanel';
 export { SearchDock } from './SearchDock';
 export { SearchWorkspace } from './SearchWorkspace';

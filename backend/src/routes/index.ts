@@ -9,6 +9,7 @@ export { searchRoutes } from './search';
 export { adminRoutes } from './admin';
 export { configRoutes } from './config';
 export { javRoutes } from './jav';
+export { libraryRoutes } from './library';
 export { dataStorageRoutes } from './data-storage';
 export { recommendRoutes } from './recommend';
 export { rankingsRoutes } from './rankings';

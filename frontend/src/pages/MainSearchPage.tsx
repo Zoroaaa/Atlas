@@ -11,9 +11,12 @@ import {
   SearchWorkspace,
   SearchHistoryPanel,
   FavoritesPanel,
+  LibraryDetailModal,
   SourceBoard,
   QuickActionsPanel,
 } from '@/components/search';
+import type { LibraryDetailTarget } from '@/components/search';
+import type { LibraryRecordType } from '@/services/api/library';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
@@ -89,6 +92,16 @@ export const MainSearchPage: React.FC = () => {
   // ── UI-only state ──
   const [showHistory, setShowHistory] = useState(true);
   const [showFavorites, setShowFavorites] = useState(true);
+  // 历史/收藏点击后展示的本地库详情卡片
+  const [libraryDetail, setLibraryDetail] = useState<LibraryDetailTarget | null>(null);
+
+  // 本地库查不到时，用户主动「去搜索」：走 URL 深链，由上面的 effect 完成切 Tab + 搜索
+  const handleLibrarySearch = useCallback((keyword: string, type?: LibraryRecordType) => {
+    const tab = type && TAB_IDS.includes(type as SearchTabType) ? (type as SearchTabType) : activeTab;
+    const params: Record<string, string> = { tab, q: keyword };
+    if (tab === 'jav') params.sub = javSubMode;
+    navigate(`/main?${new URLSearchParams(params).toString()}`);
+  }, [activeTab, javSubMode, navigate]);
 
   // 搜索结束后刷新配额展示（isSearching 由 true 落回 false 视为一次搜索完成）
   const [quotaRefreshKey, setQuotaRefreshKey] = useState(0);
@@ -303,7 +316,11 @@ export const MainSearchPage: React.FC = () => {
                       isLoading={historyManager.isLoadingHistory}
                       show={showHistory}
                       onToggle={() => setShowHistory((value) => !value)}
-                      onItemClick={(query) => searchFlow.setKeyword(query)}
+                      onItemSelect={(item) => setLibraryDetail({
+                        type: item.source,
+                        code: item.code,
+                        title: item.title || item.query,
+                      })}
                       onClear={historyManager.handleClearHistory}
                       onDeleteSelected={historyManager.handleDeleteSelected}
                     />
@@ -320,6 +337,11 @@ export const MainSearchPage: React.FC = () => {
                       isProxyEnabled={isProxyEnabled}
                       onToggle={() => setShowFavorites((value) => !value)}
                       onRemove={favoritesManager.handleRemoveFavorite}
+                      onItemSelect={(item) => setLibraryDetail({
+                        code: item.code,
+                        url: item.url,
+                        title: item.title,
+                      })}
                       onExport={favoritesManager.handleExportFavorites}
                       onUpdate={() => favoritesManager.refetchFavorites()}
                     />
@@ -333,6 +355,12 @@ export const MainSearchPage: React.FC = () => {
       </main>
 
       <FeedbackButton />
+
+      <LibraryDetailModal
+        target={libraryDetail}
+        onClose={() => setLibraryDetail(null)}
+        onSearch={handleLibrarySearch}
+      />
     </div>
   );
 };
