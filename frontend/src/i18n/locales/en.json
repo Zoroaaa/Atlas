@@ -3052,6 +3052,29 @@
       "reqAccountAge": "account age",
       "reqActiveDays": "active days",
       "reqTotalSearches": "total searches"
+    },
+    "libraryDetail": {
+      "title": "Local Archive Detail",
+      "type": {
+        "jav": "JAV",
+        "anime": "Anime",
+        "movie": "Movie",
+        "manga": "Manga",
+        "novel": "Novel"
+      },
+      "loading": "Reading local archive…",
+      "notFoundTitle": "No local archive yet",
+      "notFoundHint": "This item has no matching record in the local library. Use the button below to search again.",
+      "searchAgain": "Search",
+      "loadFailedTitle": "Failed to read local archive",
+      "loadFailedHint": "Please try again later, or search this item again.",
+      "copyMagnet": "Copy magnet link",
+      "openDetail": "Open detail page",
+      "studio": "Studio",
+      "resources": "Download resources",
+      "noResources": "No download resources in the local library",
+      "releaseDate": "Release date",
+      "description": "Description"
     }
   },
   "follow": {

@@ -46,13 +46,13 @@ interface SearchHistoryPanelProps {
   isLoading: boolean;
   show: boolean;
   onToggle: () => void;
-  onItemClick: (query: string) => void;
+  onItemSelect: (item: SearchHistoryItem) => void;
   onClear: () => void;
   onDeleteSelected?: (ids: string[]) => void;
 }
 
 export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
-  history, total, page, totalPages, onPageChange, isLoading, show, onToggle, onItemClick, onClear, onDeleteSelected,
+  history, total, page, totalPages, onPageChange, isLoading, show, onToggle, onItemSelect, onClear, onDeleteSelected,
 }) => {
   const { t } = useTranslation(['search']);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -178,7 +178,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => onItemClick(item.query)}
+                            onClick={() => onItemSelect(item)}
                             className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                           >
                             {item.cover ? (

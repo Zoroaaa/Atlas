@@ -35,12 +35,13 @@ interface FavoritesPanelProps {
   isProxyEnabled: boolean;
   onToggle: () => void;
   onRemove: (id: string) => void;
+  onItemSelect: (item: FavoriteItem) => void;
   onExport: () => void;
   onUpdate: () => void;
 }
 
 export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
-  favorites, total, page, totalPages, onPageChange, isLoading, show, isProxyEnabled, onToggle, onRemove, onExport, onUpdate,
+  favorites, total, page, totalPages, onPageChange, isLoading, show, isProxyEnabled, onToggle, onRemove, onItemSelect, onExport, onUpdate,
 }) => {
   const { t } = useTranslation(['search']);
   const toast = useToast();
@@ -108,6 +109,18 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                   : null;
                 return (
                   <div key={item.id} className="flex items-center gap-2.5 py-2.5">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onItemSelect(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onItemSelect(item);
+                        }
+                      }}
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/40"
+                    >
                     {cover ? (
                       <ProxyImage
                         src={cover}
@@ -136,7 +149,10 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                         {item.status ? (
                           <button
                             type="button"
-                            onClick={() => !updatingStatus && handleStatusChange(item.id, item.status!)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!updatingStatus) handleStatusChange(item.id, item.status!);
+                            }}
                             disabled={updatingStatus === item.id}
                             className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 font-medium text-primary-600 transition-opacity hover:opacity-80 disabled:opacity-50 dark:text-primary-300"
                             title={t('search:favorites.toggleTo', { status: getStatusText(item.status === 'want' ? 'watched' : 'want') })}
@@ -173,6 +189,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                           ))}
                         </div>
                       ) : null}
+                    </div>
                     </div>
 
                     <div className="flex shrink-0 flex-col items-center gap-0.5">
