@@ -1,11 +1,13 @@
 /**
  * 小说搜索服务
  * NovelItem 抓取源:
- *   1. 知轩藏书 (https://zxcs.zip) — 精校版全本，明文搜索 + 直链下载，置顶展示
- *   2. 奇书网 (http://www.xqishuta.org) — 搜索第一本书，抓取详情页 txt 下载链接
+ *   知轩藏书 (https://zxcs.zip) — 精校版全本，明文搜索 + 直链下载
+ *
+ * 奇书网 (xqishuta.org) 已于 2026-11 下线：源站仅收 HTTPS，且 HTTPS 握手失败、
+ *   Cloudflare 返回 522（源站不可达），无法产出数据，故移除抓取实现。
  *
  * 跳转卡片源（SearchResultsPanel）：由 search.ts 路由从数据库 search_sources 表注入，
- *   含 Z-Library / Anna's Archive / 知轩藏书 / 奇书网 / SoBooks / Lunarora / PDFs.top / 读书派等。
+ *   含 Z-Library / Anna's Archive / 知轩藏书 / SoBooks / Lunarora / PDFs.top / 读书派等。
  *   Anna's Archive 因人机验证不再做 NovelItem 抓取，仅保留跳转卡片。
  *
  * ⚠️ 类型契约：本文件导出的接口（NovelItem, NovelSearchResult）
@@ -13,15 +15,21 @@
  */
 
 import { fetchWithRetry } from '@/utils/fetch';
-import { sanitizeError } from '@/utils/error';
+import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
+import { decodeGbk, encodeGbkQuery } from '@/utils/gbk';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
 /** 知轩藏书域名 */
 const ZXCS_DOMAIN = 'zxcs.zip';
 
-/** 奇书网域名 */
-const XQS_DOMAIN = 'www.xqishuta.org';
+/**
+ * 奇书网（qishuxia.com）
+ * - 全站 GBK 编码，搜索表单是 POST /modules/article/search.php?searchkey=<GBK 百分号编码>
+ * - 首次访问返回 403 + Set-Cookie 反爬门，带 cookie 重放即 200
+ * - TXT 直链：/modules/article/txtarticle.php?id={bookId}（实测 text/plain + attachment）
+ */
+const QSX_ORIGIN = 'https://www.qishuxia.com';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 const FETCH_HEADERS = {
@@ -30,16 +38,16 @@ const FETCH_HEADERS = {
   'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
 } as Record<string, string>;
 
-/** 奇书网请求头（加 Referer 防盗链） */
-const XQS_HEADERS = {
-  ...FETCH_HEADERS,
-  'Referer': `http://${XQS_DOMAIN}/`,
-} as Record<string, string>;
-
 /** 知轩藏书请求头（加 Referer 防盗链） */
 const ZXCS_HEADERS = {
   ...FETCH_HEADERS,
   'Referer': `https://${ZXCS_DOMAIN}/`,
+} as Record<string, string>;
+
+/** 奇书网请求头（Referer 防盗链） */
+const QSX_HEADERS = {
+  ...FETCH_HEADERS,
+  'Referer': `${QSX_ORIGIN}/`,
 } as Record<string, string>;
 
 /** 单次请求超时（ms） */
@@ -74,6 +82,8 @@ export interface NovelItem {
   source: string;
   /** 详情页/下载页 URL */
   detailUrl: string;
+  /** 源站书籍详情页（与 detailUrl 的 txt 直链区分） */
+  siteUrl?: string;
 }
 
 export interface NovelSearchResult {
@@ -81,7 +91,11 @@ export interface NovelSearchResult {
   keyword: string;
   page: number;
   total: number;
+  /** 是否还有下一页（前端「加载更多」依据） */
+  hasMore?: boolean;
   errors: Record<string, string | null>;
+  /** 按源的失败语义（与动漫/漫画/影视对齐） */
+  errorKinds?: Record<string, SearchErrorKind>;
   novels: NovelItem[];
   /** 多源跳转卡片（由 search.ts 路由从数据库注入，与 JAV 的 results 机制一致） */
   results?: Array<{
@@ -117,6 +131,49 @@ function firstMatch(html: string, re: RegExp): string {
   return m ? decodeEntities(m[1].trim()) : '';
 }
 
+/** 每源每页最多解析的书数（详情页需逐本抓取，不能无限放大请求） */
+const NOVEL_PAGE_SIZE = 10;
+/** 详情页抓取并发上限 */
+const DETAIL_CONCURRENCY = 3;
+
+/** 带超时的 HTML 请求：搜索页/详情页共用，避免每处重复写 AbortController */
+async function fetchHtml(url: string, headers: Record<string, string>): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  try {
+    return await fetchWithRetry(url, { headers, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/** 有限并发 map：保持结果顺序，单条失败不应拖垮整批 */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+interface NovelSourceResult {
+  items: NovelItem[];
+  error: string | null;
+  /** 失败语义（脱敏文案随之返回，前端按 kind 区分提示） */
+  errorKind?: SearchErrorKind;
+  /** 搜索结果里是否还有下一页 */
+  hasMore: boolean;
+}
+
 // ─── 知轩藏书 (zxcs.zip) ───────────────────────────────────────────────
 
 /**
@@ -128,19 +185,23 @@ function firstMatch(html: string, re: RegExp): string {
  * 与可乐小说不同：zxcs 是明文 HTML + 直链下载，无 AES 加密、无字体反混淆。
  */
 
-/** 从搜索页 HTML 提取第一本书 */
-function parseZxcsSearchResult(html: string): { title: string; bookUrl: string } | null {
+/** 从搜索页 HTML 提取全部书籍（保持页面顺序，按 URL 去重） */
+function parseZxcsSearchResults(html: string): Array<{ title: string; bookUrl: string }> {
   // Angular SSR 结构：<a href="/book/675.html" target="_self" ...><div class="tile-wrapper">...
   //   <span _ngcontent-wfr-c36="" class="link ng-tns-c36-0">《仙逆》...</span>
   // 注意：Angular 会给标签追加 _ngcontent 属性和 class 组件 ID 后缀，需用 `[^>]*` 和 `[^"]*` 兼容
-  const match = html.match(
-    /href="(\/book\/\d+\.html)"\s+target="_self"[^>]*>[\s\S]*?<span[^>]*class="link[^"]*">([\s\S]*?)<\/span>/,
-  );
-  if (!match) return null;
-  return {
-    bookUrl: match[1],
-    title: decodeEntities(match[2].trim()),
-  };
+  const re = /href="(\/book\/\d+\.html)"\s+target="_self"[^>]*>[\s\S]*?<span[^>]*class="link[^"]*">([\s\S]*?)<\/span>/g;
+  const results: Array<{ title: string; bookUrl: string }> = [];
+  const seen = new Set<string>();
+  for (const match of html.matchAll(re)) {
+    if (seen.has(match[1])) continue;
+    seen.add(match[1]);
+    results.push({
+      bookUrl: match[1],
+      title: decodeEntities(match[2].trim()),
+    });
+  }
+  return results;
 }
 
 /** 从详情页 HTML 提取书籍详情和 txt 下载直链 */
@@ -203,196 +264,241 @@ function parseZxcsDetailPage(
     category: [category, status, proofread].filter(Boolean).join(' / ') || tags,
     source: '知轩藏书',
     detailUrl: downloadUrl,
+    siteUrl: `https://${ZXCS_DOMAIN}${searchResult.bookUrl}`,
   };
 }
 
-/** 知轩藏书搜索：抓取第一本书 + 详情页 txt 下载直链 */
-async function searchZxcsNovel(keyword: string): Promise<{ item: NovelItem | null; error: string | null }> {
+/** 知轩藏书搜索：站点按 &page=N 分页，每页最多抓 NOVEL_PAGE_SIZE 本详情 */
+async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSourceResult> {
   try {
-    // 1. 抓取搜索页
-    const searchUrl = `https://${ZXCS_DOMAIN}/search?q=${encodeURIComponent(keyword)}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-    const r = await fetchWithRetry(searchUrl, { headers: ZXCS_HEADERS, signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!r.ok) return { item: null, error: `HTTP ${r.status}` };
+    // 1. 抓取搜索页（实测：&page=N 生效，第 1/2/3 页结果不同）
+    const searchUrl = `https://${ZXCS_DOMAIN}/search?q=${encodeURIComponent(keyword)}&page=${page}`;
+    const r = await fetchHtml(searchUrl, ZXCS_HEADERS);
+    if (!r.ok) return { items: [], error: sanitizeError(`zxcs_http_${r.status}`), errorKind: classifySearchError(`zxcs_http_${r.status}`) ?? undefined, hasMore: false };
     const searchHtml = await r.text();
 
-    // 2. 解析第一本书
-    const firstResult = parseZxcsSearchResult(searchHtml);
-    if (!firstResult) return { item: null, error: null }; // 无搜索结果不算错误
+    // 2. 解析当前页书目（站点每页固定 10 条）
+    const all = parseZxcsSearchResults(searchHtml);
+    if (!all.length) return { items: [], error: null, hasMore: false };
+    const slice = all.slice(0, NOVEL_PAGE_SIZE);
+    const hasMore = all.length >= NOVEL_PAGE_SIZE;
 
-    // 3. 抓取详情页
-    const detailUrl = `https://${ZXCS_DOMAIN}${firstResult.bookUrl}`;
-    const detailController = new AbortController();
-    const detailTimeoutId = setTimeout(() => detailController.abort(), FETCH_TIMEOUT);
-    const dr = await fetchWithRetry(detailUrl, { headers: ZXCS_HEADERS, signal: detailController.signal });
-    clearTimeout(detailTimeoutId);
-    if (!dr.ok) return { item: null, error: `详情页 HTTP ${dr.status}` };
-    const detailHtml = await dr.text();
+    // 3. 有限并发抓详情页；单本失败只丢该本
+    const items = await mapWithConcurrency(slice, DETAIL_CONCURRENCY, async (entry) => {
+      try {
+        const dr = await fetchHtml(`https://${ZXCS_DOMAIN}${entry.bookUrl}`, ZXCS_HEADERS);
+        if (!dr.ok) return null;
+        return parseZxcsDetailPage(await dr.text(), entry);
+      } catch {
+        return null;
+      }
+    });
 
-    // 4. 解析详情页
-    const item = parseZxcsDetailPage(detailHtml, firstResult);
-    return { item, error: item ? null : '未找到 txt 下载链接' };
+    const found = items.filter((item): item is NovelItem => item !== null);
+    return {
+      items: found,
+      error: found.length ? null : '详情页解析失败',
+      errorKind: found.length ? undefined : 'PARSE_FAILED',
+      hasMore,
+    };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'unknown';
-    console.error('[novel-search] zxcs error:', sanitizeError(errorMessage));
-    return { item: null, error: errorMessage };
+    console.error('[novel-search] zxcs error:', errorMessage);
+    return {
+      items: [],
+      error: sanitizeError(errorMessage),
+      errorKind: classifySearchError(errorMessage) ?? 'SOURCE_UNAVAILABLE',
+      hasMore: false,
+    };
   }
 }
 
-// ─── 奇书网 (xqishuta.org) ─────────────────────────────────────────────
+// ─── 奇书网 (qishuxia.com) ─────────────────────────────────────────────
 
-/**
- * 奇书网搜索流程：
- *   1. 抓取搜索页 → 解析第一本书的书名/作者/详情页URL
- *   2. 抓取详情页 → 提取 txt 下载链接、封面、简介、文件大小等
- *
- * 详情页 txt 下载链接在 script 标签内：
- *   get_down_url('/ShtmlXXXX.html','http://dzs.xqishuta.org/XX/XXXX/书名.txt','书名')
- */
-
-/** 从搜索页 HTML 提取第一本书 */
-function parseXqishutaSearchResult(html: string): { title: string; author: string; bookUrl: string } | null {
-  const match = html.match(
-    /<td class="even"><a href="(\/Shtml\d+\.html)">([\s\S]*?)<\/a><\/td>\s*<td class="odd">([\s\S]*?)<\/td>/,
-  );
-  if (!match) return null;
-  return {
-    bookUrl: match[1],
-    title: decodeEntities(stripTags(match[2]).trim()),
-    author: decodeEntities(stripTags(match[3]).trim()),
-  };
+interface QsxSearchRow {
+  bookUrl: string;
+  bookId: string;
+  title: string;
+  category: string;
+  author: string;
 }
 
-/** 从详情页 HTML 提取书籍详情和 txt 下载链接 */
-function parseXqishutaDetailPage(
-  html: string,
-  searchResult: { title: string; author: string; bookUrl: string },
-): NovelItem | null {
-  // 书籍 ID
-  const idMatch = searchResult.bookUrl.match(/\/Shtml(\d+)\.html/);
-  const bookId = idMatch ? idMatch[1] : '';
+/** GBK 页面请求：处理「403 + Set-Cookie」反爬门，第二次带 cookie 重放 */
+async function fetchGbkHtml(url: string, init: RequestInit = {}): Promise<string> {
+  let cookie = '';
+  let lastStatus = 0;
 
-  // txt 下载链接（script 内 get_down_url 第二个参数）
-  const downloadMatch = html.match(/get_down_url\([^,]+,'([^']+)'/);
-  const downloadUrl = downloadMatch ? downloadMatch[1] : '';
-  if (!downloadUrl) return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    try {
+      const r = await fetchWithRetry(url, {
+        ...init,
+        headers: {
+          ...QSX_HEADERS,
+          ...(init.headers as Record<string, string> || {}),
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        signal: controller.signal,
+      });
+      lastStatus = r.status;
 
-  // 封面
-  const coverMatch = html.match(/<div class="detail_pic"><img src="([^"]+)"/);
-  const cover = coverMatch ? `http://${XQS_DOMAIN}${coverMatch[1]}` : '';
+      const setCookie = r.headers.get('set-cookie') || '';
+      const html = decodeGbk(new Uint8Array(await r.arrayBuffer()));
 
-  // 文件大小
-  const sizeMatch = html.match(/文件大小：([\s\S]*?)<\/li>/);
-  const size = sizeMatch ? stripTags(sizeMatch[1]).trim() : '';
+      if (r.ok && html.length > 500) return html;
+      if (setCookie) {
+        cookie = setCookie.split(';')[0].trim();
+        continue; // 带上反爬 cookie 重放一次
+      }
+      if (r.ok) throw new Error('qishu_empty_page');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 
-  // 书籍类型（格式）
-  const typeMatch = html.match(/书籍类型：([\s\S]*?)<\/li>/);
-  const format = typeMatch ? stripTags(typeMatch[1]).trim() : 'TXT';
+  throw new Error(`qishu_blocked: cookie challenge (last status ${lastStatus})`);
+}
 
-  // 更新年份
-  const dateMatch = html.match(/更新日期：(\d{4})-/);
-  const year = dateMatch ? dateMatch[1] : '';
+/** 搜索页解析：每行是 li > s1 分类 / s2 书名链接 / s3 最新章节 / s4 作者 / s5 更新时间 */
+function parseQsxSearchResults(html: string): QsxSearchRow[] {
+  const rows: QsxSearchRow[] = [];
+  const seen = new Set<string>();
+  const liRe = /<li>\s*<span class="s1">([\s\S]*?)<\/span>\s*<span class="s2"><a href="([^"]+)"[^>]*>([\s\S]*?)<\/a><\/span>[\s\S]*?<span class="s4">([\s\S]*?)<\/span>/gi;
 
-  // 连载状态
-  const statusMatch = html.match(/连载状态：([\s\S]*?)<\/li>/);
-  const category = statusMatch ? stripTags(statusMatch[1]).trim() : '';
+  for (const m of html.matchAll(liRe)) {
+    const bookUrl = m[2].trim();
+    const idMatch = bookUrl.match(/\/book\/(\d+)\/?/);
+    if (!idMatch) continue;
+    if (seen.has(idMatch[1])) continue;
+    seen.add(idMatch[1]);
+    rows.push({
+      bookUrl,
+      bookId: idMatch[1],
+      title: decodeEntities(stripTags(m[3])).trim(),
+      category: decodeEntities(stripTags(m[1])).replace(/[[\]]/g, '').trim(),
+      author: decodeEntities(stripTags(m[4])).trim(),
+    });
+  }
 
-  // 简介（showInfo 内第一个 <p>）
-  const descMatch = html.match(/<div class="showInfo">\s*<p>([\s\S]*?)<\/p>/);
-  const description = descMatch
-    ? decodeEntities(stripTags(descMatch[1].replace(/&mdash;/g, '—'))).trim()
-    : '';
+  return rows;
+}
+
+function parseQsxDetailPage(html: string, row: QsxSearchRow): NovelItem {
+  const title = firstMatch(html, /<div class="info">[\s\S]*?<h1>([^<]+)<\/h1>/i) || row.title;
+  const author = firstMatch(html, /作者：([^<]+)<\/p>/i) || row.author;
+  const category = firstMatch(html, /类别：([^<]+)<\/p>/i) || row.category;
+  const status = firstMatch(html, /状态：([^<]+)<\/p>/i);
+  const lastUpdate = firstMatch(html, /最后更新：([^<]+)<\/p>/i);
+
+  // 简介：优先 .desc 正文（真实简介），退化到 meta description（SEO 文案）
+  const blockDesc = firstMatch(html, /<div class="desc[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+  const metaDesc = firstMatch(html, /<meta name="Description" content="([^"]*)"/i);
+  const description = stripTags(blockDesc).replace(/^关于[^：]*：/, '').trim() || metaDesc;
+
+  const cover = firstMatch(html, /<div class="info">[\s\S]*?<img[^>]+src="([^"]+)"/i)
+    || `https://www.qishuxia.com/files/article/image/${row.bookId.slice(0, -3) || '0'}/${row.bookId}/${row.bookId}s.jpg`;
+
+  // 书籍页没有总章节数（章节列表异步加载），不编造 size
+  const size = '';
+
+  // TXT 直链实测：/modules/article/txtarticle.php?id=9000 → text/plain + attachment
+  const dlRel = firstMatch(html, /href="(\/modules\/article\/txtarticle\.php\?id=\d+)"/i);
+  const detailUrl = dlRel ? `${QSX_ORIGIN}${dlRel}` : `${QSX_ORIGIN}/book/${row.bookId}/`;
 
   return {
-    id: bookId,
-    title: searchResult.title,
-    author: searchResult.author,
+    id: row.bookId,
+    title,
+    author,
     description,
     publisher: '奇书网',
     cover,
     language: '中文',
-    format,
+    format: 'TXT',
     size,
-    year,
-    category,
+    year: lastUpdate.slice(0, 4),
+    category: [category, status, lastUpdate && `更新 ${lastUpdate}`].filter(Boolean).join(' / '),
     source: '奇书网',
-    detailUrl: downloadUrl,
+    detailUrl,
+    siteUrl: `${QSX_ORIGIN}/book/${row.bookId}/`,
   };
 }
 
-/** 奇书网搜索：抓取第一本书 + 详情页 txt 下载链接 */
-async function searchXqishutaNovel(keyword: string): Promise<{ item: NovelItem | null; error: string | null }> {
+/**
+ * 奇书网搜索：搜索页一次返回全部命中（无分页参数），这里按页切片后再抓详情，
+ * 让 hasMore / page 契约与知轩藏书一致，同时避免每页重复抓取全部详情。
+ */
+async function searchQishuNovel(keyword: string, page: number): Promise<NovelSourceResult> {
   try {
-    // 1. 抓取搜索页
-    const searchUrl = `http://${XQS_DOMAIN}/search.html?searchkey=${encodeURIComponent(keyword)}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-    const r = await fetchWithRetry(searchUrl, { headers: XQS_HEADERS, signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!r.ok) return { item: null, error: `HTTP ${r.status}` };
-    const searchHtml = await r.text();
+    const searchHtml = await fetchGbkHtml(`${QSX_ORIGIN}/modules/article/search.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `searchkey=${encodeGbkQuery(keyword)}`,
+    });
 
-    // 2. 解析第一本书
-    const firstResult = parseXqishutaSearchResult(searchHtml);
-    if (!firstResult) return { item: null, error: null }; // 无搜索结果不算错误
+    const all = parseQsxSearchResults(searchHtml);
+    if (!all.length) return { items: [], error: null, hasMore: false };
 
-    // 3. 抓取详情页
-    const detailUrl = `http://${XQS_DOMAIN}${firstResult.bookUrl}`;
-    const detailController = new AbortController();
-    const detailTimeoutId = setTimeout(() => detailController.abort(), FETCH_TIMEOUT);
-    const dr = await fetchWithRetry(detailUrl, { headers: XQS_HEADERS, signal: detailController.signal });
-    clearTimeout(detailTimeoutId);
-    if (!dr.ok) return { item: null, error: `详情页 HTTP ${dr.status}` };
-    const detailHtml = await dr.text();
+    const start = (page - 1) * NOVEL_PAGE_SIZE;
+    const slice = all.slice(start, start + NOVEL_PAGE_SIZE);
+    const hasMore = all.length > start + NOVEL_PAGE_SIZE;
 
-    // 4. 解析详情页
-    const item = parseXqishutaDetailPage(detailHtml, firstResult);
-    return { item, error: item ? null : '未找到 txt 下载链接' };
+    const items = await mapWithConcurrency(slice, DETAIL_CONCURRENCY, async (row) => {
+      try {
+        return parseQsxDetailPage(await fetchGbkHtml(row.bookUrl), row);
+      } catch {
+        return null;
+      }
+    });
+
+    const found = items.filter((item): item is NovelItem => item !== null);
+    return {
+      items: found,
+      error: found.length ? null : '详情页解析失败',
+      errorKind: found.length ? undefined : 'PARSE_FAILED',
+      hasMore,
+    };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'unknown';
-    console.error('[novel-search] xqishuta error:', sanitizeError(errorMessage));
-    return { item: null, error: errorMessage };
+    console.error('[novel-search] qishu error:', errorMessage);
+    return {
+      items: [],
+      error: sanitizeError(errorMessage),
+      errorKind: classifySearchError(errorMessage) ?? 'SOURCE_UNAVAILABLE',
+      hasMore: false,
+    };
   }
 }
 
-// ─── 搜索入口（双源并行，zxcs → 奇书网 置顶） ────────────────────────
+// ─── 搜索入口 ────────────────────────────────────────────────────────
 
 export async function searchNovel(keyword: string, page: number): Promise<NovelSearchResult> {
   const safePage = Math.max(1, page);
-
-  // zxcs / 奇书网仅 page=1 时抓取（翻页不重复置顶）
-  const [xqsResult, zxcsResult] = await Promise.all([
-    safePage === 1 ? searchXqishutaNovel(keyword) : Promise.resolve({ item: null, error: null }),
-    safePage === 1 ? searchZxcsNovel(keyword) : Promise.resolve({ item: null, error: null }),
+  const [zxcsResult, qishuResult] = await Promise.all([
+    searchZxcsNovel(keyword, safePage),
+    searchQishuNovel(keyword, safePage),
   ]);
 
-  const novels: NovelItem[] = [];
   const errors: Record<string, string | null> = {};
+  if (zxcsResult.error) errors.zxcs = zxcsResult.error;
+  if (qishuResult.error) errors.qishu = qishuResult.error;
 
-  // 1. 知轩藏书结果置顶
-  if (zxcsResult.item) {
-    novels.push(zxcsResult.item);
-  }
-  if (zxcsResult.error) {
-    errors.zxcs = zxcsResult.error;
-  }
+  const errorKinds: Record<string, SearchErrorKind> = {};
+  if (zxcsResult.errorKind) errorKinds.zxcs = zxcsResult.errorKind;
+  if (qishuResult.errorKind) errorKinds.qishu = qishuResult.errorKind;
 
-  // 2. 奇书网结果次之
-  if (xqsResult.item) {
-    novels.push(xqsResult.item);
-  }
-  if (xqsResult.error) {
-    errors.xqishuta = xqsResult.error;
-  }
+  // 跨站去重：两站 id 空间不同，靠前缀区分记录（见 data-storage 的 dedupKey）
+  const novels = [...zxcsResult.items, ...qishuResult.items];
 
   return {
     resultType: 'novel',
     keyword,
     page: safePage,
     total: novels.length,
+    hasMore: zxcsResult.hasMore || qishuResult.hasMore,
     errors,
+    errorKinds,
     novels,
   };
 }
+

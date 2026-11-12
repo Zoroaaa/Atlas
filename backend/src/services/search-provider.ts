@@ -13,6 +13,7 @@
  */
 
 import type { JwtPayload } from '@/types';
+import type { SearchErrorKind } from '@/utils/error';
 
 // ─── 统一搜索上下文 ────────────────────────────────────────────────────
 
@@ -54,8 +55,13 @@ export interface SearchResultBase {
   page: number;
   /** 总结果数 */
   total: number;
-  /** 各源错误信息 */
+  /** 各源错误信息（已脱敏，供前端直接展示） */
   errors: Record<string, string | null>;
+  /**
+   * 按源的失败语义（可选）：与 errors 的 key 对齐，
+   * 用于区分「无结果」与「源不可用/限流」，前端 UX 与后续重试策略依赖此字段。
+   */
+  errorKinds?: Record<string, SearchErrorKind>;
 }
 
 // ─── 搜索建议项 ────────────────────────────────────────────────────────

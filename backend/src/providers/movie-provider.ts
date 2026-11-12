@@ -2,10 +2,11 @@
  * MovieProvider — 影视搜索适配器
  *
  * 包装 movie-search.ts 的 searchMovie 函数，实现 SearchProvider 接口。
- * 数据源：TMDB（元数据）+ 豆瓣（fallback）+ TPB / EZTV（磁力）
+ * 数据源：TMDB（元数据）+ TPB / EZTV（磁力）
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchMovie } from '@/services/movie-search';
+import { resolveLiveSources } from '@/services/live-sources';
 
 /** 默认 TMDB API Key（由外部注入，留空时 suggestions/trending 会静默跳过） */
 let _tmdbApiKey: string | undefined;
@@ -31,10 +32,19 @@ export class MovieProvider implements SearchProvider {
   readonly id = 'movie';
   readonly name = '影视搜索';
   readonly supportedCategories = ['movie_sources'];
+  /** 响应含按用户过滤的源卡片，缓存键需按用户隔离 */
+  readonly injectsUserSources = true;
 
   async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
-    const result = await searchMovie(keyword, page, ctx.apiKeys?.['TMDB_API_KEY']);
-    return { ...result, resultType: 'movie' } as unknown as SearchResultBase;
+    // 影视的 results 字段是 TMDB 元数据，源卡片单列 sourceCards，避免覆盖既有契约
+    const { cards, skip } = await resolveLiveSources(ctx.db, {
+      categoryId: ctx.categoryId,
+      userId: ctx.user?.userId || '',
+      disabledSources: ctx.disabledSources,
+      keyword,
+    });
+    const result = await searchMovie(keyword, page, ctx.apiKeys?.['TMDB_API_KEY'], skip);
+    return { ...result, resultType: 'movie', sourceCards: cards } as unknown as SearchResultBase;
   }
 
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {

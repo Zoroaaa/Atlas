@@ -59,7 +59,7 @@ interface BgmItem {
   collection?: { wish?: number; collect?: number; doing?: number; dropped?: number };
 }
 
-/** 动漫统一磁力资源（nyaa/mikan/animetosho/showrss 归一化） */
+/** 动漫统一磁力资源（nyaa/mikan/animetosho/dmhy 归一化） */
 interface AnimeUnifiedResource {
   source: string;
   sourceLabel: string;
@@ -109,6 +109,30 @@ interface MovieResourceItem {
   driveUrl?: string;
   driveCode?: string;
   detailUrl?: string;
+}
+
+/** 影视归组结果（与 movie-search 的 grouped 结构对应） */
+interface MovieGrouped {
+  groups?: Array<{ subject: { id: number }; resources: MovieResourceItem[] }>;
+  ungrouped?: MovieResourceItem[];
+}
+
+/** 各媒体资源条目的公共字段：动漫/影视统一映射到 data_record_sources */
+interface MediaResourceLike {
+  title?: string;
+  magnet?: string;
+  size?: string;
+  date?: string;
+  source?: string;
+  sourceLabel?: string;
+  resourceType?: 'magnet' | 'drive' | 'direct';
+  driveUrl?: string;
+  driveCode?: string;
+  detailUrl?: string;
+  seeders?: number;
+  leechers?: number;
+  group?: string;
+  trusted?: boolean;
 }
 
 interface MangaItem {
@@ -302,8 +326,53 @@ function magnetsToSources(magnets: MagnetItem[], detailUrl?: string): SourceEntr
   return sources;
 }
 
+// ─── 媒体资源 → 来源条目（动漫/影视共用） ─────────────────────────────
+
+/**
+ * 资源写入 data_record_sources 的唯一入口。
+ * 顺序：磁力 → 网盘 → 详情页；按 URL 去重，最多 limit 条。
+ */
+function mediaResourcesToSources(resources: MediaResourceLike[], limit = 30): SourceEntry[] {
+  const seen = new Set<string>();
+  const sources: SourceEntry[] = [];
+
+  const push = (sourceName: string, sourceType: string, sourceUrl: string, sourceData: Record<string, unknown>) => {
+    if (!sourceUrl || seen.has(sourceUrl) || sources.length >= limit) return;
+    seen.add(sourceUrl);
+    sources.push({ sourceName, sourceType, sourceUrl, sourceData });
+  };
+
+  for (const r of resources) {
+    const sourceName = r.sourceLabel || r.source || 'unknown';
+    if (r.magnet) {
+      push(sourceName, 'magnet', r.magnet, {
+        name: r.title,
+        size: r.size,
+        date: r.date,
+        seeders: r.seeders,
+        leechers: r.leechers,
+        group: r.group,
+        trusted: r.trusted,
+      });
+    }
+    if (r.driveUrl) {
+      push(sourceName, r.resourceType || 'drive', r.driveUrl, {
+        name: r.title,
+        code: r.driveCode,
+        size: r.size,
+        date: r.date,
+      });
+    }
+    if (r.detailUrl) {
+      push(sourceName, 'detail', r.detailUrl, { name: r.title });
+    }
+  }
+
+  return sources;
+}
+
 // ─── 动漫磁力资源 → 来源条目 ─────────────────────────────────────────
-// 优先取 grouped 中首条作品的关联磁力（精准归属），fallback 到全部磁力前 20 条
+// 优先取 grouped 中首条作品的关联磁力（精准归属），无归组时 fallback 到全部磁力前 20 条
 function animeResourcesToSources(
   result: Record<string, unknown>,
   firstBgmId: number
@@ -312,95 +381,52 @@ function animeResourcesToSources(
   const nyaa = (result.nyaa as Array<{ title: string; magnet: string; size?: string; date?: string; seeders?: number; leechers?: number; trusted?: boolean }> | undefined) || [];
   const mikan = (result.mikan as Array<{ title: string; magnet: string; size?: string; pubDate?: string; group?: string }> | undefined) || [];
   const animetosho = (result.animetosho as Array<{ title: string; magnet: string; size?: string; date?: string; seeders?: number; leechers?: number }> | undefined) || [];
-  const showrss = (result.showrss as Array<{ title: string; magnet: string }> | undefined) || [];
+  const dmhy = (result.dmhy as Array<{ title: string; magnet: string; size?: string; pubDate?: string; group?: string; detailUrl?: string }> | undefined) || [];
 
   // 优先用归组数据：取首条作品关联的磁力
   if (grouped?.groups?.length) {
     const firstGroup = grouped.groups.find((g) => g.subject.id === firstBgmId);
     if (firstGroup?.resources?.length) {
-      return firstGroup.resources
-        .filter((r) => r.magnet)
-        .slice(0, 30)
-        .map((r) => ({
-          sourceName: r.sourceLabel || r.source || 'unknown',
-          sourceType: 'magnet',
-          sourceUrl: r.magnet,
-          sourceData: {
-            name: r.title,
-            size: r.size,
-            date: r.date,
-            seeders: r.seeders,
-            leechers: r.leechers,
-            group: r.group,
-            trusted: r.trusted,
-          },
-        }));
+      return mediaResourcesToSources(firstGroup.resources, 30);
     }
   }
 
   // fallback：合并所有磁力源前 20 条（去重 magnet）
-  const seen = new Set<string>();
-  const sources: SourceEntry[] = [];
-  const pushMagnet = (sourceName: string, item: { title: string; magnet: string; size?: string; date?: string | undefined; }) => {
-    if (!item.magnet || seen.has(item.magnet)) return;
-    seen.add(item.magnet);
-    sources.push({
-      sourceName,
-      sourceType: 'magnet',
-      sourceUrl: item.magnet,
-      sourceData: { name: item.title, size: item.size, date: item.date },
-    });
-  };
+  const merged: MediaResourceLike[] = [
+    ...nyaa.slice(0, 10).map((n) => ({ ...n, sourceLabel: 'Nyaa' })),
+    ...mikan.slice(0, 5).map((m) => ({
+      title: m.title,
+      magnet: m.magnet,
+      size: m.size,
+      date: m.pubDate,
+      group: m.group,
+      sourceLabel: 'Mikan',
+    })),
+    ...animetosho.slice(0, 5).map((a) => ({ ...a, sourceLabel: 'AnimeTosho' })),
+    ...dmhy.slice(0, 5).map((d) => ({
+      title: d.title,
+      magnet: d.magnet,
+      size: d.size,
+      date: d.pubDate,
+      group: d.group,
+      detailUrl: d.detailUrl,
+      sourceLabel: 'DMHY',
+    })),
+  ];
 
-  for (const n of nyaa.slice(0, 10)) pushMagnet('Nyaa', n);
-  for (const m of mikan.slice(0, 5)) pushMagnet('Mikan', { title: m.title, magnet: m.magnet, size: m.size, date: m.pubDate });
-  for (const a of animetosho.slice(0, 5)) pushMagnet('AnimeTosho', a);
-  for (const s of showrss.slice(0, 3)) pushMagnet('showRSS', s);
-
-  return sources.slice(0, 20);
+  return mediaResourcesToSources(merged, 20);
 }
 
-// ─── 影视磁力资源 → 来源条目 ─────────────────────────────────────────
+// ─── 影视资源 → 来源条目 ─────────────────────────────────────────────
 
-function movieResourcesToSources(result: Record<string, unknown>): SourceEntry[] {
-  const resources = (result.resources as MovieResourceItem[] | undefined) || [];
-  const seen = new Set<string>();
-  const sources: SourceEntry[] = [];
-
-  for (const r of resources.slice(0, 30)) {
-    // 磁力链接
-    if (r.magnet && !seen.has(r.magnet)) {
-      seen.add(r.magnet);
-      sources.push({
-        sourceName: r.sourceLabel || r.source || 'unknown',
-        sourceType: 'magnet',
-        sourceUrl: r.magnet,
-        sourceData: { name: r.title, size: r.size, date: r.date },
-      });
-    }
-    // 网盘链接
-    if (r.driveUrl && !seen.has(r.driveUrl)) {
-      seen.add(r.driveUrl);
-      sources.push({
-        sourceName: r.sourceLabel || r.source || 'unknown',
-        sourceType: r.resourceType || 'drive',
-        sourceUrl: r.driveUrl,
-        sourceData: { name: r.title, code: r.driveCode, size: r.size, date: r.date },
-      });
-    }
-    // 详情页直链
-    if (r.detailUrl && !seen.has(r.detailUrl)) {
-      seen.add(r.detailUrl);
-      sources.push({
-        sourceName: r.sourceLabel || r.source || 'unknown',
-        sourceType: 'detail',
-        sourceUrl: r.detailUrl,
-        sourceData: { name: r.title },
-      });
-    }
-  }
-
-  return sources;
+/**
+ * 只写入「当前记录所属作品」的归组资源。
+ * 不能拿全部 resources 兜底：那会把其它作品的磁力错挂到首条作品上。
+ */
+function movieResourcesToSources(result: Record<string, unknown>, subjectId: number): SourceEntry[] {
+  const grouped = result.grouped as MovieGrouped | undefined;
+  const group = grouped?.groups?.find((g) => g.subject?.id === subjectId);
+  return mediaResourcesToSources(group?.resources ?? [], 30);
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -521,8 +547,8 @@ export async function persistDataRecord(
         const first = results?.find((r) => r && typeof r.id === 'number');
         if (first) {
           const release = first.releaseDate || first.release_date || first.first_air_date;
-          // 提取磁力/网盘资源
-          sources = movieResourcesToSources(result);
+          // 只用归组中「当前作品」的资源：全部资源兜底会把别的作品磁力错挂过来
+          sources = movieResourcesToSources(result, first.id);
 
           payload = {
             recordType: 'movie',
@@ -553,6 +579,13 @@ export async function persistDataRecord(
         const manga = result.manga as MangaItem[] | undefined;
         const first = manga?.[0];
         if (first && first.id) {
+          // MangaDex 详情页作为唯一来源：否则 source_count=0 会在 180 天后被清理
+          sources = [{
+            sourceName: 'MangaDex',
+            sourceType: 'detail',
+            sourceUrl: `https://mangadex.org/title/${first.id}`,
+            sourceData: { title: first.title },
+          }];
           payload = {
             recordType: 'manga',
             dedupKey: `manga:${first.id}`,
@@ -576,9 +609,8 @@ export async function persistDataRecord(
         const novels = result.novels as NovelItem[] | undefined;
         if (!novels || novels.length === 0) break;
 
-        // 优先取 Anna's Archive 结果（source !== '奇书网'）
-        // fallback：若 Anna 全部失败（如 403），取奇书网置顶结果
-        const first = novels.find((n) => n && n.id && n.source !== '奇书网') || novels[0];
+        // 抓取源：知轩藏书 + 奇书网；多源跳转卡片由 search_sources 表注入，不在此处理
+        const first = novels.find((n) => n && n.id) || novels[0];
         if (!first) break;
 
         const tags = [first.format, first.year, first.category].filter(Boolean) as string[];
@@ -586,8 +618,8 @@ export async function persistDataRecord(
         // 详情/下载链接作为来源
         if (first.detailUrl) {
           sources.push({
-            sourceName: first.source || (first.source === '奇书网' ? '奇书网' : "Anna's Archive"),
-            sourceType: first.source === '奇书网' ? 'download' : 'detail',
+            sourceName: first.source || '知轩藏书',
+            sourceType: 'download',
             sourceUrl: first.detailUrl,
             sourceData: {
               title: first.title,
@@ -598,9 +630,11 @@ export async function persistDataRecord(
           });
         }
 
+        // 两个站点 id 都是纯数字，必须带站点前缀，否则跨站碰撞会合并成同一条记录
+        const siteKey = first.source === '奇书网' ? 'qishu' : 'zxcs';
         payload = {
           recordType: 'novel',
-          dedupKey: `novel:${first.id}`,
+          dedupKey: `novel:${siteKey}:${first.id}`,
           title: first.title,
           cover: first.cover,
           code: first.id,

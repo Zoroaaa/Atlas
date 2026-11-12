@@ -313,13 +313,10 @@ const MovieBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
   const overview = str(extra.overview);
   const originalTitle = str(extra.originalTitle);
   const mediaType = str(extra.mediaType);
-  const source = str(extra.source);
   const poster = str(extra.backdrop) || str(extra.poster) || record.cover;
   const externalId = num(extra.id);
   const externalUrl = externalId != null && mediaType
-    ? source === 'douban'
-      ? `https://movie.douban.com/subject/${Math.abs(externalId)}/`
-      : `https://www.themoviedb.org/${mediaType}/${externalId}`
+    ? `https://www.themoviedb.org/${mediaType}/${externalId}`
     : undefined;
 
   return (
@@ -337,11 +334,6 @@ const MovieBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
           <h3 className="text-[14px] font-semibold leading-snug text-surface-900 dark:text-surface-100">{record.title}</h3>
           {originalTitle && originalTitle !== record.title ? <p className="type-micro text-surface-500">{originalTitle}</p> : null}
           <div className="flex flex-wrap items-center gap-1.5">
-            {source ? (
-              <Chip tone={source === 'douban' ? 'success' : 'source'} size="xs">
-                {source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
-              </Chip>
-            ) : null}
             {mediaType ? (
               <Chip tone={mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
                 {mediaType === 'movie' ? t('search:movie.type.movie') : t('search:movie.type.tv')}

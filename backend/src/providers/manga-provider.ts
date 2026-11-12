@@ -6,15 +6,24 @@
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment } from '@/services/search-provider';
 import { searchManga } from '@/services/manga-search';
+import { resolveLiveSources } from '@/services/live-sources';
 
 export class MangaProvider implements SearchProvider {
   readonly id = 'manga';
   readonly name = '漫画搜索';
   readonly supportedCategories = ['manga_sources'];
+  /** 响应含按用户过滤的源卡片，缓存键需按用户隔离 */
+  readonly injectsUserSources = true;
 
-  async search(keyword: string, page: number, _ctx: SearchContext): Promise<SearchResultBase> {
-    const result = await searchManga(keyword, page);
-    return result as unknown as SearchResultBase;
+  async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
+    const { cards, skip } = await resolveLiveSources(ctx.db, {
+      categoryId: ctx.categoryId,
+      userId: ctx.user?.userId || '',
+      disabledSources: ctx.disabledSources,
+      keyword,
+    });
+    const result = await searchManga(keyword, page, skip);
+    return { ...result, sourceCards: cards } as unknown as SearchResultBase;
   }
 
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {

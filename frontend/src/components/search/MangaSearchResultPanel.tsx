@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, ExternalLink, Heart, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BookOpen, ExternalLink, Heart, RefreshCw, ShieldCheck, Star, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { FavoriteRef } from '@/types';
@@ -24,12 +24,19 @@ interface MangaItem {
   cover: string;
   status: string;
   tags: string[];
+  year?: string;
+  rating?: number;
+  description?: string;
+  author?: string;
+  source?: 'mangadex' | 'mangaupdates';
+  detailUrl?: string;
 }
 interface MangaEnrichedData {
   resultType: 'manga';
   keyword: string;
   page: number;
   total: number;
+  hasMore?: boolean;
   errors: Record<string, string | null>;
   manga: MangaItem[];
 }
@@ -110,13 +117,16 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
         {hasError ? (
           <Notice tone="error" className="mb-3">{t('search:manga.mangadexError', { error: data.errors.mangadex })}</Notice>
         ) : null}
+        {data.errors.mangaupdates ? (
+          <Notice tone="error" className="mb-3">{t('search:manga.mangaupdatesError', { error: data.errors.mangaupdates })}</Notice>
+        ) : null}
 
         {list.length === 0 && !hasError ? (
           <EmptyBlock icon={<BookOpen className="h-7 w-7" />} title={t('search:manga.empty')} className="bg-transparent" />
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {paged.map((item) => {
-              const mangaUrl = `https://mangadex.org/title/${item.id}`;
+              const mangaUrl = item.detailUrl || `https://mangadex.org/title/${item.id}`;
               const href = isProxyEnabled ? convertToProxyUrl(mangaUrl) : mangaUrl;
               return (
                 <MediaCard
@@ -125,9 +135,17 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
                   coverFallback={<BookOpen className="h-5 w-5" />}
                   href={href}
                   title={item.title}
+                  description={item.description}
                   badges={
                     <>
-                      <Chip tone={statusTone(item.status)} size="xs">{statusLabel(t, item.status)}</Chip>
+                      {item.status ? <Chip tone={statusTone(item.status)} size="xs">{statusLabel(t, item.status)}</Chip> : null}
+                      {item.year ? <Chip tone="neutral" size="xs">{item.year}</Chip> : null}
+                      {typeof item.rating === 'number' && item.rating > 0 ? (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-warning-500">
+                          <Star className="h-2.5 w-2.5 fill-current" />{item.rating.toFixed(1)}
+                        </span>
+                      ) : null}
+                      {item.source === 'mangaupdates' ? <Chip tone="source" size="xs">MangaUpdates</Chip> : null}
                       {isProxyEnabled ? (
                         <Chip tone="proxy" size="xs">
                           <ShieldCheck className="h-2.5 w-2.5" />
@@ -136,7 +154,10 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
                       ) : null}
                     </>
                   }
-                  meta={item.tags.length > 0 ? item.tags.slice(0, 3).join(' · ') : undefined}
+                  meta={[
+                    item.author ? <span key="author" className="inline-flex items-center gap-1"><User className="h-2.5 w-2.5" />{item.author}</span> : null,
+                    item.tags.length > 0 ? item.tags.slice(0, 3).join(' · ') : null,
+                  ].filter(Boolean) as React.ReactNode[]}
                   actions={
                     <>
                       {isAuthenticated ? (
@@ -173,7 +194,7 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
           nextLabel={t('search:manga.nextPage')}
         />
 
-        {onPageChange && list.length >= 20 && localPage >= totalPages ? (
+        {onPageChange && data.hasMore && localPage >= totalPages ? (
           <div className="flex justify-center">
             <button
               type="button"

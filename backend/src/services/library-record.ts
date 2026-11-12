@@ -151,7 +151,14 @@ function buildDedupKeys(type: LibraryRecordType, code: string, url: string): str
     }
     case 'novel': {
       const id = code.replace(/^md5:/i, '');
-      if (id) push(`novel:${id}`);
+      if (id) {
+        // 新 dedup_key 带站点前缀（zxcs/qishu），两站 id 空间重叠；xqs 为已下线旧站，仅用于匹配历史记录
+        push(`novel:zxcs:${id}`);
+        push(`novel:qishu:${id}`);
+        push(`novel:xqs:${id}`);
+        // 兼容旧数据：无前缀的 novel:{id}
+        push(`novel:${id}`);
+      }
       break;
     }
   }

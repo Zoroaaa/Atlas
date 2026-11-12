@@ -212,7 +212,30 @@ export function useSearchFlow({
                 setSearchResults([]);
               }
             } else {
-              setSearchResults([]);
+              // Anime/Movie/Manga: 后端按「真实在跑的抓取器」注入源卡片（sourceCards），
+              // 与 JAV/Novel 的 results 结构一致，统一映射到 searchResults 供右侧源栏使用
+              const cards = (response.data as {
+                sourceCards?: Array<{
+                  id: string; name: string; icon?: string; url: string;
+                  subtitle?: string; siteType: string; category: string; description?: string;
+                }>;
+              }).sourceCards;
+              if (cards && cards.length > 0) {
+                const mapped = cards.map(r => ({
+                  sourceId: r.id,
+                  sourceName: r.name,
+                  sourceIcon: r.icon,
+                  url: r.url,
+                  subtitle: r.subtitle,
+                  siteType: r.siteType,
+                  category: r.category,
+                  description: r.description,
+                }));
+                setSearchResults(mapped);
+                reportSourceUsage(mapped.map((item) => item.sourceId));
+              } else {
+                setSearchResults([]);
+              }
             }
             // Anime/Movie: 检查聚合搜索的各数据源错误
             const enriched = response.data as EnrichedSearchData;

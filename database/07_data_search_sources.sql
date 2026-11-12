@@ -170,6 +170,7 @@ INSERT OR IGNORE INTO search_sources (
 ) VALUES
     ('nyaa_si', 'anime_torrent', 'Nyaa.si', '最大动漫种子索引站', '全球最大的动漫种子搜索引擎，资源丰富更新及时', '🧲', 'https://nyaa.si/?f=0&c=0_0&q={keyword}', 'https://nyaa.si', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1781162204000, 1781162204000),
     ('mikan_project', 'anime_torrent', 'Mikan Project', '中文动漫种子订阅站', '优秀的中文动漫资源站，支持RSS订阅和自动下载', '🍊', 'https://mikanani.me/Home/Search?searchstr={keyword}', 'https://mikanani.me', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1781162204000, 1781162204000),
+    ('dmhy', 'anime_torrent', '动漫花园 DMHY', '中文动漫种子发布站', '中文动漫资源发布站，提供 RSS 订阅与磁力链接', '🌸', 'https://share.dmhy.org/topics/list?keyword={keyword}', 'https://share.dmhy.org', 'search', 1, 3, 1, 1, 5, 0, NULL, NULL, 1781162204500, 1781162204500),
     ('animebytes', 'anime_torrent', 'AnimeBytes', '高质量私有PT站（需邀请）', '知名私有动漫PT站，资源质量极高，需要邀请注册', '🔒', 'https://animebytes.tv/torrents.php?searchstr={keyword}', 'https://animebytes.tv', 'search', 1, 10, 1, 1, 6, 0, NULL, NULL, 1781162204000, 1781162204000),
     ('sukebei_nyaa', 'anime_torrent', 'Sukebei Nyaa', '成人向动漫种子站', 'Nyaa的成人内容镜像站，收录成人向动漫资源', '🔞', 'https://sukebei.nyaa.si/?f=0&c=0_0&q={keyword}', 'https://sukebei.nyaa.si', 'search', 1, 6, 1, 1, 7, 0, NULL, NULL, 1781162204000, 1781162204000),
     ('shana_project', 'anime_torrent', 'Shana Project', '动漫种子跟踪聚合器', '聚合多个来源的动漫种子信息，支持自动追踪', '📡', 'https://www.shanaproject.com/?q={keyword}', 'https://www.shanaproject.com', 'search', 1, 7, 1, 1, 8, 0, NULL, NULL, 1781162204000, 1781162204000);
@@ -231,6 +232,7 @@ INSERT OR IGNORE INTO search_sources (
     display_order, usage_count, last_used_at, created_by, created_at, updated_at
 ) VALUES
     ('pirate_bay', 'movie_torrent', 'The Pirate Bay', '全球最大种子搜索引擎', '历史悠久且知名的种子搜索引擎，资源覆盖全面', '☠️', 'https://thepiratebay.org/search.php?q={keyword}', 'https://thepiratebay.org', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1781162207000, 1781162207000),
+    ('eztv', 'movie_torrent', 'EZTV', '美剧种子专门站', '专注美剧的种子资源站，提供剧集磁力与做种数据', '📺', 'https://eztv.re/search/{keyword}', 'https://eztv.re', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1781162207500, 1781162207500),
     ('mejortorrent', 'movie_torrent', 'MejorTorrent', '西语影视资源站', '西班牙语影视资源专门站，西语内容丰富', '🇪🇸', 'https://www.mejortorrent.com/secciones.php?sec=buscador&valor={keyword}', 'https://www.mejortorrent.com', 'search', 1, 8, 1, 1, 8, 0, NULL, NULL, 1781162207000, 1781162207000);
 
 -- ===============================================
@@ -298,7 +300,7 @@ INSERT OR IGNORE INTO search_sources (
     ('zlibrary', 'novel_database', 'Z-Library', '全球最大电子图书馆', '全球最大的影子图书馆，含小说、学术、非小说等海量电子书', '📚', 'https://zh.z-library.sk/s/{keyword}', 'https://zh.z-library.sk', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1786419801500, 1786419801500),
     ('annas_archive', 'novel_database', 'Anna''s Archive', '安娜图书馆，全球最大电子书搜索引擎', '聚合 LibGen/Z-Library/互联网档案的电子书搜索引擎，含小说、学术、非小说等', '📚', 'https://zh.annas-archive.gl/search?q={keyword}', 'https://zh.annas-archive.gl', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1786419802000, 1786419802000),
     ('zxcs', 'novel_database', '知轩藏书', '精校版全本TXT下载', '知轩藏书dzs，提供精校版全本TXT小说免费下载，质量高无错字', '📖', 'https://zxcs.zip/search?q={keyword}', 'https://zxcs.zip', 'search', 1, 3, 1, 1, 3, 0, NULL, NULL, 1786419802500, 1786419802500),
-    ('xqishuta', 'novel_database', '奇书网', 'TXT小说电子书全本免费下载', '提供全本完结TXT小说免费下载', '📖', 'http://www.xqishuta.org/search.html?searchkey={keyword}', 'http://www.xqishuta.org', 'search', 1, 4, 1, 1, 4, 0, NULL, NULL, 1786419803000, 1786419803000),
+    ('xqishuta', 'novel_database', '奇书网', 'TXT小说电子书全本免费下载', '奇书网新域名（qishuxia.com）；站内搜索为 POST 表单，跳转后请从首页搜索', '📖', 'https://www.qishuxia.com/', 'https://www.qishuxia.com', 'search', 1, 4, 1, 1, 4, 0, NULL, NULL, 1786419803000, 1786419803000),
     ('sobooks', 'novel_database', 'SoBooks', '电子书免费下载', '免费电子书下载站，含小说、人文、社科等分类', '📚', 'https://sobooks.cc/?s={keyword}', 'https://sobooks.cc', 'search', 1, 5, 1, 1, 5, 0, NULL, NULL, 1786419804000, 1786419804000),
     ('lunarora', 'novel_database', 'Lunarora', '电子书搜索引擎', '电子书搜索与下载站', '📚', 'https://lunarora.com/search?q={keyword}', 'https://lunarora.com', 'search', 1, 6, 1, 1, 6, 0, NULL, NULL, 1786419805000, 1786419805000),
     ('pdfs', 'novel_database', 'PDFs.top', 'PDF电子书下载', 'PDF电子书搜索与下载站', '📄', 'https://pdfs.top/search?query={keyword}', 'https://pdfs.top', 'search', 1, 7, 1, 1, 7, 0, NULL, NULL, 1786419806000, 1786419806000),

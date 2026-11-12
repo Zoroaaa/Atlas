@@ -1,7 +1,7 @@
 /**
  * 影视搜索服务
- * 元数据: TMDB（主）+ 豆瓣（fallback）
- * 磁力资源: TPB API（关键词搜索）+ Torrentio（TMDB ID 聚合多源）
+ * 元数据: TMDB
+ * 磁力资源: TPB API（关键词搜索）+ EZTV（剧集）
  *
  * ⚠️ 类型契约：本文件导出的接口（TMDBResult, ResourceItem, MovieSearchResult）
  *    与 frontend/src/types/search.ts 保持结构同步。
@@ -22,7 +22,7 @@ export interface TMDBResult {
   rating: number;
   voteCount: number;
   mediaType: 'movie' | 'tv';
-  source: 'tmdb' | 'douban';
+  source: 'tmdb';
 }
 
 export interface ResourceItem {
@@ -40,11 +40,15 @@ export interface ResourceItem {
   driveCode?: string;
   /** 原站详情页链接（用于“查看详情”跳转） */
   detailUrl?: string;
+  /** 做种数（TPB/EZTV 提供） */
+  seeders?: number;
+  /** 下载者数（TPB/EZTV 提供） */
+  leechers?: number;
 }
 
 /** 归组结果项 */
 export interface MovieGroupedItem {
-  /** 关联的 TMDB/豆瓣 作品 */
+  /** 关联的 TMDB 作品 */
   subject: TMDBResult;
   /** 该作品下所有匹配的资源 */
   resources: ResourceItem[];
@@ -58,9 +62,10 @@ export interface MovieSearchResult {
   total: number;
   resourceTotal: number;
   tmdbError: string | null;
-  doubanError: string | null;
   tpbError: string | null;
   eztvError: string | null;
+  /** 按源的失败语义（与 error 字段对应） */
+  errorKinds?: Record<string, SearchErrorKind>;
   resourceSources: string[];
   /** 作品级归组结果（v1.3.0 新增） */
   grouped?: {
@@ -71,7 +76,7 @@ export interface MovieSearchResult {
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { formatBytes } from '@/utils/format';
-import { sanitizeError } from '@/utils/error';
+import { classifySearchError, sanitizeError, type SearchErrorKind } from '@/utils/error';
 import { groupResourcesBySubject } from '@/utils/title-grouping';
 
 // ─── Constants ───────────────────────────────────────────────────────────
@@ -118,83 +123,43 @@ async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-
     });
 }
 
-// ─── 豆瓣搜索（best-effort fallback）───────────────────────────────
-//
-// ⚠️ 豆瓣反爬策略可能随时变化，此接口不保证长期可用。
-//    当前作为 TMDB 中文元数据的补充，失败时静默降级，不影响主流程。
-//    如豆瓣持续不可用，可移除此函数及调用点。
-
-interface DoubanRawItem { id: string; title: string; rate: string; cover?: string; url: string; is_tv: boolean; }
-
-async function searchDoubanAjax(keyword: string): Promise<TMDBResult[]> {
-  try {
-    const url = `https://movie.douban.com/j/search_subjects?type=movie&tag=&sort=recommend&page_limit=20&page_start=0&search_text=${encodeURIComponent(keyword)}`;
-    const r = await fetch(url, {
-      headers: {
-        'User-Agent': UA, 'Accept': 'application/json, text/javascript, */*',
-        'Referer': 'https://movie.douban.com/explore', 'X-Requested-With': 'XMLHttpRequest',
-        'Cookie': 'bid=""; __yadk_uid=dummy',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!r.ok) throw new Error(`Douban AJAX error: ${r.status}`);
-    const data = await r.json() as { subjects?: DoubanRawItem[] };
-    if (!data.subjects?.length) return [];
-    return data.subjects.slice(0, 15).map((item) => ({
-    id: -Math.abs(parseInt(item.id) || 0), title: item.title || '', originalTitle: item.title || '',
-    overview: '', poster: item.cover?.startsWith('http') ? item.cover : (item.cover ? `https:${item.cover}` : null),
-    backdrop: null, releaseDate: '', year: '',
-    rating: parseFloat(item.rate) || 0, voteCount: 0,
-    mediaType: (item.is_tv ? 'tv' : 'movie') as 'movie' | 'tv', source: 'douban' as const,
-  }));
-  } catch {
-    // 豆瓣不可用时静默降级，TMDB 已足够覆盖
-    return [];
-  }
-}
-
-async function searchDouban(keyword: string): Promise<TMDBResult[]> {
-  try { const r = await searchDoubanAjax(keyword); if (r.length > 0) return r; } catch { /* ignore */ }
-  return [];
-}
-
 // ─── The Pirate Bay API（apibay.org JSON，最全，CF Workers 可达）──────
 
 async function searchTPB(keyword: string): Promise<ResourceItem[]> {
-  try {
-    const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword)}&cat=0`;
-    const r = await fetchWithRetry(url, {
-      headers: { 'Accept': 'application/json', 'User-Agent': UA },
-      signal: AbortSignal.timeout(30000),
-    }, { retries: 2, baseDelay: 1000 });
-    if (!r.ok) return [];
-    const items = await r.json() as Array<{
-      id: string; name: string; info_hash: string;
-      leechers: string; seeders: string; size: string; added: string;
-    }>;
-    if (!items?.length || items[0]?.name === 'No results returned') return [];
+  // apibay 的 q 区分大小写：实测 "Inception" 返回 0 条、"inception" 返回 100 条。
+  // TMDB 英文标题首字母大写，必须转小写再查，否则整个 TPB 源恒为空。
+  const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword.toLowerCase())}&cat=0`;
+  const r = await fetchWithRetry(url, {
+    headers: { 'Accept': 'application/json', 'User-Agent': UA },
+    signal: AbortSignal.timeout(30000),
+  }, { retries: 2, baseDelay: 1000 });
+  // 失败必须抛出：由 searchMovie 收集为 tpbError，静默返回 [] 会让前端误判「没有资源」
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const items = await r.json() as Array<{
+    id: string; name: string; info_hash: string;
+    leechers: string; seeders: string; size: string; added: string;
+  }>;
+  if (!items?.length || items[0]?.name === 'No results returned') return [];
 
-    const trackers = [
-      'udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce',
-      'udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce',
-      'udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce',
-      'udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
-    ].map(t => `&tr=${t}`).join('');
+  const trackers = [
+    'udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce',
+    'udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce',
+    'udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce',
+    'udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
+  ].map(t => `&tr=${t}`).join('');
 
-    return items.slice(0, 20).map(item => ({
-      title: item.name,
-      magnet: `magnet:?xt=urn:btih:${item.info_hash.toLowerCase()}&dn=${encodeURIComponent(item.name)}${trackers}`,
-      size: formatBytes(parseInt(item.size) || 0),
-      date: item.added ? new Date(parseInt(item.added) * 1000).toISOString().split('T')[0] : '',
-      source: 'tpb',
-      sourceLabel: 'TPB',
-      resourceType: 'magnet' as const,
-      detailUrl: item.id ? `https://thepiratebay.org/description.php?id=${item.id}` : undefined,
-    }));
-  } catch (e) {
-    console.error('[movie-search] tpb failed:', e instanceof Error ? e.message : e);
-    return [];
-  }
+  return items.slice(0, 20).map(item => ({
+    title: item.name,
+    magnet: `magnet:?xt=urn:btih:${item.info_hash.toLowerCase()}&dn=${encodeURIComponent(item.name)}${trackers}`,
+    size: formatBytes(parseInt(item.size) || 0),
+    date: item.added ? new Date(parseInt(item.added) * 1000).toISOString().split('T')[0] : '',
+    source: 'tpb',
+    sourceLabel: 'TPB',
+    resourceType: 'magnet' as const,
+    detailUrl: item.id ? `https://thepiratebay.org/description.php?id=${item.id}` : undefined,
+    seeders: parseInt(item.seeders) || 0,
+    leechers: parseInt(item.leechers) || 0,
+  }));
 }
 
 // ─── TMDB External IDs（获取 IMDB ID 用于 EZTV）──────────────────────
@@ -218,7 +183,9 @@ async function fetchTMDBExternalIds(tmdbId: number, apiKey: string): Promise<{ i
 
 async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
   try {
-    const url = `https://eztv.re/api/get-torrents?imdb_id=${imdbId}&limit=30`;
+    // EZTV 只接受纯数字 IMDB id；带 tt 前缀时该参数被忽略，会把全站最新种子当成该剧资源
+    const numericId = imdbId.replace(/^tt/i, '');
+    const url = `https://eztv.re/api/get-torrents?imdb_id=${encodeURIComponent(numericId)}&limit=30`;
     const r = await fetch(url, {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(15000),
@@ -243,6 +210,8 @@ async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
       source: 'eztv',
       sourceLabel: 'EZTV',
       resourceType: 'magnet' as const,
+      seeders: t.seeds ?? 0,
+      leechers: t.peers ?? 0,
     }));
   } catch (e) {
     throw e instanceof Error ? e : new Error(String(e));
@@ -251,25 +220,27 @@ async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
 
 // ─── 主入口 ────────────────────────────────────────────────────────────
 
-export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): Promise<MovieSearchResult> {
-  // Phase 1: 元数据 — 中文 TMDB + 英文 TMDB（拿英文名搜 TPB）+ 豆瓣 三路并行
-  const [zhMetaRes, enMetaRes, doubanRes] = await Promise.allSettled([
-    tmdbKey ? searchTMDB(keyword, tmdbKey, page, 'zh-CN').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
-    tmdbKey ? searchTMDB(keyword, tmdbKey, page, 'en-US').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
-    searchDouban(keyword).catch(() => [] as TMDBResult[]),
+export async function searchMovie(
+  keyword: string,
+  page = 1,
+  tmdbKey?: string,
+  skip: Set<string> = new Set(),
+): Promise<MovieSearchResult> {
+  const useTmdb = !!tmdbKey && !skip.has('tmdb');
+  // Phase 1: 元数据 — 中文 TMDB + 英文 TMDB（拿英文名搜 TPB）两路并行
+  const [zhMetaRes, enMetaRes] = await Promise.allSettled([
+    useTmdb ? searchTMDB(keyword, tmdbKey!, page, 'zh-CN').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
+    useTmdb ? searchTMDB(keyword, tmdbKey!, page, 'en-US').catch(() => [] as TMDBResult[]) : Promise.resolve([] as TMDBResult[]),
   ]);
 
   let results: TMDBResult[] = zhMetaRes.status === 'fulfilled' ? zhMetaRes.value : [];
-  if (doubanRes.status === 'fulfilled' && doubanRes.value.length > 0) {
-    results.push(...doubanRes.value);
-  }
   const tmdbErrorRaw = zhMetaRes.status === 'rejected' ? String(zhMetaRes.reason) : null;
-  const doubanErrorRaw = doubanRes.status === 'rejected' ? String(doubanRes.reason) : null;
 
-  // 元数据去重（按 title 前30字符）
+  // 元数据去重：mediaType + 年份 + 归一化标题（同名不同作品不能合并）
   const seen = new Set<string>();
   results = results.filter(item => {
-    const key = item.title.toLowerCase().slice(0, 30);
+    const normalizedTitle = item.title.toLowerCase().replace(/[\s:·\-–—_.,!?()[\]{}'"]/g, '');
+    const key = `${item.mediaType}|${item.year}|${normalizedTitle.slice(0, 40)}`;
     if (seen.has(key)) return false;
     seen.add(key); return true;
   });
@@ -297,14 +268,19 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   // ── TPB 并发搜索（所有关键词）──
   let allTpbResults: ResourceItem[] = [];
   let tpbError: string | null = null;
-  if (tpbKeywords.length > 0) {
+  if (tpbKeywords.length > 0 && !skip.has('tpb')) {
     // 限制最多使用前 6 个关键词，避免过多并发请求
     const limitedKeywords = tpbKeywords.slice(0, 6);
     const TPB_CONCURRENCY = 3; // 每批最多 3 个并发
 
-    const tpbPromises = limitedKeywords.map(title =>
-      searchTPB(title).catch((e) => ({ _error: String(e) }) as unknown as ResourceItem[])
-    );
+    const tpbPromises = limitedKeywords.map(async (title) => {
+      try {
+        return await searchTPB(title);
+      } catch (e) {
+        // 统一加 TPB 前缀，便于 sanitizeError 映射为用户可读文案
+        throw new Error(`TPB: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+      }
+    });
 
     // 分批执行，避免同时发起大量请求触发限流
     const tpbRes: PromiseSettledResult<ResourceItem[]>[] = [];
@@ -315,12 +291,9 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     }
     for (const res of tpbRes) {
       if (res.status === 'fulfilled') {
-        // 检查是否是错误标记结果
-        if (res.value.length === 1 && (res.value[0] as any)?._error) {
-          if (!tpbError) tpbError = `TPB: ${(res.value[0] as any)._error}`;
-        } else {
-          allTpbResults.push(...res.value);
-        }
+        allTpbResults.push(...res.value);
+      } else if (!tpbError) {
+        tpbError = res.reason instanceof Error ? res.reason.message : String(res.reason);
       }
     }
     // 按 btih 去重
@@ -333,10 +306,10 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   }
 
   // ── Phase 2: EZTV 剧集搜索（需要 IMDB ID）──
-  let eztvResults: ResourceItem[] = [];
+  const eztvResults: ResourceItem[] = [];
   let eztvError: string | null = null;
   const tvItems = results.filter(r => r.mediaType === 'tv');
-  if (tvItems.length > 0 && tmdbKey) {
+  if (tvItems.length > 0 && useTmdb && !skip.has('eztv')) {
     const eztvPromises = tvItems.slice(0, 5).map(async (item) => {
       const extIds = await fetchTMDBExternalIds(item.id, tmdbKey);
       if (extIds.imdb_id) {
@@ -344,11 +317,14 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
       }
       return [] as ResourceItem[];
     });
-    try {
-      const eztvAll = await Promise.all(eztvPromises);
-      eztvResults = eztvAll.flat();
-    } catch (e) {
-      eztvError = e instanceof Error ? e.message : String(e);
+    const eztvAll = await Promise.allSettled(eztvPromises);
+    for (const r of eztvAll) {
+      if (r.status === 'fulfilled') {
+        eztvResults.push(...r.value);
+      } else if (!eztvError) {
+        // 单个剧集失败只降级该剧，不拖垮整批
+        eztvError = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      }
     }
   }
 
@@ -360,7 +336,7 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     if (!hash || seenHashes.has(hash)) return false;
     seenHashes.add(hash);
     return true;
-  });
+  }).sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1));
 
   // 收集实际命中的源列表
   const sourceNames = new Set<string>();
@@ -368,12 +344,22 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
   if (eztvResults.length > 0) sourceNames.add('EZTV');
 
   // ── 构建作品级归组数据 ──
-  // 用 TMDB/豆瓣 作品标题匹配资源，替换前端粗糙的模糊匹配
+  // 用 TMDB 作品标题匹配资源，替换前端粗糙的模糊匹配
   const groupedResult = groupResourcesBySubject(results, dedupedResources, {
     subjectTitles: (s) => [s.title, s.originalTitle],
     resourceTitle: (r) => r.title,
     resourceId: (r) => r.magnet,
   });
+
+  // 失败语义：errors 只放已脱敏文案，errorKinds 保留「限流/源不可用」分类
+  const errorKinds: Record<string, SearchErrorKind> = {};
+  const recordErrorKind = (source: string, raw: string | null) => {
+    const kind = classifySearchError(raw);
+    if (kind) errorKinds[source] = kind;
+  };
+  recordErrorKind('tmdb', tmdbErrorRaw);
+  recordErrorKind('tpb', tpbError);
+  recordErrorKind('eztv', eztvError);
 
   return {
     keyword,
@@ -382,10 +368,10 @@ export async function searchMovie(keyword: string, page = 1, tmdbKey?: string): 
     resources: dedupedResources,
     total: results.length,
     resourceTotal: dedupedResources.length,
-    tmdbError:  sanitizeError(tmdbErrorRaw),
-    doubanError: sanitizeError(doubanErrorRaw),
-    tpbError:    sanitizeError(tpbError),
-    eztvError:   sanitizeError(eztvError),
+    tmdbError:  tmdbErrorRaw ? sanitizeError(tmdbErrorRaw) : null,
+    tpbError:    tpbError ? sanitizeError(tpbError) : null,
+    eztvError:   eztvError ? sanitizeError(eztvError) : null,
+    errorKinds,
     resourceSources: Array.from(sourceNames),
     grouped: {
       groups: groupedResult.groups.map(g => ({

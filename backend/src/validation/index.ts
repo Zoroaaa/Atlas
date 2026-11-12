@@ -82,7 +82,7 @@ const COMMUNITY_CONTENT_VALIDATORS: Record<
     checkArray(data, 'nyaa', 60),
     checkArray(data, 'mikan', 60),
     checkArray(data, 'animetosho', 60),
-    checkArray(data, 'showrss', 60),
+    checkArray(data, 'dmhy', 60),
   ),
   movie: (data) => firstError(
     checkOptionalString(data, 'keyword', 200),

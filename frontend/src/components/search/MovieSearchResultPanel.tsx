@@ -74,7 +74,12 @@ function ResourceCard({ item }: { item: ResourceItem }) {
           <span className="block truncate text-[12px] text-surface-700 dark:text-surface-300" title={item.title}>{item.title}</span>
         )
       }
-      meta={[item.size, item.date, item.sourceLabel].filter(Boolean) as React.ReactNode[]}
+      meta={[
+        item.size,
+        item.date,
+        item.sourceLabel,
+        typeof item.seeders === 'number' ? `↑${item.seeders}${typeof item.leechers === 'number' ? ` ↓${item.leechers}` : ''}` : null,
+      ].filter(Boolean) as React.ReactNode[]}
       trailing={
         item.resourceType === 'drive' && item.driveUrl ? (
           <>
@@ -165,22 +170,18 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   };
 
   const isMovieFavorited = (item: TMDBResult) => {
-    const url = item.source === 'douban'
-      ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
-      : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    const url = `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
     return favorites.some((favorite) => favorite.url === url);
   };
 
   const magnetCount = displayResources.filter((resource) => resource.resourceType === 'magnet' || resource.magnet).length;
   const driveCount = displayResources.filter((resource) => resource.resourceType === 'drive').length;
 
-  const getExternalUrl = (item: TMDBResult) => item.source === 'douban'
-    ? `https://movie.douban.com/subject/${Math.abs(item.id)}/`
-    : `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+  const getExternalUrl = (item: TMDBResult) =>
+    `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
 
   const errorNotices = [
     data.tmdbError ? { key: 'tmdb', text: t('search:movie.tmdbError', { error: data.tmdbError }) } : null,
-    data.doubanError ? { key: 'douban', text: t('search:movie.doubanError', { error: data.doubanError }) } : null,
     data.tpbError ? { key: 'tpb', text: t('search:movie.tpbError', { error: data.tpbError }) } : null,
     data.eztvError ? { key: 'eztv', text: t('search:movie.eztvError', { error: data.eztvError }) } : null,
   ].filter(Boolean) as { key: string; text: string }[];
@@ -294,9 +295,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                           originalTitle={item.originalTitle && item.originalTitle !== item.title ? item.originalTitle : undefined}
                           badges={
                             <>
-                              <Chip tone={item.source === 'douban' ? 'success' : 'source'} size="xs">
-                                {item.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
-                              </Chip>
+                              <Chip tone="source" size="xs">{t('search:movie.sourceTMDB')}</Chip>
                               <Chip tone={item.mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
                                 {mediaTypeLabel(t, item.mediaType)}
                               </Chip>
@@ -391,9 +390,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     <p className="type-micro mt-0.5 text-surface-500">{selectedItem.originalTitle}</p>
                   ) : null}
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <Chip tone={selectedItem.source === 'douban' ? 'success' : 'source'} size="xs">
-                      {selectedItem.source === 'douban' ? t('search:movie.sourceDouban') : t('search:movie.sourceTMDB')}
-                    </Chip>
+                    <Chip tone="source" size="xs">{t('search:movie.sourceTMDB')}</Chip>
                     <Chip tone={selectedItem.mediaType === 'movie' ? 'warning' : 'accent'} size="xs">
                       {mediaTypeLabel(t, selectedItem.mediaType)}
                     </Chip>
