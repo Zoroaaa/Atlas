@@ -101,6 +101,7 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             onLoginRequired={() => navigate('/login')}
             onPullExternal={javFlow.pullExternalDetail}
             isPullingExternal={javFlow.isPullingExternal}
+            onCodeClick={searchFlow.handleCodeClick}
           />
           {javRelatedSeed ? (
             <JavRecommendationsPanel

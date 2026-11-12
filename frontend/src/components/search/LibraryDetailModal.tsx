@@ -11,6 +11,8 @@ import { CopyButton } from '@/components/ui/CopyButton';
 import { Chip, CountBadge, EmptyBlock, ResourceRow } from '@/components/workbench';
 import { libraryApi } from '@/services/api';
 import type { LibraryRecord, LibraryRecordSource, LibraryRecordType } from '@/services/api/library';
+import type { JavEntityKind, JavEntityLink, JavEntityTarget } from '@/types';
+import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
 import { normalizeImageUrl } from '@/utils/imageProxy';
 
 /**
@@ -90,16 +92,75 @@ const num = (value: unknown): number | undefined =>
 const strList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.trim() !== '') : [];
 
+const JAV_ENTITY_KINDS: JavEntityKind[] = ['director', 'studio', 'label', 'series'];
+
+/** 从 content_data 读取实体链接；老记录没有该字段时返回空数组，交给点击时回源解析 */
+const readEntityLinks = (extra: Record<string, unknown>, key: string): JavEntityLink[] => {
+  const value = extra[key];
+  if (!Array.isArray(value)) return [];
+  const links: JavEntityLink[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const entry = item as Record<string, unknown>;
+    const kind = str(entry.kind);
+    const name = str(entry.name);
+    const path = str(entry.path);
+    if (!kind || !name || !path) continue;
+    if (!JAV_ENTITY_KINDS.includes(kind as JavEntityKind)) continue;
+    if (!links.some((link) => link.name === name)) {
+      links.push({ kind: kind as JavEntityKind, name, path });
+    }
+  }
+  return links;
+};
+
+const findEntityPath = (links: JavEntityLink[], name?: string): string | undefined => {
+  if (links.length === 0) return undefined;
+  if (!name) return links[0]?.path;
+  const exact = links.find((link) => link.name === name);
+  if (exact) return exact.path;
+  // 多值字段用 " / " 拼接（如发行商 A / B），按包含关系匹配第一个
+  return (links.find((link) => name.includes(link.name)) ?? links[0])?.path;
+};
+
 // ─── 片段 ────────────────────────────────────────────────────────────
 
-const InfoRow: React.FC<{ icon: React.ElementType; label: string; value?: string }> = ({ icon: Icon, label, value }) => {
+const InfoRow: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  value?: string;
+  onClick?: () => void;
+}> = ({ icon: Icon, label, value, onClick }) => {
   if (!value) return null;
-  return (
-    <div className="flex items-start gap-2 text-[12px]">
+  const content = (
+    <>
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-surface-400" />
       <span className="shrink-0 text-surface-500">{label}：</span>
-      <span className="break-all text-surface-700 dark:text-surface-300">{value}</span>
-    </div>
+      <span
+        className={
+          onClick
+            ? 'break-all text-primary-600 underline decoration-dotted underline-offset-2 transition-colors group-hover:text-primary-500 dark:text-primary-300'
+            : 'break-all text-surface-700 dark:text-surface-300'
+        }
+      >
+        {value}
+      </span>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className="flex items-start gap-2 text-[12px]">{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={value}
+      className="group flex items-start gap-2 text-left text-[12px]"
+    >
+      {content}
+    </button>
   );
 };
 
@@ -141,12 +202,22 @@ const SourceRows: React.FC<{ sources: LibraryRecordSource[]; t: TFunction }> = (
 
 // ─── 类别内容 ────────────────────────────────────────────────────────
 
-const JavBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, t }) => {
+const JavBody: React.FC<{
+  record: LibraryRecord;
+  t: TFunction;
+  onCodeClick?: (code: string) => void;
+}> = ({ record, t, onCodeClick }) => {
   const extra = record.contentData;
   const detailUrl = str(extra.detailUrl);
   const magnets = magnetSources(record);
   const actresses = strList(extra.actresses);
   const actors = actresses.length > 0 ? actresses : record.actors;
+  const publisher = str(extra.publisher) ?? record.publisher;
+  const directorLinks = readEntityLinks(extra, 'directorLinks');
+  const makerLinks = readEntityLinks(extra, 'makerLinks');
+  const publisherLinks = readEntityLinks(extra, 'publisherLinks');
+  const seriesLinks = readEntityLinks(extra, 'seriesLinks');
+  const [entityTarget, setEntityTarget] = useState<JavEntityTarget | null>(null);
 
   return (
     <div className="space-y-4">
@@ -166,10 +237,50 @@ const JavBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, t 
           <h3 className="text-[14px] font-semibold leading-snug text-surface-900 dark:text-surface-100">{record.title}</h3>
           <InfoRow icon={Calendar} label={t('jav:detail.releaseDate')} value={record.releaseDate} />
           <InfoRow icon={Clock} label={t('jav:detail.duration')} value={record.duration} />
-          <InfoRow icon={User} label={t('jav:detail.director')} value={str(extra.director)} />
-          <InfoRow icon={Building2} label={t('jav:detail.maker')} value={str(extra.maker)} />
-          <InfoRow icon={Building2} label={t('jav:detail.publisher')} value={record.publisher} />
-          <InfoRow icon={Film} label={t('jav:detail.series')} value={str(extra.series)} />
+          <InfoRow
+            icon={User}
+            label={t('jav:detail.director')}
+            value={str(extra.director)}
+            onClick={str(extra.director) ? () => setEntityTarget({
+              kind: 'director',
+              name: str(extra.director)!,
+              path: findEntityPath(directorLinks, str(extra.director)),
+              code: record.code,
+            }) : undefined}
+          />
+          <InfoRow
+            icon={Building2}
+            label={t('jav:detail.maker')}
+            value={str(extra.maker)}
+            onClick={str(extra.maker) ? () => setEntityTarget({
+              kind: 'studio',
+              name: str(extra.maker)!,
+              path: findEntityPath(makerLinks, str(extra.maker)),
+              code: record.code,
+            }) : undefined}
+          />
+          <InfoRow
+            icon={Building2}
+            label={t('jav:detail.publisher')}
+            value={publisher}
+            onClick={publisher ? () => setEntityTarget({
+              kind: 'label',
+              name: publisher,
+              path: findEntityPath(publisherLinks, publisher),
+              code: record.code,
+            }) : undefined}
+          />
+          <InfoRow
+            icon={Film}
+            label={t('jav:detail.series')}
+            value={str(extra.series)}
+            onClick={str(extra.series) ? () => setEntityTarget({
+              kind: 'series',
+              name: str(extra.series)!,
+              path: findEntityPath(seriesLinks, str(extra.series)),
+              code: record.code,
+            }) : undefined}
+          />
           {detailUrl ? (
             <a
               href={detailUrl}
@@ -212,6 +323,12 @@ const JavBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, t 
           <p className="type-micro text-surface-500">{t('jav:detail.noMagnets')}</p>
         )}
       </div>
+
+      <JavEntityWorksPanel
+        entity={entityTarget}
+        onClose={() => setEntityTarget(null)}
+        onCodeClick={onCodeClick}
+      />
     </div>
   );
 };
@@ -599,7 +716,18 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
 
     switch (record.recordType) {
       case 'jav':
-        return <JavBody record={record} t={t} />;
+        return (
+          <JavBody
+            record={record}
+            t={t}
+            onCodeClick={onSearch
+              ? (code) => {
+                  onSearch(code, 'jav');
+                  onClose();
+                }
+              : undefined}
+          />
+        );
       case 'anime':
         return <AnimeBody record={record} t={t} />;
       case 'movie':

@@ -15,7 +15,7 @@
  *   - 列表型结果（anime/movie/manga/novel）首采 detail_completed=0，后续按需补充
  */
 import { generateId } from '@/utils';
-import type { MagnetItem } from './jav-utils';
+import type { JavEntityLink, MagnetItem } from './jav-utils';
 import {
   applyJavDetailAbsent,
   applyJavDetailSuccess,
@@ -172,6 +172,10 @@ interface JavDetail {
   publishers?: string[];
   directors?: string[];
   makers?: string[];
+  directorLinks?: JavEntityLink[];
+  makerLinks?: JavEntityLink[];
+  publisherLinks?: JavEntityLink[];
+  seriesLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl: string;

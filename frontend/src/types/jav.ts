@@ -123,6 +123,35 @@ export interface MagnetItem {
   isHD: boolean;
 }
 
+/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 */
+export type JavEntityKind = 'director' | 'studio' | 'label' | 'series';
+
+/** 详情页字段上的实体链接（点击后查看同类作品） */
+export interface JavEntityLink {
+  kind: JavEntityKind;
+  name: string;
+  /** JavBus 实体列表页路径，如 /director/o7 */
+  path: string;
+}
+
+/** 打开实体作品列表所需的信息；老记录没有 path 时用 code 回源解析 */
+export interface JavEntityTarget {
+  kind: JavEntityKind;
+  name: string;
+  path?: string;
+  code?: string;
+}
+
+/** JavBus 实体列表页的作品项（与 parseGrid 输出一致） */
+export interface JavEntityWorkItem {
+  code: string;
+  title: string;
+  cover?: string;
+  date?: string;
+  actress?: string;
+  source?: string;
+}
+
 export interface JavDetail {
   code: string;
   title: string;
@@ -133,6 +162,11 @@ export interface JavDetail {
   maker?: string;
   publisher?: string;
   series?: string;
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  directorLinks?: JavEntityLink[];
+  makerLinks?: JavEntityLink[];
+  publisherLinks?: JavEntityLink[];
+  seriesLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   magnets: MagnetItem[];

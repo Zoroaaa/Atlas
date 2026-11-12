@@ -24,6 +24,17 @@ export interface MagnetItem {
   isHD: boolean;
 }
 
+/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 */
+export type JavEntityKind = 'director' | 'studio' | 'label' | 'series';
+
+/** 详情页字段上的实体链接（用于「点击导演/制作商/发行商/系列查看作品」） */
+export interface JavEntityLink {
+  kind: JavEntityKind;
+  name: string;
+  /** JavBus 实体列表页路径，如 /director/o7 */
+  path: string;
+}
+
 // ─── JavBus 网格项类型 ─────────────────────────────────────────────────
 
 export interface JavItem {
@@ -301,6 +312,23 @@ export function parseMagnets(html: string): MagnetItem[] {
   return items;
 }
 
+/**
+ * 只接受 JavBus 自身的实体列表页路径，避免把详情页里的任意 href
+ * 当成可请求地址（前端会把它回传给实体作品接口）。
+ */
+const JAVBUS_ENTITY_PATH_RE = /^\/(?:uncensored\/)?(?:director|studio|label|series)\/[a-z0-9]+$/i;
+
+export function normalizeJavbusEntityPath(raw: string): string | undefined {
+  try {
+    const url = new URL(raw, 'https://www.javbus.com');
+    if (url.hostname !== 'www.javbus.com' && url.hostname !== 'javbus.com') return undefined;
+    const path = url.pathname.replace(/\/+$/, '');
+    return JAVBUS_ENTITY_PATH_RE.test(path) ? path : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** 解析详情页主体信息（标题/封面/演员/标签等） */
 export function parseJavDetail(
   html: string,
@@ -324,6 +352,11 @@ export function parseJavDetail(
   directors?: string[];
   makers?: string[];
   seriesList?: string[];
+  /** 实体链接（导演/制作商/发行商/系列），供前端点击查看同类作品 */
+  directorLinks?: JavEntityLink[];
+  makerLinks?: JavEntityLink[];
+  publisherLinks?: JavEntityLink[];
+  seriesLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl: string;
@@ -344,45 +377,65 @@ export function parseJavDetail(
   // JavBus 的字段值有两种形态：
   //   <p><span class="header">發行日期:</span> 2021-02-18</p>       ← 纯文本
   //   <p><span class="header">導演:</span> <a href="/director/o7">苺原</a></p>  ← 链接
-  // 旧实现只兼容纯文本：正则先吃到 </span>，再捕获到「空格」就返回空串，
-  // 导致导演/制作商/发行商永远是 ''，后面的 ?? 也不会回退。
-  // 这里先按「字段块」取到下一个 <p> 为止，再优先收集块内所有 <a> 文本。
-  const infoValues = (labels: string[]): string[] => {
+  // 链接里的 href 是实体列表页（/director、/studio、/label、/series），
+  // 前端要支持点击查看同类作品，所以这里同时保留 href 与显示名。
+  const infoEntries = (labels: string[]): Array<{ name: string; path?: string }> => {
     for (const label of labels) {
       const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const blockRe = new RegExp(escaped + '[^:：]*[:：]([\\s\\S]{0,300}?)(?=<\\/p>|<p\\b)', 'i');
       const blockM = html.match(blockRe);
       if (blockM) {
-        const values: string[] = [];
-        const anchorRe = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+        const entries: Array<{ name: string; path?: string }> = [];
+        const anchorRe = /<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
         let anchor: RegExpExecArray | null;
         while ((anchor = anchorRe.exec(blockM[1])) !== null) {
-          const value = anchor[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-          if (value && !values.includes(value)) values.push(value);
+          const name = anchor[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+          if (!name || entries.some((entry) => entry.name === name)) continue;
+          const path = normalizeJavbusEntityPath(anchor[1]);
+          entries.push(path ? { name, path } : { name });
         }
-        if (values.length > 0) return values;
+        if (entries.length > 0) return entries;
 
         const text = blockM[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-        if (text) return [text];
+        if (text) return [{ name: text }];
       }
 
       // 回退：标签后直接是文本（部分镜像站结构更简单）
       const textRe = new RegExp(escaped + '[^:：]*[:：]\\s*([^<\\n]+)', 'i');
       const textM = html.match(textRe);
       const fallback = textM?.[1].trim();
-      if (fallback) return [fallback];
+      if (fallback) return [{ name: fallback }];
     }
     return [];
   };
+  const infoValues = (labels: string[]): string[] => infoEntries(labels).map((entry) => entry.name);
   const joined = (labels: string[]): string | undefined => {
     const values = infoValues(labels);
     return values.length > 0 ? values.join(' / ') : undefined;
   };
+  const toLinks = (
+    kind: JavEntityKind,
+    entries: Array<{ name: string; path?: string }>
+  ): JavEntityLink[] | undefined => {
+    const links = entries
+      .filter((entry): entry is { name: string; path: string } => Boolean(entry.path))
+      .map((entry) => ({ kind, name: entry.name, path: entry.path }));
+    return links.length > 0 ? links : undefined;
+  };
 
-  const publishers = infoValues(['發行商', '发行商', 'Label']);
-  const directors = infoValues(['導演', '导演', 'Director']);
-  const makers = infoValues(['製作商', '制作商', 'Studio']);
-  const seriesList = infoValues(['系列', 'Series']);
+  const publisherEntries = infoEntries(['發行商', '发行商', 'Label']);
+  const directorEntries = infoEntries(['導演', '导演', 'Director']);
+  const makerEntries = infoEntries(['製作商', '制作商', 'Studio']);
+  const seriesEntries = infoEntries(['系列', 'Series']);
+
+  const publishers = publisherEntries.map((entry) => entry.name);
+  const directors = directorEntries.map((entry) => entry.name);
+  const makers = makerEntries.map((entry) => entry.name);
+  const seriesList = seriesEntries.map((entry) => entry.name);
+  const publisherLinks = toLinks('label', publisherEntries);
+  const directorLinks = toLinks('director', directorEntries);
+  const makerLinks = toLinks('studio', makerEntries);
+  const seriesLinks = toLinks('series', seriesEntries);
 
   const releaseDate = joined(['發行日期', '发行日期', 'Release Date']);
   const duration = joined(['長度', '长度', 'Length']);
@@ -417,6 +470,7 @@ export function parseJavDetail(
   return {
     code, title, cover, releaseDate, duration, publisher, director, maker, series,
     publishers, directors, makers, seriesList,
+    directorLinks, makerLinks, publisherLinks, seriesLinks,
     tags, actresses, detailUrl,
   };
 }
