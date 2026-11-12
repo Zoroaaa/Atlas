@@ -3,6 +3,7 @@
  * 供"收藏分享到社区"等场景补齐磁力链接等信息。纯本地查询，不访问外部站点。
  */
 import { inspectJavCode } from '@codeseek/shared/utils';
+import type { JavEntityKind, JavEntityLink } from './jav-utils';
 
 export interface LibraryMagnet {
   name: string;
@@ -26,6 +27,11 @@ export interface LibraryJavDetail {
   directors?: string[];
   makers?: string[];
   publishers?: string[];
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  directorLinks?: JavEntityLink[];
+  makerLinks?: JavEntityLink[];
+  publisherLinks?: JavEntityLink[];
+  seriesLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl?: string;
@@ -62,6 +68,26 @@ function pickStringArray(source: Record<string, unknown>, key: string): string[]
   if (!Array.isArray(value)) return undefined;
   const list = value.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
   return list.length > 0 ? list : undefined;
+}
+
+/** content_data 里的实体链接（历史记录可能没有该字段，返回 undefined 交给前端懒解析） */
+function pickEntityLinks(
+  source: Record<string, unknown>,
+  key: string,
+  kind: JavEntityKind
+): JavEntityLink[] | undefined {
+  const value = source[key];
+  if (!Array.isArray(value)) return undefined;
+  const links: JavEntityLink[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const entry = item as Record<string, unknown>;
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+    const path = typeof entry.path === 'string' ? entry.path.trim() : '';
+    if (!name || !path) continue;
+    if (!links.some((link) => link.name === name)) links.push({ kind, name, path });
+  }
+  return links.length > 0 ? links : undefined;
 }
 
 export async function getLibraryJavDetail(db: D1Database, rawCode: string): Promise<LibraryLookup> {
@@ -134,6 +160,10 @@ export async function getLibraryJavDetail(db: D1Database, rawCode: string): Prom
       directors: pickStringArray(extra, 'directors'),
       makers: pickStringArray(extra, 'makers'),
       publishers: pickStringArray(extra, 'publishers') ?? (record.publisher ? [record.publisher] : undefined),
+      directorLinks: pickEntityLinks(extra, 'directorLinks', 'director'),
+      makerLinks: pickEntityLinks(extra, 'makerLinks', 'studio'),
+      publisherLinks: pickEntityLinks(extra, 'publisherLinks', 'label'),
+      seriesLinks: pickEntityLinks(extra, 'seriesLinks', 'series'),
       tags: parseList(record.tags),
       actresses: parseList(record.actors),
       detailUrl,

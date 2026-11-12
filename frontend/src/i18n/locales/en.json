@@ -2121,6 +2121,15 @@
       "playOnlineHint": "Pick a platform to open {{code}} on a third-party site in a new tab",
       "playOnlineEntryHint": "Available on {{platforms}}"
     },
+    "entity": {
+      "title": "Works by {{name}}",
+      "loading": "Loading works...",
+      "error": "Failed to load works",
+      "errorHint": "JavBus is temporarily unavailable. Please try again later.",
+      "empty": "No works found",
+      "emptyHint": "No works are available for this category yet.",
+      "openOnJavBus": "View all on JavBus"
+    },
     "rankings": {
       "title": "JAV rankings",
       "sourceLabel": "JavDB",

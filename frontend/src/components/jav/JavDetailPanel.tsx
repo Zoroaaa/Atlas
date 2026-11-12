@@ -6,7 +6,7 @@ import {
   Shield, Play, FileDown, Heart, RefreshCw, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { JavDetail, MagnetItem } from '@/types';
+import type { JavDetail, JavEntityLink, JavEntityTarget, MagnetItem } from '@/types';
 import {
   downloadTorrentFile,
   getWebtorUrl,
@@ -18,6 +18,7 @@ import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { clsx } from 'clsx';
 import { FollowButton } from '@/components/follow/FollowButton';
+import { JavEntityWorksPanel } from './JavEntityWorksPanel';
 import { JAV_PLAY_PLATFORMS, buildJavPlayUrl } from '@/config/javPlayPlatforms';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
@@ -41,7 +42,18 @@ interface JavDetailPanelProps {
   /** 本地库命中时，手动回源 JavBus 拉取最新详情 */
   onPullExternal?: () => void | Promise<void>;
   isPullingExternal?: boolean;
+  /** 实体作品列表里点击作品后触发番号搜索 */
+  onCodeClick?: (code: string) => void;
 }
+
+const findEntityPath = (links: JavEntityLink[] | undefined, name?: string): string | undefined => {
+  if (!links?.length) return undefined;
+  if (!name) return links[0]?.path;
+  const exact = links.find((link) => link.name === name);
+  if (exact) return exact.path;
+  // 多值字段用 " / " 拼接（如发行商 A / B），按包含关系匹配第一个
+  return (links.find((link) => name.includes(link.name)) ?? links[0])?.path;
+};
 
 // ── 复制按钮（带反馈） ─────────────────────────────────────────────
 
@@ -105,14 +117,48 @@ function DownloadBtn({ magnet, name }: { magnet: string; name: string }) {
 
 // ── InfoRow ────────────────────────────────────────────────────────
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string }) {
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value?: string;
+  onClick?: () => void;
+}) {
   if (!value) return null;
-  return (
-    <div className="flex items-start gap-2 text-xs sm:text-sm">
+  const content = (
+    <>
       <Icon className="w-3.5 h-3.5 text-surface-400 mt-0.5 shrink-0" />
       <span className="text-surface-500 dark:text-surface-400 shrink-0">{label}：</span>
-      <span className="text-surface-800 dark:text-surface-200 break-all">{value}</span>
-    </div>
+      <span
+        className={clsx(
+          'break-all',
+          onClick
+            ? 'text-primary-600 underline decoration-dotted underline-offset-2 transition-colors group-hover:text-primary-500 dark:text-primary-300'
+            : 'text-surface-800 dark:text-surface-200'
+        )}
+      >
+        {value}
+      </span>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className="flex items-start gap-2 text-xs sm:text-sm">{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={value}
+      className="group flex items-start gap-2 text-left text-xs transition-colors hover:text-primary-500 sm:text-sm"
+    >
+      {content}
+    </button>
   );
 }
 
@@ -271,12 +317,14 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
-export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false }) => {
+export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false, onCodeClick }) => {
   const { t } = useTranslation(['jav']);
   // 封面按真实比例自适应：横版封面独占一行完整展示，竖版封面与信息并排
   const [coverLandscape, setCoverLandscape] = useState(false);
   const [playModalOpen, setPlayModalOpen] = useState(false);
+  const [entityTarget, setEntityTarget] = useState<JavEntityTarget | null>(null);
   useEffect(() => { setCoverLandscape(false); }, [detail?.cover]);
+  useEffect(() => { setEntityTarget(null); }, [detail?.code]);
   // 番号为空时不展示在线播放入口，避免生成无效链接
   const playCode = detail?.code?.trim();
   if (status === 'idle') return null;
@@ -487,10 +535,50 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
               <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
                 <InfoRow icon={Calendar} label={t('jav:detail.releaseDate')} value={detail.releaseDate} />
                 <InfoRow icon={Clock} label={t('jav:detail.duration')} value={detail.duration} />
-                <InfoRow icon={User} label={t('jav:detail.director')} value={detail.director} />
-                <InfoRow icon={Building2} label={t('jav:detail.maker')} value={detail.maker} />
-                <InfoRow icon={Building2} label={t('jav:detail.publisher')} value={detail.publisher} />
-                <InfoRow icon={Film} label={t('jav:detail.series')} value={detail.series} />
+                <InfoRow
+                  icon={User}
+                  label={t('jav:detail.director')}
+                  value={detail.director}
+                  onClick={detail.director ? () => setEntityTarget({
+                    kind: 'director',
+                    name: detail.director!,
+                    path: findEntityPath(detail.directorLinks, detail.director),
+                    code: detail.code,
+                  }) : undefined}
+                />
+                <InfoRow
+                  icon={Building2}
+                  label={t('jav:detail.maker')}
+                  value={detail.maker}
+                  onClick={detail.maker ? () => setEntityTarget({
+                    kind: 'studio',
+                    name: detail.maker!,
+                    path: findEntityPath(detail.makerLinks, detail.maker),
+                    code: detail.code,
+                  }) : undefined}
+                />
+                <InfoRow
+                  icon={Building2}
+                  label={t('jav:detail.publisher')}
+                  value={detail.publisher}
+                  onClick={detail.publisher ? () => setEntityTarget({
+                    kind: 'label',
+                    name: detail.publisher!,
+                    path: findEntityPath(detail.publisherLinks, detail.publisher),
+                    code: detail.code,
+                  }) : undefined}
+                />
+                <InfoRow
+                  icon={Film}
+                  label={t('jav:detail.series')}
+                  value={detail.series}
+                  onClick={detail.series ? () => setEntityTarget({
+                    kind: 'series',
+                    name: detail.series!,
+                    path: findEntityPath(detail.seriesLinks, detail.series),
+                    code: detail.code,
+                  }) : undefined}
+                />
               </div>
               <a
                 href={detail.detailUrl}
@@ -577,6 +665,12 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
           </div>
         </div>
       ) : null}
+
+      <JavEntityWorksPanel
+        entity={entityTarget}
+        onClose={() => setEntityTarget(null)}
+        onCodeClick={onCodeClick}
+      />
     </PanelSection>
   );
 };

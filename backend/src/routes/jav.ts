@@ -11,7 +11,13 @@ import { Env } from '@/types';
 import { authMiddleware } from '@/middleware';
 import {
   fetchJavbusDetailWithMagnets,
+  fetchJavbusDetailHtml,
   describeJavbusFetchError,
+  get,
+  parseGrid,
+  parseJavDetail,
+  normalizeJavCode,
+  normalizeJavbusEntityPath,
   JAV_HEADERS,
 } from '@/services/jav-utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
@@ -414,6 +420,162 @@ javRoutes.get('/detail', async (c) => {
   } catch (err) {
     console.error('JAV detail error:', err);
     return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取详情失败' } }, 500);
+  }
+});
+
+// =====================================================================
+// 实体作品列表：导演 / 制作商 / 发行商 / 系列
+// 详情卡片上的实体字段点击后，按 JavBus 列表页抓取同类作品。
+// =====================================================================
+
+const JAV_ENTITY_CACHE_TTL = 12 * 60 * 60;
+const JAV_ENTITY_LINKS_CACHE_TTL = 60 * 60;
+
+/**
+ * 老记录的 content_data 没有实体链接时，按番号回源解析一次。
+ * 只解析详情页字段，不抓磁力，避免为了一个字段放大抓取成本。
+ */
+javRoutes.get('/entity/resolve', async (c) => {
+  const user = c.get('user');
+  const rawCode = (c.req.query('code') ?? '').trim();
+  const info = inspectJavCode(rawCode);
+  if (!info.recognized) {
+    return c.json(error('INVALID_CODE', '无效的番号格式'), 400);
+  }
+  const code = info.code;
+
+  const cacheKey = new Request(`https://internal/jav-entity-links-v1/${code}`);
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
+    });
+  }
+
+  const rl = await checkRateLimitD1(
+    c.env.DB, `jav-entity-links:${user.userId}`, 60_000, 20
+  );
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+  }
+
+  try {
+    const fetched = await fetchJavbusDetailHtml(code, 15000);
+    if (!fetched.ok) {
+      const isNotFound = fetched.error === 'NOT_FOUND';
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: isNotFound ? 'NOT_FOUND' : 'SOURCE_UNAVAILABLE',
+            message: describeJavbusFetchError(fetched.error, code),
+          },
+        },
+        isNotFound ? 404 : 503
+      );
+    }
+
+    const detail = parseJavDetail(
+      fetched.html,
+      normalizeJavCode(code),
+      `https://www.javbus.com/${fetched.usedCode}`
+    );
+    const body = JSON.stringify({
+      success: true,
+      data: {
+        code,
+        detailUrl: detail.detailUrl,
+        directorLinks: detail.directorLinks ?? [],
+        makerLinks: detail.makerLinks ?? [],
+        publisherLinks: detail.publisherLinks ?? [],
+        seriesLinks: detail.seriesLinks ?? [],
+      },
+    });
+    const response = new Response(body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${JAV_ENTITY_LINKS_CACHE_TTL}`,
+        'X-Cache': 'MISS',
+      },
+    });
+    c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  } catch (err) {
+    console.error('[jav-entity] resolve failed:', err);
+    return c.json(error('FETCH_ERROR', '解析实体链接失败'), 500);
+  }
+});
+
+/**
+ * GET /api/jav/entity?path=/director/o7&refresh=0|1
+ * path 必须是 JavBus 实体列表页路径，拒绝任意 URL（防 SSRF）。
+ */
+javRoutes.get('/entity', async (c) => {
+  const user = c.get('user');
+  const rawPath = (c.req.query('path') ?? '').trim();
+  const path = normalizeJavbusEntityPath(rawPath);
+  if (!path) {
+    return c.json(error('INVALID_PATH', '无效的实体链接'), 400);
+  }
+
+  const forceRefresh = c.req.query('refresh') === '1';
+  const cacheKey = new Request(
+    `https://internal/javbus-entity-v1/${encodeURIComponent(path)}`
+  );
+  const cache = caches.default;
+
+  if (!forceRefresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
+      });
+    }
+  }
+
+  const rl = await checkRateLimitD1(
+    c.env.DB, `jav-entity:${user.userId}`, 60_000, 40
+  );
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
+  }
+
+  try {
+    const externalUrl = `https://www.javbus.com${path}`;
+    const result = await get(externalUrl, 15000);
+    if (!result.ok) {
+      const isNotFound = result.error === 'HTTP_ERROR' && result.status === 404;
+      return c.json(
+        error(isNotFound ? 'NOT_FOUND' : 'SOURCE_UNAVAILABLE', '来源暂时不可用，请稍后重试'),
+        isNotFound ? 404 : 503
+      );
+    }
+    // 年龄验证/维护页没有 waterfall，按源不可用处理，避免缓存异常页
+    if (result.html.length < 500 || !result.html.includes('id="waterfall"')) {
+      return c.json(error('SOURCE_UNAVAILABLE', '来源返回内容异常，请稍后重试'), 503);
+    }
+
+    const body = JSON.stringify({
+      success: true,
+      data: {
+        path,
+        externalUrl,
+        items: parseGrid(result.html, 'javbus-entity'),
+      },
+    });
+    const response = new Response(body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${JAV_ENTITY_CACHE_TTL}`,
+        'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
+      },
+    });
+    c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  } catch (err) {
+    console.error('[jav-entity] fetch failed:', err);
+    return c.json(error('FETCH_ERROR', '获取实体作品失败'), 500);
   }
 });
 

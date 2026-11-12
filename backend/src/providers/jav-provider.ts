@@ -21,6 +21,7 @@ import {
   fetchJavbusDetailWithMagnets,
   getHtml,
   describeJavbusFetchError,
+  type JavEntityLink,
   type JavItem,
   type MagnetItem,
 } from '@/services/jav-utils';
@@ -46,6 +47,11 @@ export interface JavDetailResult {
   maker?: string;
   publisher?: string;
   series?: string;
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  directorLinks?: JavEntityLink[];
+  makerLinks?: JavEntityLink[];
+  publisherLinks?: JavEntityLink[];
+  seriesLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   magnets: MagnetItem[];
@@ -170,6 +176,10 @@ export class JavProvider implements SearchProvider {
           maker: localDetail.maker,
           publisher: localDetail.publisher,
           series: localDetail.series,
+          directorLinks: localDetail.directorLinks,
+          makerLinks: localDetail.makerLinks,
+          publisherLinks: localDetail.publisherLinks,
+          seriesLinks: localDetail.seriesLinks,
           tags: localDetail.tags,
           actresses: localDetail.actresses,
           detailUrl: localDetail.detailUrl || `https://www.javbus.com/${code}`,

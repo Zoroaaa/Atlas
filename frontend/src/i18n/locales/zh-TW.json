@@ -2121,6 +2121,15 @@
       "playOnlineHint": "選擇平台後將在新分頁開啟第三方網站播放 {{code}}",
       "playOnlineEntryHint": "可選平台：{{platforms}}"
     },
+    "entity": {
+      "title": "{{name}} 的作品",
+      "loading": "正在取得作品列表...",
+      "error": "取得作品列表失敗",
+      "errorHint": "JavBus 暫時無法使用，請稍後再試",
+      "empty": "暫無作品",
+      "emptyHint": "此分類目前沒有可顯示的作品",
+      "openOnJavBus": "在 JavBus 查看全部"
+    },
     "rankings": {
       "title": "JAV 榜單",
       "sourceLabel": "JavDB",
