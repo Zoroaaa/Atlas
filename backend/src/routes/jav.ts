@@ -19,6 +19,7 @@ import {
   normalizeJavCode,
   normalizeJavbusEntityPath,
   JAV_HEADERS,
+  type JavItem,
 } from '@/services/jav-utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
 import { JAV_RANKING, GENRE_REC, GENRE_WORKS } from '@/constants';
@@ -26,6 +27,7 @@ import { getJavRankingSnapshot } from '@/services/ranking-snapshot';
 import { getHotActressRanking } from '@/services/actress-ranking';
 import { enrichDataRecordFromDetail } from '@/services/data-storage';
 import { getLibraryJavDetail } from '@/services/library-detail';
+import { upsertWorksToLibrary } from '@/services/library-writer';
 import { success, error } from '@/utils';
 import { checkRateLimitD1 } from '@/utils/rate-limit';
 import { checkIsAdmin } from '@/middleware/auth';
@@ -432,6 +434,24 @@ const JAV_ENTITY_CACHE_TTL = 12 * 60 * 60;
 const JAV_ENTITY_LINKS_CACHE_TTL = 60 * 60;
 
 /**
+ * 实体作品列表回写本地库：导演/制作商/发行商/系列四条链路共用。
+ * 失败只记日志，不影响接口返回；已有记录只补空缺字段，不覆盖标题/封面。
+ */
+function saveEntityWorks(db: D1Database, items: JavItem[], path: string): Promise<void> {
+  const entityKind = path.match(/\/(director|studio|label|series)\/[a-z0-9]+$/i)?.[1]?.toLowerCase()
+    ?? 'entity';
+  return upsertWorksToLibrary(db, items, {
+    sourceName: 'JavBus',
+    sourceType: 'entity',
+    sourceData: {
+      via: 'entity',
+      entityKind,
+      entityPath: path,
+    },
+  }).catch((err) => console.error('[jav-entity] save works to library failed:', err));
+}
+
+/**
  * 老记录的 content_data 没有实体链接时，按番号回源解析一次。
  * 只解析详情页字段，不抓磁力，避免为了一个字段放大抓取成本。
  */
@@ -528,6 +548,15 @@ javRoutes.get('/entity', async (c) => {
   if (!forceRefresh) {
     const cached = await cache.match(cacheKey);
     if (cached) {
+      // 缓存命中同样回写：首次抓取时落库失败、或缓存来自旧版本时也能补齐
+      const cachedBody = await cached
+        .clone()
+        .json<{ data?: { items?: JavItem[] } }>()
+        .catch(() => null);
+      const cachedItems = cachedBody?.data?.items;
+      if (Array.isArray(cachedItems) && cachedItems.length > 0) {
+        c.executionCtx.waitUntil(saveEntityWorks(c.env.DB, cachedItems, path));
+      }
       return new Response(cached.body, {
         headers: { ...Object.fromEntries(cached.headers), 'X-Cache': 'HIT' },
       });
@@ -556,12 +585,15 @@ javRoutes.get('/entity', async (c) => {
       return c.json(error('SOURCE_UNAVAILABLE', '来源返回内容异常，请稍后重试'), 503);
     }
 
+    const items = parseGrid(result.html, 'javbus-entity');
+    c.executionCtx.waitUntil(saveEntityWorks(c.env.DB, items, path));
+
     const body = JSON.stringify({
       success: true,
       data: {
         path,
         externalUrl,
-        items: parseGrid(result.html, 'javbus-entity'),
+        items,
       },
     });
     const response = new Response(body, {
