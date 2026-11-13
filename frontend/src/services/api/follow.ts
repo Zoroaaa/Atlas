@@ -2,7 +2,9 @@ import { apiClient } from './client';
 import type {
   FollowsData,
   FollowFeedData,
+  FollowFeedSearchData,
   FollowFeedTab,
+  FollowEntityType,
   NotificationInboxData,
   NotificationPreferencesData,
 } from '@/types';
@@ -18,7 +20,7 @@ export const followApi = {
     return res.data;
   },
 
-  follow: async (body: { name: string; key?: string; avatar?: string }) => {
+  follow: async (body: { name: string; key?: string; avatar?: string; entityType?: FollowEntityType }) => {
     const res = await apiClient.post<Envelope<{ key: string; name: string; alreadyFollowing?: boolean }>>('/follows', body);
     return res.data;
   },
@@ -31,11 +33,19 @@ export const followApi = {
     await apiClient.patch(`/follows/${encodeURIComponent(key)}`, { notifyInApp });
   },
 
-  feed: async (tab: FollowFeedTab, page: number, pageSize: number, actress?: string): Promise<FollowFeedData> => {
+  feed: async (tab: FollowFeedTab, page: number, pageSize: number, entity?: string): Promise<FollowFeedData> => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const res = await apiClient.get<Envelope<FollowFeedData>>(
-      `/follows/feed?tab=${tab}&page=${page}&pageSize=${pageSize}&today=${today}${actress ? `&actress=${encodeURIComponent(actress)}` : ''}`
+      `/follows/feed?tab=${tab}&page=${page}&pageSize=${pageSize}&today=${today}${entity ? `&entity=${encodeURIComponent(entity)}` : ''}`
+    );
+    return res.data;
+  },
+
+  /** 关键词集合搜索：跨全部关注对象聚合相关作品 */
+  feedSearch: async (q: string, page: number, pageSize: number): Promise<FollowFeedSearchData> => {
+    const res = await apiClient.get<Envelope<FollowFeedSearchData>>(
+      `/follows/search?q=${encodeURIComponent(q)}&page=${page}&pageSize=${pageSize}`
     );
     return res.data;
   },

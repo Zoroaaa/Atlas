@@ -8,11 +8,21 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, ExternalLink, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Loading } from '@/components/ui';
+import { Modal, Loading, ProxyImage } from '@/components/ui';
 import { EmptyBlock } from '@/components/workbench';
 import { apiClient } from '@/services/api';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { FollowButton } from '@/components/follow/FollowButton';
 import type { JavEntityLink, JavEntityTarget, JavEntityWorkItem } from '@/types';
+
+/** 实体类型对应的字段文案（复用详情卡片的字段名） */
+const KIND_LABEL_KEY: Record<JavEntityTarget['kind'], string> = {
+  director: 'jav:detail.director',
+  studio: 'jav:detail.maker',
+  label: 'jav:detail.publisher',
+  series: 'jav:detail.series',
+  tag: 'jav:detail.tagsLabel',
+};
 
 interface JavEntityWorksPanelProps {
   entity: JavEntityTarget | null;
@@ -32,6 +42,7 @@ interface EntityLinksData {
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
 }
 
 const LINKS_KEY: Record<JavEntityTarget['kind'], keyof EntityLinksData> = {
@@ -39,6 +50,7 @@ const LINKS_KEY: Record<JavEntityTarget['kind'], keyof EntityLinksData> = {
   studio: 'makerLinks',
   label: 'publisherLinks',
   series: 'seriesLinks',
+  tag: 'tagLinks',
 };
 
 const pickPath = (data: EntityLinksData, target: JavEntityTarget): string | undefined => {
@@ -59,12 +71,15 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
   const [externalUrl, setExternalUrl] = useState<string | undefined>();
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [reloadKey, setReloadKey] = useState(0);
+  // 老记录没有实体链接时由 resolve 接口补出路径，关注按钮要用解析后的路径
+  const [resolvedPath, setResolvedPath] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!entity) {
       setStatus('idle');
       setItems([]);
       setExternalUrl(undefined);
+      setResolvedPath(undefined);
       return;
     }
 
@@ -73,6 +88,7 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
       setStatus('loading');
       setItems([]);
       setExternalUrl(undefined);
+      setResolvedPath(entity.path);
       try {
         let path = entity.path;
         if (!path) {
@@ -88,6 +104,7 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
           `/jav/entity?path=${encodeURIComponent(path)}`
         );
         if (cancelled) return;
+        setResolvedPath(path);
         setItems(response.data?.items ?? []);
         setExternalUrl(response.data?.externalUrl);
         setStatus('success');
@@ -108,6 +125,17 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
 
   return (
     <Modal isOpen={!!entity} onClose={onClose} title={title} size="lg">
+      {entity ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="type-micro text-surface-500">{t(KIND_LABEL_KEY[entity.kind])}</span>
+          <FollowButton
+            name={entity.name}
+            entityType={entity.kind}
+            entityPath={resolvedPath ?? entity.path}
+          />
+        </div>
+      ) : null}
+
       {status === 'loading' || status === 'idle' ? (
         <div className="flex min-h-[160px] items-center justify-center">
           <Loading text={t('jav:entity.loading')} />
@@ -157,10 +185,9 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
               >
                 <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
                   {item.cover ? (
-                    <img
+                    <ProxyImage
                       src={getProxyImageUrl(item.cover)}
                       alt={item.code}
-                      loading="lazy"
                       className="h-full w-full object-cover"
                     />
                   ) : (

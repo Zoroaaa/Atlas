@@ -3,15 +3,17 @@ import { followApi, ApiError } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/hooks/useNotification';
 import i18next from 'i18next';
-import type { FollowFeedTab } from '@/types';
+import type { FollowEntityType, FollowFeedTab } from '@/types';
 
 export const FOLLOW_FEED_PAGE_SIZE = 10;
 
 export const followKeys = {
   all: ['follows'] as const,
   list: (userId?: string) => ['follows', 'list', userId] as const,
-  feed: (userId: string | undefined, tab: FollowFeedTab, page: number, pageSize: number, actress: string) =>
-    ['follows', 'feed', userId, tab, page, pageSize, actress] as const,
+  feed: (userId: string | undefined, tab: FollowFeedTab, page: number, pageSize: number, entity: string) =>
+    ['follows', 'feed', userId, tab, page, pageSize, entity] as const,
+  search: (userId: string | undefined, q: string, page: number, pageSize: number) =>
+    ['follows', 'search', userId, q, page, pageSize] as const,
 };
 
 /** 我的关注列表（≤100 条，体积很小） */
@@ -32,16 +34,29 @@ export function useFollowFeed(
   tab: FollowFeedTab,
   page: number,
   enabled: boolean,
-  opts: { actress?: string; pageSize?: number } = {}
+  opts: { entity?: string; pageSize?: number } = {}
 ) {
   const userId = useAuthStore((s) => s.user?.id);
   const pageSize = opts.pageSize ?? FOLLOW_FEED_PAGE_SIZE;
-  const actress = opts.actress ?? '';
+  const entity = opts.entity ?? '';
 
   return useQuery({
-    queryKey: followKeys.feed(userId, tab, page, pageSize, actress),
-    queryFn: () => followApi.feed(tab, page, pageSize, actress || undefined),
+    queryKey: followKeys.feed(userId, tab, page, pageSize, entity),
+    queryFn: () => followApi.feed(tab, page, pageSize, entity || undefined),
     enabled: enabled && !!userId,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** 关键词集合搜索：q 为空时不请求 */
+export function useFollowFeedSearch(q: string, page: number, enabled: boolean) {
+  const userId = useAuthStore((s) => s.user?.id);
+
+  return useQuery({
+    queryKey: followKeys.search(userId, q, page, FOLLOW_FEED_PAGE_SIZE),
+    queryFn: () => followApi.feedSearch(q, page, FOLLOW_FEED_PAGE_SIZE),
+    enabled: enabled && !!userId && q.trim().length > 0,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
@@ -61,7 +76,7 @@ export function useFollowActions() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: followKeys.all });
 
   const follow = useMutation({
-    mutationFn: (vars: { name: string; key?: string; avatar?: string }) => followApi.follow(vars),
+    mutationFn: (vars: { name: string; key?: string; avatar?: string; entityType?: FollowEntityType }) => followApi.follow(vars),
     onSuccess: (data) => {
       if (!data.alreadyFollowing) toast.success(i18next.t('follow:followSuccess', { name: data.name }));
       void refresh();

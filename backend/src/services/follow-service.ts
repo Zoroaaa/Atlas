@@ -11,6 +11,34 @@ import { upsertWorksToLibrary } from '@/services/library-writer';
 
 const JAVBUS_BASE = 'https://www.javbus.com';
 
+/** 关注对象类型：女优沿用原有逻辑，其余为 JavBus 实体列表页 */
+export type FollowEntityType = 'actress' | 'director' | 'studio' | 'label' | 'series' | 'tag';
+
+export const FOLLOW_ENTITY_TYPES: FollowEntityType[] = [
+  'actress', 'director', 'studio', 'label', 'series', 'tag',
+];
+
+/**
+ * 关注对象的统一 key：
+ * - 女优：JavBus star slug（不含冒号）
+ * - 实体：`<类型>:<JavBus 路径去掉开头斜杠>`，如 director:o7、tag:genre/2a
+ *
+ * 这样女优与实体共用 actress_watch / actress_works / user_follows，
+ * 通知、动态聚合、取消关注、已关注态都走同一套读写路径。
+ */
+export function entityTypeFromKey(key: string): FollowEntityType | undefined {
+  const index = key.indexOf(':');
+  if (index <= 0) return 'actress';
+  const type = key.slice(0, index) as FollowEntityType;
+  return FOLLOW_ENTITY_TYPES.includes(type) && type !== 'actress' ? type : undefined;
+}
+
+/** 实体 key → JavBus 实体列表页路径 */
+export function entityPathFromKey(key: string): string | undefined {
+  const index = key.indexOf(':');
+  return index > 0 ? `/${key.slice(index + 1)}` : undefined;
+}
+
 export interface ResolvedStar {
   key: string;
   name: string;
@@ -40,6 +68,14 @@ export async function fetchStarWorks(key: string): Promise<JavItem[]> {
   return parseGrid(html, 'javbus-star');
 }
 
+/** 抓取导演/制作商/发行商/系列/标签列表页第一页作品 */
+export async function fetchEntityWorks(path: string): Promise<JavItem[]> {
+  const html = await getHtml(`${JAVBUS_BASE}${path}`, 15000);
+  if (!html) throw new Error('JavBus 无响应');
+  if (html.length < 500 || !/id="waterfall"/.test(html)) throw new Error('JavBus 返回异常内容');
+  return parseGrid(html, 'javbus-entity');
+}
+
 interface WatchRow {
   key: string;
   name: string;
@@ -61,9 +97,13 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
   if (!watch) return { ok: false, baseline: false, newCount: 0 };
 
   const now = Date.now();
+  const entityType = entityTypeFromKey(key);
+  if (!entityType) return { ok: false, baseline: false, newCount: 0 };
   let works: JavItem[];
   try {
-    works = await fetchStarWorks(key);
+    works = entityType === 'actress'
+      ? await fetchStarWorks(key)
+      : await fetchEntityWorks(entityPathFromKey(key)!);
   } catch (err) {
     console.error(`[follow] fetch star ${key} failed:`, err);
     await db
@@ -111,8 +151,8 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
     await upsertWorksToLibrary(db, works, {
       sourceName: 'JavBus',
       sourceType: 'info',
-      sourceData: { via: 'follow', actress: watch.name },
-      actorNames: [watch.name],
+      sourceData: { via: 'follow', entityType, entity: watch.name },
+      actorNames: entityType === 'actress' ? [watch.name] : undefined,
       now,
     });
   } catch (err) {
@@ -149,6 +189,7 @@ async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]
   const body = preview.join('\n') + (fresh.length > preview.length ? `\n…共 ${fresh.length} 部` : '');
   const payload = JSON.stringify({
     key: watch.key,
+    entityType: entityTypeFromKey(watch.key) ?? 'actress',
     name: watch.name,
     count: fresh.length,
     works: fresh.slice(0, 10).map((w) => ({ code: w.code, title: w.title, cover: w.cover, date: w.date })),
@@ -187,7 +228,7 @@ async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]
     .run();
 }
 
-/** 定时任务：检查最久没检查的一批（有关注者的）女优，失败按指数退避 */
+/** 定时任务：检查最久没检查的一批（有关注者的）关注对象，失败按指数退避 */
 export async function runWatchCheck(db: D1Database): Promise<{ checked: number; failed: number }> {
   const due = await db
     .prepare(

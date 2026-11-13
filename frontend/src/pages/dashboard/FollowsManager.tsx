@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Bell, BellOff, ExternalLink, Search, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { Button, Card, Checkbox, EmptyState, Input, Loading, ProxyImage } from '@/components/ui';
+import { Chip } from '@/components/workbench';
 import { useToast } from '@/hooks/useNotification';
 import { useFollows, useFollowActions, followKeys } from '@/hooks';
 import { followApi } from '@/services/api';
@@ -24,7 +25,7 @@ export const FollowsManager: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchPending, setBatchPending] = useState(false);
 
-  const follows = data?.follows ?? [];
+  const follows = useMemo(() => data?.follows ?? [], [data]);
   const limit = data?.limit ?? 100;
 
   const filtered = useMemo(() => {
@@ -66,6 +67,8 @@ export const FollowsManager: React.FC = () => {
   };
 
   const openActress = (name: string) => navigate(`/?q=${encodeURIComponent(name)}&tab=jav&sub=actress`);
+
+  const openEntity = (name: string) => navigate(`/?q=${encodeURIComponent(name)}&tab=jav`);
 
   if (isLoading) {
     return (
@@ -197,13 +200,18 @@ export const FollowsManager: React.FC = () => {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => openActress(item.name)}
-                    className="block max-w-full truncate text-left text-base font-semibold text-surface-900 hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-400"
-                  >
-                    {item.name}
-                  </button>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => (item.entityType === 'actress' ? openActress(item.name) : openEntity(item.name))}
+                      className="block max-w-full truncate text-left text-base font-semibold text-surface-900 hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-400"
+                    >
+                      {item.name}
+                    </button>
+                    {item.entityType !== 'actress' ? (
+                      <Chip tone="neutral" size="xs">{t(`follow:entityTypes.${item.entityType}`)}</Chip>
+                    ) : null}
+                  </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500">
                     <span>{t('follow:mgr.followedAt', { time: formatRelativeTime(item.createdAt, i18n.language) })}</span>
                     <span>
@@ -223,7 +231,7 @@ export const FollowsManager: React.FC = () => {
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => openActress(item.name)}
+                    onClick={() => (item.entityType === 'actress' ? openActress(item.name) : openEntity(item.name))}
                     className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800"
                     title={t('follow:mgr.viewWorks')}
                     aria-label={t('follow:mgr.viewWorks')}
