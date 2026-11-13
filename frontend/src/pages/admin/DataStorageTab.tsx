@@ -84,11 +84,17 @@ function detailStatusLabel(t: (key: string) => string, status: JavDetailStatus |
   return t(`admin:dataStorage.detailStatus.${status || 'pending'}`);
 }
 
+/** 历史版本把错误文案直接写进了 last_error，展示时兼容成稳定错误码 */
+const LEGACY_ERROR_CODES: Record<string, string> = {
+  '磁力接口暂时不可用': 'MAGNET_FETCH_FAILED',
+};
+
 function errorCodeLabel(t: (key: string) => string, code: string | null | undefined): string {
   if (!code) return '';
-  const key = `admin:dataStorage.errorCode.${code}`;
+  const normalized = LEGACY_ERROR_CODES[code] ?? code;
+  const key = `admin:dataStorage.errorCode.${normalized}`;
   const label = t(key);
-  return label === key ? code : label;
+  return label === key ? normalized : label;
 }
 
 // ─── 接口响应容错 ────────────────────────────────────────────────────
@@ -278,7 +284,7 @@ export const DataStorageTab: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<'' | DataRecordType>('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'hidden' | ''>('');
   const [search, setSearch] = useState('');
-  const [detailFilter, setDetailFilter] = useState<'' | 'complete' | 'incomplete'>('');
+  const [detailFilter, setDetailFilter] = useState<'' | 'complete' | 'incomplete' | 'error'>('');
   const [missingFilters, setMissingFilters] = useState<JavDetailFieldName[]>([]);
   const [retryFilter, setRetryFilter] = useState<'' | 'yes' | 'no'>('');
 
@@ -288,6 +294,7 @@ export const DataStorageTab: React.FC = () => {
   const [genreSyncing, setGenreSyncing] = useState(false);
   const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
   const [jobStartingField, setJobStartingField] = useState<JavDetailFieldName | null>(null);
+  const [retryingTransient, setRetryingTransient] = useState(false);
   const [jobStopping, setJobStopping] = useState(false);
   const [jobPausing, setJobPausing] = useState(false);
 
@@ -365,6 +372,24 @@ export const DataStorageTab: React.FC = () => {
       clearInterval(timer);
     };
   }, [loadStats, loadRecords]);
+
+  // 手动重试「暂时失败」：后端先把退避时间清零，再由同一个批次任务立即推进
+  const handleRetryTransient = async () => {
+    setRetryingTransient(true);
+    try {
+      const patch = normalizeJobView(
+        await dataStorageApi.startDetailJob({ missing: 'transient' })
+      );
+      if (!patch) throw new Error('empty response');
+      jobStatusRef.current = patch.job;
+      setJobView((prev) => mergeJobView(prev, patch));
+      toast.success(t('admin:dataStorage.batch.retryTransientStarted'));
+    } catch {
+      toast.error(t('admin:dataStorage.batch.startFailed'));
+    } finally {
+      setRetryingTransient(false);
+    }
+  };
 
   // 四个入口各自启动：筛选只决定选哪些记录，抓取仍然是完整详情
   const handleStartJob = async (missing: JavDetailFieldName) => {
@@ -755,7 +780,7 @@ export const DataStorageTab: React.FC = () => {
               <select
                 value={detailFilter}
                 onChange={(e) => {
-                  const next = e.target.value as '' | 'complete' | 'incomplete';
+                  const next = e.target.value as '' | 'complete' | 'incomplete' | 'error';
                   setDetailFilter(next);
                   if (next === 'complete') setMissingFilters([]);
                   setPage(1);
@@ -765,6 +790,7 @@ export const DataStorageTab: React.FC = () => {
                 <option value="">{t('admin:dataStorage.detailFilter.all')}</option>
                 <option value="complete">{t('admin:dataStorage.detailFilter.complete')}</option>
                 <option value="incomplete">{t('admin:dataStorage.detailFilter.incomplete')}</option>
+                <option value="error">{t('admin:dataStorage.detailFilter.error')}</option>
               </select>
               <select
                 value={retryFilter}
@@ -840,6 +866,17 @@ export const DataStorageTab: React.FC = () => {
                 className="px-2.5 py-1 rounded-lg text-xs text-surface-500 hover:text-rose-500"
               >
                 {t('admin:dataStorage.filter.all')}
+              </button>
+            )}
+            {detailFilter === 'error' && (
+              <button
+                type="button"
+                onClick={() => void handleRetryTransient()}
+                disabled={retryingTransient || jobView?.job?.status === 'running'}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500 text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={clsx('h-3 w-3', retryingTransient && 'animate-spin')} />
+                {t('admin:dataStorage.batch.retryTransientBtn')}
               </button>
             )}
           </div>

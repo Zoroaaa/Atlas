@@ -28,6 +28,15 @@ const EMPTY_MAGNET_BODY = `
 $('#movie-loading').hide();
 </script>`;
 
+/** 新版空响应（RBB-337 / NHDTC-25403 实测）：带一行「暂无磁力」提示 */
+const NO_MAGNET_ROW_BODY = `
+<tr style="color:#555;">
+  <td colspan="4">暫時沒有磁力連結,請等待網友分享!</td>
+</tr>
+<script type="text/javascript">
+$('#movie-loading').hide();
+</script>`;
+
 /** 被校验/限流时的 200 页面（非空，但不是磁力表格） */
 const VERIFY_BODY = `
 <html><body>
@@ -90,6 +99,7 @@ describe('parseMagnets', () => {
 describe('磁力响应的空结果与失败区分', () => {
   it('JavBus 的合法空响应被识别为「真的没有磁力」', () => {
     expect(isJavbusEmptyMagnetResponse(EMPTY_MAGNET_BODY)).toBe(true);
+    expect(isJavbusEmptyMagnetResponse(NO_MAGNET_ROW_BODY)).toBe(true);
     expect(isJavbusEmptyMagnetResponse('')).toBe(true);
     expect(isJavbusEmptyMagnetResponse(MAGNET_ROW)).toBe(false);
     expect(isJavbusEmptyMagnetResponse(VERIFY_BODY)).toBe(false);
@@ -117,6 +127,15 @@ describe('fetchJavbusDetailWithMagnets', () => {
   it('源站确实没有磁力：两次合法空响应 → 空列表 + 不算失败', async () => {
     mockFetch([() => response(EMPTY_MAGNET_BODY)]);
     const result = await fetchJavbusDetailWithMagnets('MIMK-021', 5000);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.magnets).toHaveLength(0);
+    expect(result.data.magnetFetchFailed).toBe(false);
+  });
+
+  it('新版「暂无磁力」表格行仍按合法空响应处理，不会误报接口不可用', async () => {
+    mockFetch([() => response(NO_MAGNET_ROW_BODY)]);
+    const result = await fetchJavbusDetailWithMagnets('RBB-337', 5000);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.magnets).toHaveLength(0);
