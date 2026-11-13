@@ -154,7 +154,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                               if (!updatingStatus) handleStatusChange(item.id, item.status!);
                             }}
                             disabled={updatingStatus === item.id}
-                            className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 font-medium text-primary-600 transition-opacity hover:opacity-80 disabled:opacity-50 dark:text-primary-300"
+                            className="relative -my-1.5 inline-flex h-7 shrink-0 items-center gap-0.5 self-center whitespace-nowrap rounded-md px-1.5 font-medium leading-none text-primary-600 transition-opacity hover:opacity-80 disabled:opacity-50 dark:text-primary-300"
                             title={t('search:favorites.toggleTo', { status: getStatusText(item.status === 'want' ? 'watched' : 'want') })}
                           >
                             {item.status === 'want' ? <Eye className="h-2.5 w-2.5" /> : <EyeOff className="h-2.5 w-2.5" />}
