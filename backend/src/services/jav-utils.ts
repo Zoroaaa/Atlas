@@ -311,15 +311,24 @@ export function isJavbusVerificationPage(finalUrl: string, html = ''): boolean {
 /**
  * 磁力接口的「源站确实没有磁力」响应。
  *
- * JavBus 没有磁力时只返回一段隐藏 loading 的脚本（实测约 92 字节），
- * 不含表格、不含磁力链接。除此之外的 200 响应都必须视为抓取失败：
- * 验证页、限流页、压缩后未解压的二进制体都可能「非空但解析不出磁力」。
+ * JavBus 的合法空响应有两种形态：
+ * 1. 只有隐藏 loading 的小脚本（旧版，约 92 字节）；
+ * 2. 一行「暫時沒有磁力連結,請等待網友分享!」的表格行 + 同一个隐藏脚本。
+ *    这种响应仍带 <tr>，不能因为出现表格标签就判定为抓取失败。
+ *
+ * 除此之外的 200 响应都必须视为抓取失败：验证页、限流页、
+ * 压缩后未解压的二进制体都可能「非空但解析不出磁力」。
  */
 export function isJavbusEmptyMagnetResponse(html: string): boolean {
   const text = html.trim();
   if (text === '') return true;
-  if (/<tr[\s>]/i.test(text)) return false;
-  return text.length <= 600 && /movie-loading/i.test(text);
+  // 出现真实磁力链接一定不是空响应
+  if (/magnet:\?xt=/i.test(text)) return false;
+  // 源站明确告知「没有磁力」：这是业务上的合法空结果
+  if (/暫時沒有磁力|暂时没有磁力|沒有磁力連結|没有磁力链接/i.test(text)) return true;
+  // 旧版只返回隐藏 loading 的小脚本
+  if (text.length <= 600 && /movie-loading/i.test(text)) return true;
+  return false;
 }
 
 /** 解析磁力 Ajax 响应 HTML → MagnetItem[] */
