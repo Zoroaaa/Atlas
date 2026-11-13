@@ -6,16 +6,29 @@ import { Env } from '@/types';
 import { success, error } from '@/utils';
 import { authMiddleware } from '@/middleware/auth';
 import { FOLLOW } from '@/constants';
-import { resolveStar, syncWatch } from '@/services/follow-service';
+import {
+  resolveStar,
+  syncWatch,
+  entityTypeFromKey,
+  entityPathFromKey,
+  FOLLOW_ENTITY_TYPES,
+  type FollowEntityType,
+} from '@/services/follow-service';
+import { normalizeJavbusEntityPath } from '@/services/jav-utils';
 
 export const followRoutes = new Hono<{ Bindings: Env }>();
 
 followRoutes.use('*', authMiddleware);
 
-const KEY_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+/** 女优：JavBus star slug；实体：`<类型>:<JavBus 路径去掉开头斜杠>` */
+const KEY_PATTERN = /^(?:[A-Za-z0-9_-]{1,40}|(?:director|studio|label|series|tag):[A-Za-z0-9][A-Za-z0-9/_-]{0,140})$/;
+
+
 
 interface FollowRow {
   key: string;
+  entity_type: string;
+  entity_key: string;
   name: string;
   avatar: string | null;
   created_at: number;
@@ -31,18 +44,20 @@ followRoutes.get('/', async (c) => {
 
   try {
     const rows = await c.env.DB.prepare(
-      `SELECT f.watch_key AS key, a.name, a.avatar, f.created_at, f.notify_in_app,
-              a.last_checked_at, a.fail_count,
+      `SELECT f.watch_key AS key, t.entity_type, t.entity_key, t.name, t.avatar,
+              f.created_at, f.notify_in_app, t.last_checked_at, t.fail_count,
               (SELECT COUNT(*) FROM actress_works w
                 WHERE w.watch_key = f.watch_key AND w.first_detected_at > f.last_viewed_at) AS unread
        FROM user_follows f
-       JOIN actress_watch a ON a.key = f.watch_key
+       JOIN follow_targets t ON t.watch_key = f.watch_key
        WHERE f.user_id = ?
        ORDER BY f.created_at DESC`
     ).bind(user.userId).all<FollowRow>();
 
     const follows = (rows.results || []).map((r) => ({
       key: r.key,
+      entityType: (r.entity_type || 'actress') as FollowEntityType,
+      entityKey: r.entity_key,
       name: r.name,
       avatar: r.avatar ?? undefined,
       createdAt: r.created_at,
@@ -63,18 +78,35 @@ followRoutes.get('/', async (c) => {
   }
 });
 
-// 关注：传 key（来自女优资料）或 name（如热门女优，只有名字，后端解析 key）
+// 关注：女优传 key/name；实体传 entityType + key（`<类型>:<路径去掉开头斜杠>`）+ name
 followRoutes.post('/', async (c) => {
   const user = c.get('user');
 
   try {
-    const body = await c.req.json<{ key?: unknown; name?: unknown; avatar?: unknown }>().catch(() => ({} as Record<string, unknown>));
-    const name = typeof body.name === 'string' ? body.name.trim().slice(0, 60) : '';
+    const body = await c.req.json<{
+      key?: unknown; name?: unknown; avatar?: unknown; entityType?: unknown;
+    }>().catch(() => ({} as Record<string, unknown>));
+    const rawEntityType = typeof body.entityType === 'string' ? body.entityType.trim() : '';
+    const entityType = rawEntityType && FOLLOW_ENTITY_TYPES.includes(rawEntityType as FollowEntityType)
+      ? rawEntityType as FollowEntityType
+      : undefined;
+    const name = typeof body.name === 'string' ? body.name.trim().slice(0, 80) : '';
     let key = typeof body.key === 'string' ? body.key.trim() : '';
     let avatar = typeof body.avatar === 'string' && body.avatar.length <= 500 ? body.avatar : undefined;
 
-    if (!name && !key) return c.json(error('VALIDATION_ERROR', '缺少女优名称'), 400);
-    if (key && !KEY_PATTERN.test(key)) return c.json(error('VALIDATION_ERROR', '女优标识无效'), 400);
+    if (!name && !key) return c.json(error('VALIDATION_ERROR', '缺少关注对象名称'), 400);
+    if (key && !KEY_PATTERN.test(key)) return c.json(error('VALIDATION_ERROR', '关注对象标识无效'), 400);
+
+    // 实体关注：key 必须是合法 JavBus 实体列表页路径，避免把任意 URL 当成抓取目标
+    if (entityType && entityType !== 'actress') {
+      if (!key) return c.json(error('VALIDATION_ERROR', '缺少实体标识'), 400);
+      if (entityTypeFromKey(key) !== entityType || !name) {
+        return c.json(error('VALIDATION_ERROR', '实体参数无效'), 400);
+      }
+      const path = normalizeJavbusEntityPath(entityPathFromKey(key) ?? '');
+      if (!path) return c.json(error('VALIDATION_ERROR', '实体链接无效'), 400);
+      key = `${entityType}:${path.slice(1)}`;
+    }
 
     let finalName = name;
     if (!key) {
@@ -101,7 +133,7 @@ followRoutes.post('/', async (c) => {
       'SELECT COUNT(*) AS count FROM user_follows WHERE user_id = ?'
     ).bind(user.userId).first<{ count: number }>();
     if ((countRow?.count ?? 0) >= FOLLOW.MAX_PER_USER) {
-      return c.json(error('FOLLOW_LIMIT', `最多关注 ${FOLLOW.MAX_PER_USER} 位`), 400);
+      return c.json(error('FOLLOW_LIMIT', `最多关注 ${FOLLOW.MAX_PER_USER} 个对象`), 400);
     }
 
     const now = Date.now();
@@ -126,11 +158,12 @@ followRoutes.post('/', async (c) => {
   }
 });
 
-followRoutes.patch('/:key', async (c) => {
+followRoutes.patch('/:key{.+}', async (c) => {
   const user = c.get('user');
   const key = c.req.param('key');
 
   try {
+    if (!KEY_PATTERN.test(key)) return c.json(error('VALIDATION_ERROR', '关注对象标识无效'), 400);
     const body = await c.req.json<{ notifyInApp?: unknown }>().catch(() => ({} as Record<string, unknown>));
     if (typeof body.notifyInApp !== 'boolean') {
       return c.json(error('VALIDATION_ERROR', '参数无效'), 400);
@@ -145,11 +178,12 @@ followRoutes.patch('/:key', async (c) => {
   }
 });
 
-followRoutes.delete('/:key', async (c) => {
+followRoutes.delete('/:key{.+}', async (c) => {
   const user = c.get('user');
   const key = c.req.param('key');
 
   try {
+    if (!KEY_PATTERN.test(key)) return c.json(error('VALIDATION_ERROR', '关注对象标识无效'), 400);
     await c.env.DB.prepare(
       'DELETE FROM user_follows WHERE user_id = ? AND watch_key = ?'
     ).bind(user.userId, key).run();
@@ -180,9 +214,25 @@ interface FeedRow {
   release_date: string | null;
   first_detected_at: number;
   watch_key: string;
-  actress_name: string;
+  entity_type: string;
+  entity_key: string;
+  entity_name: string;
   last_viewed_at: number;
 }
+
+const feedItem = (r: FeedRow) => ({
+  code: r.code,
+  title: r.title,
+  cover: r.cover ?? undefined,
+  releaseDate: r.release_date ?? undefined,
+  entityType: (r.entity_type || 'actress') as FollowEntityType,
+  entityKey: r.entity_key,
+  entityName: r.entity_name,
+  // 兼容字段：历史前端只认识 actressKey/actressName
+  actressKey: r.watch_key,
+  actressName: r.entity_name,
+  isUnread: r.first_detected_at > r.last_viewed_at,
+});
 
 // 关注动态：tab=new（已发售，新→旧）/ upcoming（未发售，近→远）
 followRoutes.get('/feed', async (c) => {
@@ -205,35 +255,30 @@ followRoutes.get('/feed', async (c) => {
       ? 'w.release_date ASC, w.code ASC'
       : "COALESCE(w.release_date, '') DESC, w.first_detected_at DESC, w.code ASC";
 
-    // 可选：只看某一位女优（控制台"关注动态"的筛选）
-    const actressParam = c.req.query('actress') || '';
-    const actressFilter = KEY_PATTERN.test(actressParam);
+    // 可选：只看某个关注对象（女优/导演/制作商/发行商/系列/标签，实体筛选传 entity）
+    const filterParam = (c.req.query('entity') || c.req.query('actress') || '').trim();
+    const entityFilter = KEY_PATTERN.test(filterParam);
 
     const base = `FROM actress_works w
        JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
-       JOIN actress_watch a ON a.key = w.watch_key
-       WHERE ${cond}${actressFilter ? ' AND w.watch_key = ?' : ''}`;
-    const baseArgs: unknown[] = actressFilter ? [user.userId, today, actressParam] : [user.userId, today];
+       JOIN follow_targets t ON t.watch_key = w.watch_key
+       WHERE ${cond}${entityFilter ? ' AND w.watch_key = ?' : ''}`;
+    const baseArgs: unknown[] = entityFilter ? [user.userId, today, filterParam] : [user.userId, today];
 
-    const [rows, totalRow] = await Promise.all([
+    const results = await c.env.DB.batch([
       c.env.DB.prepare(
         `SELECT w.code, w.title, w.cover, w.release_date, w.first_detected_at, w.watch_key,
-                a.name AS actress_name, f.last_viewed_at
+                t.entity_type, t.entity_key, t.name AS entity_name, f.last_viewed_at
          ${base} ORDER BY ${order} LIMIT ? OFFSET ?`
-      ).bind(...baseArgs, pageSize, (page - 1) * pageSize).all<FeedRow>(),
-      c.env.DB.prepare(`SELECT COUNT(*) AS count ${base}`).bind(...baseArgs).first<{ count: number }>(),
+      ).bind(...baseArgs, pageSize, (page - 1) * pageSize),
+      c.env.DB.prepare(`SELECT COUNT(*) AS count ${base}`).bind(...baseArgs),
     ]);
 
+    const itemRows = (results[0]?.results ?? []) as unknown as FeedRow[];
+    const totalRow = results[1]?.results?.[0] as unknown as { count: number } | undefined;
+
     return c.json(success({
-      items: (rows.results || []).map((r) => ({
-        code: r.code,
-        title: r.title,
-        cover: r.cover ?? undefined,
-        releaseDate: r.release_date ?? undefined,
-        actressKey: r.watch_key,
-        actressName: r.actress_name,
-        isUnread: r.first_detected_at > r.last_viewed_at,
-      })),
+      items: itemRows.map(feedItem),
       total: totalRow?.count ?? 0,
       page,
       pageSize,
@@ -241,5 +286,80 @@ followRoutes.get('/feed', async (c) => {
   } catch (err) {
     console.error('Get follow feed error:', err);
     return c.json(error('SERVER_ERROR', '获取关注动态失败'), 500);
+  }
+});
+
+interface SearchRow extends FeedRow {
+  entity_names: string;
+  is_unread: number;
+}
+
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+
+/**
+ * 关键词集合搜索：在已关注的对象的作品集合里按关键词聚合相关作品。
+ *
+ * 与「按对象筛选」不同：这里不是过滤某一个关注对象，而是跨全部关注对象
+ * 匹配对象名、番号、标题和本地库标签，并把同一番号聚合成一条（多个关注来源合并）。
+ * GET /api/follows/search?q=&page=&pageSize=
+ */
+followRoutes.get('/search', async (c) => {
+  const user = c.get('user');
+
+  try {
+    const q = (c.req.query('q') || '').trim().slice(0, 60);
+    if (!q) return c.json(error('VALIDATION_ERROR', '请输入搜索关键词'), 400);
+
+    const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+    const pageSize = Math.min(FOLLOW.FEED_MAX_PAGE_SIZE, Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10));
+    const pattern = `%${escapeLike(q)}%`;
+
+    const base = `FROM actress_works w
+       JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
+       JOIN follow_targets t ON t.watch_key = w.watch_key
+       LEFT JOIN data_records dr ON dr.record_type = 'jav' AND dr.code = w.code
+       WHERE (t.name LIKE ? ESCAPE '\\' OR w.title LIKE ? ESCAPE '\\'
+              OR w.code LIKE ? ESCAPE '\\' OR IFNULL(dr.tags, '') LIKE ? ESCAPE '\\')`;
+
+    const results = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `SELECT w.code, MAX(w.title) AS title, MAX(w.cover) AS cover,
+                MAX(w.release_date) AS release_date, MIN(w.first_detected_at) AS first_detected_at,
+                MAX(w.watch_key) AS watch_key, MAX(t.entity_type) AS entity_type,
+                MAX(t.entity_key) AS entity_key,
+                GROUP_CONCAT(DISTINCT t.name) AS entity_names,
+                MAX(CASE WHEN w.first_detected_at > f.last_viewed_at THEN 1 ELSE 0 END) AS is_unread
+         ${base}
+         GROUP BY w.code
+         ORDER BY COALESCE(MAX(w.release_date), '') DESC, MIN(w.first_detected_at) DESC, w.code ASC
+         LIMIT ? OFFSET ?`
+      ).bind(user.userId, pattern, pattern, pattern, pattern, pageSize, (page - 1) * pageSize),
+      c.env.DB.prepare(
+        `SELECT COUNT(DISTINCT w.code) AS count ${base}`
+      ).bind(user.userId, pattern, pattern, pattern, pattern),
+    ]);
+
+    const itemRows = (results[0]?.results ?? []) as unknown as SearchRow[];
+    const totalRow = results[1]?.results?.[0] as unknown as { count: number } | undefined;
+
+    return c.json(success({
+      q,
+      items: itemRows.map((r) => ({
+        code: r.code,
+        title: r.title,
+        cover: r.cover ?? undefined,
+        releaseDate: r.release_date ?? undefined,
+        entityType: (r.entity_type || 'actress') as FollowEntityType,
+        entityKey: r.entity_key,
+        entityNames: (r.entity_names || '').split(',').filter(Boolean),
+        isUnread: r.is_unread === 1,
+      })),
+      total: totalRow?.count ?? 0,
+      page,
+      pageSize,
+    }));
+  } catch (err) {
+    console.error('Search follow feed error:', err);
+    return c.json(error('SERVER_ERROR', '搜索关注动态失败'), 500);
   }
 });

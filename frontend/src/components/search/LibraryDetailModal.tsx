@@ -13,6 +13,7 @@ import { libraryApi } from '@/services/api';
 import type { LibraryRecord, LibraryRecordSource, LibraryRecordType } from '@/services/api/library';
 import type { JavEntityKind, JavEntityLink, JavEntityTarget } from '@/types';
 import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
+import { JavActressList, JavTagButton, JAV_ENTITY_LINK_CLASS } from '@/components/jav/JavDetailShared';
 import { normalizeImageUrl } from '@/utils/imageProxy';
 
 /**
@@ -35,6 +36,8 @@ interface LibraryDetailModalProps {
   onClose: () => void;
   /** 查不到本地存档时，用户主动跳到搜索 */
   onSearch?: (keyword: string, type?: LibraryRecordType) => void;
+  /** 点击演员：与搜索详情卡片一致，复用现有的女优搜索卡片路径 */
+  onActressClick?: (name: string) => void;
 }
 
 type Status = 'idle' | 'loading' | 'success' | 'not_found' | 'error';
@@ -92,7 +95,7 @@ const num = (value: unknown): number | undefined =>
 const strList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.trim() !== '') : [];
 
-const JAV_ENTITY_KINDS: JavEntityKind[] = ['director', 'studio', 'label', 'series'];
+const JAV_ENTITY_KINDS: JavEntityKind[] = ['director', 'studio', 'label', 'series', 'tag'];
 
 /** 从 content_data 读取实体链接；老记录没有该字段时返回空数组，交给点击时回源解析 */
 const readEntityLinks = (extra: Record<string, unknown>, key: string): JavEntityLink[] => {
@@ -139,7 +142,7 @@ const InfoRow: React.FC<{
       <span
         className={
           onClick
-            ? 'break-all text-primary-600 underline decoration-dotted underline-offset-2 transition-colors group-hover:text-primary-500 dark:text-primary-300'
+            ? `break-all ${JAV_ENTITY_LINK_CLASS} group-hover:text-primary-500`
             : 'break-all text-surface-700 dark:text-surface-300'
         }
       >
@@ -206,7 +209,8 @@ const JavBody: React.FC<{
   record: LibraryRecord;
   t: TFunction;
   onCodeClick?: (code: string) => void;
-}> = ({ record, t, onCodeClick }) => {
+  onActressClick?: (name: string) => void;
+}> = ({ record, t, onCodeClick, onActressClick }) => {
   const extra = record.contentData;
   const detailUrl = str(extra.detailUrl);
   const magnets = magnetSources(record);
@@ -217,6 +221,7 @@ const JavBody: React.FC<{
   const makerLinks = readEntityLinks(extra, 'makerLinks');
   const publisherLinks = readEntityLinks(extra, 'publisherLinks');
   const seriesLinks = readEntityLinks(extra, 'seriesLinks');
+  const tagLinks = readEntityLinks(extra, 'tagLinks');
   const [entityTarget, setEntityTarget] = useState<JavEntityTarget | null>(null);
 
   return (
@@ -298,8 +303,19 @@ const JavBody: React.FC<{
       {record.tags.length > 0 ? (
         <div>
           <SectionLabel icon={Tag} text={t('jav:detail.tagsLabel')} />
-          <div className="flex flex-wrap gap-1.5">
-            {record.tags.map((tag) => <Chip key={tag} tone="neutral" size="xs">{tag}</Chip>)}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {record.tags.map((tag) => (
+              <JavTagButton
+                key={tag}
+                tag={tag}
+                onClick={() => setEntityTarget({
+                  kind: 'tag',
+                  name: tag,
+                  path: findEntityPath(tagLinks, tag),
+                  code: record.code,
+                })}
+              />
+            ))}
           </div>
         </div>
       ) : null}
@@ -307,14 +323,12 @@ const JavBody: React.FC<{
       {actors.length > 0 ? (
         <div>
           <SectionLabel icon={Users} text={t('jav:detail.actressesLabel')} />
-          <div className="flex flex-wrap gap-1.5">
-            {Array.from(new Set(actors)).map((name) => <Chip key={name} tone="accent" size="xs">{name}</Chip>)}
-          </div>
+          <JavActressList actresses={actors} onActressClick={onActressClick} />
         </div>
       ) : null}
 
       <div>
-        <SectionLabel icon={Magnet} text={t('jav:detail.magnetsHeader')} count={magnets.length} />
+        <SectionLabel icon={Magnet} text={t('jav:detail.magnetsHeader', { count: magnets.length })} />
         {magnets.length > 0 ? (
           <div className="max-h-64 overflow-y-auto">
             <SourceRows sources={magnets} t={t} />
@@ -440,11 +454,10 @@ const MovieBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row">
         {poster ? (
-          <img
+          <ProxyImage
             src={normalizeImageUrl(poster)}
             alt={record.title}
             className="h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
-            onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -606,7 +619,7 @@ const NovelBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
 
 // ─── 主组件 ──────────────────────────────────────────────────────────
 
-export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, onClose, onSearch }) => {
+export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, onClose, onSearch, onActressClick }) => {
   const { t } = useTranslation(['search', 'jav']);
   const [status, setStatus] = useState<Status>('idle');
   const [record, setRecord] = useState<LibraryRecord | null>(null);
@@ -720,6 +733,7 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
           <JavBody
             record={record}
             t={t}
+            onActressClick={onActressClick}
             onCodeClick={onSearch
               ? (code) => {
                   onSearch(code, 'jav');

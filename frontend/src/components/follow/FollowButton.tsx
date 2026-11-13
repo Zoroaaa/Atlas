@@ -4,27 +4,47 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { useFollows, useFollowActions } from '@/hooks';
+import { buildWatchKey } from './followKey';
+import type { FollowEntityType } from '@/types';
 
 interface FollowButtonProps {
   name: string;
   /** JavBus 女优 key；只有名字时（如热门女优、影片演员）留空，由后端解析 */
   followKey?: string;
   avatar?: string;
+  /** 实体关注：导演 / 制作商 / 发行商 / 系列 / 标签（默认女优） */
+  entityType?: FollowEntityType;
+  /** 实体列表页路径（如 /director/o7）；与 entityType 一起构成关注 key */
+  entityPath?: string;
   /** pill：带文字的小按钮（默认）；icon：仅 +/✓ 图标，用于很窄的位置 */
   variant?: 'pill' | 'icon';
   className?: string;
 }
 
-/** 关注/取消关注女优（与收藏的爱心区分：用 +关注 / 已关注）。未登录不显示。 */
-export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, avatar, variant = 'pill', className }) => {
+/** 关注/取消关注（女优或导演/制作商/发行商/系列/标签）。未登录不显示。 */
+export const FollowButton: React.FC<FollowButtonProps> = ({
+  name,
+  followKey,
+  avatar,
+  entityType = 'actress',
+  entityPath,
+  variant = 'pill',
+  className,
+}) => {
   const { t } = useTranslation(['follow']);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data } = useFollows();
   const { follow, unfollow } = useFollowActions();
 
-  if (!isAuthenticated) return null;
+  const isEntity = entityType !== 'actress';
+  const watchKey = buildWatchKey(entityType, followKey, entityPath);
 
-  const existing = data?.follows.find((f) => (followKey && f.key === followKey) || f.name === name);
+  // 实体关注必须有路径，否则无法定位 JavBus 列表页（旧记录需先回源解析）
+  if (!isAuthenticated || (isEntity && !watchKey)) return null;
+
+  const existing = data?.follows.find((f) =>
+    watchKey ? f.key === watchKey : f.entityType === 'actress' && f.name === name
+  );
   const isFollowing = Boolean(existing);
   const pending = follow.isPending || unfollow.isPending;
 
@@ -33,7 +53,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({ name, followKey, ava
     event.preventDefault();
     if (pending) return;
     if (existing) unfollow.mutate(existing.key);
-    else follow.mutate({ name, key: followKey, avatar });
+    else follow.mutate({ name, key: watchKey, avatar, entityType });
   };
 
   const label = isFollowing ? t('follow:following') : t('follow:follow');

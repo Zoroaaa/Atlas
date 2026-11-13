@@ -13,6 +13,7 @@ import type {
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ProxyImage } from '@/components/ui';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { convertToProxyUrl } from '@/services/proxy';
 import {
@@ -173,12 +174,11 @@ function GroupedSubjectCard({
         onToggle={() => setExpanded(!expanded)}
         cover={
           subject.cover ? (
-            <img
+            <ProxyImage
               src={getProxyImageUrl(subject.cover)}
               alt={subject.nameCN || subject.name}
               className="h-16 w-12 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
               loading="lazy"
-              onError={(event) => { (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
             />
           ) : undefined
         }

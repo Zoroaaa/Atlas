@@ -28,10 +28,11 @@ export interface HotActressRanking {
 async function getFollowerCounts(db: D1Database): Promise<Map<string, { name: string; followers: number }>> {
   const rows = await db
     .prepare(
-      `SELECT w.name AS name, COUNT(*) AS followers
+      `SELECT t.name AS name, COUNT(*) AS followers
        FROM user_follows f
-       JOIN actress_watch w ON w.key = f.watch_key
-       GROUP BY w.key`
+       JOIN follow_targets t ON t.watch_key = f.watch_key
+       WHERE t.entity_type = 'actress'
+       GROUP BY t.watch_key`
     )
     .all<{ name: string; followers: number }>();
 

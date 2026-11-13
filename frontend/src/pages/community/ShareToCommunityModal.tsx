@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { Film, Tv, Send, BookOpen, Users, Library } from 'lucide-react';
-import { Modal, Button, TextArea } from '@/components/ui';
+import { Modal, Button, TextArea, ProxyImage } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/hooks/useNotification';
@@ -131,7 +131,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
             {/* 封面预览 */}
             <div className="w-24 h-32 rounded-lg overflow-hidden shrink-0 bg-stone-200 dark:bg-stone-700">
               {initialData.coverImage ? (
-                <img
+                <ProxyImage
                   src={normalizeImageUrl(initialData.coverImage)}
                   alt={initialData.title}
                   className="w-full h-full object-cover"

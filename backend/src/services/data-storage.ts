@@ -176,6 +176,7 @@ interface JavDetail {
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl: string;

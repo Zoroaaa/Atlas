@@ -27,11 +27,12 @@ export interface LibraryJavDetail {
   directors?: string[];
   makers?: string[];
   publishers?: string[];
-  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列/标签的作品 */
   directorLinks?: JavEntityLink[];
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl?: string;
@@ -164,6 +165,7 @@ export async function getLibraryJavDetail(db: D1Database, rawCode: string): Prom
       makerLinks: pickEntityLinks(extra, 'makerLinks', 'studio'),
       publisherLinks: pickEntityLinks(extra, 'publisherLinks', 'label'),
       seriesLinks: pickEntityLinks(extra, 'seriesLinks', 'series'),
+      tagLinks: pickEntityLinks(extra, 'tagLinks', 'tag'),
       tags: parseList(record.tags),
       actresses: parseList(record.actors),
       detailUrl,

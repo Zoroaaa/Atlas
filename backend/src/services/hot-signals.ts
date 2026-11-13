@@ -85,8 +85,9 @@ export async function getHotSignals(db: D1Database): Promise<HotSignals> {
   // 关注女优计入演员热度（取代原先"女优收藏"提供的信号）；按用户去重，和收藏/历史不会重复计数
   const follows = await db
     .prepare(
-      `SELECT f.user_id AS user_id, w.name AS name
-       FROM user_follows f JOIN actress_watch w ON w.key = f.watch_key`
+      `SELECT f.user_id AS user_id, t.name AS name
+       FROM user_follows f JOIN follow_targets t ON t.watch_key = f.watch_key
+       WHERE t.entity_type = 'actress'`
     )
     .all<{ user_id: string; name: string }>();
   for (const row of follows.results || []) addNamed(actorUsers, row.name, row.user_id);

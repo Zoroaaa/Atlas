@@ -8,7 +8,7 @@ export { useGenreRecommendations } from './useGenreRecommendations';
 export { useGenreWorks } from './useGenreWorks';
 export type { GenreWorksError } from './useGenreWorks';
 export { useCacheSync } from './useCacheSync';
-export { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys } from './useFollows';
+export { useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys } from './useFollows';
 export {
   useUnreadCount, useNotificationInbox, useMarkNotificationsRead, useRemoveNotifications,
   useNotificationPreferences, useNotificationPreferenceActions, notificationKeys,

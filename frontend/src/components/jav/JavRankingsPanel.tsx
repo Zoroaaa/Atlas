@@ -12,7 +12,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useJavRankings } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
-import { ImageLightbox } from '@/components/ui/ImagePreview';
+import { ProxyImage } from '@/components/ui';
 import { PanelSection, PanelHeader, Segmented, IconAction, EmptyBlock, CountBadge, Pagination } from '@/components/workbench';
 import type { JavRankingEntry, JavRankingPeriod, JavRankingSection } from '@/types';
 import { JAV_RANKINGS_PAGE_SIZE } from '@/types';
@@ -27,11 +27,6 @@ const RankingRow: React.FC<{
   item: JavRankingEntry;
   onClick: (code: string) => void;
 }> = ({ item, onClick }) => {
-  const [broken, setBroken] = useState(false);
-  const hasCover = Boolean(item.cover) && !broken;
-
-  const [zoomed, setZoomed] = useState(false);
-
   return (
     <div className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
       <div className="flex w-6 shrink-0 flex-col items-center">
@@ -52,19 +47,12 @@ const RankingRow: React.FC<{
         ) : null}
       </div>
       {/* 封面：点击放大 */}
-      <div
-        className={clsx(
-          'h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800',
-          hasCover && 'cursor-zoom-in'
-        )}
-        onClick={hasCover ? () => setZoomed(true) : undefined}
-      >
-        {hasCover ? (
-          <img
-            src={getProxyImageUrl(item.cover!)}
+      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
+        {item.cover ? (
+          <ProxyImage
+            src={getProxyImageUrl(item.cover)}
             alt={item.code}
             loading="lazy"
-            onError={() => setBroken(true)}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
@@ -73,9 +61,6 @@ const RankingRow: React.FC<{
           </div>
         )}
       </div>
-      {zoomed && hasCover ? (
-        <ImageLightbox src={getProxyImageUrl(item.cover!)} alt={item.code} onClose={() => setZoomed(false)} />
-      ) : null}
       {/* 标题/番号：点击执行 */}
       <button
         type="button"

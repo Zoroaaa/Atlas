@@ -30,7 +30,7 @@ import { dataStorageApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui';
+import { Button, ProxyImage } from '@/components/ui';
 import { useToast } from '@/hooks/useNotification';
 import { getProxyImageUrl } from '@/utils';
 import { Pagination, StatCard, StatsGrid, formatRelativeTime } from './shared';
@@ -833,13 +833,10 @@ export const DataStorageTab: React.FC = () => {
             {/* 头部：封面 + 基础信息 */}
             <div className="flex gap-4">
               {detail.cover ? (
-                <img
+                <ProxyImage
                   src={getProxyImageUrl(detail.cover)}
                   alt={detail.title}
                   className="w-24 h-32 object-cover rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
                 />
               ) : (
                 <div className="w-24 h-32 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0">
@@ -1351,15 +1348,11 @@ const RecordCard: React.FC<{
     >
       <div className="flex gap-3 p-3">
         {record.cover ? (
-          <img
+          <ProxyImage
             src={getProxyImageUrl(record.cover)}
             alt={record.title}
             loading="lazy"
-            className="w-16 h-22 object-cover rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
-            style={{ height: '5.5rem' }}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.opacity = '0';
-            }}
+            className="h-[5.5rem] w-16 object-cover rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
           />
         ) : (
           <div className="w-16 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0" style={{ height: '5.5rem' }}>
