@@ -18,7 +18,10 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@codeseek/shared": ["../packages/shared/src/index.ts"],
+      "@codeseek/shared/types": ["../packages/shared/src/types/index.ts"],
+      "@codeseek/shared/utils": ["../packages/shared/src/utils/index.ts"]
     }
   },
   "include": ["src/**/*"],
