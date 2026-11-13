@@ -7,6 +7,7 @@
     "deploy": "wrangler deploy",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "db:migrate": "wrangler d1 migrations apply codeseek-db"

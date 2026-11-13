@@ -1,7 +1,7 @@
 /**
  * JAV 详情批量补全任务
  *
- * - 手动启动后按批次运行（默认每批 10 条、批内间隔 4 秒），由每分钟 cron 驱动；
+ * - 手动启动后按批次运行（默认每批 5 条、批内间隔 4 秒），由每分钟 cron 驱动；
  * - 任务状态写 D1（detail_fetch_jobs），刷新页面 / Worker 重启后继续；
  * - 源站缺失累计 3 次后不再重试；暂时失败只退避，不消耗次数；
  * - 缺导演 / 制作商 / 发行商的记录不会进入每小时自动补全，只能由本任务的
@@ -24,7 +24,8 @@ import { fetchJavbusDetailWithMagnets, isJavCodeLike, normalizeJavCode } from '.
 
 const LOCK_KEY = 'jav-detail-batch';
 const LOCK_TTL_MS = 5 * 60 * 1000;
-const DEFAULT_BATCH_SIZE = 10;
+/** 每分钟 cron 每批处理的条数；接口与前端都复用这个默认值 */
+export const JAV_DETAIL_DEFAULT_BATCH_SIZE = 5;
 const RECORD_GAP_MS = 4000;
 
 /** 手动批次可选的字段筛选：只决定筛哪些记录，抓取内容不受影响 */
@@ -199,6 +200,16 @@ async function countPending(
 }
 
 /**
+ * 开关的「关闭」取值。
+ *
+ * 系统配置页写入 0/1，但配置也可能被人工改成「是/否」等中文值；
+ * 旧实现只认 0/false，导致 value='否' 时分钟 cron 仍在跑。
+ */
+const DISABLED_CONFIG_VALUES = new Set([
+  '0', 'false', 'no', 'off', 'n', '否', '关闭', '停用', 'disabled',
+]);
+
+/**
  * 运行时开关：system_config.jav_detail_job_enabled。
  *
  * fail-open —— 键缺失、值无法识别、查询出错都按「启用」处理，
@@ -212,7 +223,7 @@ export async function isJavDetailJobEnabled(db: D1Database): Promise<boolean> {
       .first<{ value: string | null }>();
     if (!row) return true;
     const value = String(row.value ?? '').trim().toLowerCase();
-    return value !== '0' && value !== 'false';
+    return !DISABLED_CONFIG_VALUES.has(value);
   } catch {
     return true;
   }
@@ -323,7 +334,7 @@ export async function startJavDetailJob(
       )
       .bind(
         id,
-        options.batchSize ?? DEFAULT_BATCH_SIZE,
+        options.batchSize ?? JAV_DETAIL_DEFAULT_BATCH_SIZE,
         total,
         options.createdBy ?? null,
         filter,
@@ -521,41 +532,66 @@ async function processOne(db: D1Database, record: DueRecord): Promise<{ kind: 'c
 }
 
 /**
+ * 管理端「单条数据补详情」：立即抓取指定记录，不等待批次。
+ *
+ * 走与批量任务完全相同的抓取与落库路径，保证 missing_mask / attempts /
+ * transient_failures / next_retry_at 语义一致。
+ */
+export async function fetchJavDetailForRecord(
+  db: D1Database,
+  recordId: string
+): Promise<{ ok: boolean; error: string | null; meta: JavDetailMeta }> {
+  const record = await db
+    .prepare('SELECT id, record_type, code FROM data_records WHERE id = ?')
+    .bind(recordId)
+    .first<{ id: string; record_type: string; code: string | null }>();
+
+  if (!record || record.record_type !== 'jav') {
+    return { ok: false, error: 'NOT_JAV', meta: await readJavDetailMeta(db, recordId) };
+  }
+
+  const code = normalizeJavCode(record.code || '');
+  if (!isJavCodeLike(code)) {
+    await markInvalidCode(db, recordId);
+    return { ok: false, error: 'INVALID_CODE', meta: await readJavDetailMeta(db, recordId) };
+  }
+
+  const fetched = await fetchJavbusDetailWithMagnets(code, 20000);
+  if (!fetched.ok) {
+    await enrichDataRecordFromDetail(db, { recordId, code, error: fetched.error });
+    return { ok: false, error: fetched.error, meta: await readJavDetailMeta(db, recordId) };
+  }
+
+  const { detail, magnets, magnetFetchFailed } = fetched.data;
+  await enrichDataRecordFromDetail(db, { recordId, code, detail, magnets, magnetFetchFailed });
+  const meta = await readJavDetailMeta(db, recordId);
+  return { ok: meta.status !== 'error', error: meta.lastError, meta };
+}
+
+/**
  * 每分钟 cron 调用：有运行中的任务且开关启用时处理一批。
  *
- * 空转门控：一条语句同时判断「有运行中的任务」与「开关未被关闭」，
- * 都满足才继续——不抢 cron 锁、不做候选集统计。
- * 空闲时每 tick 只有 1 条语句、约 1 行读取；
- * 任务被标记 done 或开关被关闭后，下一 tick 即落入该分支。
+ * 空转门控分两步：
+ *   1. 先看是否存在 running 任务（无则 1 条语句直接返回，最省）；
+ *   2. 再用 isJavDetailJobEnabled 判断开关——它与暂停/继续、批次内续跑共用
+ *      同一套取值解析（0/false/否/no/off 等），避免 Go 与 SQL 各认一套值。
+ * 开关关闭时在抢 cron 锁、统计候选集之前就返回，不产生任何抓取请求；
+ * 任务行保持 running，重新打开后从同一任务继续。
  */
 export async function runJavDetailJobBatch(db: D1Database): Promise<{ ran: boolean; processed: number }> {
   let running: { one: number } | null;
   try {
     running = await db
-      .prepare(
-        `SELECT 1 AS one
-         FROM detail_fetch_jobs j
-         WHERE j.status = 'running'
-           AND NOT EXISTS (
-             SELECT 1 FROM system_config
-             WHERE key = ? AND LOWER(TRIM(value)) IN ('0', 'false')
-           )
-         LIMIT 1`
-      )
-      .bind(DB_CONFIG_KEYS.JAV_DETAIL_JOB_ENABLED)
+      .prepare(`SELECT 1 AS one FROM detail_fetch_jobs WHERE status = 'running' LIMIT 1`)
       .first<{ one: number }>();
   } catch {
-    // 门控语句失败：可能是迁移 26 未执行（表不存在），也可能是迁移 29 未执行
-    // 导致配置表不可用。前者直接退出，后者按 fail-open 重新判断，避免开关缺失卡死任务。
-    try {
-      running = await db
-        .prepare(`SELECT 1 AS one FROM detail_fetch_jobs WHERE status = 'running' LIMIT 1`)
-        .first<{ one: number }>();
-    } catch {
-      return { ran: false, processed: 0 };
-    }
+    // 迁移 26 未执行（表不存在）时直接退出
+    return { ran: false, processed: 0 };
   }
   if (!running) return { ran: false, processed: 0 };
+
+  // 开关关闭：完全短路，不抢锁、不统计候选集、不发任何源站请求
+  if (!(await isJavDetailJobEnabled(db))) return { ran: false, processed: 0 };
 
   return (
     (await withCronLock(db, LOCK_KEY, LOCK_TTL_MS, async () => {

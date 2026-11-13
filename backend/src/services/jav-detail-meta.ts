@@ -191,6 +191,38 @@ export async function saveJavDetailMeta(
     .run();
 }
 
+/**
+ * 管理端「重置源站缺失次数」。
+ *
+ * 清零 attempts / transient_failures，清掉 retry_exhausted 与 next_retry_at，
+ * 让该条记录立即重新进入自动补全与手动批次的候选集。
+ * 保留 missing_mask：管理页仍可用「缺磁力」等筛选找到它，直到下一次抓取重新判定。
+ */
+export async function resetJavDetailRetry(
+  db: D1Database,
+  recordId: string
+): Promise<JavDetailMeta> {
+  const previous = await readJavDetailMeta(db, recordId);
+  const status: JavDetailStatus = previous.status === 'complete' ? 'complete' : 'pending';
+  const meta: JavDetailMeta = {
+    status,
+    missingMask: previous.missingMask,
+    missingFields: previous.missingFields,
+    attempts: 0,
+    transientFailures: 0,
+    nextRetryAt: 0,
+    retryExhausted: 0,
+    lastError: null,
+    fetchedAt: previous.fetchedAt,
+  };
+  await saveJavDetailMeta(db, recordId, meta);
+  await db
+    .prepare('UPDATE data_records SET detail_completed = ? WHERE id = ?')
+    .bind(status === 'complete' ? 1 : 0, recordId)
+    .run();
+  return meta;
+}
+
 export async function countJavMagnets(db: D1Database, recordId: string): Promise<number> {
   const row = await db
     .prepare(
