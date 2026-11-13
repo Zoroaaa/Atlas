@@ -28,11 +28,17 @@ const LOCK_TTL_MS = 5 * 60 * 1000;
 export const JAV_DETAIL_DEFAULT_BATCH_SIZE = 5;
 const RECORD_GAP_MS = 4000;
 
-/** 手动批次可选的字段筛选：只决定筛哪些记录，抓取内容不受影响 */
-export type JavDetailMissingFilter = 'director' | 'maker' | 'publisher' | 'magnets';
+/**
+ * 手动批次可选的筛选：只决定筛哪些记录，抓取内容不受影响。
+ *
+ * transient 是特殊值：选中「暂时失败」的记录（status = error），
+ * 启动任务时会先把它们的退避时间清零，以便立即重试。
+ */
+export type JavDetailMissingFilter = 'director' | 'maker' | 'publisher' | 'magnets' | 'transient';
 
 export function isJavDetailMissingFilter(value: unknown): value is JavDetailMissingFilter {
-  return value === 'director' || value === 'maker' || value === 'publisher' || value === 'magnets';
+  return value === 'director' || value === 'maker' || value === 'publisher'
+    || value === 'magnets' || value === 'transient';
 }
 
 /** 从库中读出的筛选条件：不认识的值一律当作「不限」，不让脏数据卡死任务 */
@@ -51,6 +57,9 @@ function normalizeFilter(value: unknown): JavDetailMissingFilter | null {
  */
 function filterPredicate(filter: JavDetailMissingFilter | null): string {
   if (!filter) return '';
+  if (filter === 'transient') {
+    return `AND COALESCE(m.status, 'pending') = 'error'`;
+  }
   const bit = DETAIL_FIELD_BITS[filter];
   return `AND (
       m.record_id IS NULL
@@ -318,6 +327,12 @@ export async function startJavDetailJob(
   // 筛选条件必须落库：任务由每分钟 cron 分多次推进，只在启动请求里带一次，
   // 后续 tick 无从得知「这次只补哪一类」，筛选形同虚设。
   const filter = normalizeFilter(options.missing);
+  // 「重试暂时失败」是用户主动点击：清掉退避时间，让它们立刻进入候选集
+  if (filter === 'transient') {
+    await db
+      .prepare(`UPDATE jav_detail_meta SET next_retry_at = 0 WHERE status = 'error'`)
+      .run();
+  }
   const total = await countPending(db, false, filter);
   if (total === 0) return getJavDetailJobView(db);
 

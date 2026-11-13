@@ -1530,7 +1530,8 @@
       "detailFilter": {
         "all": "All completeness",
         "complete": "Detail complete",
-        "incomplete": "Detail incomplete"
+        "incomplete": "Detail incomplete",
+        "error": "Temporarily failed"
       },
       "detailField": {
         "director": "Director",
@@ -1604,11 +1605,13 @@
         "nextRetry": "Retry {{time}}",
         "startedToast": "Batch task started",
         "startFailed": "Failed to start batch task",
+        "retryTransientBtn": "Retry temporarily failed",
+        "retryTransientStarted": "Temporary-failure retry started; backoff cleared",
         "explainTitle": "How re-fill works: auto vs manual, what a fill writes, failure backoff",
-        "explainAuto": "Automatic (up to 20 records/hour): only records never fetched, missing magnets, failed fetches awaiting retry, and records temporarily absent on the source. Records that only miss director / maker / publisher are no longer auto-filled.",
+        "explainAuto": "Automatic (up to 20 records/hour), driven by the hourly :05 ranking enrichment job; the every-30-minute job only handles follow checks and email. It processes records never fetched, missing magnets, failed fetches awaiting retry, and records temporarily absent on the source. Records that only miss director / maker / publisher are no longer auto-filled.",
         "explainManual": "Manual (the four Fill this buttons in this panel): selects only records missing the chosen field, but the fetch still fills the full detail, never just one field. Every partial record (detail fetched but fields still missing) is treated as fill-now, bypassing the 30-day interval and the 3-attempt cap, so records missing director / maker / publisher or with exhausted magnet retries are never stuck; records the source confirms missing still wait for their interval.",
         "explainWrite": "One fill fetches the full detail page and writes title, cover, actresses, duration, release date, publisher, tags, and all magnets of the code (magnets go to the sources table; existing rows are not duplicated). It never fills just one field.",
-        "explainBackoff": "Failure backoff: timeouts, network or parse errors and magnet API outages do not count as attempts and back off exponentially from 10 minutes up to 6 hours. A code the source confirms missing counts as +1 attempt, retried after 30 days, and stops auto-retry after 3. A fetched detail that still misses fields is marked partial and retried every 30 days.",
+        "explainBackoff": "Failure backoff: timeouts, network or parse errors and magnet API outages do not count as attempts and back off exponentially from 10 minutes up to 6 hours. A code the source confirms missing counts as +1 attempt, retried after 30 days, and stops auto-retry after 3. A fetched detail that still misses fields is marked partial and retried every 30 days. Retries scheduled for the same day are capped at 60; the rest roll to the next day. Filter by Temporarily failed and use Retry temporarily failed to clear backoff and retry immediately.",
         "stopFailed": "Failed to stop batch task",
         "pausedToast": "Paused, progress kept",
         "resumedToast": "Resumed; task advances with the minute cron",

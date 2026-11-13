@@ -151,8 +151,8 @@ export interface DataRecordsQuery {
   type?: DataRecordType;
   status?: DataRecordStatus;
   search?: string;
-  /** 详情完整度筛选 */
-  detail?: 'complete' | 'incomplete';
+  /** 详情完整度筛选；error = 暂时失败（status = error） */
+  detail?: 'complete' | 'incomplete' | 'error';
   /** 缺失字段筛选（逗号分隔，OR 关系） */
   missing?: string;
   /** 重试状态筛选：no = 不再重试；yes = 还会重试 */

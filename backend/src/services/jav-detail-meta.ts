@@ -24,6 +24,38 @@ export const DETAIL_RETRY_DELAY_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
 export const DETAIL_MAX_ATTEMPTS = 3;
 export const TRANSIENT_BASE_DELAY_MS = 10 * 60 * 1000; // 10 分钟
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** 单日最多安排的 30 天重试条数，超过则顺延到后一天 */
+export const DETAIL_RETRY_DAILY_CAP = 60;
+const MAX_RETRY_DEFER_DAYS = 60;
+
+/**
+ * 计算 30 天重试时间，并对同日重试做错峰。
+ *
+ * 全量扫描后会有大量记录落在同一个 30 天后的日期。目标日已排满
+ * DETAIL_RETRY_DAILY_CAP 条时自动顺延一天，避免一次性涌入自动重试队列。
+ */
+export async function nextStaggeredRetryAt(db: D1Database, now = Date.now()): Promise<number> {
+  const base = now + DETAIL_RETRY_DELAY_MS;
+  const baseDay = Math.floor(base / DAY_MS) * DAY_MS;
+  const offsetInDay = base - baseDay;
+
+  for (let offset = 0; offset < MAX_RETRY_DEFER_DAYS; offset++) {
+    const dayStart = baseDay + offset * DAY_MS;
+    const row = await db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM jav_detail_meta
+         WHERE next_retry_at >= ? AND next_retry_at < ?`
+      )
+      .bind(dayStart, dayStart + DAY_MS)
+      .first<{ n: number }>();
+    if ((row?.n ?? 0) < DETAIL_RETRY_DAILY_CAP) {
+      return dayStart + offsetInDay;
+    }
+  }
+  return base + MAX_RETRY_DEFER_DAYS * DAY_MS;
+}
+
 export interface JavDetailMeta {
   status: JavDetailStatus;
   missingMask: number;
@@ -263,7 +295,7 @@ export async function applyJavDetailSuccess(
       transientFailures,
       nextRetryAt: Date.now() + transientRetryDelay(transientFailures),
       retryExhausted: previous.retryExhausted,
-      lastError: '磁力接口暂时不可用',
+      lastError: 'MAGNET_FETCH_FAILED',
       fetchedAt: Date.now(),
     };
     await saveJavDetailMeta(db, recordId, meta);
@@ -302,7 +334,7 @@ export async function applyJavDetailSuccess(
     missingFields: missingFieldsFromMask(mask),
     attempts,
     transientFailures: previous.transientFailures,
-    nextRetryAt: exhausted ? 0 : Date.now() + DETAIL_RETRY_DELAY_MS,
+    nextRetryAt: exhausted ? 0 : await nextStaggeredRetryAt(db),
     retryExhausted: exhausted,
     lastError: null,
     fetchedAt: Date.now(),
@@ -359,7 +391,7 @@ export async function applyJavDetailAbsent(
     missingFields: missingFieldsFromMask(0b1111),
     attempts,
     transientFailures: prev.transientFailures,
-    nextRetryAt: exhausted ? 0 : Date.now() + DETAIL_RETRY_DELAY_MS,
+    nextRetryAt: exhausted ? 0 : await nextStaggeredRetryAt(db),
     retryExhausted: exhausted,
     lastError: error,
     fetchedAt: Date.now(),

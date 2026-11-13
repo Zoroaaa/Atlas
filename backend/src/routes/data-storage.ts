@@ -258,6 +258,8 @@ dataStorageRoutes.get('/records', async (c) => {
       where.push("d.detail_completed = 1 AND (d.record_type <> 'jav' OR COALESCE(m.missing_mask, 0) = 0)");
     } else if (detail === 'incomplete') {
       where.push("(d.detail_completed = 0 OR (d.record_type = 'jav' AND COALESCE(m.missing_mask, 0) <> 0))");
+    } else if (detail === 'error') {
+      where.push("d.record_type = 'jav' AND COALESCE(m.status, 'pending') = 'error'");
     }
 
     // 缺字段筛选：director,maker,publisher,magnets 的并集
@@ -636,7 +638,7 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
 
   // 筛选只决定选哪些记录，抓取内容不变；不传表示不限字段
   if (body.missing != null && !isJavDetailMissingFilter(body.missing)) {
-    return c.json(error('INVALID_PARAM', 'missing 仅支持 director / maker / publisher / magnets'), 400);
+    return c.json(error('INVALID_PARAM', 'missing 仅支持 director / maker / publisher / magnets / transient'), 400);
   }
   const missing = isJavDetailMissingFilter(body.missing) ? body.missing : null;
 

@@ -874,8 +874,8 @@ export const dataStorageApi = {
 
   startDetailJob: async (params: {
     batchSize?: number;
-    /** 只补哪一类缺失；不传表示不限 */
-    missing?: JavDetailFieldName;
+    /** 只补哪一类缺失；transient 表示重试暂时失败的记录；不传表示不限 */
+    missing?: JavDetailFieldName | 'transient';
   } = {}): Promise<JavDetailJobView> => {
     const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
       '/admin/data-storage/detail-jobs',
