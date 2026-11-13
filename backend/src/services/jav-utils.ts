@@ -602,7 +602,9 @@ export async function fetchJavbusDetailWithMagnets(
   const detail = parseJavDetail(fetched.html, normalizeJavCode(code), detailUrl);
 
   let magnets: MagnetItem[] = [];
-  let magnetFetchFailed = false;
+  // 两个分支都会赋值（成功取到 / 缺 gid-uc），这里不设初值避免无效赋值；
+  // 最终统一回传给调用方区分「抓取失败」与「源站确实没有磁力」。
+  let magnetFetchFailed: boolean;
   const gidUc = extractGidUc(fetched.html);
   if (gidUc) {
     const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}`;
