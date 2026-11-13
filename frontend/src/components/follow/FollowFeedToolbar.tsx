@@ -44,12 +44,12 @@ export const FollowFeedToolbar: React.FC<FollowFeedToolbarProps> = ({
     .filter((group) => group.items.length > 0);
 
   return (
-    <div className={`flex flex-col gap-2 sm:flex-row sm:items-center ${className ?? ''}`}>
+    <div className={`flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center ${className ?? ''}`}>
       <select
         value={filterKey}
         onChange={(event) => onFilterKeyChange(event.target.value)}
         aria-label={t('follow:filterLabel')}
-        className="rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-[12px] text-surface-900 focus:ring-2 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+        className="w-full min-w-0 max-w-full rounded-lg border border-surface-300 bg-white px-3 py-1.5 text-[12px] text-surface-900 focus:ring-2 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 sm:w-auto sm:max-w-[240px] sm:shrink-0"
       >
         <option value="">{t('follow:filterAllEntities')}</option>
         {groups.map((group) => (
@@ -64,7 +64,7 @@ export const FollowFeedToolbar: React.FC<FollowFeedToolbarProps> = ({
       </select>
 
       <form
-        className="flex min-w-0 flex-1 items-center gap-1.5"
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:flex-nowrap"
         onSubmit={(event) => {
           event.preventDefault();
           onSearch();
