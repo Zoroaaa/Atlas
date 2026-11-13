@@ -1552,6 +1552,17 @@
       "detailTransientLabel": "Temporary failures",
       "detailNextRetryLabel": "Next retry",
       "detailNoRetry": "No more retries",
+      "resetRetryBtn": "Reset source-missing attempts",
+      "fetchDetailBtn": "Fetch detail for this record",
+      "resetRetryToast": "Retry state reset; the record can be enriched again",
+      "fetchDetailToast": "Detail fetched",
+      "fetchDetailFailed": "Failed to fetch detail",
+      "actionFailed": "Operation failed",
+      "retryFilter": {
+        "all": "All retry states",
+        "yes": "Will retry",
+        "no": "No more retries"
+      },
       "detailLastErrorLabel": "Last error",
       "errorCode": {
         "NOT_FOUND": "Code not found on source",
@@ -1564,7 +1575,7 @@
       },
       "batch": {
         "title": "JAV detail batch backfill",
-        "desc": "Backfills director, maker, publisher and magnets at 10 records per minute. Task state is persisted and resumes after refresh or restart. The four entries below each select only records missing that field; the fetch still writes the full detail. Everything is controlled here: Pause keeps progress and stops the minute cron; Resume continues the same task; Stop ends the task.",
+        "desc": "Backfills director, maker, publisher and magnets at 5 records per minute. Task state is persisted and resumes after refresh or restart. The four entries below each select only records missing that field; the fetch still writes the full detail. Everything is controlled here: Pause keeps progress and stops the minute cron; Resume continues the same task; Stop ends the task.",
         "fillThis": "Fill this",
         "fillThisHint": "Only selects records missing this field; the fetch still fills the full detail",
         "runningHint": "A task is running; stop it or wait for it to finish",
