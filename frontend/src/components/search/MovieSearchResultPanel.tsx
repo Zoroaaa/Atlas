@@ -13,6 +13,7 @@ import type {
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ProxyImage } from '@/components/ui';
 import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
 import {
@@ -389,14 +390,11 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
               />
               <div className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
                 {selectedItem.backdrop || selectedItem.poster ? (
-                  <img
+                  <ProxyImage
                     src={selectedItem.backdrop ?? selectedItem.poster!}
                     alt={selectedItem.title}
                     loading="lazy"
                     className="hidden h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:block"
-                    onError={(event) => {
-                      (event.currentTarget as HTMLImageElement).style.display = 'none';
-                    }}
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">

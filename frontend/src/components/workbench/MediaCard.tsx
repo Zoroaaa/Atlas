@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { clsx } from 'clsx';
-import { ImageLightbox } from '@/components/ui/ImagePreview';
+import { ProxyImage } from '@/components/ui/ImagePreview';
 
 interface MediaCardProps {
   cover?: string;
@@ -41,7 +41,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   coverAspect = 'portrait',
   className,
 }) => {
-  const [zoomed, setZoomed] = useState(false);
   const isRow = orientation === 'row';
   const isAuto = !isRow && coverAspect === 'auto';
   const coverClass = isRow
@@ -53,7 +52,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       : 'aspect-[3/4] w-full';
 
   const coverNode = cover ? (
-    <img
+    <ProxyImage
       src={cover}
       alt={typeof title === 'string' ? title : ''}
       loading="lazy"
@@ -62,9 +61,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         isAuto ? 'h-auto' : 'h-full object-cover',
         isRow ? 'bg-surface-200 dark:bg-surface-700' : ''
       )}
-      onError={(event) => {
-        (event.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-      }}
     />
   ) : (
     <div
@@ -80,11 +76,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         'relative shrink-0 overflow-hidden rounded-[10px] bg-surface-100 dark:bg-surface-800/70',
         coverClass,
         !cover && 'flex items-center justify-center',
-        !cover && isAuto && 'aspect-[3/2]',
-        cover && 'cursor-zoom-in'
+        !cover && isAuto && 'aspect-[3/2]'
       )}
-      // 封面只负责放大查看；点标题/信息区才执行实际动作
-      onClick={cover ? (event) => { event.preventDefault(); event.stopPropagation(); setZoomed(true); } : undefined}
     >
       {coverNode}
     </div>
@@ -116,9 +109,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       }
     >
       {coverWrapper}
-      {zoomed && cover ? (
-        <ImageLightbox src={cover} alt={typeof title === 'string' ? title : ''} onClose={() => setZoomed(false)} />
-      ) : null}
 
       <div className={clsx('min-w-0 flex-1', isRow ? 'flex flex-col justify-center gap-1' : 'pt-2')}>
         {badges ? <div className="flex flex-wrap items-center gap-1">{badges}</div> : null}

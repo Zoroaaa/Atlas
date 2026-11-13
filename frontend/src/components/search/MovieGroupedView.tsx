@@ -12,6 +12,7 @@ import type {
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { ProxyImage } from '@/components/ui';
 import {
   GroupedHeader,
   GroupedFilterBar,
@@ -174,12 +175,11 @@ function GroupedMovieCard({
         onToggle={() => setExpanded(!expanded)}
         cover={
           subject.poster ? (
-            <img
+            <ProxyImage
               src={subject.poster}
               alt={subject.title}
               className="h-16 w-12 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
               loading="lazy"
-              onError={(event) => { (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
             />
           ) : (
             <div className="flex h-16 w-12 items-center justify-center rounded-[10px] bg-surface-100 text-surface-400 dark:bg-surface-800">

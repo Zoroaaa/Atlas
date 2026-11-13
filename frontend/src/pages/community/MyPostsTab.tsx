@@ -11,7 +11,7 @@ import {
   MessageSquare,
   Bookmark,
 } from 'lucide-react';
-import { Card, Button, Modal, Loading, EmptyState, Badge, TextArea } from '@/components/ui';
+import { Card, Button, Modal, Loading, EmptyState, Badge, TextArea, ProxyImage } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/hooks/useNotification';
@@ -175,7 +175,7 @@ export const MyPostsTab: React.FC = () => {
                 {/* 封面缩略图 */}
                 <div className="w-24 h-16 rounded-lg overflow-hidden shrink-0 bg-stone-100 dark:bg-stone-800">
                   {post.coverImage ? (
-                    <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" loading="lazy" />
+                    <ProxyImage src={post.coverImage} alt={post.title} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-300">
                       <FileText className="w-6 h-6" />
