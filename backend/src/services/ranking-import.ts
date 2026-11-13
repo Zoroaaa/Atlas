@@ -2,9 +2,13 @@
  * 榜单导入服务
  *
  * 做三件事：
- *   1. 把周榜/月榜作品作为占位记录扩充进 data_records（已存在则更新元数据，不删除）；
+ *   1. 把周榜/月榜作品作为占位记录扩充进 data_records（只新增，已存在则完全跳过）；
  *   2. 把名次写入 data_record_sources（按 period + section 分来源，历史保留）；
  *   3. 返回各通道导入计数，供 workflow 判断。
+ *
+ * JavDB 只负责「库里没有时创建」：已存在记录（尤其已被 JavBus 详情补全过）
+ * 的任何字段都不允许被榜单数据覆盖，因此冲突时直接 DO NOTHING。
+ * 番号匹配兼容有无横杠两种写法（jav:WAAA-624 / jav:WAAA624）。
  *
  * 不参与推荐打分。
  */
@@ -117,60 +121,78 @@ export async function importRankingSnapshot(
     };
   }
 
-  const dedupKeys = items.map((item) => `jav:${item.code}`);
-  const placeholders = dedupKeys.map(() => '?').join(',');
+  // 番号匹配以规范化 code 为准，兼容「有横杠 / 无横杠」两种历史写法
+  const keysOf = (code: string): string[] => {
+    const keys = [`jav:${code}`];
+    const compact = code.replace(/-/g, '');
+    if (compact !== code) keys.push(`jav:${compact}`);
+    return keys;
+  };
+  const lookupKeys = Array.from(new Set(items.flatMap((item) => keysOf(item.code))));
+  const placeholders = lookupKeys.map(() => '?').join(',');
+
   const preExistingRows = await db
-    .prepare(
-      `SELECT dedup_key FROM data_records
-       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
-    )
-    .bind(...dedupKeys)
-    .all<{ dedup_key: string }>();
-  const existingCount = preExistingRows.results?.length || 0;
-
-  const insertStatements = items.map((item) =>
-    db
-      .prepare(
-        `INSERT INTO data_records
-           (id, record_type, dedup_key, title, cover, code, actors, duration,
-            release_date, publisher, tags, rating, content_data, detail_completed,
-            status, source_count, first_seen_at, last_updated_at)
-         VALUES (?, 'jav', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '[]', ?, '{}', 0,
-                 'active', 0, ?, ?)
-         ON CONFLICT(record_type, dedup_key) DO UPDATE SET
-           title = CASE WHEN data_records.detail_completed = 0 THEN excluded.title ELSE data_records.title END,
-           cover = CASE WHEN data_records.detail_completed = 0 THEN COALESCE(excluded.cover, data_records.cover) ELSE data_records.cover END,
-           rating = COALESCE(data_records.rating, excluded.rating)`
-      )
-      .bind(
-        generateId(),
-        `jav:${item.code}`,
-        item.title,
-        item.cover,
-        item.code,
-        item.rating,
-        now,
-        now
-      )
-  );
-  await runBatches(db, insertStatements);
-
-  const existingRows = await db
     .prepare(
       `SELECT id, dedup_key FROM data_records
        WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
     )
-    .bind(...dedupKeys)
+    .bind(...lookupKeys)
+    .all<{ id: string; dedup_key: string }>();
+  const idByKey = new Map(
+    (preExistingRows.results || []).map((row) => [row.dedup_key, row.id])
+  );
+  const existingIdOf = (code: string): string | undefined =>
+    keysOf(code).map((key) => idByKey.get(key)).find((id): id is string => Boolean(id));
+
+  const existingCount = items.filter((item) => existingIdOf(item.code)).length;
+
+  // 只插入库里没有的作品；已存在的一律 DO NOTHING，JavDB 数据不得覆盖任何已有字段
+  const insertStatements = items
+    .filter((item) => !existingIdOf(item.code))
+    .map((item) =>
+      db
+        .prepare(
+          `INSERT INTO data_records
+             (id, record_type, dedup_key, title, cover, code, actors, duration,
+              release_date, publisher, tags, rating, content_data, detail_completed,
+              status, source_count, first_seen_at, last_updated_at)
+           VALUES (?, 'jav', ?, ?, ?, ?, NULL, NULL, NULL, NULL, '[]', ?, '{}', 0,
+                   'active', 0, ?, ?)
+           ON CONFLICT(record_type, dedup_key) DO NOTHING`
+        )
+        .bind(
+          generateId(),
+          `jav:${item.code}`,
+          item.title,
+          item.cover,
+          item.code,
+          item.rating,
+          now,
+          now
+        )
+    );
+  await runBatches(db, insertStatements);
+
+  // 新增后再统一取一次记录 ID，供写入本期榜单名次（命中旧写法也在其中）
+  const recordRows = await db
+    .prepare(
+      `SELECT id, dedup_key FROM data_records
+       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
+    )
+    .bind(...lookupKeys)
     .all<{ id: string; dedup_key: string }>();
 
-  const idByDedupKey = new Map(
-    (existingRows.results || []).map((row) => [row.dedup_key, row.id])
+  const recordIdByKey = new Map(
+    (recordRows.results || []).map((row) => [row.dedup_key, row.id])
   );
+  const recordIdOf = (code: string): string | undefined =>
+    keysOf(code).map((key) => recordIdByKey.get(key)).find((id): id is string => Boolean(id));
+
   const createdCount = Math.max(0, items.length - existingCount);
 
   const sourceStatements: D1PreparedStatement[] = [];
   for (const item of items) {
-    const recordId = idByDedupKey.get(`jav:${item.code}`);
+    const recordId = recordIdOf(item.code);
     if (!recordId) continue;
 
     const sourceData = JSON.stringify({
