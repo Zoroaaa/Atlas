@@ -18,6 +18,12 @@ All notable changes to this project will be documented in this file.
 - JAV 女优：搜索前先查 person 别名表，未命中再回退人工映射表 + OpenCC
 - `SearchContext` 新增 `waitUntil`，Provider 可提交不阻塞响应的后台任务
 
+### 修复
+
+- TPB 查询词清洗：剥离 TMDB 片名中的厂牌营销前缀（`Marvel Studios' Iron Man` → `Iron Man`）、维基消歧后缀（`Up (2009 film)` → `Up`）与书名号包裹，避免按词匹配的源站返回 0 条；TMDB 别名灌入时同步清洗
+- TPB / EZTV 部分请求失败不再误报整源错误：只要有一个关键词或剧集查询成功，就保留已返回资源，不显示「请求失败」
+- 影视 / 动漫聚合视图：主作品没有匹配资源、但其他作品有资源时，默认切到「分源视图」展示全部资源，避免用户误以为资源被丢弃（「未匹配资源」只包含没有归到任何作品的资源）
+
 ## [v1.7.0] - 2026-11-11
 
 本次版本覆盖 v1.6.0 以来的全部变更，核心变化：JAV 搜索接入本地库优先与 JavBus 外部源回源；新增 JAV 推荐标签与标签作品；数据存储与 JAV 详情补全形成闭环；新增 PWA 与移动端底部导航；部署收敛为单一 Worker（前端静态资源同源托管）；帮助中心与文档补齐用量限速说明。

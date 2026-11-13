@@ -80,6 +80,7 @@ import { classifySearchError, sanitizeError, type SearchErrorKind } from '@/util
 import { groupResourcesBySubject } from '@/utils/title-grouping';
 import { lookupQueryVariants, resolveQuery } from '@/services/alias-resolver';
 import { ingestTmdbAliases } from '@/services/alias-ingest';
+import { toSourceSearchText } from '@/services/query-normalizer';
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -130,7 +131,9 @@ async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-
 async function searchTPB(keyword: string): Promise<ResourceItem[]> {
   // apibay 的 q 区分大小写：实测 "Inception" 返回 0 条、"inception" 返回 100 条。
   // TMDB 英文标题首字母大写，必须转小写再查，否则整个 TPB 源恒为空。
-  const url = `https://apibay.org/q.php?q=${encodeURIComponent(keyword.toLowerCase())}&cat=0`;
+  // 同时剥掉维基消歧后缀（Up (2009 film)），否则按词匹配同样返回 0 条。
+  const cleaned = toSourceSearchText(keyword);
+  const url = `https://apibay.org/q.php?q=${encodeURIComponent(cleaned.toLowerCase())}&cat=0`;
   const r = await fetchWithRetry(url, {
     headers: { 'Accept': 'application/json', 'User-Agent': UA },
     signal: AbortSignal.timeout(30000),
@@ -320,13 +323,18 @@ export async function searchMovie(
       const batchResults = await Promise.allSettled(batch);
       tpbRes.push(...batchResults);
     }
+    let tpbFulfilled = 0;
     for (const res of tpbRes) {
       if (res.status === 'fulfilled') {
+        tpbFulfilled++;
         allTpbResults.push(...res.value);
       } else if (!tpbError) {
         tpbError = res.reason instanceof Error ? res.reason.message : String(res.reason);
       }
     }
+    // 只要有一个关键词请求成功，TPB 源就是可用的。
+    // 部分标题变体失败不应让已返回的资源上方出现「TPB 请求失败」。
+    if (tpbFulfilled > 0) tpbError = null;
     // 按 btih 去重
     const seenHashes = new Set<string>();
     allTpbResults = allTpbResults.filter(r => {
@@ -349,14 +357,18 @@ export async function searchMovie(
       return [] as ResourceItem[];
     });
     const eztvAll = await Promise.allSettled(eztvPromises);
+    let eztvFulfilled = 0;
     for (const r of eztvAll) {
       if (r.status === 'fulfilled') {
+        eztvFulfilled++;
         eztvResults.push(...r.value);
       } else if (!eztvError) {
         // 单个剧集失败只降级该剧，不拖垮整批
         eztvError = r.reason instanceof Error ? r.reason.message : String(r.reason);
       }
     }
+    // 同 TPB：部分剧集查询失败、但其他剧集成功时不报整源错误
+    if (eztvFulfilled > 0) eztvError = null;
   }
 
   // ── 合并所有资源 + 去重 + 排序 ──

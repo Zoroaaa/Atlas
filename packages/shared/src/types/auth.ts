@@ -29,7 +29,7 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
-  verificationCode?: string;
+  verificationCode: string;
 }
 
 export interface AuthResponse {
@@ -61,7 +61,6 @@ export interface ChangePasswordRequest {
 export interface DeleteAccountRequest {
   verificationCode: string;
   confirmText: string;
-  password?: string;
 }
 
 export interface SendVerificationCodeRequest {

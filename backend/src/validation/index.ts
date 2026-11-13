@@ -158,10 +158,12 @@ export const schemas = {
         .max(R.PASSWORD.MAX_LENGTH, `新密码最多${R.PASSWORD.MAX_LENGTH}个字符`),
     }),
 
+    // 删除账户的验证因子是「登录态 + 邮箱验证码 + 确认文字」。
+    // 不再要求密码：OAuth 注册用户（GitHub/Google）的密码是随机占位串，
+    // 前端也从未提供密码输入，要求密码会让这部分用户永远无法删号。
     deleteAccount: z.object({
       verificationCode: z.string().length(R.VERIFICATION_CODE.LENGTH, `验证码必须是${R.VERIFICATION_CODE.LENGTH}位`),
       confirmText: z.string().min(1, '请输入确认文字'),
-      password: z.string().min(1, '请输入密码确认删除'),
     }),
 
     sendVerificationCode: z.object({
@@ -383,9 +385,11 @@ export const schemas = {
     createPost: z.object({
       postType: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'actress']),
       title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
-      // 封面只允许 http(s) 或站内相对路径，避免把任意文本/大体积内联数据塞进列表卡片
-      coverImage: z.string().min(1, '封面图片不能为空').max(COMMUNITY_COVER_MAX_LENGTH, '封面图片地址过长')
-        .regex(/^(https?:\/\/|\/)/, '封面图片必须是有效地址'),
+      // 封面允许为空：部分来源（关注动态、无封面详情、影视无海报等）没有封面，
+      // 前端卡片与详情页都已按「无封面」渲染占位。非空时仍限制为 http(s) 或站内相对路径，
+      // 避免把任意文本/大体积内联数据塞进列表卡片。
+      coverImage: z.string().max(COMMUNITY_COVER_MAX_LENGTH, '封面图片地址过长')
+        .refine(value => value === '' || /^(https?:\/\/|\/)/.test(value), '封面图片必须是有效地址'),
       contentData: z.string().min(1, '内容数据不能为空').max(COMMUNITY_CONTENT_MAX_LENGTH, '内容数据过大'),
       caption: z.string().max(2000, '简介最多2000个字符').optional(),
       tags: z.array(z.string().min(1).max(R.TAG.NAME_MAX_LENGTH))
@@ -472,7 +476,12 @@ export const schemas = {
     importConfig: z.object({
       configs: z.array(z.object({
         key: z.string().min(1),
-        value: z.string(),
+        // 配置值在数据库中统一按文本存储。导入的 JSON 可能把数字/布尔写成原生类型，
+        // 这里是系统边界，统一转成字符串；对象/数组/null 仍然拒绝，避免存进去无法还原的值。
+        value: z.preprocess(
+          (value) => (typeof value === 'number' || typeof value === 'boolean' ? String(value) : value),
+          z.string({ error: '配置值必须是字符串、数字或布尔值' }),
+        ),
         description: z.string().optional(),
         configType: z.string().optional(),
         configGroup: z.string().optional(),

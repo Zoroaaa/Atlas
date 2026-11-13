@@ -7,7 +7,7 @@
  */
 import { isJavCodeLike } from '@codeseek/shared/utils';
 import type { QueryVariant, VariantLang } from '@/services/query-normalizer';
-import { aliasKey } from '@/services/query-normalizer';
+import { aliasKey, toSourceSearchText } from '@/services/query-normalizer';
 
 export interface SourceProfile {
   /** 该源搜索索引主要接受的语言/写法 */
@@ -160,6 +160,8 @@ export function pickKeywordForSource(
 }
 
 function finish(picked: QueryVariant, profile: SourceProfile): PickedKeyword {
-  const text = profile.lowercase ? picked.text.toLowerCase() : picked.text;
+  // 去掉维基消歧后缀/书名号等，避免把「Up (2009 film)」这类标题发给源站
+  const cleaned = toSourceSearchText(picked.text);
+  const text = profile.lowercase ? cleaned.toLowerCase() : cleaned;
   return { text, lang: picked.lang, transform: picked.transform };
 }

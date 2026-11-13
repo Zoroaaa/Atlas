@@ -102,12 +102,9 @@ export const authApi = {
   },
 
   deleteAccount: async (data: DeleteAccountRequest): Promise<{ success: boolean; message: string }> => {
-    try {
-      const response = await apiClient.delete<{ success: boolean; message: string }>('/auth/account', data);
-      return response;
-    } finally {
-      useAuthStore.getState().logout();
-    }
+    // 不在失败时登出：验证码错误等 400 不应把用户踢下线；
+    // 删除成功后由调用方负责清理本地登录态。
+    return apiClient.delete<{ success: boolean; message: string }>('/auth/account', data);
   },
 
   sendRegistrationCode: async (email: string): Promise<{ 

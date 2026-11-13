@@ -140,15 +140,30 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const RES_PAGE_SIZE = 10;
 
   const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));
-  const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
+  // 主作品（搜索结果第一条）没有匹配到资源、但别的作品有资源时，默认用分源视图，
+  // 否则用户只会看到主作品“0 资源”，误以为资源被丢弃。
+  const primarySubject = data.results?.[0];
+  const primaryHasResources = Boolean(
+    data.grouped &&
+    primarySubject &&
+    data.grouped.groups.some(
+      (group) =>
+        group.subject.id === primarySubject.id &&
+        group.subject.mediaType === primarySubject.mediaType &&
+        group.resources.length > 0
+    )
+  );
+  const defaultViewMode: 'grouped' | 'sources' =
+    hasGrouped && (data.results.length === 0 || primaryHasResources) ? 'grouped' : 'sources';
+  const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(defaultViewMode);
 
   // 换关键词/翻页后重置选中项与资源页码，避免沿用上一批数据的状态
   useEffect(() => {
     setSelectedItem(data.results[0] ?? null);
     setResourcePage(1);
     setShowAllResources(false);
-    setViewMode(hasGrouped ? 'grouped' : 'sources');
-  }, [data.keyword, data.page, data.results, hasGrouped]);
+    setViewMode(defaultViewMode);
+  }, [data.keyword, data.page, data.results, defaultViewMode]);
 
   const results = data.results ?? [];
   const resources = data.resources ?? [];

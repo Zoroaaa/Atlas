@@ -330,7 +330,18 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const PAGE_SIZE = 10;
 
   const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));
-  const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(hasGrouped ? 'grouped' : 'sources');
+  // 与影视一致：主作品没有资源、但别的作品有资源时，默认分源视图，避免资源看起来“消失”
+  const primaryBgm = data.bgm?.[0];
+  const primaryHasResources = Boolean(
+    data.grouped &&
+    primaryBgm &&
+    data.grouped.groups.some(
+      (group) => group.subject.id === primaryBgm.id && group.resources.length > 0
+    )
+  );
+  const defaultViewMode: 'grouped' | 'sources' =
+    hasGrouped && (data.bgm.length === 0 || primaryHasResources) ? 'grouped' : 'sources';
+  const [viewMode, setViewMode] = useState<'grouped' | 'sources'>(defaultViewMode);
 
   // 换关键词/翻页后重置各来源页码与视图模式，避免沿用上一批数据的状态
   useEffect(() => {
@@ -338,8 +349,8 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
     setAtosPage(1);
     setMikanPage(1);
     setDmhyPage(1);
-    setViewMode(hasGrouped ? 'grouped' : 'sources');
-  }, [data.keyword, data.page, hasGrouped]);
+    setViewMode(defaultViewMode);
+  }, [data.keyword, data.page, defaultViewMode]);
 
   const bgmList = data.bgm ?? [];
   const nyaaList = data.nyaa ?? [];
