@@ -20,7 +20,7 @@ export const FollowWorkShareButton: React.FC<{ item: FollowFeedItem }> = ({ item
         title: item.title,
         cover: item.cover,
         releaseDate: item.releaseDate,
-        actresses: [item.actressName],
+        actresses: item.entityType === 'actress' ? [item.entityName] : [],
         tags: [],
         magnets: [],
         detailUrl: `https://www.javbus.com/${item.code}`,

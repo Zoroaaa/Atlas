@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, CheckCheck, UserCheck, Settings2, Bell, BellOff, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,10 @@ import {
 } from '@/components/workbench';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { FollowWorkShareButton } from './FollowWorkShareButton';
-import { useFollows, useFollowFeed, useFollowActions, FOLLOW_FEED_PAGE_SIZE } from '@/hooks';
+import { FollowFeedToolbar } from './FollowFeedToolbar';
+import {
+  useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE,
+} from '@/hooks';
 import type { FollowFeedTab } from '@/types';
 
 interface FollowFeedPanelProps {
@@ -15,27 +18,58 @@ interface FollowFeedPanelProps {
   onCodeClick: (code: string) => void;
 }
 
-/** 主页"关注动态"：关注女优的新作 / 即将发售，服务端分页，封面放大、标题执行 */
+/** 主页"关注动态"：关注对象的新作 / 即将发售，支持按对象筛选与关键词集合搜索 */
 export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, onCodeClick }) => {
   const { t } = useTranslation(['follow']);
   const [expanded, setExpanded] = useState(true);
   const [managing, setManaging] = useState(false);
   const [tab, setTab] = useState<FollowFeedTab>('new');
   const [page, setPage] = useState(1);
+  const [filterKey, setFilterKey] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [activeKeyword, setActiveKeyword] = useState('');
+  const [searchPage, setSearchPage] = useState(1);
 
   const { data: followsData } = useFollows();
-  const follows = followsData?.follows ?? [];
+  const follows = useMemo(() => followsData?.follows ?? [], [followsData]);
   const unread = followsData?.unread ?? 0;
   const { unfollow, setNotify, markViewed } = useFollowActions();
 
-  const { data: feed, isLoading } = useFollowFeed(tab, page, show && follows.length > 0 && expanded);
+  const { data: feed, isLoading } = useFollowFeed(tab, page, show && follows.length > 0 && expanded, {
+    entity: filterKey || undefined,
+  });
   const items = feed?.items ?? [];
   const totalPages = Math.max(1, Math.ceil((feed?.total ?? 0) / FOLLOW_FEED_PAGE_SIZE));
 
-  useEffect(() => { setPage(1); }, [tab]);
+  const { data: searchResult, isLoading: searchLoading } = useFollowFeedSearch(
+    activeKeyword,
+    searchPage,
+    show && expanded && follows.length > 0
+  );
+  const searchItems = searchResult?.items ?? [];
+  const searchTotalPages = Math.max(1, Math.ceil((searchResult?.total ?? 0) / FOLLOW_FEED_PAGE_SIZE));
+
+  useEffect(() => { setPage(1); }, [tab, filterKey]);
+  useEffect(() => { setSearchPage(1); }, [activeKeyword]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  useEffect(() => {
+    if (searchPage > searchTotalPages) setSearchPage(searchTotalPages);
+  }, [searchPage, searchTotalPages]);
+  // 取消关注后如果正在按该对象筛选，自动回到全部
+  useEffect(() => {
+    if (filterKey && !follows.some((f) => f.key === filterKey)) setFilterKey('');
+  }, [follows, filterKey]);
 
   if (!show) return null;
+
+  const submitSearch = () => {
+    const q = keyword.trim();
+    setActiveKeyword(q);
+    setSearchPage(1);
+  };
+
+  const typePrefix = (type: string) =>
+    type === 'actress' ? '' : `${t(`follow:entityTypes.${type}`)} · `;
 
   return (
     <PanelSection>
@@ -83,6 +117,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                   {follows.map((follow) => (
                     <li key={follow.key} className="flex items-center gap-2 px-3 py-2">
                       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-surface-800 dark:text-surface-200">
+                        <span className="text-surface-400">{typePrefix(follow.entityType)}</span>
                         {follow.name}
                       </span>
                       {follow.checkFailing ? <Chip tone="neutral" size="xs">{t('follow:checkFailing')}</Chip> : null}
@@ -121,7 +156,66 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                 />
               </div>
 
-              {isLoading ? (
+              <FollowFeedToolbar
+                className="mb-3"
+                follows={follows}
+                filterKey={filterKey}
+                onFilterKeyChange={setFilterKey}
+                keyword={keyword}
+                onKeywordChange={setKeyword}
+                onSearch={submitSearch}
+                onClearSearch={() => { setActiveKeyword(''); setKeyword(''); }}
+                activeKeyword={activeKeyword}
+              />
+
+              {activeKeyword ? (
+                searchLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, index) => <div key={index} className="skeleton h-16 w-full" />)}
+                  </div>
+                ) : searchItems.length === 0 ? (
+                  <EmptyBlock
+                    title={t('follow:searchEmpty')}
+                    hint={t('follow:searchEmptyHint')}
+                    className="min-h-[96px]"
+                  />
+                ) : (
+                  <div className={clsx('divide-y divide-surface-100 dark:divide-surface-800/70')}>
+                    <p className="type-micro px-1 pb-1.5 text-surface-500">
+                      {t('follow:searchResultTitle', { q: activeKeyword, count: searchResult?.total ?? 0 })}
+                    </p>
+                    {searchItems.map((item) => (
+                      <MediaCard
+                        key={item.code}
+                        cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
+                        title={item.title || item.code}
+                        badges={
+                          <>
+                            <Chip tone="primary" truncate>{item.code}</Chip>
+                            {item.isUnread ? <Chip tone="accent" size="xs">{t('follow:newBadge')}</Chip> : null}
+                          </>
+                        }
+                        meta={
+                          <span className="type-micro text-surface-500">
+                            {item.entityNames.join(' / ')}
+                            {item.releaseDate ? ` · ${t('follow:releaseOn', { date: item.releaseDate })}` : ''}
+                          </span>
+                        }
+                        onSelect={() => onCodeClick(item.code)}
+                        coverSize="sm"
+                      />
+                    ))}
+                    <Pagination
+                      page={searchPage}
+                      totalPages={searchTotalPages}
+                      onChange={setSearchPage}
+                      prevLabel={t('search:favorites.prevPage')}
+                      nextLabel={t('search:favorites.nextPage')}
+                      className="pt-3"
+                    />
+                  </div>
+                )
+              ) : isLoading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }).map((_, index) => <div key={index} className="skeleton h-16 w-full" />)}
                 </div>
@@ -131,7 +225,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                 <div className={clsx('divide-y divide-surface-100 dark:divide-surface-800/70')}>
                   {items.map((item) => (
                     <MediaCard
-                      key={`${item.actressKey}-${item.code}`}
+                      key={`${item.actressKey ?? item.entityKey}-${item.code}`}
                       cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
                       title={item.title || item.code}
                       badges={
@@ -142,7 +236,8 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                       }
                       meta={
                         <span className="type-micro text-surface-500">
-                          {item.actressName}
+                          {typePrefix(item.entityType)}
+                          {item.entityName}
                           {item.releaseDate ? ` · ${t('follow:releaseOn', { date: item.releaseDate })}` : ''}
                         </span>
                       }
