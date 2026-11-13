@@ -280,9 +280,11 @@ export const DataStorageTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [detailFilter, setDetailFilter] = useState<'' | 'complete' | 'incomplete'>('');
   const [missingFilters, setMissingFilters] = useState<JavDetailFieldName[]>([]);
+  const [retryFilter, setRetryFilter] = useState<'' | 'yes' | 'no'>('');
 
   const [detail, setDetail] = useState<DataRecordDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailAction, setDetailAction] = useState<'reset' | 'fetch' | null>(null);
   const [genreSyncing, setGenreSyncing] = useState(false);
   const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
   const [jobStartingField, setJobStartingField] = useState<JavDetailFieldName | null>(null);
@@ -311,6 +313,7 @@ export const DataStorageTab: React.FC = () => {
         search: search || undefined,
         detail: detailFilter || undefined,
         missing: missingFilters.length > 0 ? missingFilters.join(',') : undefined,
+        retry: retryFilter || undefined,
       });
       setRecords(toArray<DataRecord>(r?.items));
       setTotalPages(Math.max(1, toNumber(r?.totalPages) || 1));
@@ -320,7 +323,7 @@ export const DataStorageTab: React.FC = () => {
     } finally {
       setRecordsLoading(false);
     }
-  }, [page, typeFilter, statusFilter, search, detailFilter, missingFilters, toast, t]);
+  }, [page, typeFilter, statusFilter, search, detailFilter, missingFilters, retryFilter, toast, t]);
 
   const jobStatusRef = useRef<JavDetailJobView['job']>(null);
 
@@ -368,7 +371,8 @@ export const DataStorageTab: React.FC = () => {
     setJobStartingField(missing);
     try {
       const patch = normalizeJobView(
-        await dataStorageApi.startDetailJob({ batchSize: 10, missing })
+        // 不传 batchSize：由后端默认值统一控制每分钟条数
+        await dataStorageApi.startDetailJob({ missing })
       );
       // 启动接口只返回 progress 字段，缺 stats/recentFailures 时沿用已有数据
       if (!patch) throw new Error('empty response');
@@ -427,6 +431,13 @@ export const DataStorageTab: React.FC = () => {
     if (activeView === 'records') loadRecords();
   }, [activeView, loadRecords]);
 
+  const normalizeDetailRecord = (raw: DataRecordDetail): DataRecordDetail => ({
+    ...raw,
+    tags: toArray<string>(raw.tags),
+    sources: toArray<DataRecordSource>(raw.sources),
+    detailMissing: toArray<JavDetailFieldName>(raw.detailMissing),
+  });
+
   const openDetail = async (id: string) => {
     setDetailLoading(true);
     setDetail(null);
@@ -436,16 +447,52 @@ export const DataStorageTab: React.FC = () => {
         setDetail(null);
         return;
       }
-      setDetail({
-        ...raw,
-        tags: toArray<string>(raw.tags),
-        sources: toArray<DataRecordSource>(raw.sources),
-        detailMissing: toArray<JavDetailFieldName>(raw.detailMissing),
-      });
+      setDetail(normalizeDetailRecord(raw));
     } catch {
       toast.error(t('admin:dataStorage.loadDetailFailed'));
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  /** 操作后静默刷新详情：不关闭 Modal，避免整卡闪动 */
+  const reloadDetail = async (id: string) => {
+    try {
+      const raw = await dataStorageApi.getRecord(id);
+      if (raw) setDetail(normalizeDetailRecord(raw));
+    } catch {
+      /* 列表与统计已刷新，详情刷新失败不重复弹错 */
+    }
+  };
+
+  const handleResetRetry = async (id: string) => {
+    setDetailAction('reset');
+    try {
+      await dataStorageApi.resetRecordDetailRetry(id);
+      toast.success(t('admin:dataStorage.resetRetryToast'));
+      // 最近错误、次数、重试时间与列表筛选结果同步更新
+      await Promise.all([reloadDetail(id), loadRecords(), loadStats()]);
+    } catch {
+      toast.error(t('admin:dataStorage.actionFailed'));
+    } finally {
+      setDetailAction(null);
+    }
+  };
+
+  const handleFetchDetail = async (id: string) => {
+    setDetailAction('fetch');
+    try {
+      const result = await dataStorageApi.fetchRecordDetail(id);
+      if (result?.ok === false) {
+        toast.error(t('admin:dataStorage.fetchDetailFailed'));
+      } else {
+        toast.success(t('admin:dataStorage.fetchDetailToast'));
+      }
+      await Promise.all([reloadDetail(id), loadRecords(), loadStats()]);
+    } catch {
+      toast.error(t('admin:dataStorage.actionFailed'));
+    } finally {
+      setDetailAction(null);
     }
   };
 
@@ -720,6 +767,18 @@ export const DataStorageTab: React.FC = () => {
                 <option value="incomplete">{t('admin:dataStorage.detailFilter.incomplete')}</option>
               </select>
               <select
+                value={retryFilter}
+                onChange={(e) => {
+                  setRetryFilter(e.target.value as '' | 'yes' | 'no');
+                  setPage(1);
+                }}
+                className="px-3 py-2 rounded-lg text-sm bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 focus:outline-none focus:ring-2 focus:ring-rose-400"
+              >
+                <option value="">{t('admin:dataStorage.retryFilter.all')}</option>
+                <option value="yes">{t('admin:dataStorage.retryFilter.yes')}</option>
+                <option value="no">{t('admin:dataStorage.retryFilter.no')}</option>
+              </select>
+              <select
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as 'active' | 'hidden' | '');
@@ -770,11 +829,12 @@ export const DataStorageTab: React.FC = () => {
                 </button>
               );
             })}
-            {(detailFilter || missingFilters.length > 0) && (
+            {(detailFilter || missingFilters.length > 0 || retryFilter) && (
               <button
                 onClick={() => {
                   setDetailFilter('');
                   setMissingFilters([]);
+                  setRetryFilter('');
                   setPage(1);
                 }}
                 className="px-2.5 py-1 rounded-lg text-xs text-surface-500 hover:text-rose-500"
@@ -931,6 +991,30 @@ export const DataStorageTab: React.FC = () => {
                       {detail.detailLastError ? errorCodeLabel(t, detail.detailLastError) : '—'}
                     </div>
                   </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResetRetry(detail.id)}
+                    disabled={detailAction !== null}
+                  >
+                    {detailAction === 'reset'
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <RefreshCw className="w-3.5 h-3.5" />}
+                    <span className="ml-1">{t('admin:dataStorage.resetRetryBtn')}</span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleFetchDetail(detail.id)}
+                    disabled={detailAction !== null}
+                  >
+                    {detailAction === 'fetch'
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Search className="w-3.5 h-3.5" />}
+                    <span className="ml-1">{t('admin:dataStorage.fetchDetailBtn')}</span>
+                  </Button>
                 </div>
               </div>
             )}

@@ -155,4 +155,6 @@ export interface DataRecordsQuery {
   detail?: 'complete' | 'incomplete';
   /** 缺失字段筛选（逗号分隔，OR 关系） */
   missing?: string;
+  /** 重试状态筛选：no = 不再重试；yes = 还会重试 */
+  retry?: 'yes' | 'no';
 }

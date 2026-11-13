@@ -812,6 +812,7 @@ export const dataStorageApi = {
     if (params.search) queryParams.set('search', params.search);
     if (params.detail) queryParams.set('detail', params.detail);
     if (params.missing) queryParams.set('missing', params.missing);
+    if (params.retry) queryParams.set('retry', params.retry);
 
     const response = await apiClient.get<{ success: boolean; data: PaginatedResponse<DataRecord> }>(
       `/admin/data-storage/records?${queryParams.toString()}`
@@ -828,6 +829,20 @@ export const dataStorageApi = {
 
   updateRecordStatus: async (id: string, status: DataRecordStatus): Promise<void> => {
     await apiClient.put(`/admin/data-storage/records/${id}/status`, { status });
+  },
+
+  /** 重置源站缺失次数：清零 attempts / transient_failures，清掉耗尽与下次重试时间 */
+  resetRecordDetailRetry: async (id: string): Promise<void> => {
+    await apiClient.post(`/admin/data-storage/records/${id}/detail/reset`, {});
+  },
+
+  /** 单条数据补详情：立即抓取，不等每分钟批次 */
+  fetchRecordDetail: async (id: string): Promise<{ ok: boolean; error: string | null }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { ok: boolean; error: string | null };
+    }>(`/admin/data-storage/records/${id}/detail/fetch`, {});
+    return response.data;
   },
 
   deleteRecord: async (id: string): Promise<void> => {

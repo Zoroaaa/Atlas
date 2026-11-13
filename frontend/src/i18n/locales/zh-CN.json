@@ -1552,6 +1552,17 @@
       "detailTransientLabel": "暂时失败次数",
       "detailNextRetryLabel": "下次重试",
       "detailNoRetry": "不再重试",
+      "resetRetryBtn": "重置源站缺失次数",
+      "fetchDetailBtn": "单条数据补详情",
+      "resetRetryToast": "已重置重试状态，可重新补全",
+      "fetchDetailToast": "单条补详情完成",
+      "fetchDetailFailed": "单条补详情失败",
+      "actionFailed": "操作失败",
+      "retryFilter": {
+        "all": "全部重试状态",
+        "yes": "还会重试",
+        "no": "不再重试"
+      },
       "detailLastErrorLabel": "最近错误",
       "errorCode": {
         "NOT_FOUND": "源站没有该番号",
@@ -1564,7 +1575,7 @@
       },
       "batch": {
         "title": "JAV 详情批量补全",
-        "desc": "按每分钟 10 条限速补全导演、制作商、发行商与磁力；任务状态持久化，刷新页面或服务重启后继续。下面四个入口分别筛出「缺这一类」的记录，抓到后仍然写完整详情。此面板可完成全部控制：「暂停」保留进度、分钟 cron 暂停推进；「继续」从同一任务接着跑；「停止」结束任务。",
+        "desc": "按每分钟 5 条限速补全导演、制作商、发行商与磁力；任务状态持久化，刷新页面或服务重启后继续。下面四个入口分别筛出「缺这一类」的记录，抓到后仍然写完整详情。此面板可完成全部控制：「暂停」保留进度、分钟 cron 暂停推进；「继续」从同一任务接着跑；「停止」结束任务。",
         "fillThis": "补这一类",
         "fillThisHint": "只筛出缺这一类的番号；抓取时仍然补完整详情",
         "runningHint": "当前有任务在运行，先停止或等它结束",

@@ -15,10 +15,13 @@ import { syncGenreDictionary } from '@/services/genre-dictionary';
 import {
   DETAIL_FIELD_BITS,
   missingFieldsFromMask,
+  resetJavDetailRetry,
   type JavDetailField,
 } from '@/services/jav-detail-meta';
 import {
+  fetchJavDetailForRecord,
   getJavDetailJobView,
+  JAV_DETAIL_DEFAULT_BATCH_SIZE,
   getJavDetailStats,
   isJavDetailJobEnabled,
   isJavDetailMissingFilter,
@@ -231,6 +234,8 @@ dataStorageRoutes.get('/records', async (c) => {
   const search = c.req.query('search') || '';
   const detail = c.req.query('detail') || '';
   const missing = c.req.query('missing') || '';
+  // 是否还会重试：no = 重试次数已耗尽；yes = 仍有重试机会
+  const retry = c.req.query('retry') || '';
 
   try {
     const where: string[] = [];
@@ -268,6 +273,15 @@ dataStorageRoutes.get('/records', async (c) => {
     if (missingMask !== 0) {
       where.push('(COALESCE(m.missing_mask, 0) & ?) <> 0');
       params.push(missingMask);
+    }
+
+    // 重试状态筛选：与缺字段筛选是 AND 关系，可组合成「缺磁力 + 不再重试」
+    if (retry === 'no') {
+      where.push('COALESCE(m.retry_exhausted, 0) = 1');
+    } else if (retry === 'yes') {
+      where.push(
+        "d.record_type = 'jav' AND COALESCE(m.retry_exhausted, 0) = 0 AND (m.record_id IS NULL OR m.status <> 'complete')"
+      );
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -394,6 +408,79 @@ dataStorageRoutes.put('/records/:id/status', validateBody(schemas.admin.updateDa
   } catch (err) {
     console.error('[data-storage] update status error:', err);
     return c.json(error('SERVER_ERROR', '更新状态失败'), 500);
+  }
+});
+
+// ============================================================
+// 5.1 单条记录：重置重试状态 / 立即补详情
+// ============================================================
+
+/** 只允许对 JAV 记录操作补全相关按钮 */
+async function findJavRecord(
+  db: D1Database,
+  id: string
+): Promise<{ id: string; record_type: string } | null> {
+  return await db
+    .prepare('SELECT id, record_type FROM data_records WHERE id = ?')
+    .bind(id)
+    .first<{ id: string; record_type: string }>();
+}
+
+dataStorageRoutes.post('/records/:id/detail/reset', async (c) => {
+  const id = c.req.param('id');
+
+  try {
+    const record = await findJavRecord(c.env.DB, id);
+    if (!record) {
+      return c.json(error('NOT_FOUND', '记录不存在'), 404);
+    }
+    if (record.record_type !== 'jav') {
+      return c.json(error('INVALID_TYPE', '仅 JAV 记录支持重置重试'), 400);
+    }
+
+    const meta = await resetJavDetailRetry(c.env.DB, id);
+    return c.json(success({ id, meta }, '已重置源站缺失次数'));
+  } catch (err) {
+    console.error('[data-storage] reset detail retry error:', err);
+    return c.json(error('SERVER_ERROR', '重置重试状态失败'), 500);
+  }
+});
+
+dataStorageRoutes.post('/records/:id/detail/fetch', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.get('user')?.userId ?? 'unknown';
+
+  // 单条抓取直接打源站，按记录+管理员限速，避免连点
+  const limit = await checkRateLimitD1(
+    c.env.DB,
+    `jav-single-fetch:${userId}:${id}`,
+    5000,
+    1
+  );
+  if (!limit.allowed) {
+    if (limit.retryAfter) c.header('Retry-After', String(limit.retryAfter));
+    return c.json(error('RATE_LIMITED', '补详情操作过于频繁，请稍后再试'), 429);
+  }
+
+  try {
+    const record = await findJavRecord(c.env.DB, id);
+    if (!record) {
+      return c.json(error('NOT_FOUND', '记录不存在'), 404);
+    }
+    if (record.record_type !== 'jav') {
+      return c.json(error('INVALID_TYPE', '仅 JAV 记录支持单条补详情'), 400);
+    }
+
+    const result = await fetchJavDetailForRecord(c.env.DB, id);
+    return c.json(
+      success(
+        { id, ok: result.ok, error: result.error, meta: result.meta },
+        result.ok ? '单条补详情完成' : '单条补详情失败'
+      )
+    );
+  } catch (err) {
+    console.error('[data-storage] single detail fetch error:', err);
+    return c.json(error('SERVER_ERROR', '单条补详情失败'), 500);
   }
 });
 
@@ -542,7 +629,10 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
     // 允许空 body，使用默认参数
   }
 
-  const batchSize = Math.min(50, Math.max(1, Number(body.batchSize) || 10));
+  const batchSize = Math.min(
+    50,
+    Math.max(1, Number(body.batchSize) || JAV_DETAIL_DEFAULT_BATCH_SIZE)
+  );
 
   // 筛选只决定选哪些记录，抓取内容不变；不传表示不限字段
   if (body.missing != null && !isJavDetailMissingFilter(body.missing)) {
