@@ -92,7 +92,7 @@ const num = (value: unknown): number | undefined =>
 const strList = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.trim() !== '') : [];
 
-const JAV_ENTITY_KINDS: JavEntityKind[] = ['director', 'studio', 'label', 'series'];
+const JAV_ENTITY_KINDS: JavEntityKind[] = ['director', 'studio', 'label', 'series', 'tag'];
 
 /** 从 content_data 读取实体链接；老记录没有该字段时返回空数组，交给点击时回源解析 */
 const readEntityLinks = (extra: Record<string, unknown>, key: string): JavEntityLink[] => {
@@ -217,6 +217,7 @@ const JavBody: React.FC<{
   const makerLinks = readEntityLinks(extra, 'makerLinks');
   const publisherLinks = readEntityLinks(extra, 'publisherLinks');
   const seriesLinks = readEntityLinks(extra, 'seriesLinks');
+  const tagLinks = readEntityLinks(extra, 'tagLinks');
   const [entityTarget, setEntityTarget] = useState<JavEntityTarget | null>(null);
 
   return (
@@ -299,7 +300,23 @@ const JavBody: React.FC<{
         <div>
           <SectionLabel icon={Tag} text={t('jav:detail.tagsLabel')} />
           <div className="flex flex-wrap gap-1.5">
-            {record.tags.map((tag) => <Chip key={tag} tone="neutral" size="xs">{tag}</Chip>)}
+            {record.tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setEntityTarget({
+                  kind: 'tag',
+                  name: tag,
+                  path: findEntityPath(tagLinks, tag),
+                  code: record.code,
+                })}
+                title={tag}
+                aria-label={t('jav:entity.openTagWorks', { name: tag })}
+                className="rounded-md transition-shadow hover:ring-1 hover:ring-primary-300 dark:hover:ring-primary-700"
+              >
+                <Chip tone="neutral" size="xs">{tag}</Chip>
+              </button>
+            ))}
           </div>
         </div>
       ) : null}
@@ -314,7 +331,7 @@ const JavBody: React.FC<{
       ) : null}
 
       <div>
-        <SectionLabel icon={Magnet} text={t('jav:detail.magnetsHeader')} count={magnets.length} />
+        <SectionLabel icon={Magnet} text={t('jav:detail.magnetsHeader', { count: magnets.length })} />
         {magnets.length > 0 ? (
           <div className="max-h-64 overflow-y-auto">
             <SourceRows sources={magnets} t={t} />
@@ -440,11 +457,10 @@ const MovieBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row">
         {poster ? (
-          <img
+          <ProxyImage
             src={normalizeImageUrl(poster)}
             alt={record.title}
             className="h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
-            onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">

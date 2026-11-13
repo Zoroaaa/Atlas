@@ -47,11 +47,12 @@ export interface JavDetailResult {
   maker?: string;
   publisher?: string;
   series?: string;
-  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列/标签的作品 */
   directorLinks?: JavEntityLink[];
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   magnets: MagnetItem[];
@@ -180,6 +181,7 @@ export class JavProvider implements SearchProvider {
           makerLinks: localDetail.makerLinks,
           publisherLinks: localDetail.publisherLinks,
           seriesLinks: localDetail.seriesLinks,
+          tagLinks: localDetail.tagLinks,
           tags: localDetail.tags,
           actresses: localDetail.actresses,
           detailUrl: localDetail.detailUrl || `https://www.javbus.com/${code}`,

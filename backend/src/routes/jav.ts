@@ -438,7 +438,7 @@ const JAV_ENTITY_LINKS_CACHE_TTL = 60 * 60;
  * 失败只记日志，不影响接口返回；已有记录只补空缺字段，不覆盖标题/封面。
  */
 function saveEntityWorks(db: D1Database, items: JavItem[], path: string): Promise<void> {
-  const entityKind = path.match(/\/(director|studio|label|series)\/[a-z0-9]+$/i)?.[1]?.toLowerCase()
+  const entityKind = path.match(/\/(director|studio|label|series|genre)\/[a-z0-9]+$/i)?.[1]?.toLowerCase()
     ?? 'entity';
   return upsertWorksToLibrary(db, items, {
     sourceName: 'JavBus',
@@ -464,7 +464,8 @@ javRoutes.get('/entity/resolve', async (c) => {
   }
   const code = info.code;
 
-  const cacheKey = new Request(`https://internal/jav-entity-links-v1/${code}`);
+  // v2：新增 tagLinks，旧 v1 缓存不含标签链接
+  const cacheKey = new Request(`https://internal/jav-entity-links-v2/${code}`);
   const cache = caches.default;
   const cached = await cache.match(cacheKey);
   if (cached) {
@@ -510,6 +511,7 @@ javRoutes.get('/entity/resolve', async (c) => {
         makerLinks: detail.makerLinks ?? [],
         publisherLinks: detail.publisherLinks ?? [],
         seriesLinks: detail.seriesLinks ?? [],
+        tagLinks: detail.tagLinks ?? [],
       },
     });
     const response = new Response(body, {

@@ -24,10 +24,10 @@ export interface MagnetItem {
   isHD: boolean;
 }
 
-/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 */
-export type JavEntityKind = 'director' | 'studio' | 'label' | 'series';
+/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 / 标签 */
+export type JavEntityKind = 'director' | 'studio' | 'label' | 'series' | 'tag';
 
-/** 详情页字段上的实体链接（用于「点击导演/制作商/发行商/系列查看作品」） */
+/** 详情页字段上的实体链接（用于「点击导演/制作商/发行商/系列/标签查看作品」） */
 export interface JavEntityLink {
   kind: JavEntityKind;
   name: string;
@@ -316,7 +316,7 @@ export function parseMagnets(html: string): MagnetItem[] {
  * 只接受 JavBus 自身的实体列表页路径，避免把详情页里的任意 href
  * 当成可请求地址（前端会把它回传给实体作品接口）。
  */
-const JAVBUS_ENTITY_PATH_RE = /^\/(?:uncensored\/)?(?:director|studio|label|series)\/[a-z0-9]+$/i;
+const JAVBUS_ENTITY_PATH_RE = /^\/(?:uncensored\/)?(?:director|studio|label|series|genre)\/[a-z0-9]+$/i;
 
 export function normalizeJavbusEntityPath(raw: string): string | undefined {
   try {
@@ -352,11 +352,12 @@ export function parseJavDetail(
   directors?: string[];
   makers?: string[];
   seriesList?: string[];
-  /** 实体链接（导演/制作商/发行商/系列），供前端点击查看同类作品 */
+  /** 实体链接（导演/制作商/发行商/系列/标签），供前端点击查看同类作品 */
   directorLinks?: JavEntityLink[];
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   detailUrl: string;
@@ -444,14 +445,20 @@ export function parseJavDetail(
   const maker = makers.join(' / ') || undefined;
   const series = seriesList.join(' / ') || undefined;
 
-  // 类别标签
+  // 类别标签（同时保留 /genre/xx 链接，前端点击后与导演/发行商等走同一套实体卡片）
   const tags: string[] = [];
+  const tagLinks: JavEntityLink[] = [];
   const tagSection = html.match(/class="genre"[\s\S]{0,5000}/i)?.[0] ?? '';
-  const tagRe = /<a[^>]+href="[^"]*\/genre\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
+  const tagRe = /<a[^>]+href="([^"]*\/genre\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let tagM: RegExpExecArray | null;
   while ((tagM = tagRe.exec(tagSection))) {
-    const t = tagM[1].trim();
-    if (t) tags.push(t);
+    const name = tagM[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (!name) continue;
+    if (!tags.includes(name)) tags.push(name);
+    const path = normalizeJavbusEntityPath(tagM[1]);
+    if (path && !tagLinks.some((link) => link.name === name)) {
+      tagLinks.push({ kind: 'tag', name, path });
+    }
   }
 
   // 演员
@@ -470,7 +477,7 @@ export function parseJavDetail(
   return {
     code, title, cover, releaseDate, duration, publisher, director, maker, series,
     publishers, directors, makers, seriesList,
-    directorLinks, makerLinks, publisherLinks, seriesLinks,
+    directorLinks, makerLinks, publisherLinks, seriesLinks, tagLinks,
     tags, actresses, detailUrl,
   };
 }

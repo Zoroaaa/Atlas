@@ -123,8 +123,8 @@ export interface MagnetItem {
   isHD: boolean;
 }
 
-/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 */
-export type JavEntityKind = 'director' | 'studio' | 'label' | 'series';
+/** JavBus 实体分类：导演 / 制作商 / 发行商 / 系列 / 标签 */
+export type JavEntityKind = 'director' | 'studio' | 'label' | 'series' | 'tag';
 
 /** 详情页字段上的实体链接（点击后查看同类作品） */
 export interface JavEntityLink {
@@ -162,11 +162,12 @@ export interface JavDetail {
   maker?: string;
   publisher?: string;
   series?: string;
-  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列的作品 */
+  /** 实体链接：前端点击后查看该导演/制作商/发行商/系列/标签的作品 */
   directorLinks?: JavEntityLink[];
   makerLinks?: JavEntityLink[];
   publisherLinks?: JavEntityLink[];
   seriesLinks?: JavEntityLink[];
+  tagLinks?: JavEntityLink[];
   tags: string[];
   actresses: string[];
   magnets: MagnetItem[];

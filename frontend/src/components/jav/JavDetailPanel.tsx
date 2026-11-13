@@ -599,8 +599,22 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 <span className="type-micro font-medium text-surface-500">{t('jav:detail.tagsLabel')}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {detail.tags.map((tag, index) => (
-                  <Chip key={`${tag}-${index}`} tone="neutral" size="xs">{tag}</Chip>
+                {Array.from(new Set(detail.tags)).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setEntityTarget({
+                      kind: 'tag',
+                      name: tag,
+                      path: findEntityPath(detail.tagLinks, tag),
+                      code: detail.code,
+                    })}
+                    title={tag}
+                    aria-label={t('jav:entity.openTagWorks', { name: tag })}
+                    className="rounded-md transition-shadow hover:ring-1 hover:ring-primary-300 dark:hover:ring-primary-700"
+                  >
+                    <Chip tone="neutral" size="xs">{tag}</Chip>
+                  </button>
                 ))}
               </div>
             </div>
