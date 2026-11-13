@@ -2156,6 +2156,7 @@
       "pullExternalFailed": "Failed to fetch data from JavBus",
       "tagsLabel": "Tags",
       "actressesLabel": "Actresses",
+      "viewActressWorks": "View works by {{name}}",
       "magnetsHeader": "Magnet links ({{count}})",
       "magnetFooterHint": "Click a name to launch your client · Play to choose a playback method",
       "playOnline": "Watch online",

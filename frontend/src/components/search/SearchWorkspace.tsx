@@ -29,6 +29,8 @@ interface SearchWorkspaceProps {
   navigate: NavigateFunction;
   onExit: () => void;
   onActressWorkClick: (code: string) => void;
+  /** 详情卡片里点击演员：复用女优搜索卡片路径 */
+  onActressClick: (name: string) => void;
   javRelatedSeed?: JavRecommendationSeed;
   javExcludeCodes?: string[];
 }
@@ -45,6 +47,7 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
   navigate,
   onExit,
   onActressWorkClick,
+  onActressClick,
   javRelatedSeed,
   javExcludeCodes = [],
 }) => {
@@ -102,6 +105,7 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             onPullExternal={javFlow.pullExternalDetail}
             isPullingExternal={javFlow.isPullingExternal}
             onCodeClick={searchFlow.handleCodeClick}
+            onActressClick={onActressClick}
           />
           {javRelatedSeed ? (
             <JavRecommendationsPanel

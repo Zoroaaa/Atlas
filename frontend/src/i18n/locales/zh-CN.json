@@ -2156,6 +2156,7 @@
       "pullExternalFailed": "拉取 JavBus 数据失败",
       "tagsLabel": "类别",
       "actressesLabel": "演员",
+      "viewActressWorks": "查看女优 {{name}} 的作品",
       "magnetsHeader": "磁力链接 ({{count}})",
       "magnetFooterHint": "点击名称唤起客户端 · Play选择播放方式",
       "playOnline": "在线播放",

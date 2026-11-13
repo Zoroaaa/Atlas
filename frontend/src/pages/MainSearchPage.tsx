@@ -263,6 +263,7 @@ export const MainSearchPage: React.FC = () => {
               navigate={navigate}
               onExit={handleExitResults}
               onActressWorkClick={handleActressWorkClick}
+              onActressClick={handleActressClick}
               javRelatedSeed={javRelatedSeed}
               javExcludeCodes={javExcludeCodes}
             />
@@ -360,6 +361,10 @@ export const MainSearchPage: React.FC = () => {
         target={libraryDetail}
         onClose={() => setLibraryDetail(null)}
         onSearch={handleLibrarySearch}
+        onActressClick={(name) => {
+          setLibraryDetail(null);
+          handleActressClick(name);
+        }}
       />
     </div>
   );

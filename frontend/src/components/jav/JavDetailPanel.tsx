@@ -17,8 +17,8 @@ import { PanelSection, ResourceRow, Chip, CountBadge, EmptyBlock, LoadingBlock }
 import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { clsx } from 'clsx';
-import { FollowButton } from '@/components/follow/FollowButton';
 import { JavEntityWorksPanel } from './JavEntityWorksPanel';
+import { JavActressList, JavTagButton, JAV_ENTITY_LINK_CLASS } from './JavDetailShared';
 import { JAV_PLAY_PLATFORMS, buildJavPlayUrl } from '@/config/javPlayPlatforms';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
@@ -44,6 +44,8 @@ interface JavDetailPanelProps {
   isPullingExternal?: boolean;
   /** 实体作品列表里点击作品后触发番号搜索 */
   onCodeClick?: (code: string) => void;
+  /** 点击演员：复用现有的女优搜索卡片路径 */
+  onActressClick?: (name: string) => void;
 }
 
 const findEntityPath = (links: JavEntityLink[] | undefined, name?: string): string | undefined => {
@@ -137,7 +139,7 @@ function InfoRow({
         className={clsx(
           'break-all',
           onClick
-            ? 'text-primary-600 underline decoration-dotted underline-offset-2 transition-colors group-hover:text-primary-500 dark:text-primary-300'
+            ? clsx(JAV_ENTITY_LINK_CLASS, 'group-hover:text-primary-500')
             : 'text-surface-800 dark:text-surface-200'
         )}
       >
@@ -317,7 +319,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
-export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false, onCodeClick }) => {
+export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false, onCodeClick, onActressClick }) => {
   const { t } = useTranslation(['jav']);
   // 封面按真实比例自适应：横版封面独占一行完整展示，竖版封面与信息并排
   const [coverLandscape, setCoverLandscape] = useState(false);
@@ -598,23 +600,19 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 <Tag className="h-3.5 w-3.5 text-surface-400" />
                 <span className="type-micro font-medium text-surface-500">{t('jav:detail.tagsLabel')}</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {Array.from(new Set(detail.tags)).map((tag) => (
-                  <button
+                  <JavTagButton
                     key={tag}
-                    type="button"
+                    tag={tag}
+                    className="sm:text-sm"
                     onClick={() => setEntityTarget({
                       kind: 'tag',
                       name: tag,
                       path: findEntityPath(detail.tagLinks, tag),
                       code: detail.code,
                     })}
-                    title={tag}
-                    aria-label={t('jav:entity.openTagWorks', { name: tag })}
-                    className="rounded-md transition-shadow hover:ring-1 hover:ring-primary-300 dark:hover:ring-primary-700"
-                  >
-                    <Chip tone="neutral" size="xs">{tag}</Chip>
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -626,14 +624,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                 <Star className="h-3.5 w-3.5 text-surface-400" />
                 <span className="type-micro font-medium text-surface-500">{t('jav:detail.actressesLabel')}</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {Array.from(new Set(detail.actresses)).map((actress) => (
-                  <span key={actress} className="inline-flex items-center gap-1">
-                    <Chip tone="accent" size="xs">{actress}</Chip>
-                    <FollowButton name={actress} />
-                  </span>
-                ))}
-              </div>
+              <JavActressList actresses={detail.actresses} onActressClick={onActressClick} />
             </div>
           ) : null}
 
