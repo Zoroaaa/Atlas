@@ -535,11 +535,11 @@ authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAc
   const payload = c.get('user');
 
   const body = c.get('validatedBody') as z.infer<typeof schemas.auth.deleteAccount>;
-  const { password, verificationCode, confirmText } = body;
+  const { verificationCode } = body;
 
-  if (confirmText !== '删除我的账户') {
-    return c.json(error('VALIDATION_ERROR', '请输入正确的确认文字'), 400);
-  }
+  // 确认文字由前端按当前语言校验（用户必须原样输入弹窗展示的文案）。
+  // 服务端不再比对中文固定串：那样会让英文/繁中用户永远无法删号，
+  // 且确认文字只是防误触的交互约束，真正的验证因子是登录态 + 邮箱验证码。
 
   try {
     const user = await findUserById(c.env.DB, payload.userId);
@@ -555,11 +555,6 @@ authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAc
     }
 
     await deleteVerificationById(c.env.DB, verification.id);
-
-    const isValid = await verifyPassword(password, user.password_hash);
-    if (!isValid) {
-      return c.json(error('AUTH_ERROR', '密码错误'), 400);
-    }
 
     await deleteAccountCascade(c.env.DB, user.id);
 

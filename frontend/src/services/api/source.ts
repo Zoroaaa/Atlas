@@ -636,7 +636,7 @@ export const sourceApi = {
     return apiClient.get(`/source-status-history/${sourceId}?limit=${limit}&hours=${hours}`);
   },
 
-  batchCheckSourceStatus: async (sourceIds: string[], keyword = 'test'): Promise<{ 
+  batchCheckSourceStatus: async (sourceIds: string[]): Promise<{ 
     success: boolean; 
     data: {
       results: Array<{
@@ -648,10 +648,9 @@ export const sourceApi = {
         error: string | null;
       }>;
       checkedAt: number;
-      keyword: string;
     }
   }> => {
-    return apiClient.post('/source-status-batch', { sourceIds, keyword });
+    return apiClient.post('/source-status-batch', { sourceIds });
   },
 
   clearSourceStatusCache: async (sourceId: string): Promise<{ success: boolean; message: string }> => {

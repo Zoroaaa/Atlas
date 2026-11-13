@@ -49,7 +49,10 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
 
   const handleToggleFavorite = async (result: SearchResultItem) => {
     if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const existingFavoriteId = getFavoriteId(result.url || '');
+    // 收藏以 URL 作为唯一标识，没有 URL 的结果无法收藏；
+    // 直接在入口拦住，避免把空串传给后端触发 URL 校验错误。
+    if (!result.url) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); return; }
+    const existingFavoriteId = getFavoriteId(result.url);
     if (existingFavoriteId) {
       try {
         await removeFavoriteMutation.mutateAsync(existingFavoriteId);
@@ -59,7 +62,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
       try {
         const response = await addFavoriteMutation.mutateAsync({
           title: result.sourceName,
-          url: result.url || '',
+          url: result.url,
           subtitle: result.subtitle,
           keyword: keyword.trim() || undefined,
         });
