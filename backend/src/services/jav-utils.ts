@@ -136,7 +136,8 @@ export const JAV_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xhtml+xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'Accept-Language': 'zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7',
-  'Accept-Encoding': 'gzip, deflate, br',
+  // 不手动声明 Accept-Encoding：Workers/undici 只有在由运行时协商时才会自动解压，
+  // 手动设置后可能拿到未解压的二进制体，文本解析会得到空结果，进而误判成「源站无磁力」。
   'Cache-Control': 'no-cache',
   'Referer': 'https://www.javbus.com/',
 };
@@ -145,19 +146,23 @@ export const JAV_HEADERS = {
 
 /** get() 返回类型 */
 export type GetResult =
-  | { ok: true; html: string }
+  | { ok: true; html: string; /** 跟随重定向后的最终地址，用于识别验证页 */ finalUrl: string }
   | { ok: false; error: 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR'; status?: number };
 
-export async function get(url: string, timeoutMs = 10000): Promise<GetResult> {
+export async function get(
+  url: string,
+  timeoutMs = 10000,
+  extraHeaders: Record<string, string> = {}
+): Promise<GetResult> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const r = await fetch(url, { headers: JAV_HEADERS, signal: ctrl.signal });
+    const r = await fetch(url, { headers: { ...JAV_HEADERS, ...extraHeaders }, signal: ctrl.signal });
     if (!r.ok) {
       return { ok: false, error: 'HTTP_ERROR', status: r.status };
     }
     const html = await r.text();
-    return { ok: true, html };
+    return { ok: true, html, finalUrl: r.url || url };
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       return { ok: false, error: 'TIMEOUT' };
@@ -255,6 +260,11 @@ export async function fetchJavbusDetailHtml(
     );
 
     if (result.ok) {
+      // 被重定向到验证页：不是有效详情，按「源暂时不可用」处理，不能解析成缺字段
+      if (isJavbusVerificationPage(result.finalUrl, result.html)) {
+        failures.push('HTTP_ERROR');
+        continue;
+      }
       // 200 但内容过短：站点返回了维护/验证页，不是有效详情
       if (result.html.length >= 500) {
         return { ok: true, html: result.html, usedCode };
@@ -285,6 +295,33 @@ export function extractGidUc(html: string): { gid: string; uc: string } | null {
   return null;
 }
 
+/**
+ * 是否被重定向/返回了 JavBus 的访问验证页。
+ *
+ * 验证页有时仍会带上原详情页内容（因此不能只看正文），
+ * 最终 URL 命中 /doc/driver-verify 是最可靠信号。
+ */
+export function isJavbusVerificationPage(finalUrl: string, html = ''): boolean {
+  if (/\/doc\/(?:driver|age)[-_]?verify/i.test(finalUrl)) return true;
+  // 没有 gid 的验证页（正常详情页一定带 var gid）
+  if (/var\s+gid\s*=/.test(html)) return false;
+  return /driver[-_]?verify|age[-_]?verification|年齡確認|年龄确认/i.test(html);
+}
+
+/**
+ * 磁力接口的「源站确实没有磁力」响应。
+ *
+ * JavBus 没有磁力时只返回一段隐藏 loading 的脚本（实测约 92 字节），
+ * 不含表格、不含磁力链接。除此之外的 200 响应都必须视为抓取失败：
+ * 验证页、限流页、压缩后未解压的二进制体都可能「非空但解析不出磁力」。
+ */
+export function isJavbusEmptyMagnetResponse(html: string): boolean {
+  const text = html.trim();
+  if (text === '') return true;
+  if (/<tr[\s>]/i.test(text)) return false;
+  return text.length <= 600 && /movie-loading/i.test(text);
+}
+
 /** 解析磁力 Ajax 响应 HTML → MagnetItem[] */
 export function parseMagnets(html: string): MagnetItem[] {
   if (!html) return [];
@@ -293,9 +330,14 @@ export function parseMagnets(html: string): MagnetItem[] {
   let row: RegExpExecArray | null;
   while ((row = rowRe.exec(html)) !== null) {
     const rowHtml = row[1];
-    const magnetM = rowHtml.match(/href="(magnet:\?xt=[^"]+)"/i);
+    // 新版页面把磁力同时放在 href 与 onclick="window.open('magnet:...')" 里；
+    // 只认 href 会在部分模板下漏掉整行。
+    const magnetM =
+      rowHtml.match(/href="(magnet:\?xt=[^"]+)"/i) ||
+      rowHtml.match(/window\.open\('(magnet:\?xt=[^']+)'/i);
     if (!magnetM) continue;
-    const magnet = magnetM[1];
+    // HTML 实体在属性里常被转义成 &amp;，入库前还原成合法 magnet URL
+    const magnet = magnetM[1].replace(/&amp;/g, '&');
     const nameM = rowHtml.match(/<td[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/i);
     const name = nameM ? nameM[1].trim() : '';
     const cells: string[] = [];
@@ -495,6 +537,55 @@ export type JavbusDetailWithMagnetsResult =
   | { ok: true; data: JavbusDetailWithMagnets }
   | { ok: false; error: JavbusFetchError };
 
+interface MagnetFetchOutcome {
+  magnets: MagnetItem[];
+  /** true = 请求失败/被拦截，不能断言源站没有磁力 */
+  failed: boolean;
+}
+
+/**
+ * 抓取磁力列表，并区分「源站确实没有」与「没取到」。
+ *
+ * - 解析出磁力 → 成功；
+ * - 合法空响应（仅隐藏 loading 的脚本）→ 再确认一次，两次都空才认定源站没有；
+ * - 请求失败、被重定向到验证页、非空但解析不出磁力 → 失败。
+ */
+async function fetchMagnetList(
+  baseUrl: string,
+  detailUrl: string,
+  timeoutMs: number
+): Promise<MagnetFetchOutcome> {
+  let failed = false;
+  let confirmedEmpty = false;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await get(`${baseUrl}&floor=${Date.now()}-${attempt}`, timeoutMs, {
+      // 与浏览器一致：来源页 + XHR 标记 + 磁力视图 cookie
+      Referer: detailUrl,
+      'X-Requested-With': 'XMLHttpRequest',
+      Cookie: 'existmag=all',
+    });
+    if (!result.ok) {
+      failed = true;
+      continue;
+    }
+    if (isJavbusVerificationPage(result.finalUrl, result.html)) {
+      failed = true;
+      continue;
+    }
+    const magnets = parseMagnets(result.html);
+    if (magnets.length > 0) return { magnets, failed: false };
+    if (isJavbusEmptyMagnetResponse(result.html)) {
+      confirmedEmpty = true;
+      continue;
+    }
+    // 非空、无磁力、也不是 JavBus 的合法空响应：按抓取异常处理
+    failed = true;
+  }
+
+  return { magnets: [], failed: failed || !confirmedEmpty };
+}
+
 /**
  * 详情页（元数据）+ 磁力 Ajax 的统一抓取入口。
  * 历史上榜单补全只抓了详情页，导致记录 detail_completed=1 但磁力为空；
@@ -514,13 +605,10 @@ export async function fetchJavbusDetailWithMagnets(
   let magnetFetchFailed = false;
   const gidUc = extractGidUc(fetched.html);
   if (gidUc) {
-    const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}&floor=${Date.now()}`;
-    const magnetHtml = await getHtml(magnetUrl, Math.min(12000, timeoutMs));
-    if (!magnetHtml) {
-      magnetFetchFailed = true;
-    } else {
-      magnets = parseMagnets(magnetHtml);
-    }
+    const magnetUrl = `https://www.javbus.com/ajax/uncledatoolsbyajax.php?lang=zh&gid=${gidUc.gid}&uc=${gidUc.uc}`;
+    const outcome = await fetchMagnetList(magnetUrl, detailUrl, Math.min(10000, timeoutMs));
+    magnets = outcome.magnets;
+    magnetFetchFailed = outcome.failed;
   } else {
     // 没有 gid/uc 说明页面结构异常，按暂时失败处理，避免误判成「源站没有磁力」
     magnetFetchFailed = true;
