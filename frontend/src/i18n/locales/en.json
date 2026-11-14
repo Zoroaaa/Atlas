@@ -4167,7 +4167,7 @@
         "title": "Usage limits and quotas",
         "summary": "Search, favorites, community writes, and registration are rate-limited to prevent abuse and protect data quotas. Admin accounts are exempt.",
         "features": [
-          "Search quotas are tiered and enforced per minute, hour, and day: Basic 5 / 20 / 100, Active 6 / 30 / 150, Regular 7 / 50 / 250, Core 8 / 80 / 400.",
+          "Search quotas are tiered and enforced per minute, hour, and day: Basic 10 / 40 / 200, Active 12 / 60 / 300, Regular 14 / 100 / 500, Core 16 / 160 / 800.",
           "Tiers upgrade automatically and never downgrade: a 7-day-old account with 5 active days in the last 30 days becomes Active; 30 days plus 5 active days becomes Regular; 90 days, 5 active days, and 500 total searches becomes Core.",
           "The current tier and this-minute usage are always shown next to the search box; click the question mark to see window usage and upgrade rules.",
           "Other read endpoints: suggestions 30/min, trending keywords 20/min, tag recommendations 30/min, tag works 20/min.",

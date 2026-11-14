@@ -63,6 +63,11 @@ const adminPanelNavItems: NavItem[] = [
   { id: 'announcements', label: 'nav:adminPanel.items.announcements', icon: <Megaphone className="w-[18px] h-[18px]" />, path: '/admin-panel/announcements' },
 ];
 
+/** 移动端菜单页里「看板概览」需要独立内容路由，避免点击后又回到菜单页 */
+const mobilePathOverrides: Record<string, string> = {
+  overview: '/admin-panel/overview',
+};
+
 export const AdminPanelLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { user, logout } = useAuthStore();
@@ -81,7 +86,9 @@ export const AdminPanelLayout: React.FC = () => {
   };
 
   const isActive = (path: string) => {
-    if (path === '/admin-panel') return location.pathname === '/admin-panel';
+    if (path === '/admin-panel') {
+      return location.pathname === '/admin-panel' || location.pathname.startsWith('/admin-panel/overview');
+    }
     return location.pathname.startsWith(path);
   };
 
@@ -282,7 +289,7 @@ export const AdminPanelLayout: React.FC = () => {
                   id: item.id,
                   label: t(item.label),
                   icon: item.icon,
-                  to: item.path,
+                  to: mobilePathOverrides[item.id] ?? item.path,
                 })),
               }]}
               showTitle={false}

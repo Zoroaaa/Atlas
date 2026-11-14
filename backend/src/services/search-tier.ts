@@ -38,24 +38,24 @@ export interface SearchTierLimit extends MultiLevelLimit {
 /** 各档位搜索限流配置 */
 export const SEARCH_TIER_LIMITS: Record<number, SearchTierLimit[]> = {
   1: [
-    { unit: 'minute', windowMs: 60_000, maxRequests: 5, label: '每分钟' },
-    { unit: 'hour', windowMs: 3_600_000, maxRequests: 20, label: '每小时' },
-    { unit: 'day', windowMs: 86_400_000, maxRequests: 100, label: '每天' },
+    { unit: 'minute', windowMs: 60_000, maxRequests: 10, label: '每分钟' },
+    { unit: 'hour', windowMs: 3_600_000, maxRequests: 40, label: '每小时' },
+    { unit: 'day', windowMs: 86_400_000, maxRequests: 200, label: '每天' },
   ],
   2: [
-    { unit: 'minute', windowMs: 60_000, maxRequests: 6, label: '每分钟' },
-    { unit: 'hour', windowMs: 3_600_000, maxRequests: 30, label: '每小时' },
-    { unit: 'day', windowMs: 86_400_000, maxRequests: 150, label: '每天' },
+    { unit: 'minute', windowMs: 60_000, maxRequests: 12, label: '每分钟' },
+    { unit: 'hour', windowMs: 3_600_000, maxRequests: 60, label: '每小时' },
+    { unit: 'day', windowMs: 86_400_000, maxRequests: 300, label: '每天' },
   ],
   3: [
-    { unit: 'minute', windowMs: 60_000, maxRequests: 7, label: '每分钟' },
-    { unit: 'hour', windowMs: 3_600_000, maxRequests: 50, label: '每小时' },
-    { unit: 'day', windowMs: 86_400_000, maxRequests: 250, label: '每天' },
+    { unit: 'minute', windowMs: 60_000, maxRequests: 14, label: '每分钟' },
+    { unit: 'hour', windowMs: 3_600_000, maxRequests: 100, label: '每小时' },
+    { unit: 'day', windowMs: 86_400_000, maxRequests: 500, label: '每天' },
   ],
   4: [
-    { unit: 'minute', windowMs: 60_000, maxRequests: 8, label: '每分钟' },
-    { unit: 'hour', windowMs: 3_600_000, maxRequests: 80, label: '每小时' },
-    { unit: 'day', windowMs: 86_400_000, maxRequests: 400, label: '每天' },
+    { unit: 'minute', windowMs: 60_000, maxRequests: 16, label: '每分钟' },
+    { unit: 'hour', windowMs: 3_600_000, maxRequests: 160, label: '每小时' },
+    { unit: 'day', windowMs: 86_400_000, maxRequests: 800, label: '每天' },
   ],
 };
 

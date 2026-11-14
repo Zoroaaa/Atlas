@@ -275,6 +275,8 @@ const App: React.FC = () => {
         
         <Route path="/admin-panel" element={<GuardRoute requiredRole='admin'><AdminPanelLayout /></GuardRoute>}>
           <Route index element={withSuspense(<AdminPanelOverview />)} />
+          {/* 手机端菜单页里「看板概览」需要独立内容路由 */}
+          <Route path="overview" element={withSuspense(<AdminPanelOverview />)} />
           <Route path="users" element={withSuspense(<AdminManager />)} />
           <Route path="sessions" element={withSuspense(<AdminManager />)} />
           <Route path="actions" element={withSuspense(<AdminManager />)} />
