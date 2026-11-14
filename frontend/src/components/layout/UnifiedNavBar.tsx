@@ -18,6 +18,7 @@ import {
   Loader2,
   MoreHorizontal,
   X,
+  Download,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
@@ -43,6 +44,12 @@ export interface UnifiedNavBarProps {
 }
 
 /* ── 子组件 ── */
+
+/** 顶栏图标按钮统一尺寸与间距，避免各按钮 padding 不同导致视觉疏密不一 */
+const ICON_BUTTON =
+  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-stone-500 transition-all duration-200 hover:bg-stone-100/80 hover:text-stone-700 active:scale-95 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200';
+
+const DOWNLOAD_URL = 'https://github.com/Zoroaaa/Atlas/releases';
 
 /** Logo + 应用名称 */
 const LogoSection: React.FC = memo(() => (
@@ -122,7 +129,7 @@ const UserDropdown: React.FC<UserDropdownProps> = memo(
     return (
       <DropdownMenu
         trigger={
-          <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200">
+          <button className="flex h-10 items-center gap-2 rounded-xl px-2 text-stone-700 transition-all duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800">
             {isAuthenticated ? (
               <>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#d4a853] to-[#f59e0b] shadow-sm">
@@ -157,79 +164,6 @@ const UserDropdown: React.FC<UserDropdownProps> = memo(
 
 UserDropdown.displayName = 'UserDropdown';
 
-/** 工具按钮行 */
-interface ToolButtonsProps {
-  setIsHelpModalOpen: (open: boolean) => void;
-}
-
-const ToolButtons: React.FC<ToolButtonsProps> = memo(({ setIsHelpModalOpen }) => {
-  const { t } = useTranslation(['nav']);
-  const { resolvedTheme, toggleTheme } = useThemeStore();
-  const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy, initializeProxy } = useProxyStore();
-
-  useEffect(() => {
-    initializeProxy();
-  }, [initializeProxy]);
-
-  const getProxyButtonClass = () => {
-    if (isProxyEnabled) return 'proxy-toggle-btn enabled';
-    if (proxyStatus === 'error') return 'proxy-toggle-btn error';
-    return 'proxy-toggle-btn disabled';
-  };
-
-  return (
-    <div className="flex items-center gap-0.5">
-      {/* 代理切换 */}
-      <button
-        onClick={toggleProxy}
-        disabled={isProxyLoading}
-        className={getProxyButtonClass()}
-        title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
-      >
-        {isProxyLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : isProxyEnabled ? (
-          <ShieldCheck className="w-4 h-4" />
-        ) : proxyStatus === 'error' ? (
-          <ShieldAlert className="w-4 h-4" />
-        ) : (
-          <Shield className="w-4 h-4" />
-        )}
-      </button>
-
-      {/* 主题切换 */}
-      <button onClick={toggleTheme} className="theme-toggle-btn" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
-        {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </button>
-
-      {/* 分隔线 */}
-      <div className="w-px h-5 bg-stone-200 dark:bg-stone-700 mx-1" />
-
-      {/* 帮助按钮 */}
-      <button
-        onClick={() => setIsHelpModalOpen(true)}
-        className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-        title={t('nav:help.buttonTitle')}
-      >
-        <HelpCircle className="w-4 h-4" />
-      </button>
-
-      {/* GitHub 链接 */}
-      <a
-        href="https://github.com/Zoroaaa/Atlas"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
-        title={t('nav:github.title')}
-      >
-        <Github className="w-4 h-4" />
-      </a>
-    </div>
-  );
-});
-
-ToolButtons.displayName = 'ToolButtons';
-
 /* ── 主组件 ── */
 
 export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
@@ -243,15 +177,20 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
-  const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy } = useProxyStore();
+  const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy, initializeProxy } = useProxyStore();
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isProxyConfirmOpen, setIsProxyConfirmOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
+  // 代理状态初始化原本在已移除的工具按钮组件里
+  useEffect(() => {
+    initializeProxy();
+  }, [initializeProxy]);
+
   const getProxyButtonClass = () => {
-    if (isProxyEnabled) return 'proxy-toggle-btn enabled';
-    if (proxyStatus === 'error') return 'proxy-toggle-btn error';
-    return 'proxy-toggle-btn disabled';
+    if (isProxyEnabled) return 'text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-900/20';
+    if (proxyStatus === 'error') return 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20';
+    return 'text-stone-500 dark:text-stone-400';
   };
 
   // 处理登出
@@ -328,11 +267,11 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
             </div>
 
             {/* 右侧区域：用户 + 功能按钮 */}
-            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-              {/* 功能工具组 - 登录后可见，移动端精简显示 */}
+            <div className="flex items-center gap-1">
+              {/* 功能工具组 - 登录后可见；图标按钮统一 40px，避免尺寸不一导致间距视觉不一致 */}
               {isAuthenticated && (
-              <div className="flex items-center gap-0.5">
-                {/* 代理切换 - 移动端仅显示图标 */}
+              <div className="flex items-center gap-1">
+                {/* 代理切换 - 窄屏收进“更多”，给顶部留出空间 */}
                 <button
                   onClick={() => {
                     if (isProxyEnabled) {
@@ -344,7 +283,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                     }
                   }}
                   disabled={isProxyLoading}
-                  className={clsx(getProxyButtonClass(), 'sm:p-2 p-1.5')}
+                  className={clsx(ICON_BUTTON, getProxyButtonClass(), 'hidden sm:inline-flex')}
                   title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
                 >
                   {isProxyLoading ? (
@@ -361,15 +300,27 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 {/* 通知 */}
                 <NotificationBell />
 
-                {/* 主题切换 - 移动端收进“更多”抽屉 */}
-                <button onClick={toggleTheme} className="theme-toggle-btn hidden sm:flex sm:p-2 xl:hidden" aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggle')}>
+                {/* 主题切换：全尺寸只保留这一个入口，“更多”内不再重复 */}
+                <button onClick={toggleTheme} className={ICON_BUTTON} aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
+
+                {/* 下载客户端 */}
+                <a
+                  href={DOWNLOAD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={ICON_BUTTON}
+                  aria-label={t('nav:downloadApp')}
+                  title={t('nav:downloadApp')}
+                >
+                  <Download className="w-4 h-4" />
+                </a>
 
                 {/* 更多 - <1280px（平板/窄屏）承载次要入口 */}
                 <button
                   onClick={() => setIsMoreOpen(true)}
-                  className="xl:hidden p-1.5 rounded-lg text-stone-500 hover:text-stone-700 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800 transition-all duration-200"
+                  className={clsx(ICON_BUTTON, 'xl:hidden')}
                   aria-label={t('nav:mobileMore.open')}
                   title={t('nav:mobileMore.open')}
                 >
@@ -380,20 +331,20 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
               {/* 分隔线 - 仅桌面端、登录后显示 */}
               {isAuthenticated && (
-              <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-1" />
+              <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-0.5" />
               )}
 
-              {/* 语言切换：紧凑图标，全尺寸可见 */}
-              <div className="flex items-center">
+              {/* 语言切换：外层统一 40px，内部按钮自带 padding 不影响布局 */}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center">
                 <LanguageSwitcher />
               </div>
 
               {/* 帮助 / GitHub：<1280px 收进“更多”抽屉，避免平板宽度溢出 */}
-              <div className="hidden xl:flex items-center gap-0.5">
+              <div className="hidden xl:flex items-center gap-1">
                 {/* 帮助按钮 */}
                 <button
                   onClick={() => setIsHelpModalOpen(true)}
-                  className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
+                  className={ICON_BUTTON}
                   title={t('nav:help.buttonTitle')}
                 >
                   <HelpCircle className="w-4 h-4" />
@@ -401,10 +352,10 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
                 {/* GitHub 链接 */}
                 <a
-                  href="https://github.com/Zoroaaa/codeseek"
+                  href="https://github.com/Zoroaaa/Atlas"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
+                  className={ICON_BUTTON}
                   title={t('nav:github.title')}
                 >
                   <Github className="w-4 h-4" />
@@ -502,20 +453,28 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   </span>
                 ) : null}
               </button>
+              {/* 代理：窄屏顶部不显示，收进这里 */}
               <button
-                onClick={toggleTheme}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  if (isProxyEnabled) {
+                    toggleProxy();
+                  } else {
+                    setIsProxyConfirmOpen(true);
+                  }
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800 sm:hidden"
               >
-                {resolvedTheme === 'dark' ? (
-                  <Sun className="h-4 w-4" />
+                {isProxyEnabled ? (
+                  <ShieldCheck className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                ) : proxyStatus === 'error' ? (
+                  <ShieldAlert className="h-4 w-4 text-red-500" />
                 ) : (
-                  <Moon className="h-4 w-4" />
+                  <Shield className="h-4 w-4" />
                 )}
-                <span>{t('nav:mobileMore.theme')}</span>
+                <span>{t('nav:mobileMore.proxy')}</span>
                 <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">
-                  {resolvedTheme === 'dark'
-                    ? t('nav:mobileMore.themeDark')
-                    : t('nav:mobileMore.themeLight')}
+                  {isProxyEnabled ? t('nav:mobileMore.proxyOn') : t('nav:mobileMore.proxyOff')}
                 </span>
               </button>
               <button
@@ -529,7 +488,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 <span>{t('nav:mobileMore.help')}</span>
               </button>
               <a
-                href="https://github.com/Zoroaaa/codeseek"
+                href="https://github.com/Zoroaaa/Atlas"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsMoreOpen(false)}

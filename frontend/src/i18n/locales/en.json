@@ -137,9 +137,13 @@
       "theme": "Theme",
       "themeLight": "Light mode",
       "themeDark": "Dark mode",
+      "proxy": "Proxy",
+      "proxyOn": "On",
+      "proxyOff": "Off",
       "help": "Help Center",
       "github": "GitHub"
     },
+    "downloadApp": "Download App",
     "github": {
       "title": "GitHub"
     },

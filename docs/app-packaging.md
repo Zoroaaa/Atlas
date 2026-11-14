@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File mobile\scripts\generate-signing-key.ps1
 | `ANDROID_KEY_ALIAS` | `atlas` |
 | `ANDROID_KEY_PASSWORD` | 与 `ANDROID_KEYSTORE_PASSWORD` 相同 |
 
-配置后 `Build Android APK` 会产出 `Atlas-Android-release.apk`；未配置时自动回退 debug 包（可侧载，但无法覆盖升级，也不能上架）。
+配置后手动触发的 `Build Android APK` 会产出 `Atlas-Android-release.apk`；未配置时自动回退 debug 包（可侧载，但无法覆盖升级，也不能上架）。
 
 ### 3. 密钥丢失的后果
 
@@ -98,17 +98,23 @@ npm run dist
 
 ## 五、发版流程
 
+日常 push 不会构建安装包，只在版本更新时手动触发，避免产物堆积。
+
 1. 提升根 `package.json` 版本，同步 `desktop/package.json`（Android 版本自动取根版本）
-2. 更新 `docs/CHANGELOG.md`
-3. 推送 `main`：Workers Builds 部署站点，`Build Android APK` 构建 APK
-4. 本地出 Windows 安装包：`cd desktop && npm run dist`
-5. 在 GitHub Release 上传 `Atlas-Setup-<version>.exe` 与 `Atlas-Android-<version>.apk`
+2. 更新 `docs/CHANGELOG.md`，推送 `main`：Workers Builds 自动部署站点
+3. 创建或确认对应的 Release，标签必须是 `v<version>`
+4. Actions → **Build Android APK** → Run workflow：
+   - `release_tag` 填 `v<version>`（留空则只构建不上传）
+   - `upload` 保持勾选，构建成功后自动上传 `Atlas-Android-<version>.apk` 并覆盖同名附件
+   - 标签与根版本不一致、或本次是 debug 构建时，上传步骤会直接失败，不会污染 Release
+5. 本地出 Windows 安装包：`cd desktop && npm run dist`，手动上传 `Atlas-Setup-<version>.exe`
 
 ---
 
 ## 六、已知限制
 
 - Windows 安装包未签名时会有 SmartScreen 提示
+- 安装包不会随 push 自动构建，需在 Actions 手动触发并指定 Release 标签
 - 切换签名后（debug ↔ release）无法直接覆盖安装，需先卸载
 - Android 端的 Service Worker 行为取决于系统 WebView 版本，离线能力需真机验证
 - 客户端数据独立于浏览器，首次打开需要登录一次

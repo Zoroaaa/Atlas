@@ -137,9 +137,13 @@
       "theme": "主題切換",
       "themeLight": "淺色模式",
       "themeDark": "深色模式",
+      "proxy": "代理",
+      "proxyOn": "已開啟",
+      "proxyOff": "已關閉",
       "help": "幫助中心",
       "github": "GitHub"
     },
+    "downloadApp": "下載 App",
     "github": {
       "title": "GitHub"
     },

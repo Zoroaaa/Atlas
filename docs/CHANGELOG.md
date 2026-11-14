@@ -23,6 +23,8 @@ All notable changes to this project will be documented in this file.
 - **数据库迁移**：新增 `32`–`36`，覆盖别名表、关注实体扩展、磁力误判恢复、补全批次归一与第二轮查询性能索引
 - **客户端壳**：新增 `desktop/`（Electron）与 `mobile/`（Capacitor）两个壳，远程加载站点；应用内跳过门户首页，未登录直达登录页；`sw.js` 增加图片代理缓存与离线登录态快照，断网仍可查看已缓存的收藏与搜索历史
 - **客户端签名与版本自动化**：Android 版本号由根 `package.json` 注入（`versionCode` 按主次修订推导），提供本地密钥生成脚本与 CI 签名配置；Windows 打包前校验版本一致性并支持 `CSC_LINK` 签名，详见 [app-packaging.md](./app-packaging.md)
+- **首屏启动占位**：`index.html` 内置指南针动画与进度条，React 挂载前不再黑屏或白闪；跟随明暗主题并尊重 `prefers-reduced-motion`
+- **发版出包手动化**：`Build Android APK` 改为仅在 Actions 手动触发，可指定 `release_tag` 与是否上传；标签与根版本不符或产物未签名时拒绝上传
 
 ### 变更
 

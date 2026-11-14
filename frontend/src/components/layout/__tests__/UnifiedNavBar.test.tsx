@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('UnifiedNavBar 移动端入口', () => {
-  it('移动端页头保留 5 个搜索分类入口，且“更多”抽屉提供源站收录与主题切换', () => {
+  it('移动端页头保留 5 个搜索分类入口，“更多”抽屉不再重复主题切换', () => {
     render(
       <UnifiedNavBar
         activeTab="jav"
@@ -76,16 +76,17 @@ describe('UnifiedNavBar 移动端入口', () => {
 
     const dialog = screen.getByRole('dialog', { name: '更多' });
     expect(within(dialog).getByText('源站收录')).toBeInTheDocument();
-    expect(within(dialog).getByText('主题切换')).toBeInTheDocument();
     expect(within(dialog).getByText('帮助中心')).toBeInTheDocument();
     expect(within(dialog).getByText('GitHub')).toBeInTheDocument();
+    // 主题切换只保留顶部一个入口
+    expect(within(dialog).queryByText('主题切换')).not.toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByText('源站收录'));
     expect(onTabChange).toHaveBeenCalledWith('sources');
     expect(screen.queryByRole('dialog', { name: '更多' })).not.toBeInTheDocument();
   });
 
-  it('抽屉内主题切换直接调用主题切换', () => {
+  it('顶部主题按钮直接切换主题', () => {
     render(
       <UnifiedNavBar
         activeTab="jav"
@@ -96,9 +97,46 @@ describe('UnifiedNavBar 移动端入口', () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText('更多'));
-    fireEvent.click(screen.getByText('主题切换'));
+    fireEvent.click(screen.getByLabelText('切换主题'));
 
     expect(mocks.toggleTheme).toHaveBeenCalled();
+  });
+
+  it('顶部下载入口指向客户端 Release 页', () => {
+    render(
+      <UnifiedNavBar
+        activeTab="jav"
+        onTabChange={onTabChange}
+        isAuthenticated
+        user={{ username: 'tester' }}
+        isAdmin={false}
+      />
+    );
+
+    const link = screen.getByLabelText('下载 App');
+    expect(link).toHaveAttribute('href', 'https://github.com/Zoroaaa/Atlas/releases');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('顶栏图标按钮尺寸统一，避免间距视觉不一致', () => {
+    render(
+      <UnifiedNavBar
+        activeTab="jav"
+        onTabChange={onTabChange}
+        isAuthenticated
+        user={{ username: 'tester' }}
+        isAdmin={false}
+      />
+    );
+
+    const iconButtons = [
+      screen.getByLabelText('切换主题'),
+      screen.getByLabelText('下载 App'),
+      screen.getByLabelText('更多'),
+    ];
+    for (const element of iconButtons) {
+      expect(element.className).toContain('h-10');
+      expect(element.className).toContain('w-10');
+    }
   });
 });

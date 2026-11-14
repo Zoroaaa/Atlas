@@ -34,18 +34,13 @@ const renderPanel = () =>
   );
 
 describe('FavoritesPanel', () => {
-  it('「想看」按钮不参与行高计算，但仍保留可点击高度', () => {
+  it('「想看」按钮与元信息行同高，不再用负边距撑高列表项', () => {
     renderPanel();
-    // 语言检测在并行测试中可能落到英文，按样式类定位这个按钮，避免依赖文案
-    const button = screen
-      .getAllByRole('button')
-      .find((element) => element.className.includes('-my-1.5'));
-    expect(button).toBeTruthy();
-    if (!button) throw new Error('未找到「想看」按钮');
-    expect(button.className).toContain('-my-1.5');
-    expect(button.className).toContain('h-7');
+    const button = screen.getByTestId('favorite-status-toggle');
+    // 固定高度与负边距会让这一行比相邻行更高
+    expect(button.className).not.toContain('-my-1.5');
+    expect(button.className).not.toContain('h-7');
     expect(button.className).toContain('leading-none');
     expect(button.className).toContain('whitespace-nowrap');
-    expect(button.className).toContain('self-center');
   });
 });

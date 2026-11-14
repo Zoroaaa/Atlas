@@ -1,13 +1,21 @@
 name: Build Android APK
 
+# 仅在发版时手动触发；日常 push 不出包，避免频繁构建与产物堆积
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - 'frontend/**'
-      - '.github/workflows/android-build.yml'
+    inputs:
+      release_tag:
+        description: '目标 Release 标签（如 v1.8.0）；留空则只构建不上传'
+        required: false
+        type: string
+      upload:
+        description: '构建后上传 APK 到该 Release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -70,7 +78,17 @@ jobs:
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/atlas-release.p12"
-            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/atlas-release.p12" >> "$GITHUB_ENV"
+            # export 让同一脚本内的 node 可见；GITHUB_ENV 供后续 Gradle 步骤读取
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/atlas-release.p12"
+            keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storetype PKCS12 \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" > /dev/null
+            {
+              echo "ANDROID_KEYSTORE_PATH=$ANDROID_KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+              echo "ANDROID_SIGNING=true"
+            } >> "$GITHUB_ENV"
           fi
           node scripts/prepare-android.mjs
 
@@ -79,7 +97,7 @@ jobs:
         working-directory: mobile/android
         run: |
           chmod +x gradlew
-          if [ -n "$ANDROID_KEYSTORE_PATH" ]; then
+          if [ "$ANDROID_SIGNING" = "true" ]; then
             ./gradlew assembleRelease --no-daemon
           else
             ./gradlew assembleDebug --no-daemon
@@ -90,8 +108,12 @@ jobs:
           mkdir -p build-output
           if [ -f mobile/android/app/build/outputs/apk/release/app-release.apk ]; then
             cp mobile/android/app/build/outputs/apk/release/app-release.apk build-output/Atlas-Android-release.apk
-          else
+          elif [ -f mobile/android/app/build/outputs/apk/debug/app-debug.apk ]; then
             cp mobile/android/app/build/outputs/apk/debug/app-debug.apk build-output/Atlas-Android-debug.apk
+          else
+            echo "未找到 APK 产物，输出目录如下："
+            find mobile/android/app/build/outputs -name '*.apk' -print
+            exit 1
           fi
 
       - name: Upload APK
@@ -100,3 +122,32 @@ jobs:
           name: atlas-android
           path: build-output/*.apk
           if-no-files-found: error
+
+      # 上传到指定 Release：标签必须与根版本一致，且必须是已签名包
+      - name: Validate Release
+        if: ${{ inputs.upload && inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$PKG_VERSION" ]; then
+            echo "标签 $TAG 与根 package.json 版本 v$PKG_VERSION 不一致，终止上传"
+            exit 1
+          fi
+          if [ ! -f build-output/Atlas-Android-release.apk ]; then
+            echo "本次为 debug 构建，拒绝上传未签名包"
+            exit 1
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+
+      - name: Upload APK to Release
+        if: ${{ inputs.upload && inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          cp build-output/Atlas-Android-release.apk "build-output/Atlas-Android-$PKG_VERSION.apk"
+          gh release upload "$TAG" "build-output/Atlas-Android-$PKG_VERSION.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "已上传 Atlas-Android-$PKG_VERSION.apk 到 $TAG"
