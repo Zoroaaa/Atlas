@@ -54,6 +54,61 @@
     <meta name="msapplication-config" content="/browserconfig.xml" />
     
     <title>Atlas - 开源聚合搜索引擎 | JAV/动漫/影视/漫画/小说</title>
+    <style>
+      /* 首屏启动占位：React 挂载前避免白/黑屏，挂载时随 #root 一起被替换 */
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fafaf9;
+      }
+      html.dark #boot-splash {
+        background: #0a0a0b;
+      }
+      .boot-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+      }
+      .boot-ring {
+        transform-origin: 52px 52px;
+        animation: boot-spin 1.4s linear infinite;
+      }
+      .boot-bar {
+        width: 120px;
+        height: 2px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: rgba(212, 168, 83, 0.16);
+      }
+      .boot-bar span {
+        display: block;
+        width: 45%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, #d4a853, transparent);
+        animation: boot-slide 1.15s ease-in-out infinite;
+      }
+      .boot-text {
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.42em;
+        color: #a8a29e;
+      }
+      @keyframes boot-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes boot-slide {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(250%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-ring, .boot-bar span { animation: none; }
+      }
+    </style>
     <script>
       (function() {
         try {
@@ -67,7 +122,29 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-splash">
+        <div class="boot-inner">
+          <svg width="104" height="104" viewBox="0 0 104 104" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="bootGold" x1="0" y1="0" x2="104" y2="104" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#d4a853" />
+                <stop offset="0.55" stop-color="#f59e0b" />
+                <stop offset="1" stop-color="#e11d48" />
+              </linearGradient>
+            </defs>
+            <circle class="boot-ring" cx="52" cy="52" r="46" stroke="url(#bootGold)" stroke-width="2"
+              stroke-linecap="round" stroke-dasharray="72 218" />
+            <circle cx="52" cy="52" r="34" stroke="#d4a853" stroke-opacity="0.18" stroke-width="1" />
+            <polygon points="52,24 60,52 52,46 44,52" fill="url(#bootGold)" />
+            <polygon points="52,80 60,52 52,58 44,52" fill="#e11d48" opacity="0.55" />
+            <circle cx="52" cy="52" r="3.5" fill="#d4a853" />
+          </svg>
+          <div class="boot-bar"><span></span></div>
+          <div class="boot-text">ATLAS</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
