@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   toggleTheme: vi.fn(),
   toggleProxy: vi.fn(),
   initializeProxy: vi.fn(),
+  isDesktop: true,
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -44,10 +45,15 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
   NotificationBell: () => null,
 }));
 
+vi.mock('@/hooks', () => ({
+  useIsDesktop: () => mocks.isDesktop,
+}));
+
 const onTabChange = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.isDesktop = true;
 });
 
 describe('UnifiedNavBar 移动端入口', () => {
@@ -87,6 +93,26 @@ describe('UnifiedNavBar 移动端入口', () => {
     fireEvent.click(within(dialog).getByText('源站收录'));
     expect(onTabChange).toHaveBeenCalledWith('sources');
     expect(screen.queryByRole('dialog', { name: '更多' })).not.toBeInTheDocument();
+  });
+
+  it('手机端头像直接进入「我的」，不再重复下拉快捷项', () => {
+    mocks.isDesktop = false;
+
+    render(
+      <UnifiedNavBar
+        activeTab="jav"
+        onTabChange={onTabChange}
+        isAuthenticated
+        user={{ username: 'tester' }}
+        isAdmin
+      />
+    );
+
+    expect(screen.getByRole('link', { name: '我的' })).toHaveAttribute('href', '/me');
+    // 底部「我的」已承担入口，头像不再提供个人中心/社区/设置/退出登录的重复快捷项
+    expect(screen.queryByText('个人中心')).not.toBeInTheDocument();
+    expect(screen.queryByText('设置')).not.toBeInTheDocument();
+    expect(screen.queryByText('退出登录')).not.toBeInTheDocument();
   });
 
   it('顶部主题按钮直接切换主题', () => {

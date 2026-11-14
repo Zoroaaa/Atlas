@@ -14,6 +14,7 @@ export const CommunityManager: React.FC = () => {
   const location = useLocation();
 
   const pathToTab = (pathname: string): TabKey => {
+    if (pathname === '/community/browse') return 'browse';
     if (pathname === '/community/my-shares') return 'my-posts';
     if (pathname === '/community/my-favorites') return 'favorites';
     if (pathname === '/community/tags') return 'tags';

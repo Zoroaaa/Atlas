@@ -5,3 +5,6 @@ export { CommunityPanelLayout } from './CommunityPanelLayout';
 export { UnifiedNavBar } from './UnifiedNavBar';
 export type { UnifiedNavBarProps } from './UnifiedNavBar';
 export { MobileTabBar } from './MobileTabBar';
+export { UserAccountMenu } from './UserAccountMenu';
+export { MobileMenuPage, MobileSectionHeader } from './MobileSectionPage';
+export type { MobileMenuGroup, MobileMenuItem } from './MobileSectionPage';

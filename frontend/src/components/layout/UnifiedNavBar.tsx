@@ -4,10 +4,8 @@
  * 支持桌面端和移动端响应式布局
  */
 import React, { useState, useCallback, memo, useEffect } from 'react';
-import { Link, useNavigate, type NavigateFunction } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  User,
-  ChevronDown,
   ShieldAlert,
   Github,
   HelpCircle,
@@ -21,11 +19,13 @@ import {
   Download,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
+import { useThemeStore, useProxyStore } from '@/stores';
 import type { SearchTabType } from '@/types/source';
-import { DropdownMenu, userMenuItems, Modal, LanguageSwitcher } from '@/components/ui';
+import { Modal, LanguageSwitcher } from '@/components/ui';
+import { UserAccountMenu } from './UserAccountMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
+import { useIsDesktop } from '@/hooks';
 import { useTranslation } from 'react-i18next';
 
 /* ── 类型定义 ── */
@@ -115,56 +115,6 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
 
 TabButton.displayName = 'TabButton';
 
-/** 用户下拉菜单触发器 */
-interface UserDropdownProps {
-  isAuthenticated: boolean;
-  user?: { username?: string; role?: string } | null;
-  isAdmin: boolean;
-  navigate: NavigateFunction;
-  handleLogout: () => void;
-}
-
-const UserDropdown: React.FC<UserDropdownProps> = memo(
-  ({ isAuthenticated, user, isAdmin, navigate, handleLogout }) => {
-    const { t } = useTranslation(['nav']);
-    return (
-      <DropdownMenu
-        trigger={
-          <button className="flex h-10 items-center gap-2 rounded-xl px-2 text-stone-700 transition-all duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800">
-            {isAuthenticated ? (
-              <>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold bg-gradient-to-br from-[#d4a853] to-[#f59e0b] shadow-sm">
-                  {user?.username?.[0]?.toUpperCase() || 'U'}
-                </div>
-                <span className="hidden sm:inline text-sm font-medium">{user?.username}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-              </>
-            ) : (
-              <>
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm font-medium">{t('nav:userMenu.login')}</span>
-              </>
-            )}
-          </button>
-        }
-        items={
-          isAuthenticated
-            ? userMenuItems(t, navigate, handleLogout, { isAdmin })
-            : [
-                { id: 'login', label: t('nav:userMenu.login'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/login') },
-                { id: 'register', label: t('nav:userMenu.register'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/register') },
-              ]
-        }
-        triggerMode="click"
-        align="right"
-        showArrow={false}
-      />
-    );
-  }
-);
-
-UserDropdown.displayName = 'UserDropdown';
-
 /* ── 主组件 ── */
 
 export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
@@ -176,9 +126,9 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 }) => {
   const { t } = useTranslation(['nav', 'tabs']);
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { isEnabled: isProxyEnabled, status: proxyStatus, isLoading: isProxyLoading, toggleProxy, initializeProxy } = useProxyStore();
+  const isDesktop = useIsDesktop();
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isProxyConfirmOpen, setIsProxyConfirmOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -193,12 +143,6 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
     if (proxyStatus === 'error') return 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20';
     return 'text-stone-500 dark:text-stone-400';
   };
-
-  // 处理登出
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate('/');
-  }, [logout, navigate]);
 
   // 处理 Tab 切换
   const handleTabChange = useCallback(
@@ -367,14 +311,26 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 </a>
               </div>
 
-              {/* 用户菜单 - 移动端紧凑显示；管理员看板入口在菜单内按权限注入 */}
-              <UserDropdown
-                isAuthenticated={isAuthenticated}
-                user={user}
-                isAdmin={isAdmin}
-                navigate={navigate}
-                handleLogout={handleLogout}
-              />
+              {/* 用户菜单：桌面端用下拉承载全部快捷入口；
+                  手机端底部「我的」已承担入口，头像直接进入「我的」菜单页，避免两套入口并存 */}
+              {isAuthenticated && !isDesktop ? (
+                <Link
+                  to="/me"
+                  aria-label={t('nav:mobileNav.me')}
+                  className="flex h-10 items-center gap-2 rounded-xl px-2 text-stone-700 transition-all duration-200 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] text-xs font-semibold text-white shadow-sm">
+                    {user?.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium">{user?.username}</span>
+                </Link>
+              ) : (
+                <UserAccountMenu
+                  isAuthenticated={isAuthenticated}
+                  user={user}
+                  isAdmin={isAdmin}
+                />
+              )}
             </div>
           </div>
         </div>

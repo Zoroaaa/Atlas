@@ -76,7 +76,7 @@ export const FavoritesTab: React.FC = () => {
           title={t('communityPages:favorites.emptyTitle')}
           description={t('communityPages:favorites.emptyDescription')}
           action={
-            <Button variant="primary" onClick={() => navigate('/community')}>
+            <Button variant="primary" onClick={() => navigate('/community/browse')}>
               <Compass className="w-4 h-4 mr-1" />
               {t('communityPages:favorites.browseAction')}
             </Button>

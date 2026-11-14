@@ -36,6 +36,7 @@ const AdminManager = lazy(() => import('@/pages/admin/AdminManager').then((m) =>
 const AdminPanelOverview = lazy(() => import('@/pages/admin/AdminPanelOverview').then((m) => ({ default: m.AdminPanelOverview })));
 const CommunityManager = lazy(() => import('@/pages/community/CommunityManager').then((m) => ({ default: m.CommunityManager })));
 const PostDetailPage = lazy(() => import('@/pages/community/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const RouteLoading: React.FC = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -214,6 +215,8 @@ const App: React.FC = () => {
           <Route path="/privacy" element={withSuspense(<PrivacyPage />)} />
           <Route path="/help" element={withSuspense(<HelpCenterPage />)} />
           <Route path="/me" element={<GuardRoute><MePage /></GuardRoute>} />
+          {/* 系统设置独立页：入口仅保留桌面头像下拉与手机端「我的」 */}
+          <Route path="/settings" element={<GuardRoute>{withSuspense(<SettingsPage />)}</GuardRoute>} />
         </Route>
         <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
         <Route path="/register" element={<AuthRedirect><RegisterPage /></AuthRedirect>} />
@@ -245,6 +248,8 @@ const App: React.FC = () => {
         
         <Route path="/dashboard" element={<GuardRoute><DashboardLayout /></GuardRoute>}>
           <Route index element={withSuspense(<DashboardPage />)} />
+          {/* 手机端菜单页里「概览」需要独立内容路由 */}
+          <Route path="overview" element={withSuspense(<DashboardPage />)} />
           <Route path="stats" element={withSuspense(<DashboardPage />)} />
           <Route path="sources" element={withSuspense(<DashboardPage />)} />
           <Route path="categories" element={<GuardRoute requiredRole="admin">{withSuspense(<DashboardPage />)}</GuardRoute>} />
@@ -253,12 +258,15 @@ const App: React.FC = () => {
           <Route path="follows" element={withSuspense(<DashboardPage />)} />
           <Route path="follow-feed" element={withSuspense(<DashboardPage />)} />
           <Route path="notifications" element={withSuspense(<DashboardPage />)} />
-          <Route path="settings" element={withSuspense(<DashboardPage />)} />
+          {/* 设置已独立成 /settings，旧链接保留一次重定向 */}
+          <Route path="settings" element={<Navigate to="/settings" replace />} />
           <Route path="activities" element={withSuspense(<UserActivitiesPage />)} />
         </Route>
         
         <Route path="/community" element={<GuardRoute requiredFlag={communityEnabled !== undefined ? communityEnabled : true}><CommunityPanelLayout /></GuardRoute>}>
           <Route index element={withSuspense(<CommunityManager />)} />
+          {/* 手机端菜单页里「发现」需要独立内容路由 */}
+          <Route path="browse" element={withSuspense(<CommunityManager />)} />
           <Route path="my-shares" element={withSuspense(<CommunityManager />)} />
           <Route path="my-favorites" element={withSuspense(<CommunityManager />)} />
           <Route path="tags" element={withSuspense(<CommunityManager />)} />

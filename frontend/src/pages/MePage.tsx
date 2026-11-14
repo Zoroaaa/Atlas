@@ -114,9 +114,9 @@ export const MePage: React.FC = () => {
       )}
 
       <div className="mt-4 divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200/70 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
-        <Link to="/dashboard/settings" className={rowClassName}>
+        <Link to="/settings" className={rowClassName}>
           <Settings className="h-4 w-4 text-stone-400" />
-          <span>{t('nav:me.settings')}</span>
+          <span>{t('nav:userMenu.settings')}</span>
           <ChevronRight className="ml-auto h-4 w-4 text-stone-300 dark:text-stone-600" />
         </Link>
 

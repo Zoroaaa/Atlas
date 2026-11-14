@@ -4,7 +4,6 @@ import { OverviewManager } from './OverviewManager';
 import { SourceManager } from './SourceManager';
 import { CategoryManager } from './CategoryManager';
 import { FavoritesManager, HistoryManager } from './FavoritesHistoryManager';
-import { SettingsManager } from './SettingsManager';
 import { StatsManager } from './StatsManager';
 import { FollowsManager } from './FollowsManager';
 import { FollowFeedManager } from './FollowFeedManager';
@@ -14,7 +13,7 @@ export const DashboardPage: React.FC = () => {
   const location = useLocation();
   const path = location.pathname;
 
-  if (path === '/dashboard' || path === '/dashboard/') {
+  if (path === '/dashboard' || path === '/dashboard/' || path.startsWith('/dashboard/overview')) {
     return <OverviewManager />;
   }
   
@@ -48,10 +47,6 @@ export const DashboardPage: React.FC = () => {
 
   if (path.startsWith('/dashboard/notifications')) {
     return <NotificationsManager />;
-  }
-
-  if (path.startsWith('/dashboard/settings')) {
-    return <SettingsManager />;
   }
 
   return <OverviewManager />;
