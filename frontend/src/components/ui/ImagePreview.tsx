@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -257,10 +257,26 @@ export const ProxyImage: React.FC<ProxyImageProps> = ({
   const [isZoomed, setIsZoomed] = useState(false);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setFailed(false);
     setLoaded(false);
+
+    const image = imageRef.current;
+    if (!image) return;
+
+    // 缓存命中的图片可能在 React 挂载 onLoad 之前就完成加载，
+    // 只依赖 onLoad 会一直停在透明度 0；这里直接检查 complete 兜底。
+    if (image.complete) {
+      if (image.naturalWidth > 0) setLoaded(true);
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      if (image.complete && image.naturalWidth > 0) setLoaded(true);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [src]);
 
   const canZoom = zoomable && !failed;
@@ -273,6 +289,7 @@ export const ProxyImage: React.FC<ProxyImageProps> = ({
   return (
     <>
       <img
+        ref={imageRef}
         src={src}
         alt={alt}
         loading={loading}
