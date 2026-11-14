@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build Android debug APK
+    name: Build Android APK
 
     steps:
       - name: Checkout Code
@@ -59,15 +59,44 @@ jobs:
         working-directory: mobile
         run: npx cap sync android
 
-      - name: Build Debug APK
+      # 版本号从根 package.json 注入；配置了签名 Secrets 时同时写入 signingConfig
+      - name: Prepare Android Project
+        working-directory: mobile
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/atlas-release.p12"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/atlas-release.p12" >> "$GITHUB_ENV"
+          fi
+          node scripts/prepare-android.mjs
+
+      # 有签名密钥时出 release APK，否则回退 debug（可直接侧载，但无法覆盖升级）
+      - name: Build APK
         working-directory: mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          if [ -n "$ANDROID_KEYSTORE_PATH" ]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+
+      - name: Collect APK
+        run: |
+          mkdir -p build-output
+          if [ -f mobile/android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp mobile/android/app/build/outputs/apk/release/app-release.apk build-output/Atlas-Android-release.apk
+          else
+            cp mobile/android/app/build/outputs/apk/debug/app-debug.apk build-output/Atlas-Android-debug.apk
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: atlas-android-debug
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: atlas-android
+          path: build-output/*.apk
           if-no-files-found: error

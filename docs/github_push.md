@@ -311,7 +311,7 @@ git branch -d feature/amazing-feature
 ## 版本发布流程
 
 1. 确认 `git status`、当前分支与远端（`git status -sb`、`git remote -v`、`git log -1 --oneline`）
-2. 同步版本号：根 `package.json`、`backend/package.json`、`frontend/package.json`、`packages/shared/package.json`、`backend/wrangler.toml` 的 `APP_VERSION`、前后端版本常量、README 徽章与 `docs/CHANGELOG.md`
+2. 同步版本号：根 `package.json`、`backend/package.json`、`frontend/package.json`、`packages/shared/package.json`、`backend/wrangler.toml` 的 `APP_VERSION`、前后端版本常量、README 徽章与 `docs/CHANGELOG.md`；客户端额外同步 `desktop/package.json`（Android 自动取根版本，见 [app-packaging.md](./app-packaging.md)）
 3. 在 `docs/CHANGELOG.md` 按「新增 / 修改 / 修复 / 优化」补版本章节
 4. 按功能分组提交（例如 `feat(help): ...`、`fix(community): ...`、`docs: ...`、`chore(release): ...`）
 5. 普通推送：`git push origin main`。不要 force push，不要跳过 hook

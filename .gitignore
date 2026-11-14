@@ -57,6 +57,10 @@ desktop/release/
 mobile/android/
 mobile/ios/
 
+# 签名密钥与证书（仅本地保管，不入库）
+.secrets/
+*.p12
+
 # Wrangler
 .wrangler/
 .dev.vars

@@ -59,6 +59,7 @@
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
 | **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、v1.6.0（帮助中心+统一通知收件箱+邮件投递）、v1.7.0（本地库优先+JAV推荐标签+PWA/移动端+单 Worker 部署）、**v1.8.0（跨语言查询别名+实体关注+本地库详情卡+D1 读取治理）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
+| **客户端打包与签名** | Windows/Android 客户端壳、版本号规则、签名密钥与发版流程 | [docs/app-packaging.md](docs/app-packaging.md) |
 
 ### 前端专项文档
 

@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 - **管理端数据存储操作**：新增「暂时失败」筛选与「重试暂时失败」、单条补详情、重置源站缺失次数、是否还会重试筛选；批次大小统一为每分钟 5 条（`database/35_jav_detail_job_batch_size_5.sql`）
 - **磁力误判恢复**：`database/34_recover_misjudged_magnet_missing.sql` 重置带缺磁力标记记录的重试计数，存量重新进入自动补全，同时保留缺失掩码便于筛选
 - **数据库迁移**：新增 `32`–`36`，覆盖别名表、关注实体扩展、磁力误判恢复、补全批次归一与第二轮查询性能索引
+- **客户端壳**：新增 `desktop/`（Electron）与 `mobile/`（Capacitor）两个壳，远程加载站点；应用内跳过门户首页，未登录直达登录页；`sw.js` 增加图片代理缓存与离线登录态快照，断网仍可查看已缓存的收藏与搜索历史
+- **客户端签名与版本自动化**：Android 版本号由根 `package.json` 注入（`versionCode` 按主次修订推导），提供本地密钥生成脚本与 CI 签名配置；Windows 打包前校验版本一致性并支持 `CSC_LINK` 签名，详见 [app-packaging.md](./app-packaging.md)
 
 ### 变更
 

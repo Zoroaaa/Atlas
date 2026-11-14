@@ -64,6 +64,7 @@ The project uses a modular documentation system, where each specialized document
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
 | **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment), **v1.8.0 (multilingual query aliases + entity follows + local library detail cards + D1 read reduction)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
+| **Client Packaging & Signing** | Windows/Android client shells, version numbering rules, Android/Windows signing keys, release flow | [docs/app-packaging.md](docs/app-packaging.md) |
 
 ### Frontend Specialized Documentation
 

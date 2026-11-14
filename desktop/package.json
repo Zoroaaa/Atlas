@@ -7,7 +7,8 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
+    "check-version": "node scripts/check-version.mjs",
+    "dist": "npm run check-version && electron-builder --win nsis"
   },
   "build": {
     "appId": "uk.wort.atlas",
