@@ -70,11 +70,17 @@ jobs:
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/atlas-release.p12"
-            # export 让同一脚本内的 node 可见；$GITHUB_ENV 只对后续步骤生效
+            # export 让同一脚本内的 node 可见；GITHUB_ENV 供后续 Gradle 步骤读取
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/atlas-release.p12"
             keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storetype PKCS12 \
               -storepass "$ANDROID_KEYSTORE_PASSWORD" > /dev/null
-            echo "ANDROID_SIGNING=true" >> "$GITHUB_ENV"
+            {
+              echo "ANDROID_KEYSTORE_PATH=$ANDROID_KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+              echo "ANDROID_SIGNING=true"
+            } >> "$GITHUB_ENV"
           fi
           node scripts/prepare-android.mjs
 
