@@ -222,9 +222,10 @@ function normalizeFailure(value: unknown): JavDetailFailure | null {
 
 interface JobViewPatch {
   job: JavDetailJob | null;
-  pending: number;
-  due: number;
-  scheduled: number;
+  /** 轻量轮询（scope=progress）不返回这三项，缺失时沿用上一次的值 */
+  pending?: number;
+  due?: number;
+  scheduled?: number;
   /** 旧后端不返回该字段，缺省按启用处理 */
   enabled?: boolean;
   stats?: JavDetailStats | null;
@@ -239,11 +240,12 @@ function normalizeJobView(value: unknown): JobViewPatch | null {
         .map(normalizeFailure)
         .filter((item): item is JavDetailFailure => item !== null)
     : undefined;
+  const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
   return {
     job: normalizeJob(raw.job),
-    pending: toNumber(raw.pending),
-    due: toNumber(raw.due),
-    scheduled: toNumber(raw.scheduled),
+    pending: num(raw.pending),
+    due: num(raw.due),
+    scheduled: num(raw.scheduled),
     enabled: raw.enabled === false ? false : true,
     stats: normalizeDetailStats(raw.stats),
     recentFailures: failures,
@@ -254,9 +256,9 @@ function mergeJobView(prev: JavDetailJobView | null, patch: JobViewPatch | null)
   if (!patch) return prev;
   return {
     job: patch.job,
-    pending: patch.pending,
-    due: patch.due,
-    scheduled: patch.scheduled,
+    pending: patch.pending ?? prev?.pending ?? 0,
+    due: patch.due ?? prev?.due ?? 0,
+    scheduled: patch.scheduled ?? prev?.scheduled ?? 0,
     enabled: patch.enabled ?? prev?.enabled ?? true,
     // 启动接口只返回 progress 字段：缺失时沿用上一次 GET 的统计/失败列表
     stats: patch.stats ?? prev?.stats ?? EMPTY_JAV_DETAIL_STATS,
@@ -347,15 +349,20 @@ export const DataStorageTab: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const tick = async () => {
+    // 运行中每 15 秒只取进度（任务行 + 开关）；完整统计/失败列表在页面打开
+    // 与任务结束时各取一次，避免把全表聚合塞进轮询
+    const tick = async (full = false) => {
       try {
-        const patch = normalizeJobView(await dataStorageApi.getDetailJob());
+        const patch = normalizeJobView(
+          await dataStorageApi.getDetailJob(full ? {} : { scope: 'progress' })
+        );
         if (cancelled || !patch) return;
         const prevStatus = jobStatusRef.current?.status;
         jobStatusRef.current = patch.job;
         setJobView((prev) => mergeJobView(prev, patch));
-        // 任务刚结束：刷新统计与当前列表，避免界面停留在旧数据
+        // 任务刚结束：补一次完整视图并刷新统计与当前列表，避免界面停留在旧数据
         if (prevStatus === 'running' && patch.job?.status !== 'running') {
+          tick(true);
           loadStats();
           loadRecords();
         }
@@ -363,7 +370,7 @@ export const DataStorageTab: React.FC = () => {
         /* 忽略轮询错误 */
       }
     };
-    tick();
+    tick(true);
     const timer = setInterval(() => {
       if (jobStatusRef.current?.status === 'running') tick();
     }, 15000);

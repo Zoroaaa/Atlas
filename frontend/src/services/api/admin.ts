@@ -865,9 +865,11 @@ export const dataStorageApi = {
     return response.data;
   },
 
-  getDetailJob: async (): Promise<JavDetailJobView> => {
+  getDetailJob: async (params: { scope?: 'progress' } = {}): Promise<JavDetailJobView> => {
+    // 运行中的轮询走轻量 scope：只回任务行与开关，不带统计/失败列表
+    const query = params.scope === 'progress' ? '?scope=progress' : '';
     const response = await apiClient.get<{ success: boolean; data: JavDetailJobView }>(
-      '/admin/data-storage/detail-jobs/current'
+      `/admin/data-storage/detail-jobs/current${query}`
     );
     return response.data;
   },

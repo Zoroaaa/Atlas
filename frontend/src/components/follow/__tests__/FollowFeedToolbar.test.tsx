@@ -73,6 +73,18 @@ describe('FollowFeedToolbar', () => {
     expect(handlers.onSearch).toHaveBeenCalledTimes(1);
   });
 
+  it('窄宽度下限制自身宽度并允许换行，避免筛选条越界', () => {
+    renderToolbar();
+    const select = screen.getByRole('combobox');
+    const root = select.parentElement as HTMLElement;
+    expect(root.className).toContain('min-w-0');
+    expect(root.className).toContain('max-w-full');
+    expect(root.className).toContain('sm:flex-wrap');
+    expect(select.className).toContain('w-full');
+    expect(select.className).toContain('sm:max-w-[240px]');
+    expect(select.className).toContain('sm:shrink-0');
+  });
+
   it('已有搜索关键词时展示返回动态入口', () => {
     const handlers = renderToolbar({ keyword: '巨乳', activeKeyword: '巨乳' });
     fireEvent.click(screen.getByRole('button', { name: '返回动态' }));

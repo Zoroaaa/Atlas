@@ -1,6 +1,6 @@
 # 配置说明
 
-> 适用版本：v1.7.0+
+> 适用版本：v1.8.0+
 > 配置分为三层：`backend/wrangler.toml` 的 `[vars]`（非敏感部署配置）、Cloudflare Secrets（敏感凭据）、D1 `system_config`（运行时动态配置）
 
 ---
@@ -22,7 +22,7 @@
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `APP_VERSION` | `1.7.0` | 版本号，`/api/system/version` 与前端显示使用 |
+| `APP_VERSION` | `1.8.0` | 版本号，`/api/system/version` 与前端显示使用 |
 | `SITE_URL` | `https://atlas.wort.uk` | 站点主地址，邮件模板中的站点链接 |
 | `FRONTEND_URL` | `https://atlas.wort.uk` | 前端地址，OAuth 完成后跳转目标 |
 | `BACKEND_URL` | `https://atlas.wort.uk` | 后端地址，OAuth 回调与邮件退订链接 |
@@ -30,6 +30,8 @@
 | `DEFAULT_FROM_NAME` | `Atlas` | 默认发件人名称 |
 | `JWT_EXPIRY_DAYS` | `30` | 登录令牌有效期（天） |
 | `ENABLE_ACTION_LOGGING` | `true` | 是否记录用户行为日志 |
+| `ENABLE_ALIAS_AI` | `0` | AI 别名候选旁路，默认关闭；开启需同时在 `wrangler.toml` 声明 `[ai]` 绑定 |
+| `ALIAS_AI_MODEL` | `@cf/meta/m2m100-1.2b` | AI 别名候选使用的翻译模型（可选覆盖） |
 
 > CORS 白名单不在环境变量中，位于 `backend/src/constants.ts` 的 `ALLOWED_ORIGINS`。新增前端域名后需要重新构建并部署后端。
 

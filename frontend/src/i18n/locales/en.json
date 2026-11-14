@@ -3476,6 +3476,7 @@
         "summary": "All categories share one search box; the JAV category adds code, actress, and title modes.",
         "features": [
           "Keywords work with titles, codes, and actress names. Press Enter or click Search.",
+          "Chinese, Japanese, English and romanized titles resolve to the same work, so searching in the language you know still finds the right result.",
           "JAV modes: code (e.g. SONE-520), actress, and title. The input hint changes with the mode.",
           "A suggestion dropdown appears as you type; click a suggestion to search immediately.",
           "The current quota is shown near the search box. If it runs out, wait for the reset as prompted."
@@ -3752,41 +3753,44 @@
         ]
       },
       "follow-actress": {
-        "title": "Follow actresses",
-        "summary": "Follow actresses from the actress list, a work detail page, or Account Center → My follows.",
+        "title": "Follow entities",
+        "summary": "Follow actresses, directors, studios, publishers, series and tags from cards, detail pages, or Account Center → My follows.",
         "features": [
-          "Where to follow: the follow button in actress lists or detail pages, or add a name manually in the Account Center.",
-          "Limit: follow up to 100 actresses.",
-          "View works: click an actress name to jump to her search results.",
+          "Where to follow: the follow button on actress lists, entity cards and work detail pages, or add an actress name manually in the Account Center.",
+          "Entity types: actress, director, studio, publisher, series and tag.",
+          "Limit: follows are capped at 100.",
+          "View works: click a name or tag to open its work list.",
           "Unfollow: remove one follow on the management page, or select several and remove them in bulk."
         ],
         "steps": [
-          "Open the actress list or a work detail page.",
-          "Click follow to subscribe to an actress.",
+          "Open an actress list, an entity card or a work detail page.",
+          "Click follow to subscribe.",
           "Review and adjust follows under Account Center → My follows.",
-          "Click an actress name to view her works."
+          "Click a name or tag to view its works."
         ],
         "caveats": [
           "Following requires signing in.",
-          "When adding a name manually, check the spelling or works may not match.",
-          "The follow limit is 100 actresses."
+          "Manual entry only accepts actress names; check the spelling or works may not match.",
+          "Follows are capped at 100."
         ]
       },
       "follow-feed": {
         "title": "Follow feed and alerts",
-        "summary": "The follow feed collects new releases and upcoming works, with mute and mark-as-read support.",
+        "summary": "The follow feed collects new releases and upcoming works for everything you follow, with filters, keyword search, mute and mark-as-read.",
         "features": [
           "Where to find it: “Follow feed” on the JAV home page and in the Account Center.",
           "Feed types: new releases and upcoming releases.",
+          "Filter by entity: narrow the feed to actresses, directors, studios, publishers, series or tags.",
+          "Keyword search: search everything you follow by code, title, tag or entity name.",
           "Unread badge: shows the unread count; mark everything as read in one click.",
-          "Per-actress alerts: mute or restore alerts for an actress under “My follows”; this applies to in-app and email at once.",
-          "Bulk actions: mute, restore alerts, or unfollow several actresses at once."
+          "Per-entity alerts: mute or restore alerts under “My follows”; this applies to in-app and email at once.",
+          "Bulk actions: mute, restore alerts, or unfollow several entities at once."
         ],
         "steps": [
-          "Follow at least one actress.",
+          "Follow at least one entity.",
           "Open “Follow feed” on the JAV home page or in the Account Center.",
-          "Switch between new and upcoming releases.",
-          "Mute specific actresses when you want fewer alerts."
+          "Filter by entity type or search by keyword.",
+          "Switch between new and upcoming releases, and mute entities when you want fewer alerts."
         ],
         "caveats": [
           "The follow feed relies on scheduled source checks. If a check fails, retry later.",

@@ -19,9 +19,46 @@ import {
   valueKey,
 } from './recommendation-utils';
 import { getHotSignals, type HotSignals } from './hot-signals';
-import { getLatestRankingRecords } from './ranking-snapshot';
+import { getLatestRankingRecords, type RankingRecord } from './ranking-snapshot';
 
 // ─── 热门列表 ──────────────────────────────────────────────────────────
+
+const RANKING_CACHE_KEY = 'https://internal/recommend-ranking-records-v1';
+const RANKING_CACHE_TTL_SECONDS = 300;
+
+/**
+ * 榜单快照缓存：取「每期最新一批」要全量扫 data_record_sources，
+ * 但榜单每期只更新一次，没必要每次推荐请求都扫一遍。
+ *
+ * 只缓存全局榜单数据（固定 key，与用户无关）；按用户排除已收藏的逻辑
+ * 仍在上层用 userId 计算，缓存内容不含任何用户维度数据。
+ */
+async function getCachedRankingRecords(db: D1Database): Promise<RankingRecord[]> {
+  if (typeof caches === 'undefined') return getLatestRankingRecords(db);
+  const cache = caches.default;
+  const key = new Request(RANKING_CACHE_KEY);
+  try {
+    const hit = await cache.match(key);
+    if (hit) return (await hit.json()) as RankingRecord[];
+  } catch {
+    // 缓存读失败：直接查库
+  }
+  const fresh = await getLatestRankingRecords(db);
+  try {
+    await cache.put(
+      key,
+      new Response(JSON.stringify(fresh), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `max-age=${RANKING_CACHE_TTL_SECONDS}`,
+        },
+      })
+    );
+  } catch {
+    // 缓存写失败不影响返回
+  }
+  return fresh;
+}
 
 function heatOf(row: JavRecordRow, signals: HotSignals): number {
   const item = recordToRecommendationItem(row);
@@ -43,7 +80,7 @@ export async function recommendPopular(
   const limit = RECOMMEND.HOT_LIMIT;
   const [signals, rankingRecords, favoriteCodes] = await Promise.all([
     getHotSignals(db),
-    getLatestRankingRecords(db),
+    getCachedRankingRecords(db),
     getUserFavoriteCodes(db, userId),
   ]);
 
