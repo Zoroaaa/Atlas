@@ -35,7 +35,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
   const unread = followsData?.unread ?? 0;
   const { unfollow, setNotify, markViewed } = useFollowActions();
 
-  const { data: feed, isLoading } = useFollowFeed(tab, page, show && follows.length > 0 && expanded, {
+  const { data: feed, isLoading, isError: feedError } = useFollowFeed(tab, page, show && follows.length > 0 && expanded, {
     entity: filterKey || undefined,
   });
   const items = feed?.items ?? [];
@@ -167,6 +167,10 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                 onClearSearch={() => { setActiveKeyword(''); setKeyword(''); }}
                 activeKeyword={activeKeyword}
               />
+
+              {!activeKeyword && feedError && items.length > 0 ? (
+                <p className="type-micro mb-2 px-1 text-surface-400">{t('follow:offlineCacheHint')}</p>
+              ) : null}
 
               {activeKeyword ? (
                 searchLoading ? (

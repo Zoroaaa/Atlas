@@ -3184,6 +3184,7 @@
     "emptyTitle": "還沒有關注任何女優或實體",
     "emptyHint": "在熱門女優、影片詳情的演員旁，或導演 / 發行商 / 製作商 / 系列 / 標籤卡片裡點「+ 關注」，新作會出現在這裡",
     "noFeed": "暫無動態",
+    "offlineCacheHint": "目前離線，顯示的是上次快取的內容，連網後會自動更新",
     "markViewed": "全部標為已讀",
     "manage": "管理關注",
     "manageTitle": "已關注 {{count}}/{{limit}}",

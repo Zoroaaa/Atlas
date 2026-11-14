@@ -3184,6 +3184,7 @@
     "emptyTitle": "还没有关注任何女优或实体",
     "emptyHint": "在热门女优、影片详情的演员旁，或导演 / 发行商 / 制作商 / 系列 / 标签卡片里点「+ 关注」，新作会出现在这里",
     "noFeed": "暂无动态",
+    "offlineCacheHint": "当前离线，显示的是上次缓存的内容，联网后会自动更新",
     "markViewed": "全部标为已读",
     "manage": "管理关注",
     "manageTitle": "已关注 {{count}}/{{limit}}",

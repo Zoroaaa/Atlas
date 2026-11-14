@@ -3184,6 +3184,7 @@
     "emptyTitle": "You're not following any actress or entity yet",
     "emptyHint": "Tap “+ Follow” on Hot Actresses, a title's cast, or a director / publisher / studio / series / tag card — new releases show up here",
     "noFeed": "Nothing here yet",
+    "offlineCacheHint": "Offline — showing cached content. It will refresh when you're back online.",
     "markViewed": "Mark all as seen",
     "manage": "Manage follows",
     "manageTitle": "Following {{count}}/{{limit}}",
