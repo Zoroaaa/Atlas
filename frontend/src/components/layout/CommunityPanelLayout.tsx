@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
@@ -21,6 +21,8 @@ import {
 import { useAuthStore, useThemeStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
+import { registerBackHandler } from '@/utils/backStack';
 
 interface NavItem {
   id: string;
@@ -44,6 +46,12 @@ export const CommunityPanelLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mainRef = useRouteEnterAnimation<HTMLElement>();
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    return registerBackHandler(() => setMobileMenuOpen(false));
+  }, [mobileMenuOpen]);
 
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
 
@@ -271,7 +279,7 @@ export const CommunityPanelLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:p-8 overflow-auto">
+        <main ref={mainRef} data-scroll-container className="flex-1 p-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:p-8 overflow-auto">
           <Outlet />
         </main>
       </div>

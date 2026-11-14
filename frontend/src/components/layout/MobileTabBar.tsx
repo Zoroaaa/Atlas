@@ -9,6 +9,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
+import { hapticTap } from '@/utils/nativeShell';
 
 interface MobileTab {
   id: string;
@@ -61,25 +62,49 @@ export const MobileTabBar: React.FC = () => {
     },
   ];
 
+  const activeIndex = tabs.findIndex((tab) => tab.active);
+
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom safe-area-inset-x border-t border-stone-200/60 dark:border-stone-700/60"
       aria-label={t('nav:mobileNav.ariaLabel')}
     >
-      <div className="flex h-14 items-stretch">
+      <div className="relative flex h-14 items-stretch">
+        {/* 金色滑动指示条：位置由路由推导，切换时平滑跟随 */}
+        <div
+          aria-hidden="true"
+          className={clsx(
+            'pointer-events-none absolute top-0 h-[2px] rounded-full',
+            'bg-gradient-to-r from-[#d4a853] via-[#f59e0b] to-[#e11d48]',
+            'transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+            activeIndex < 0 && 'opacity-0'
+          )}
+          style={{
+            width: `${100 / tabs.length}%`,
+            transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+          }}
+        />
         {tabs.map(({ id, to, icon: Icon, label, active }) => (
           <Link
             key={id}
             to={to}
+            onClick={() => {
+              if (!active) void hapticTap('light');
+            }}
             aria-current={active ? 'page' : undefined}
             className={clsx(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors duration-200',
+              'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors duration-200',
               active
                 ? 'text-[#d4a853]'
                 : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
             )}
           >
-            <Icon className={clsx('h-5 w-5', active ? 'stroke-[2.2]' : 'stroke-[1.8]')} />
+            <Icon
+              className={clsx(
+                'h-5 w-5 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+                active ? 'scale-110 stroke-[2.2]' : 'stroke-[1.8]'
+              )}
+            />
             <span>{label}</span>
           </Link>
         ))}

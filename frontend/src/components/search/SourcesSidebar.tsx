@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { SourceIcon } from '@/components/ui';
 import { PanelSection, PanelHeader, CountBadge } from '@/components/workbench';
 import { convertToProxyUrl } from '@/services/proxy';
+import { registerBackHandler } from '@/utils/backStack';
 import type { SearchSource, UserSourceConfig, MajorCategory, Category } from '@/types';
 
 interface SourceWithUserConfig extends SearchSource {
@@ -327,6 +328,11 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [layoutMode, toggleCollapsed, showMobileDrawer]);
+
+  useEffect(() => {
+    if (!showMobileDrawer) return;
+    return registerBackHandler(() => setShowMobileDrawer(false));
+  }, [showMobileDrawer]);
 
   // Panel 模式：作为主工作台的一个区段
   if (layoutMode === 'panel') {

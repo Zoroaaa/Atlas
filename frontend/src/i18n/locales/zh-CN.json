@@ -124,6 +124,9 @@
       "me": "我的",
       "searchTabs": "搜索分类"
     },
+    "appShell": {
+      "exitHint": "再按一次返回键退出 Atlas"
+    },
     "me": {
       "title": "我的",
       "settings": "个人设置"

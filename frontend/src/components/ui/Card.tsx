@@ -40,7 +40,7 @@ export const Card: React.FC<CardProps> = ({
           'hover:shadow-lg hover:shadow-amber-500/8 dark:hover:shadow-amber-500/5',
           'hover:border-amber-200 dark:hover:border-amber-700/50',
         ],
-        onClick && 'cursor-pointer',
+        onClick && 'cursor-pointer active:scale-[0.985] active:shadow-sm',
         className
       )}
       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)' }}

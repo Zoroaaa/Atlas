@@ -124,6 +124,9 @@
       "me": "Me",
       "searchTabs": "Search categories"
     },
+    "appShell": {
+      "exitHint": "Press back again to exit Atlas"
+    },
     "me": {
       "title": "Me",
       "settings": "Settings"

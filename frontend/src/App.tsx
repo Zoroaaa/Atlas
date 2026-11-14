@@ -11,6 +11,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AdminPanelLayout } from '@/components/layout/AdminPanelLayout';
 import { CommunityPanelLayout } from '@/components/layout/CommunityPanelLayout';
 import { MobileTabBar } from '@/components/layout/MobileTabBar';
+import { NativeShell } from '@/components/layout/NativeShell';
+import { RouteScrollRestoration } from '@/components/layout/RouteScrollRestoration';
 import { ToastContainer } from '@/components/ui/Toast';
 import { PwaPrompts } from '@/components/pwa/PwaPrompts';
 import { useFeatureFlags } from '@/contexts';
@@ -180,6 +182,8 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <PageTracker />
+        <NativeShell />
+        <RouteScrollRestoration />
         <ErrorBoundary>
         <Routes>
         {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar）
