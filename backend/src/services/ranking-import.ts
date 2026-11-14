@@ -8,14 +8,17 @@
  *
  * JavDB 只负责「库里没有时创建」：已存在记录（尤其已被 JavBus 详情补全过）
  * 的任何字段都不允许被榜单数据覆盖，因此冲突时直接 DO NOTHING。
- * 番号匹配兼容有无横杠两种写法（jav:WAAA-624 / jav:WAAA624）。
+ * 番号匹配以规范化 code 为准，经典番号额外兼容无横杠写法（jav:WAAA-624 / jav:WAAA624）。
  *
  * 不参与推荐打分。
  */
 import { generateId } from '@/utils';
 import { JAV_RANKING } from '@/constants';
 import type { RankingImportPayload } from '@/types';
-import { inspectJavCode } from '@codeseek/shared/utils';
+import { compactJavCode, inspectJavCode } from '@codeseek/shared/utils';
+
+// D1 单条 SQL 最多 100 个绑定变量；每次 IN 查询最多 50 个 key，留足余量
+const LOOKUP_CHUNK_SIZE = 50;
 
 export interface RankingImportResult {
   created: number;
@@ -67,6 +70,36 @@ async function runBatches(
   for (let i = 0; i < statements.length; i += size) {
     await db.batch(statements.slice(i, i + size));
   }
+}
+
+function chunk<T>(list: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < list.length; i += size) {
+    chunks.push(list.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/** 按 key 分块查询已有记录，避免单条 SQL 绑定变量超过 D1 上限 */
+async function loadRecordIdsByKey(
+  db: D1Database,
+  keys: string[]
+): Promise<Map<string, string>> {
+  const idByKey = new Map<string, string>();
+  for (const slice of chunk(keys, LOOKUP_CHUNK_SIZE)) {
+    const placeholders = slice.map(() => '?').join(',');
+    const rows = await db
+      .prepare(
+        `SELECT id, dedup_key FROM data_records
+         WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
+      )
+      .bind(...slice)
+      .all<{ id: string; dedup_key: string }>();
+    for (const row of rows.results || []) {
+      idByKey.set(row.dedup_key, row.id);
+    }
+  }
+  return idByKey;
 }
 
 export async function importRankingSnapshot(
@@ -121,26 +154,14 @@ export async function importRankingSnapshot(
     };
   }
 
-  // 番号匹配以规范化 code 为准，兼容「有横杠 / 无横杠」两种历史写法
+  // 番号匹配以规范化 code 为准；经典番号额外兼容无横杠写法
   const keysOf = (code: string): string[] => {
-    const keys = [`jav:${code}`];
-    const compact = code.replace(/-/g, '');
-    if (compact !== code) keys.push(`jav:${compact}`);
-    return keys;
+    const compact = compactJavCode(code);
+    return compact === code ? [`jav:${code}`] : [`jav:${code}`, `jav:${compact}`];
   };
   const lookupKeys = Array.from(new Set(items.flatMap((item) => keysOf(item.code))));
-  const placeholders = lookupKeys.map(() => '?').join(',');
 
-  const preExistingRows = await db
-    .prepare(
-      `SELECT id, dedup_key FROM data_records
-       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
-    )
-    .bind(...lookupKeys)
-    .all<{ id: string; dedup_key: string }>();
-  const idByKey = new Map(
-    (preExistingRows.results || []).map((row) => [row.dedup_key, row.id])
-  );
+  const idByKey = await loadRecordIdsByKey(db, lookupKeys);
   const existingIdOf = (code: string): string | undefined =>
     keysOf(code).map((key) => idByKey.get(key)).find((id): id is string => Boolean(id));
 
@@ -174,17 +195,7 @@ export async function importRankingSnapshot(
   await runBatches(db, insertStatements);
 
   // 新增后再统一取一次记录 ID，供写入本期榜单名次（命中旧写法也在其中）
-  const recordRows = await db
-    .prepare(
-      `SELECT id, dedup_key FROM data_records
-       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
-    )
-    .bind(...lookupKeys)
-    .all<{ id: string; dedup_key: string }>();
-
-  const recordIdByKey = new Map(
-    (recordRows.results || []).map((row) => [row.dedup_key, row.id])
-  );
+  const recordIdByKey = await loadRecordIdsByKey(db, lookupKeys);
   const recordIdOf = (code: string): string | undefined =>
     keysOf(code).map((key) => recordIdByKey.get(key)).find((id): id is string => Boolean(id));
 
