@@ -70,7 +70,11 @@ jobs:
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/atlas-release.p12"
-            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/atlas-release.p12" >> "$GITHUB_ENV"
+            # export 让同一脚本内的 node 可见；$GITHUB_ENV 只对后续步骤生效
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/atlas-release.p12"
+            keytool -list -keystore "$ANDROID_KEYSTORE_PATH" -storetype PKCS12 \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" > /dev/null
+            echo "ANDROID_SIGNING=true" >> "$GITHUB_ENV"
           fi
           node scripts/prepare-android.mjs
 
@@ -79,7 +83,7 @@ jobs:
         working-directory: mobile/android
         run: |
           chmod +x gradlew
-          if [ -n "$ANDROID_KEYSTORE_PATH" ]; then
+          if [ "$ANDROID_SIGNING" = "true" ]; then
             ./gradlew assembleRelease --no-daemon
           else
             ./gradlew assembleDebug --no-daemon
@@ -90,8 +94,12 @@ jobs:
           mkdir -p build-output
           if [ -f mobile/android/app/build/outputs/apk/release/app-release.apk ]; then
             cp mobile/android/app/build/outputs/apk/release/app-release.apk build-output/Atlas-Android-release.apk
-          else
+          elif [ -f mobile/android/app/build/outputs/apk/debug/app-debug.apk ]; then
             cp mobile/android/app/build/outputs/apk/debug/app-debug.apk build-output/Atlas-Android-debug.apk
+          else
+            echo "未找到 APK 产物，输出目录如下："
+            find mobile/android/app/build/outputs -name '*.apk' -print
+            exit 1
           fi
 
       - name: Upload APK
