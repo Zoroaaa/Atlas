@@ -267,54 +267,69 @@ export async function getJavDetailJobView(db: D1Database): Promise<JavDetailJobV
   return { job, pending, due, scheduled: Math.max(pending - due, 0), enabled };
 }
 
+/**
+ * 轻量进度：只读任务行与开关，各 1 条语句。
+ *
+ * 面板运行中每 15 秒轮询一次；完整视图里的字段统计与失败列表是
+ * 「打开页面 / 任务结束」才需要的数据，放在轮询路径上等于每秒重复扫表。
+ */
+export async function getJavDetailJobProgress(db: D1Database): Promise<{
+  job: JavDetailJobRow | null;
+  enabled: boolean;
+}> {
+  const [job, enabled] = await Promise.all([getLatestJob(db), isJavDetailJobEnabled(db)]);
+  return { job, enabled };
+}
+
 export async function getJavDetailStats(db: D1Database): Promise<JavDetailStats> {
-  const totalRow = await db
-    .prepare(`SELECT COUNT(*) AS n FROM data_records WHERE record_type = 'jav'`)
-    .first<{ n: number }>();
+  const [totalRow, agg] = await Promise.all([
+    db
+      .prepare(`SELECT COUNT(*) AS n FROM data_records WHERE record_type = 'jav'`)
+      .first<{ n: number }>(),
+    // jav_detail_meta 只存 JAV 记录：原查询 JOIN data_records 只为过滤 record_type，
+    // 等于每行再回表一次。这里去掉 JOIN，并把「按状态」与「按缺失位」两次
+    // GROUP BY 合并成一次扫描（SUM(CASE) 单趟算出全部计数）。
+    db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) AS complete,
+           SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) AS partial,
+           SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent,
+           SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error,
+           SUM(CASE WHEN status NOT IN ('complete', 'partial', 'absent', 'error') THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN (missing_mask & 1) <> 0 THEN 1 ELSE 0 END) AS m_director,
+           SUM(CASE WHEN (missing_mask & 2) <> 0 THEN 1 ELSE 0 END) AS m_maker,
+           SUM(CASE WHEN (missing_mask & 4) <> 0 THEN 1 ELSE 0 END) AS m_publisher,
+           SUM(CASE WHEN (missing_mask & 8) <> 0 THEN 1 ELSE 0 END) AS m_magnets
+         FROM jav_detail_meta`
+      )
+      .first<{
+        complete: number | null;
+        partial: number | null;
+        absent: number | null;
+        error: number | null;
+        pending: number | null;
+        m_director: number | null;
+        m_maker: number | null;
+        m_publisher: number | null;
+        m_magnets: number | null;
+      }>(),
+  ]);
 
-  const statusRows = await db
-    .prepare(
-      `SELECT m.status AS status, COUNT(*) AS n
-       FROM jav_detail_meta m
-       JOIN data_records d ON d.id = m.record_id
-       WHERE d.record_type = 'jav'
-       GROUP BY m.status`
-    )
-    .all<{ status: string; n: number }>();
-
-  const missingRows = await db
-    .prepare(
-      `SELECT m.missing_mask AS mask, COUNT(*) AS n
-       FROM jav_detail_meta m
-       JOIN data_records d ON d.id = m.record_id
-       WHERE d.record_type = 'jav' AND m.missing_mask <> 0
-       GROUP BY m.missing_mask`
-    )
-    .all<{ mask: number; n: number }>();
-
-  const stats: JavDetailStats = {
+  return {
     total: totalRow?.n ?? 0,
-    complete: 0,
-    partial: 0,
-    absent: 0,
-    error: 0,
-    pending: 0,
-    missing: { director: 0, maker: 0, publisher: 0, magnets: 0 },
+    complete: agg?.complete ?? 0,
+    partial: agg?.partial ?? 0,
+    absent: agg?.absent ?? 0,
+    error: agg?.error ?? 0,
+    pending: agg?.pending ?? 0,
+    missing: {
+      director: agg?.m_director ?? 0,
+      maker: agg?.m_maker ?? 0,
+      publisher: agg?.m_publisher ?? 0,
+      magnets: agg?.m_magnets ?? 0,
+    },
   };
-  for (const row of statusRows.results || []) {
-    if (row.status === 'complete') stats.complete += row.n;
-    else if (row.status === 'partial') stats.partial += row.n;
-    else if (row.status === 'absent') stats.absent += row.n;
-    else if (row.status === 'error') stats.error += row.n;
-    else stats.pending += row.n;
-  }
-  for (const row of missingRows.results || []) {
-    if (row.mask & 1) stats.missing.director += row.n;
-    if (row.mask & 2) stats.missing.maker += row.n;
-    if (row.mask & 4) stats.missing.publisher += row.n;
-    if (row.mask & 8) stats.missing.magnets += row.n;
-  }
-  return stats;
 }
 
 export async function startJavDetailJob(

@@ -20,6 +20,7 @@ import {
 } from '@/services/jav-detail-meta';
 import {
   fetchJavDetailForRecord,
+  getJavDetailJobProgress,
   getJavDetailJobView,
   JAV_DETAIL_DEFAULT_BATCH_SIZE,
   getJavDetailStats,
@@ -29,6 +30,10 @@ import {
   startJavDetailJob,
   stopJavDetailJob,
 } from '@/services/jav-detail-job';
+
+/** 看板统计的固定缓存 key（全局数据，不含用户维度）与 TTL */
+const STATS_CACHE_KEY = 'https://internal/admin-data-storage-stats-v1';
+const STATS_CACHE_TTL_SECONDS = 300;
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
 
@@ -43,6 +48,19 @@ const VALID_STATUSES = ['active', 'hidden'];
 // ============================================================
 
 dataStorageRoutes.get('/stats', async (c) => {
+  // 看板统计是全量聚合（标签展开、来源分组、时间窗计数），单次约十几万行读取。
+  // 这些数字的变化粒度是「天」，5 分钟内重复计算没有任何意义：
+  // 结果按固定 key 缓存在边缘，所有管理员共用（数据本身是全局的，不含用户维度）。
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = new Request(STATS_CACHE_KEY);
+  if (cache) {
+    const hit = await cache.match(cacheKey);
+    if (hit) {
+      // 用 c.json 重新输出，保证与未命中路径一致的响应头（缓存副本只存 body）
+      return c.json((await hit.json()) as Record<string, unknown>);
+    }
+  }
+
   try {
     const now = Date.now();
     const dayMs = CONFIG.Stats.DAY_IN_MS;
@@ -58,9 +76,7 @@ dataStorageRoutes.get('/stats', async (c) => {
     const [
       byTypeResult,
       detailCompletedResult,
-      addedTodayResult,
-      addedWeekResult,
-      addedMonthResult,
+      addedResult,
       hiddenResult,
       overTimeResult,
       topSourcesResult,
@@ -75,9 +91,15 @@ dataStorageRoutes.get('/stats', async (c) => {
            COUNT(*) as total
          FROM data_records`
       ),
-      c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records WHERE first_seen_at > ?').bind(now - dayMs),
-      c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records WHERE first_seen_at > ?').bind(now - weekMs),
-      c.env.DB.prepare('SELECT COUNT(*) as cnt FROM data_records WHERE first_seen_at > ?').bind(now - monthMs),
+      // 三个时间窗合并成一次范围扫描：原先是三条 COUNT 各扫一遍全表
+      c.env.DB.prepare(
+        `SELECT
+           SUM(CASE WHEN first_seen_at > ? THEN 1 ELSE 0 END) AS today,
+           SUM(CASE WHEN first_seen_at > ? THEN 1 ELSE 0 END) AS week,
+           SUM(CASE WHEN first_seen_at > ? THEN 1 ELSE 0 END) AS month
+         FROM data_records
+         WHERE first_seen_at > ?`
+      ).bind(now - dayMs, now - weekMs, now - monthMs, now - monthMs),
       c.env.DB.prepare("SELECT COUNT(*) as cnt FROM data_records WHERE status = 'hidden'"),
       c.env.DB.prepare(
         // 补零：没有新增记录的日期也要占一个点，否则 30 天会被压缩成「有数据的那几天」，
@@ -109,9 +131,7 @@ dataStorageRoutes.get('/stats', async (c) => {
     ])) as unknown as [
       { results: Array<{ type: string; cnt: number }> },
       { results: Array<{ completed: number; total: number }> },
-      { results: Array<{ cnt: number }> },
-      { results: Array<{ cnt: number }> },
-      { results: Array<{ cnt: number }> },
+      { results: Array<{ today: number | null; week: number | null; month: number | null }> },
       { results: Array<{ cnt: number }> },
       { results: Array<{ d: string; cnt: number }> },
       { results: Array<{ source_name: string; cnt: number }> },
@@ -156,14 +176,14 @@ dataStorageRoutes.get('/stats', async (c) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
 
-    return c.json(
-      success({
+    const added = addedResult.results?.[0];
+    const payload = success({
         totalRecords: total,
         byType: (byTypeResult.results || []).map((r) => ({ type: r.type, count: r.cnt })),
         detailCompletionRate: total > 0 ? Math.round((completed / total) * 1000) / 10 : 0,
-        addedToday: addedTodayResult.results?.[0]?.cnt || 0,
-        addedThisWeek: addedWeekResult.results?.[0]?.cnt || 0,
-        addedThisMonth: addedMonthResult.results?.[0]?.cnt || 0,
+        addedToday: added?.today ?? 0,
+        addedThisWeek: added?.week ?? 0,
+        addedThisMonth: added?.month ?? 0,
         recordsOverTime: (overTimeResult.results || []).map((r) => ({ date: r.d, count: r.cnt })),
         topTags,
         topSources: (topSourcesResult.results || []).map((r) => ({
@@ -172,8 +192,24 @@ dataStorageRoutes.get('/stats', async (c) => {
         })),
         hiddenCount: hiddenResult.results?.[0]?.cnt || 0,
         javDetail,
-      })
-    );
+      });
+
+    if (cache) {
+      // 只缓存成功结果；缓存副本带 max-age，返回给前端的响应不带客户端缓存头
+      const cacheable = new Response(JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `max-age=${STATS_CACHE_TTL_SECONDS}`,
+        },
+      });
+      try {
+        c.executionCtx.waitUntil(cache.put(cacheKey, cacheable));
+      } catch {
+        // 非 Worker 运行时（测试）没有 executionCtx，忽略缓存写入
+      }
+    }
+
+    return c.json(payload);
   } catch (err) {
     console.error('[data-storage] stats error:', err);
     return c.json(error('SERVER_ERROR', '获取统计失败'), 500);
@@ -575,19 +611,38 @@ dataStorageRoutes.post('/genre-dict/sync', async (c) => {
 // ============================================================
 
 dataStorageRoutes.get('/detail-jobs/current', async (c) => {
+  // 运行中的面板每 15 秒轮询一次。完整视图带字段统计与失败列表（全表聚合），
+  // 只有打开页面/任务结束时才需要；轮询走 scope=progress，只读任务行与开关。
+  if (c.req.query('scope') === 'progress') {
+    try {
+      return c.json(success(await getJavDetailJobProgress(c.env.DB)));
+    } catch (err) {
+      console.error('[data-storage] detail job progress error:', err);
+      return c.json(error('SERVER_ERROR', '获取批量任务进度失败'), 500);
+    }
+  }
+
   try {
     const view = await getJavDetailJobView(c.env.DB);
     const stats = await getJavDetailStats(c.env.DB);
 
+    // 先在子查询里按 updated_at 索引取最近 20 条，再回表补记录字段。
+    // 直接 JOIN 会被优化器选中「扫 data_records 再逐行回查 meta + 临时排序」，
+    // 取 20 行要读整张表；子查询形式让它走 idx_jav_meta_recent 提前收敛。
     const failures = await c.env.DB.prepare(
       `SELECT d.id, d.code, d.title, m.status, m.last_error, m.next_retry_at,
               m.attempts, m.transient_failures, m.retry_exhausted, m.missing_mask
-       FROM jav_detail_meta m
+       FROM (
+         SELECT record_id, status, last_error, next_retry_at, attempts,
+                transient_failures, retry_exhausted, missing_mask, updated_at
+         FROM jav_detail_meta
+         WHERE last_error IS NOT NULL OR status IN ('partial', 'absent', 'error')
+         ORDER BY updated_at DESC
+         LIMIT 20
+       ) m
        JOIN data_records d ON d.id = m.record_id
        WHERE d.record_type = 'jav'
-         AND (m.last_error IS NOT NULL OR m.status IN ('partial', 'absent', 'error'))
-       ORDER BY m.updated_at DESC
-       LIMIT 20`
+       ORDER BY m.updated_at DESC`
     ).all<Record<string, unknown>>();
 
     return c.json(
