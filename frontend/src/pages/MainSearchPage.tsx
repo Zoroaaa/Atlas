@@ -31,6 +31,7 @@ import { useSourceManager } from '@/hooks/useSourceManager';
 import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
 import { useTranslation } from 'react-i18next';
+import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
 
 export const MainSearchPage: React.FC = () => {
   const { t } = useTranslation(['tabs', 'home', 'search']);
@@ -40,6 +41,7 @@ export const MainSearchPage: React.FC = () => {
   const { activeTab, setActiveTab } = useSourceStore();
   const { isEnabled: isProxyEnabled, initializeProxy } = useProxyStore();
   const { communityEnabled } = useFeatureFlags();
+  const pageRef = useRouteEnterAnimation<HTMLDivElement>();
 
   const javFlow = useJavSearchFlow();
   const sourceManager = useSourceManager();
@@ -212,7 +214,7 @@ export const MainSearchPage: React.FC = () => {
     && (!isAuthenticated || historyManager.searchHistory.length === 0);
 
   return (
-    <div className="min-h-screen page-bg pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <div ref={pageRef} className="min-h-screen page-bg pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
 
       <main className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">

@@ -125,20 +125,32 @@
     <div id="root">
       <div id="boot-splash">
         <div class="boot-inner">
-          <svg width="104" height="104" viewBox="0 0 104 104" fill="none" aria-hidden="true">
+          <svg width="112" height="112" viewBox="0 0 104 104" fill="none" aria-hidden="true">
             <defs>
-              <linearGradient id="bootGold" x1="0" y1="0" x2="104" y2="104" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#d4a853" />
-                <stop offset="0.55" stop-color="#f59e0b" />
+              <linearGradient id="bootGold" x1="16" y1="16" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#e8c97a" />
+                <stop offset="0.55" stop-color="#d4a853" />
                 <stop offset="1" stop-color="#e11d48" />
               </linearGradient>
+              <radialGradient id="bootHalo" cx="50%" cy="50%" r="50%">
+                <stop stop-color="#d4a853" stop-opacity="0.26" />
+                <stop offset="1" stop-color="#d4a853" stop-opacity="0" />
+              </radialGradient>
             </defs>
-            <circle class="boot-ring" cx="52" cy="52" r="46" stroke="url(#bootGold)" stroke-width="2"
-              stroke-linecap="round" stroke-dasharray="72 218" />
-            <circle cx="52" cy="52" r="34" stroke="#d4a853" stroke-opacity="0.18" stroke-width="1" />
-            <polygon points="52,24 60,52 52,46 44,52" fill="url(#bootGold)" />
-            <polygon points="52,80 60,52 52,58 44,52" fill="#e11d48" opacity="0.55" />
-            <circle cx="52" cy="52" r="3.5" fill="#d4a853" />
+            <circle cx="52" cy="52" r="44" fill="url(#bootHalo)" />
+            <circle class="boot-ring" cx="52" cy="52" r="30.5" stroke="url(#bootGold)" stroke-width="1.2"
+              stroke-linecap="round" stroke-dasharray="62 130" />
+            <circle cx="52" cy="52" r="27.6" stroke="#d4a853" stroke-opacity="0.22" stroke-width="0.5" />
+            <g stroke="url(#bootGold)" stroke-linecap="round">
+              <line x1="52" y1="18.3" x2="52" y2="21.9" stroke-width="0.8" />
+              <line x1="52" y1="82.1" x2="52" y2="85.7" stroke-width="0.8" />
+              <line x1="18.3" y1="52" x2="21.9" y2="52" stroke-width="0.8" />
+              <line x1="82.1" y1="52" x2="85.7" y2="52" stroke-width="0.8" />
+            </g>
+            <polygon points="52,24 56.7,50.8 52,48.1 47.3,50.8" fill="url(#bootGold)" />
+            <polygon points="52,80 56.7,53.2 52,55.9 47.3,53.2" fill="#e11d48" opacity="0.68" />
+            <circle cx="52" cy="52" r="2" fill="#d4a853" />
+            <circle cx="52" cy="52" r="0.85" fill="#0a0a0b" />
           </svg>
           <div class="boot-bar"><span></span></div>
           <div class="boot-text">ATLAS</div>

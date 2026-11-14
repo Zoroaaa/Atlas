@@ -37,6 +37,9 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
 
+  // GitHub Releases 查询令牌（可选，用于提高 API 限流额度）
+  GITHUB_RELEASE_TOKEN?: string;
+
   // Google OAuth（通过 `wrangler secret put` 注入）
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;

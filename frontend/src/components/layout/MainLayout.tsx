@@ -9,12 +9,14 @@ import { User, Moon, Sun } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
 import { Button } from '@/components/ui';
 import { useTranslation } from 'react-i18next';
+import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
 
 export const MainLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { isAuthenticated, user } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
+  const mainRef = useRouteEnterAnimation<HTMLElement>();
 
   return (
     <div className="min-h-screen bg-stone-50 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0 dark:bg-stone-950">
@@ -88,7 +90,7 @@ export const MainLayout: React.FC = () => {
       </header>
 
       {/* ── Content ── */}
-      <main className="flex-1">
+      <main ref={mainRef} className="flex-1">
         <Outlet />
       </main>
 

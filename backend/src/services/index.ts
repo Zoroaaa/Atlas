@@ -1,4 +1,5 @@
 export { ConfigService } from './config';
+export { fetchLatestAndroidRelease } from './app-release';
 export { EmailVerificationService, emailVerificationUtils } from './email-verification';
 export { SearchSourcesService, searchSourcesService } from './search-sources-service';
 export type {

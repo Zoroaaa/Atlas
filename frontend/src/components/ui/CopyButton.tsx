@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { hapticSuccess, hapticTap } from '@/utils/nativeShell';
 
 interface CopyButtonProps {
   text: string;
@@ -17,8 +18,10 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ text, label, className =
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
+    void hapticTap('light');
     const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => false);
     if (ok) {
+      void hapticSuccess();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

@@ -6,3 +6,5 @@ export { useThemeStore } from './themeStore';
 export { useUIStore } from './uiStore';
 export { useProxyStore } from './proxyStore';
 export { useLanguageStore } from './languageStore';
+export { useAppUpdateStore, selectShouldPrompt } from './updateStore';
+export type { AppUpdateStatus } from './updateStore';

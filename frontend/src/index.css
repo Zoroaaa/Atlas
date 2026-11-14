@@ -926,6 +926,11 @@
    Additional Keyframes
    ============================================================ */
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes routeEnter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.route-enter { animation: routeEnter 0.22s var(--ease-out) both; }
 @keyframes scaleOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
 @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes pulse-glow {
@@ -976,6 +981,20 @@
   .btn-gradient:hover { transform: none; }
   .search-btn:hover { transform: none; }
   .search-input:focus { transform: none; }
+}
+
+/* 触屏按压反馈：所有高频可点元素统一「按下去」的手感 */
+@media (hover: none), (pointer: coarse) {
+  .dense-row:active,
+  .source-tree-item:active,
+  .category-filter-btn:active,
+  .mobile-nav-btn:active,
+  .mobile-header-btn:active,
+  .icon-btn-sm:active,
+  .nav-pill:active {
+    transform: scale(0.985);
+    transition-duration: 90ms;
+  }
 }
 
 /* 安装为浏览器应用（独立窗口）后的视口与滚动适配 */
