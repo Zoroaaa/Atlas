@@ -5,18 +5,17 @@
  */
 import React, { memo } from 'react';
 import { Globe, Check } from 'lucide-react';
-import { clsx } from 'clsx';
 import { DropdownMenu, type MenuItem } from './DropdownMenu';
 import { useLanguageStore } from '@/stores';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, type Language } from '@/i18n/config';
 
 interface LanguageSwitcherProps {
-  /** 移动端紧凑尺寸（图标更小、内边距更紧） */
-  compact?: boolean;
+  /** 覆盖触发器样式（如顶栏统一图标按钮规格），传入后不再叠加默认尺寸/内边距 */
+  triggerClassName?: string;
 }
 
-export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = memo(({ compact = false }) => {
+export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = memo(({ triggerClassName }) => {
   const { t } = useTranslation(['common']);
   const language = useLanguageStore((s) => s.language);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
@@ -42,14 +41,12 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = memo(({ compact
           type="button"
           aria-label={t('common:languageLabel')}
           title={currentOption?.nativeName}
-          className={clsx(
-            'rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300',
-            'hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200',
-            'inline-flex items-center justify-center',
-            compact ? 'p-1.5' : 'p-2'
-          )}
+          className={
+            triggerClassName ??
+            'inline-flex items-center justify-center rounded-lg p-2 text-stone-400 transition-all duration-200 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800 dark:hover:text-stone-300'
+          }
         >
-          <Globe className={clsx(compact ? 'w-4 h-4' : 'w-4 h-4')} />
+          <Globe className="w-4 h-4" />
           <span className="sr-only">{t('common:languageLabel')}</span>
         </button>
       }

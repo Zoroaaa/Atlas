@@ -78,9 +78,10 @@ describe('UnifiedNavBar 移动端入口', () => {
     expect(within(dialog).getByText('源站收录')).toBeInTheDocument();
     expect(within(dialog).getByText('帮助中心')).toBeInTheDocument();
     expect(within(dialog).getByText('GitHub')).toBeInTheDocument();
-    // <sm 顶栏只保留「更多」+ 用户菜单，通知/主题/下载/语言收进抽屉
+    // 通知/语言常驻顶栏，抽屉内不得重复；<sm 顶栏放不下的主题/下载才进抽屉
+    expect(within(dialog).queryByText('通知')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('语言')).not.toBeInTheDocument();
     expect(within(dialog).getByText('主题切换')).toBeInTheDocument();
-    expect(within(dialog).getByText('通知')).toBeInTheDocument();
     expect(within(dialog).getByText('下载 App')).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByText('源站收录'));

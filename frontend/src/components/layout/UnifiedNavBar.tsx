@@ -19,7 +19,6 @@ import {
   MoreHorizontal,
   X,
   Download,
-  Bell,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
@@ -273,53 +272,57 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               {/* 功能工具组 - 登录后可见；图标按钮统一 40px，避免尺寸不一导致间距视觉不一致 */}
               {isAuthenticated && (
               <div className="flex items-center gap-1">
-                {/* 代理切换 - 窄屏收进“更多”，给顶部留出空间 */}
-                <button
-                  onClick={() => {
-                    if (isProxyEnabled) {
-                      // 已开启时直接关闭，无需确认
-                      toggleProxy();
-                    } else {
-                      // 未开启时显示确认弹窗
-                      setIsProxyConfirmOpen(true);
-                    }
-                  }}
-                  disabled={isProxyLoading}
-                  className={clsx(ICON_BUTTON, getProxyButtonClass(), 'hidden sm:inline-flex')}
-                  title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
-                >
-                  {isProxyLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isProxyEnabled ? (
-                    <ShieldCheck className="w-4 h-4" />
-                  ) : proxyStatus === 'error' ? (
-                    <ShieldAlert className="w-4 h-4" />
-                  ) : (
-                    <Shield className="w-4 h-4" />
-                  )}
-                </button>
-
-                {/* 通知：<sm 收进“更多”，避免 320/360 顶部溢出 */}
-                <div className="hidden sm:block">
-                  <NotificationBell />
+                {/* 代理切换 - ≥sm 顶栏显示；<sm 空间不足时只在“更多”里出现一次 */}
+                <div className="hidden sm:flex">
+                  <button
+                    onClick={() => {
+                      if (isProxyEnabled) {
+                        // 已开启时直接关闭，无需确认
+                        toggleProxy();
+                      } else {
+                        // 未开启时显示确认弹窗
+                        setIsProxyConfirmOpen(true);
+                      }
+                    }}
+                    disabled={isProxyLoading}
+                    className={clsx(ICON_BUTTON, getProxyButtonClass())}
+                    title={isProxyEnabled ? t('nav:proxy.enableTitle') : t('nav:proxy.disableTitle')}
+                  >
+                    {isProxyLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isProxyEnabled ? (
+                      <ShieldCheck className="w-4 h-4" />
+                    ) : proxyStatus === 'error' ? (
+                      <ShieldAlert className="w-4 h-4" />
+                    ) : (
+                      <Shield className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
 
-                {/* 主题切换：全尺寸只保留这一个入口，“更多”内不再重复 */}
-                <button onClick={toggleTheme} className={clsx(ICON_BUTTON, 'hidden sm:inline-flex')} aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
-                  {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
+                {/* 通知：所有宽度常驻顶栏，未读数角标必须可见 */}
+                <NotificationBell />
 
-                {/* 下载客户端 */}
-                <a
-                  href={DOWNLOAD_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={clsx(ICON_BUTTON, 'hidden sm:inline-flex')}
-                  aria-label={t('nav:downloadApp')}
-                  title={t('nav:downloadApp')}
-                >
-                  <Download className="w-4 h-4" />
-                </a>
+                {/* 主题切换 - ≥sm 顶栏显示；<sm 只在“更多”里出现一次 */}
+                <div className="hidden sm:flex">
+                  <button onClick={toggleTheme} className={ICON_BUTTON} aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
+                    {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* 下载客户端 - ≥sm 顶栏显示；<sm 只在“更多”里出现一次 */}
+                <div className="hidden sm:flex">
+                  <a
+                    href={DOWNLOAD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={ICON_BUTTON}
+                    aria-label={t('nav:downloadApp')}
+                    title={t('nav:downloadApp')}
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                </div>
 
                 {/* 更多 - <1440px（平板/窄屏）承载次要入口 */}
                 <button
@@ -338,10 +341,8 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-0.5" />
               )}
 
-              {/* 语言切换：<sm 收进“更多”，外层统一 40px 避免内部 padding 影响布局 */}
-              <div className="hidden h-10 w-10 shrink-0 items-center justify-center sm:flex">
-                <LanguageSwitcher />
-              </div>
+              {/* 语言切换：所有宽度常驻，直接复用顶栏图标按钮规格，保证同高同排版 */}
+              <LanguageSwitcher triggerClassName={ICON_BUTTON} />
 
               {/* 帮助 / GitHub：<1440px 收进“更多”抽屉，避免平板宽度溢出 */}
               <div className="hidden items-center gap-1 2xl:flex">
@@ -457,15 +458,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   </span>
                 ) : null}
               </button>
-              {/* 通知/主题/下载/语言：<sm 顶栏空间不足，统一收进抽屉 */}
-              <Link
-                to="/dashboard/notifications"
-                onClick={() => setIsMoreOpen(false)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800 sm:hidden"
-              >
-                <Bell className="h-4 w-4" />
-                <span>{t('nav:dashboard.items.notifications')}</span>
-              </Link>
+              {/* 通知/主题/下载/语言常驻顶栏，抽屉内不再重复；主题/下载/代理按宽度只在“更多”出现一次 */}
               <button
                 onClick={() => {
                   setIsMoreOpen(false);
@@ -489,10 +482,6 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 <Download className="h-4 w-4" />
                 <span>{t('nav:downloadApp')}</span>
               </a>
-              <div className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-stone-700 dark:text-stone-200 sm:hidden">
-                <LanguageSwitcher compact />
-                <span>{t('nav:mobileMore.language')}</span>
-              </div>
               {/* 代理：窄屏顶部不显示，收进这里 */}
               <button
                 onClick={() => {
