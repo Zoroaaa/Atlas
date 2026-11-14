@@ -46,14 +46,9 @@ export interface SearchResult {
   description?: string;
 }
 
-export interface SearchRequest {
-  keyword: string;
-  sourceIds?: string[];
-  page?: number;
-  pageSize?: number;
-  majorCategoryId?: string;
-  categoryId?: string;
-}
+// 请求契约类型统一由 zod schema 推导
+export type { SearchRequest } from '../schemas/search';
+export type { AddFavoriteRequest } from '../schemas/user';
 
 export interface SearchResponse {
   success: boolean;
@@ -79,23 +74,7 @@ export interface TrendingSearch {
   count: number;
 }
 
-export interface AddFavoriteRequest {
-  title: string;
-  subtitle?: string;
-  url: string;
-  icon?: string;
-  keyword?: string;
-  magnetLink?: string;
-  code?: string;
-  cover?: string;
-  actors?: string;
-  duration?: string;
-  tags?: string;
-  releaseDate?: string;
-  publisher?: string;
-  status?: string;
-}
-
+// 搜索历史由搜索接口在后端写入，没有独立的前端调用方，schema 留在后端
 export interface SaveSearchHistoryRequest {
   query: string;
   source?: string;

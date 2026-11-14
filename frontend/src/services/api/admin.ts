@@ -1,5 +1,12 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import type { Role, AdminUser, AdminUserDetail, UserLoginLog } from '@/types';
+import type {
+  UpdateUserRoleRequest,
+  UpdateUserStatusRequest,
+  HandleReportRequest,
+  UpdateDataRecordStatusRequest,
+} from '@codeseek/shared';
 import type {
   DataRecord,
   DataRecordDetail,
@@ -201,11 +208,15 @@ export const adminApi = {
   },
 
   updateUserStatus: async (userId: string, isActive: boolean, reason?: string): Promise<void> => {
-    await apiClient.put(`/admin/users/${userId}/status`, { isActive, reason });
+    const { updateUserStatusSchema } = await import('@codeseek/shared/schemas/admin');
+    const payload = await parseRequest<UpdateUserStatusRequest>(updateUserStatusSchema, { isActive, reason });
+    await apiClient.put(`/admin/users/${userId}/status`, payload);
   },
 
   updateUserRole: async (userId: string, roleId: string): Promise<{ roleId: string; roleName: string }> => {
-    const response = await apiClient.put<{ success: boolean; data: { roleId: string; roleName: string } }>(`/admin/users/${userId}/role`, { roleId });
+    const { updateUserRoleSchema } = await import('@codeseek/shared/schemas/admin');
+    const payload = await parseRequest<UpdateUserRoleRequest>(updateUserRoleSchema, { roleId });
+    const response = await apiClient.put<{ success: boolean; data: { roleId: string; roleName: string } }>(`/admin/users/${userId}/role`, payload);
     return response.data;
   },
 
@@ -591,12 +602,10 @@ export const adminApi = {
     };
   },
 
-  handleReport: async (reportId: string, data: {
-    status: 'resolved' | 'dismissed';
-    action?: string;
-    notes?: string;
-  }): Promise<void> => {
-    await apiClient.put(`/admin/reports/${reportId}`, data);
+  handleReport: async (reportId: string, data: HandleReportRequest): Promise<void> => {
+    const { handleReportSchema } = await import('@codeseek/shared/schemas/admin');
+    const payload = await parseRequest<HandleReportRequest>(handleReportSchema, data);
+    await apiClient.put(`/admin/reports/${reportId}`, payload);
   },
 
   // 系统观测（错误监控）
@@ -828,7 +837,9 @@ export const dataStorageApi = {
   },
 
   updateRecordStatus: async (id: string, status: DataRecordStatus): Promise<void> => {
-    await apiClient.put(`/admin/data-storage/records/${id}/status`, { status });
+    const { updateDataRecordStatusSchema } = await import('@codeseek/shared/schemas/admin');
+    const payload = await parseRequest<UpdateDataRecordStatusRequest>(updateDataRecordStatusSchema, { status });
+    await apiClient.put(`/admin/data-storage/records/${id}/status`, payload);
   },
 
   /** 重置源站缺失次数：清零 attempts / transient_failures，清掉耗尽与下次重试时间 */

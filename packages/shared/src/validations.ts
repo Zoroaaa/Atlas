@@ -4,6 +4,13 @@
 // 改了需要前后端同步重新部署
 // ==================================================================
 
+/** 格式型规则（正则）— 与 VALIDATION_RULES 一样是前后端唯一来源 */
+export const VALIDATION_PATTERNS = {
+  USERNAME: /^[a-zA-Z0-9_]+$/,
+  EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  VERIFICATION_CODE: /^\d{6}$/,
+} as const;
+
 export const VALIDATION_RULES = {
 
   USERNAME: {

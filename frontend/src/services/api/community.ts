@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import type {
   CommunityTag,
   CommunityPost,
@@ -28,7 +29,9 @@ export const communityApi = {
   },
 
   createTag: async (data: CreateTagRequest): Promise<{ data: CommunityTag; message: string }> => {
-    return apiClient.post('/community/tags', data);
+    const { createTagSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<CreateTagRequest>(createTagSchema, data);
+    return apiClient.post('/community/tags', payload);
   },
 
   updateTag: async (id: string, data: UpdateTagRequest): Promise<{ message: string }> => {
@@ -69,11 +72,15 @@ export const communityApi = {
   },
 
   createPost: async (data: CreatePostRequest): Promise<{ data: CommunityPost; message: string }> => {
-    return apiClient.post('/community/posts', data);
+    const { createPostSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<CreatePostRequest>(createPostSchema, data);
+    return apiClient.post('/community/posts', payload);
   },
 
   updatePost: async (id: string, data: UpdatePostRequest): Promise<{ message: string }> => {
-    return apiClient.put(`/community/posts/${id}`, data);
+    const { updatePostSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<UpdatePostRequest>(updatePostSchema, data);
+    return apiClient.put(`/community/posts/${id}`, payload);
   },
 
   deletePost: async (id: string): Promise<{ message: string }> => {
@@ -106,7 +113,9 @@ export const communityApi = {
   },
 
   createComment: async (data: CreateCommentRequest): Promise<{ data: CommunityComment; message: string }> => {
-    return apiClient.post('/community/comments', data);
+    const { createCommentSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<CreateCommentRequest>(createCommentSchema, data);
+    return apiClient.post('/community/comments', payload);
   },
 
   deleteComment: async (id: string): Promise<{ message: string }> => {
@@ -116,7 +125,9 @@ export const communityApi = {
   // ==================== 举报功能 ====================
 
   reportPost: async (postId: string, data: ReportRequest): Promise<{ data: { reportId: string }; message: string }> => {
-    return apiClient.post(`/community/posts/${postId}/report`, data);
+    const { reportPostSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<ReportRequest>(reportPostSchema, data);
+    return apiClient.post(`/community/posts/${postId}/report`, payload);
   },
 
   // ==================== 个人中心 ====================

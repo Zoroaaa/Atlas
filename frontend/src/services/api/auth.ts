@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import { getApiBaseUrl } from '@/constants';
 import type {
   User,
@@ -30,7 +31,9 @@ export const authApi = {
   },
 
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', data);
+    const { loginSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<LoginRequest>(loginSchema, data);
+    const response = await apiClient.post<AuthResponse>('/auth/login', payload);
     if (response.success && response.data?.token) {
       const store = useAuthStore.getState();
       store.setToken(response.data.token);
@@ -40,7 +43,9 @@ export const authApi = {
   },
 
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
+    const { registerSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<RegisterRequest>(registerSchema, data);
+    const response = await apiClient.post<AuthResponse>('/auth/register', payload);
     if (response.success && response.data?.token) {
       const store = useAuthStore.getState();
       store.setToken(response.data.token);
@@ -86,25 +91,33 @@ export const authApi = {
     data?: { maskedEmail: string; expiresIn: number };
     message?: string;
   }> => {
+    const { forgotPasswordSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<ForgotPasswordRequest>(forgotPasswordSchema, data);
     return apiClient.post<{ 
       success: boolean; 
       data?: { maskedEmail: string; expiresIn: number };
       message?: string;
-    }>('/auth/forgot-password', data);
+    }>('/auth/forgot-password', payload);
   },
 
   resetPassword: async (data: ResetPasswordRequest): Promise<{ success: boolean; message: string }> => {
-    return apiClient.post<{ success: boolean; message: string }>('/auth/reset-password', data);
+    const { resetPasswordSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<ResetPasswordRequest>(resetPasswordSchema, data);
+    return apiClient.post<{ success: boolean; message: string }>('/auth/reset-password', payload);
   },
 
   changePassword: async (data: ChangePasswordRequest): Promise<{ success: boolean; message: string }> => {
-    return apiClient.put<{ success: boolean; message: string }>('/auth/change-password', data);
+    const { changePasswordSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<ChangePasswordRequest>(changePasswordSchema, data);
+    return apiClient.put<{ success: boolean; message: string }>('/auth/change-password', payload);
   },
 
   deleteAccount: async (data: DeleteAccountRequest): Promise<{ success: boolean; message: string }> => {
     // 不在失败时登出：验证码错误等 400 不应把用户踢下线；
     // 删除成功后由调用方负责清理本地登录态。
-    return apiClient.delete<{ success: boolean; message: string }>('/auth/account', data);
+    const { deleteAccountSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<DeleteAccountRequest>(deleteAccountSchema, data);
+    return apiClient.delete<{ success: boolean; message: string }>('/auth/account', payload);
   },
 
   sendRegistrationCode: async (email: string): Promise<{ 
@@ -112,11 +125,13 @@ export const authApi = {
     data?: { maskedEmail: string; expiresIn: number };
     message?: string;
   }> => {
+    const { sendRegistrationCodeSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<{ email: string }>(sendRegistrationCodeSchema, { email });
     return apiClient.post<{ 
       success: boolean; 
       data?: { maskedEmail: string; expiresIn: number };
       message?: string;
-    }>('/auth/send-registration-code', { email });
+    }>('/auth/send-registration-code', payload);
   },
 
   sendAccountDeleteCode: async (): Promise<{ 
@@ -148,11 +163,13 @@ export const authApi = {
     data?: { emailVerified: boolean };
     message?: string;
   }> => {
+    const { verifyCurrentEmailSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<{ code: string }>(verifyCurrentEmailSchema, { code });
     return apiClient.post<{ 
       success: boolean; 
       data?: { emailVerified: boolean };
       message?: string;
-    }>('/auth/verify-current-email', { code });
+    }>('/auth/verify-current-email', payload);
   },
 
   smartSendCode: async (data: SendVerificationCodeRequest): Promise<{ 
@@ -226,11 +243,13 @@ export const authApi = {
     data?: { requestId: string; maskedEmail: string; expiresIn: number };
     message?: string;
   }> => {
+    const { requestEmailChangeSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<EmailChangeRequest>(requestEmailChangeSchema, data);
     return apiClient.post<{ 
       success: boolean; 
       data?: { requestId: string; maskedEmail: string; expiresIn: number };
       message?: string;
-    }>('/auth/request-email-change', data);
+    }>('/auth/request-email-change', payload);
   },
 
   sendEmailChangeCode: async (data: SendEmailChangeCodeRequest): Promise<{ 
@@ -238,11 +257,13 @@ export const authApi = {
     data?: { maskedEmail: string; expiresIn: number };
     message?: string;
   }> => {
+    const { sendEmailChangeCodeSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<SendEmailChangeCodeRequest>(sendEmailChangeCodeSchema, data);
     return apiClient.post<{ 
       success: boolean; 
       data?: { maskedEmail: string; expiresIn: number };
       message?: string;
-    }>('/auth/send-email-change-code', data);
+    }>('/auth/send-email-change-code', payload);
   },
 
   verifyEmailChangeCode: async (data: VerifyEmailChangeCodeRequest): Promise<{ 
@@ -250,21 +271,25 @@ export const authApi = {
     data?: { completed: boolean; newEmail: string };
     message?: string;
   }> => {
+    const { verifyEmailChangeCodeSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<VerifyEmailChangeCodeRequest>(verifyEmailChangeCodeSchema, data);
     return apiClient.post<{ 
       success: boolean; 
       data?: { completed: boolean; newEmail: string };
       message?: string;
-    }>('/auth/verify-email-change-code', data);
+    }>('/auth/verify-email-change-code', payload);
   },
 
   cancelEmailChangeRequest: async (requestId: string): Promise<{ 
     success: boolean; 
     message?: string;
   }> => {
+    const { cancelEmailChangeRequestSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<{ requestId: string }>(cancelEmailChangeRequestSchema, { requestId });
     return apiClient.post<{ 
       success: boolean; 
       message?: string;
-    }>('/auth/cancel-email-change-request', { requestId });
+    }>('/auth/cancel-email-change-request', payload);
   },
 
 };

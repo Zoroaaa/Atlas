@@ -87,29 +87,15 @@ export interface Report {
   createdAt: string;
 }
 
-export interface UpdateUserStatusRequest {
-  isActive: boolean;
-  reason?: string;
-}
+// 请求契约类型统一由 zod schema 推导
+export type { UpdateUserStatusRequest, HandleReportRequest } from '@codeseek/shared';
+export type { AnalyticsEvent } from '@codeseek/shared';
 
-export interface HandleReportRequest {
-  status: 'resolved' | 'dismissed';
-  action?: 'remove_source' | 'warning' | 'ignore';
-  notes?: string;
-}
-
+// 前端定义了 recordAction 调用但没有任何调用点，schema 留在后端
 export interface RecordActionRequest {
   userId?: string;
   action: string;
   data?: unknown;
-}
-
-export interface AnalyticsEvent {
-  userId?: string;
-  sessionId?: string;
-  eventType: string;
-  eventData?: unknown;
-  referer?: string;
 }
 
 export interface AnalyticsStats {

@@ -16,6 +16,9 @@ export type {
   EmailChangeRequest,
   SendEmailChangeCodeRequest,
   VerifyEmailChangeCodeRequest,
+  SendRegistrationCodeRequest,
+  VerifyCurrentEmailRequest,
+  CancelEmailChangeRequest,
 } from '@codeseek/shared';
 
 // 前端专属类型

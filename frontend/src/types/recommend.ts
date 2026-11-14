@@ -39,7 +39,4 @@ export interface JavRecommendationSeed {
   publisher?: string;
 }
 
-export interface JavRelatedRequest extends JavRecommendationSeed {
-  excludeCodes?: string[];
-  limit?: number;
-}
+export type { JavRelatedRequest } from '@codeseek/shared';

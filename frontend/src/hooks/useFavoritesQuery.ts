@@ -3,6 +3,7 @@ import { userApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { readPersisted, writePersisted, removePersistedByPrefix } from '@/utils/persistentCache';
 import type { FavoriteItem, FavoriteRef, AddFavoriteRequest } from '@/types';
+import type { UpdateFavoriteStatusRequest } from '@codeseek/shared';
 
 export const FAVORITES_PAGE_SIZE = 10;
 // 跨设备修改无法感知，用 TTL 兜底；本设备的增删改会主动清缓存
@@ -108,7 +109,7 @@ export function useAddFavorite() {
       // 索引乐观更新：搜索结果里的收藏星标立即生效
       if (previousIndex) {
         queryClient.setQueryData<FavoriteRef[]>(favoritesKeys.index(userId), [
-          { id: 'optimistic-' + Date.now(), url: data.url, code: data.code },
+          { id: 'optimistic-' + Date.now(), url: data.url, code: data.code ?? undefined },
           ...previousIndex,
         ]);
       }
@@ -119,18 +120,18 @@ export function useAddFavorite() {
           id: 'optimistic-' + Date.now(),
           userId: '',
           title: data.title,
-          subtitle: data.subtitle,
+          subtitle: data.subtitle ?? undefined,
           url: data.url,
-          icon: data.icon,
+          icon: data.icon ?? undefined,
           keyword: data.keyword,
-          code: data.code,
-          cover: data.cover,
-          actors: data.actors,
-          duration: data.duration,
-          tags: data.tags,
-          releaseDate: data.releaseDate,
-          publisher: data.publisher,
-          magnetLink: data.magnetLink,
+          code: data.code ?? undefined,
+          cover: data.cover ?? undefined,
+          actors: data.actors ?? undefined,
+          duration: data.duration ?? undefined,
+          tags: data.tags ?? undefined,
+          releaseDate: data.releaseDate ?? undefined,
+          publisher: data.publisher ?? undefined,
+          magnetLink: data.magnetLink ?? undefined,
           status: data.status,
           createdAt: Date.now(),
         };
@@ -203,7 +204,7 @@ export function useUpdateFavoriteStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    mutationFn: ({ id, status }: { id: string; status: UpdateFavoriteStatusRequest['status'] }) =>
       userApi.updateFavoriteStatus(id, status),
     onSuccess: () => {
       invalidateFavorites(queryClient);

@@ -97,3 +97,15 @@ export interface SourceStats {
     count: number;
   }>;
 }
+
+// 请求契约类型统一由 zod schema 推导
+export type {
+  CreateMajorCategoryRequest,
+  UpdateMajorCategoryRequest,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+  CreateSourceRequest,
+  UpdateSourceRequest,
+  BatchUpdateUserSourceConfigRequest,
+} from '../schemas/sources';
+export type { UpdateUserSourceConfigRequest } from '../schemas/user';

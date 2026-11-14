@@ -8,9 +8,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./schemas/*": "./src/schemas/*.ts"
   },
   "files": [
     "src"
-  ]
+  ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
 }

@@ -26,6 +26,8 @@ export default defineConfig({
     alias: {
       // 工作区包 @codeseek/shared 的 node_modules 链接在部分环境下会失效，
       // 这里直接指向源码，保证类型检查与 dev 构建可解析。
+      '@codeseek/shared/schemas/': path.resolve(__dirname, '../packages/shared/src/schemas/') + '/',
+      '@codeseek/shared/schemas': path.resolve(__dirname, '../packages/shared/src/schemas/index.ts'),
       '@codeseek/shared/types': path.resolve(__dirname, '../packages/shared/src/types/index.ts'),
       '@codeseek/shared/utils': path.resolve(__dirname, '../packages/shared/src/utils/index.ts'),
       '@codeseek/shared': path.resolve(__dirname, '../packages/shared/src/index.ts'),

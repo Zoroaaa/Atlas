@@ -949,7 +949,7 @@ export const SourceManager: React.FC = () => {
             />
             <Input
               label={t('dashboard:sources.formSubtitleLabel')}
-              value={formData.subtitle}
+              value={formData.subtitle ?? ''}
               onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
               placeholder={t('dashboard:sources.formSubtitlePlaceholder')}
               fullWidth
@@ -966,7 +966,7 @@ export const SourceManager: React.FC = () => {
 
           <Input
             label={t('dashboard:sources.formHomepageUrlLabel')}
-            value={formData.homepageUrl}
+            value={formData.homepageUrl ?? ''}
             onChange={(e) => setFormData({ ...formData, homepageUrl: e.target.value })}
             placeholder="https://example.com"
             fullWidth
@@ -1016,7 +1016,7 @@ export const SourceManager: React.FC = () => {
               {t('dashboard:sources.formDescriptionLabel')}
             </label>
             <textarea
-              value={formData.description}
+              value={formData.description ?? ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder={t('dashboard:sources.formDescriptionPlaceholder')}
               rows={3}

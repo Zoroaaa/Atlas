@@ -66,47 +66,21 @@ export interface CommunityComment {
 
 // ==================== 请求/响应类型 ====================
 
-/** 创建帖子请求 */
-export interface CreatePostRequest {
-  postType: PostType;
-  title: string;
-  coverImage: string;
-  contentData: string;     // JSON string of search result data
-  caption?: string;
-  tags?: string[];
-}
+// 请求契约类型统一由 zod schema 推导
+export type {
+  CreatePostRequest,
+  UpdatePostRequest,
+  CreateCommentRequest,
+  CreateTagRequest,
+  ReportRequest,
+} from '../schemas/community';
 
-/** 更新帖子请求 */
-export interface UpdatePostRequest {
-  caption?: string;
-  tags?: string[];
-}
-
-/** 创建评论请求 */
-export interface CreateCommentRequest {
-  postId: string;
-  content: string;
-}
-
-/** 创建标签请求 */
-export interface CreateTagRequest {
-  name: string;
-  description?: string;
-  color?: string;
-}
-
-/** 更新标签请求 */
+// 更新标签没有前端调用方，schema 留在后端，类型仍手写
 export interface UpdateTagRequest {
   name?: string;
   description?: string;
   color?: string;
   isActive?: boolean;
-}
-
-/** 举报请求 */
-export interface ReportRequest {
-  reason: string;
-  details?: string;
 }
 
 // ==================== 统计类型 ====================

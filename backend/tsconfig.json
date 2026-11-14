@@ -21,7 +21,9 @@
       "@/*": ["src/*"],
       "@codeseek/shared": ["../packages/shared/src/index.ts"],
       "@codeseek/shared/types": ["../packages/shared/src/types/index.ts"],
-      "@codeseek/shared/utils": ["../packages/shared/src/utils/index.ts"]
+      "@codeseek/shared/utils": ["../packages/shared/src/utils/index.ts"],
+      "@codeseek/shared/schemas": ["../packages/shared/src/schemas/index.ts"],
+      "@codeseek/shared/schemas/*": ["../packages/shared/src/schemas/*"]
     }
   },
   "include": ["src/**/*"],
