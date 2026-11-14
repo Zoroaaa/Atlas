@@ -504,6 +504,7 @@
       "serverError": "伺服器內部錯誤，請稍後重試",
       "accountDisabled": "該帳號已被停用",
       "registerRateLimited": "註冊過於頻繁，請稍後再試",
+      "failedWithCode": "登入失敗 ({{code}})",
       "github": {
         "notConfigured": "GitHub 登入未設定，請聯絡管理員",
         "cancelled": "已取消 GitHub 授權",

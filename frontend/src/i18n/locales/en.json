@@ -504,6 +504,7 @@
       "serverError": "Internal server error, please try again later",
       "accountDisabled": "This account has been disabled",
       "registerRateLimited": "Too many sign-ups from this network, please try again later",
+      "failedWithCode": "Login failed ({{code}})",
       "github": {
         "notConfigured": "GitHub login is not configured, please contact the administrator",
         "cancelled": "GitHub authorization cancelled",

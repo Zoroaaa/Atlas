@@ -18,16 +18,24 @@ import type {
   TokenVerifyResponse,
 } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
+import { isNativeApp, openOAuthUrl } from '@/utils/nativeShell';
+
+/** OAuth 授权入口地址；原生壳追加 client=app，回调后通过深链回到 App */
+function buildOAuthUrl(path: string): string {
+  const url = new URL(`${getApiBaseUrl()}${path}`, window.location.origin);
+  if (isNativeApp()) {
+    url.searchParams.set('client', 'app');
+  }
+  return url.toString();
+}
 
 export const authApi = {
   loginWithGitHub: (): void => {
-    const base = getApiBaseUrl();
-    window.location.href = `${base}/auth/github`;
+    void openOAuthUrl(buildOAuthUrl('/auth/github'));
   },
 
   loginWithGoogle: (): void => {
-    const base = getApiBaseUrl();
-    window.location.href = `${base}/auth/google`;
+    void openOAuthUrl(buildOAuthUrl('/auth/google'));
   },
 
   login: async (data: LoginRequest): Promise<AuthResponse> => {

@@ -15,6 +15,9 @@ import {
   getClientIP,
   logUserAction,
   recordSecurityEvent,
+  APP_OAUTH_CALLBACK,
+  isAppOAuthState,
+  markAppOAuthState,
 } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from '@/services';
@@ -94,7 +97,7 @@ githubOAuthRoutes.get('/github', async (c) => {
     return c.json(error('CONFIG_ERROR', 'GitHub OAuth 未配置'), 500);
   }
 
-  const state = generateState();
+  const state = markAppOAuthState(generateState(), c.req.query('client') === 'app');
   const backendUrl = (c.env.BACKEND_URL || 'https://atlas.wort.uk').replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/github/callback`;
 
@@ -126,21 +129,24 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
   const backendUrl = (c.env.BACKEND_URL || CONFIG.DEFAULT_URLS.BACKEND).replace(/\/$/, '');
   const redirectUri = `${backendUrl}/api/auth/github/callback`;
 
-  if (!clientId || !clientSecret) {
-    return c.redirect(`${frontendBase}/login?error=github_not_configured`, 302);
-  }
-
   const code = c.req.query('code');
   const state = c.req.query('state');
   const errorParam = c.req.query('error');
+  // App 发起的授权回到自定义 scheme，网页端回到前端回调页
+  const callbackBase = isAppOAuthState(state) ? APP_OAUTH_CALLBACK : `${frontendBase}/auth/callback`;
+  const loginErrorBase = isAppOAuthState(state) ? APP_OAUTH_CALLBACK : `${frontendBase}/login`;
+
+  if (!clientId || !clientSecret) {
+    return c.redirect(`${loginErrorBase}?error=github_not_configured`, 302);
+  }
 
   // GitHub 取消授权
   if (errorParam) {
-    return c.redirect(`${frontendBase}/login?error=github_cancelled`, 302);
+    return c.redirect(`${loginErrorBase}?error=github_cancelled`, 302);
   }
 
   if (!code || !state) {
-    return c.redirect(`${frontendBase}/login?error=github_invalid_params`, 302);
+    return c.redirect(`${loginErrorBase}?error=github_invalid_params`, 302);
   }
 
   // CSRF: 校验 state cookie
@@ -151,7 +157,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     .find(([k]) => k === 'gh_oauth_state')?.[1];
 
   if (!storedState || storedState !== state) {
-    return c.redirect(`${frontendBase}/login?error=github_state_mismatch`, 302);
+    return c.redirect(`${loginErrorBase}?error=github_state_mismatch`, 302);
   }
 
   try {
@@ -172,12 +178,12 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     });
 
     if (!tokenRes.ok) {
-      return c.redirect(`${frontendBase}/login?error=github_token_failed`, 302);
+      return c.redirect(`${loginErrorBase}?error=github_token_failed`, 302);
     }
 
     const tokenData: { access_token?: string; error?: string } = await tokenRes.json();
     if (!tokenData.access_token) {
-      return c.redirect(`${frontendBase}/login?error=github_token_failed`, 302);
+      return c.redirect(`${loginErrorBase}?error=github_token_failed`, 302);
     }
 
     const accessToken = tokenData.access_token;
@@ -242,13 +248,13 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
           ipAddress: clientIP,
           userAgent,
         });
-        return c.redirect(`${frontendBase}/auth/callback?error=register_rate_limited`, 302);
+        return c.redirect(`${callbackBase}?error=register_rate_limited`, 302);
       }
 
       // 自动注册新用户
       const enableRegistration = await new ConfigService(c.env).getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true);
       if (!enableRegistration) {
-        return c.redirect(`${frontendBase}/auth/callback?error=registration_disabled`, 302);
+        return c.redirect(`${callbackBase}?error=registration_disabled`, 302);
       }
 
       if (!email) {
@@ -326,11 +332,11 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     }
 
     if (!user) {
-      return c.redirect(`${frontendBase}/login?error=github_db_error`, 302);
+      return c.redirect(`${loginErrorBase}?error=github_db_error`, 302);
     }
 
     if (!user.is_active) {
-      return c.redirect(`${frontendBase}/login?error=account_disabled`, 302);
+      return c.redirect(`${loginErrorBase}?error=account_disabled`, 302);
     }
 
     const userRole = user.role_name || 'user';
@@ -389,11 +395,11 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     );
 
     return c.redirect(
-      `${frontendBase}/auth/callback?token=${encodeURIComponent(token)}&user=${userData}`,
+      `${callbackBase}?token=${encodeURIComponent(token)}&user=${userData}`,
       302
     );
   } catch (err) {
     console.error('GitHub OAuth callback error:', err);
-    return c.redirect(`${frontendBase}/login?error=github_server_error`, 302);
+    return c.redirect(`${loginErrorBase}?error=github_server_error`, 302);
   }
 });
