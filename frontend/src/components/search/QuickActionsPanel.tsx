@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Database, Settings, Globe, ShieldAlert, Link } from 'lucide-react';
+import { Zap, Database, Globe, ShieldAlert, Link } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PanelSection, PanelHeader } from '@/components/workbench';
@@ -25,7 +25,6 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({ isAdmin, c
   const actions: ActionItem[] = [
     { id: 'sources', label: t('search:quickActions.resources'), icon: <Link className="h-4 w-4" />, path: '/main?tab=sources' },
     { id: 'manage', label: t('search:quickActions.manageSources'), icon: <Database className="h-4 w-4" />, path: '/dashboard/sources' },
-    { id: 'settings', label: t('search:quickActions.systemSettings'), icon: <Settings className="h-4 w-4" />, path: '/dashboard/settings' },
   ];
 
   if (communityEnabled) {

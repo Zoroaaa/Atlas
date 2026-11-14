@@ -58,7 +58,7 @@ export const TagsTab: React.FC = () => {
 
   const handleTagClick = (_tagId: string, _tagName: string) => {
     // 标签筛选依赖社区浏览页，当前仅返回浏览 Tab（避免使用无效的 hash 跳转）
-    navigate('/community');
+    navigate('/community/browse');
   };
 
   if (tagsLoading && tags.length === 0) {
