@@ -440,7 +440,7 @@ export const userMenuItems = (
       id: 'settings',
       label: t('ui:menu.settings'),
       icon: <Settings className="w-4 h-4" />,
-      onClick: () => navigate('/dashboard/settings'),
+      onClick: () => navigate('/settings'),
     },
     {
       id: 'divider-2',

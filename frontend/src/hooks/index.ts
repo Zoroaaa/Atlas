@@ -1,4 +1,5 @@
 export { useSearchSuggestions } from './useSearchSuggestions';
+export { useIsDesktop } from './useIsDesktop';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
 export { useJavDetail } from './useJavDetail';
