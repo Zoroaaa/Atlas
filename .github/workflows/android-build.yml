@@ -1,0 +1,72 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'frontend/**'
+      - '.github/workflows/android-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Android debug APK
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # 工作区链接（@codeseek/shared）依赖根目录安装
+      - name: Install Root Dependencies
+        run: npm install
+
+      # Capacitor 的 webDir 指向 frontend/dist，sync 前必须先构建
+      - name: Build Frontend
+        run: npm run build --workspace=frontend
+
+      - name: Install Mobile Dependencies
+        working-directory: mobile
+        run: npm install
+
+      # android/ 不入库，每次由模板生成，避免仓库携带 Gradle 产物
+      - name: Add Android Platform
+        working-directory: mobile
+        run: npx cap add android
+
+      - name: Generate Android Icons
+        working-directory: mobile
+        run: npx capacitor-assets generate --android
+
+      - name: Sync Web Assets
+        working-directory: mobile
+        run: npx cap sync android
+
+      - name: Build Debug APK
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-android-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

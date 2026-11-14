@@ -7,6 +7,7 @@ import { authApi, analyticsApi } from '@/services/api';
 import { Input } from '@/components/ui';
 import { useNotification } from '@/hooks';
 import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
+import { isAppShell } from '@/utils/appShell';
 
 export const LoginPage: React.FC = () => {
   const { t } = useTranslation(['auth']);
@@ -97,11 +98,13 @@ export const LoginPage: React.FC = () => {
 
       <div className="w-full max-w-md relative">
 
-        {/* Back link */}
-        <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          {t('auth:login.backHome')}
-        </Link>
+        {/* Back link — 应用壳内没有门户首页，不展示 */}
+        {!isAppShell() && (
+          <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            {t('auth:login.backHome')}
+          </Link>
+        )}
 
         {/* Card */}
         <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"

@@ -52,6 +52,11 @@ frontend/dist/
 frontend/node_modules/
 frontend/.vite/
 
+# Desktop / Mobile 打包产物
+desktop/release/
+mobile/android/
+mobile/ios/
+
 # Wrangler
 .wrangler/
 .dev.vars

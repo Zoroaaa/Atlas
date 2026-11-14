@@ -78,18 +78,25 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
-      // 仅持久化 token（不可变凭证），不持久化 user（可变状态）
-      // 每次启动从服务端验证 token，避免残留数据导致假登录态
+      // 持久化 token（不可变凭证）与用户快照：
+      // 快照只用于断网时进入收藏/历史等本地缓存页面，联网后 initAuth 会立刻用
+      // /auth/me 的结果覆盖；401 时登出并清空全部本地缓存，不会长期停留假登录态
       partialize: (state) => ({
         token: state.token,
+        user: state.user,
       }),
-      // 合并时忽略残留的 user 字段，强制为 null，等待 initAuth 从服务端恢复
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        token: (persistedState as { token?: string | null }).token ?? null,
-        user: null,
-        isAuthenticated: false,
-      }),
+      // 恢复时要求 token 与快照同时存在才算登录，避免残缺数据产生假登录态
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as { token?: string | null; user?: User | null };
+        const token = persisted.token ?? null;
+        const user = persisted.user ?? null;
+        return {
+          ...currentState,
+          token,
+          user,
+          isAuthenticated: !!(token && user),
+        };
+      },
     }
   )
 );

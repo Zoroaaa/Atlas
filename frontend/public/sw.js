@@ -184,6 +184,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // 图片代理无需鉴权，按图片资源缓存：断网时收藏/详情里的封面仍能显示
+  // 必须放在 /api/ 通用分支之前，否则会被"直连网络、不写缓存"的默认规则拦掉
+  if (url.pathname === '/api/jav/proxy-image') {
+    event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE_NAME));
+    return;
+  }
+
   if (url.pathname.startsWith('/api/')) {
     const config = getApiCacheConfig(request.url);
     if (!config) {
