@@ -321,7 +321,7 @@ export const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="dashboard-main pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-6">
+        <main className="dashboard-main pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-6">
           <Outlet />
         </main>
       </div>

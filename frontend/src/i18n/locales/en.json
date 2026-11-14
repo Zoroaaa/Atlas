@@ -137,6 +137,7 @@
       "theme": "Theme",
       "themeLight": "Light mode",
       "themeDark": "Dark mode",
+      "language": "Language",
       "proxy": "Proxy",
       "proxyOn": "On",
       "proxyOff": "Off",
@@ -808,6 +809,9 @@
   },
 
   "admin": {
+    "table": {
+      "scrollHint": "Swipe horizontally for more columns"
+    },
     "aliases": {
       "title": "Alias Management",
       "subtitle": "Cross-language query resolution",

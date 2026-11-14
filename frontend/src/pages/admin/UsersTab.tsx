@@ -106,7 +106,15 @@ export const UsersTab: React.FC = () => {
       <TableWrapper>
         <table className="w-full text-sm">
           <thead className="bg-surface-50 dark:bg-surface-900">
-            <tr>{[t('admin:users.table.colUser'), t('admin:users.table.colRole'), t('admin:users.table.colLoginCount'), t('admin:users.table.colStatus'), t('admin:users.table.colCreatedAt'), t('admin:users.table.colActions')].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{h}</th>)}</tr>
+            {/* 窄屏列优先级：登录次数/注册时间先让位，保证用户、角色、状态、操作可同屏 */}
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:users.table.colUser')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:users.table.colRole')}</th>
+              <th className="hidden px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400 sm:table-cell">{t('admin:users.table.colLoginCount')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:users.table.colStatus')}</th>
+              <th className="hidden px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400 sm:table-cell">{t('admin:users.table.colCreatedAt')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:users.table.colActions')}</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
             {loading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-surface-500">{t('admin:users.table.loading')}</td></tr>
@@ -122,13 +130,13 @@ export const UsersTab: React.FC = () => {
                       {roles.map(r => <option key={r.id} value={r.id}>{r.displayName}</option>)}
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-surface-500">{user.loginCount}</td>
+                  <td className="hidden px-4 py-3 text-surface-500 sm:table-cell">{user.loginCount}</td>
                   <td className="px-4 py-3">
-                    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', user.isActive ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400')}>
+                    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap', user.isActive ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400')}>
                       {user.isActive ? t('admin:users.table.statusActive') : t('admin:users.table.statusInactive')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-surface-500">{new Date(user.createdAt).toLocaleString('zh-CN')}</td>
+                  <td className="hidden px-4 py-3 text-surface-500 sm:table-cell">{new Date(user.createdAt).toLocaleString('zh-CN')}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleViewDetail(user.id)} className="p-1.5 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 hover:text-primary-600" title={t('admin:users.table.viewDetailTitle')}><Eye className="w-4 h-4" /></button>

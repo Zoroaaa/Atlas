@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   X,
   Download,
+  Bell,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore, useThemeStore, useProxyStore } from '@/stores';
@@ -88,7 +89,7 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       aria-label={t(tab.labelKey)}
       title={t(tab.labelKey)}
       className={clsx(
-        'px-3 xl:px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+        'px-3 xl:px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200',
         isCommunity && !isActive && [
           'text-white shadow-md bg-gradient-to-r from-amber-400 via-orange-500 to-red-500',
           'shadow-orange-500/30 animate-pulse-subtle hover:shadow-orange-500/50 hover:scale-105',
@@ -107,7 +108,8 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
       )}
     >
       <span className="tab-icon">{tab.icon}</span>
-      <span className="tab-label hidden lg:inline ml-1.5">{t(tab.labelKey)}</span>
+      {/* 标签自带 whitespace-nowrap：1024–1279 宽度不足以放下「图标+文字」，此处只显示图标，靠 title 提示 */}
+      <span className="tab-label hidden whitespace-nowrap xl:inline ml-1.5">{t(tab.labelKey)}</span>
     </button>
   );
 });
@@ -233,9 +235,9 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
             <div className="flex items-center gap-4 lg:gap-6 min-w-0 flex-shrink">
               <LogoSection />
 
-              {/* Tab 切换器 - 桌面端显示，登录后可见 */}
+              {/* Tab 切换器 - 桌面端（≥lg）显示；<lg 由底部主导航 + 页头分类条承担 */}
               {isAuthenticated && (
-              <div className="hidden md:flex items-center gap-1">
+              <div className="hidden lg:flex items-center gap-1">
                 <nav role="tablist" className="flex items-center gap-1">
                   {PINNED_TABS.map((tab) => (
                     <TabButton
@@ -260,7 +262,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   )}
                 >
                   <span>{SEARCH_TABS.sources.icon}</span>
-                  <span className="hidden lg:inline">{t('tabs:sources.short')}</span>
+                  <span className="hidden whitespace-nowrap xl:inline">{t('tabs:sources.short')}</span>
                 </button>
               </div>
               )}
@@ -297,11 +299,13 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   )}
                 </button>
 
-                {/* 通知 */}
-                <NotificationBell />
+                {/* 通知：<sm 收进“更多”，避免 320/360 顶部溢出 */}
+                <div className="hidden sm:block">
+                  <NotificationBell />
+                </div>
 
                 {/* 主题切换：全尺寸只保留这一个入口，“更多”内不再重复 */}
-                <button onClick={toggleTheme} className={ICON_BUTTON} aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
+                <button onClick={toggleTheme} className={clsx(ICON_BUTTON, 'hidden sm:inline-flex')} aria-label={t('nav:theme.toggle')} title={t('nav:theme.toggleTitle')}>
                   {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </button>
 
@@ -310,17 +314,17 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   href={DOWNLOAD_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={ICON_BUTTON}
+                  className={clsx(ICON_BUTTON, 'hidden sm:inline-flex')}
                   aria-label={t('nav:downloadApp')}
                   title={t('nav:downloadApp')}
                 >
                   <Download className="w-4 h-4" />
                 </a>
 
-                {/* 更多 - <1280px（平板/窄屏）承载次要入口 */}
+                {/* 更多 - <1440px（平板/窄屏）承载次要入口 */}
                 <button
                   onClick={() => setIsMoreOpen(true)}
-                  className={clsx(ICON_BUTTON, 'xl:hidden')}
+                  className={clsx(ICON_BUTTON, '2xl:hidden')}
                   aria-label={t('nav:mobileMore.open')}
                   title={t('nav:mobileMore.open')}
                 >
@@ -334,13 +338,13 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               <div className="hidden sm:block w-px h-5 bg-stone-200 dark:bg-stone-700 mx-0.5" />
               )}
 
-              {/* 语言切换：外层统一 40px，内部按钮自带 padding 不影响布局 */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+              {/* 语言切换：<sm 收进“更多”，外层统一 40px 避免内部 padding 影响布局 */}
+              <div className="hidden h-10 w-10 shrink-0 items-center justify-center sm:flex">
                 <LanguageSwitcher />
               </div>
 
-              {/* 帮助 / GitHub：<1280px 收进“更多”抽屉，避免平板宽度溢出 */}
-              <div className="hidden xl:flex items-center gap-1">
+              {/* 帮助 / GitHub：<1440px 收进“更多”抽屉，避免平板宽度溢出 */}
+              <div className="hidden items-center gap-1 2xl:flex">
                 {/* 帮助按钮 */}
                 <button
                   onClick={() => setIsHelpModalOpen(true)}
@@ -377,11 +381,11 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         {/* ── 移动端搜索分类：底部栏改为站点导航后，分类切换就近收进页头 ── */}
         {isAuthenticated && (
           <div
-            className="md:hidden border-t border-stone-200/60 dark:border-stone-700/60"
+            className="lg:hidden border-t border-stone-200/60 dark:border-stone-700/60"
             role="navigation"
             aria-label={t('nav:mobileNav.searchTabs')}
           >
-            <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-1.5 no-scrollbar">
+            <div className="h-scroll flex items-center gap-1.5 px-3 py-1.5">
               {PINNED_TABS.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -406,10 +410,10 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         )}
       </header>
 
-      {/* ── “更多”底部抽屉：<1280px 承载次要入口，避免导航栏横向溢出 ── */}
+      {/* ── “更多”底部抽屉：<1440px 承载次要入口，避免导航栏横向溢出 ── */}
       {isAuthenticated && isMoreOpen && (
         <div
-          className="xl:hidden fixed inset-0 z-[60]"
+          className="2xl:hidden fixed inset-0 z-[60]"
           role="dialog"
           aria-modal="true"
           aria-label={t('nav:mobileMore.title')}
@@ -453,6 +457,42 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   </span>
                 ) : null}
               </button>
+              {/* 通知/主题/下载/语言：<sm 顶栏空间不足，统一收进抽屉 */}
+              <Link
+                to="/dashboard/notifications"
+                onClick={() => setIsMoreOpen(false)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800 sm:hidden"
+              >
+                <Bell className="h-4 w-4" />
+                <span>{t('nav:dashboard.items.notifications')}</span>
+              </Link>
+              <button
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  toggleTheme();
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800 sm:hidden"
+              >
+                {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                <span>{t('nav:mobileMore.theme')}</span>
+                <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">
+                  {resolvedTheme === 'dark' ? t('nav:mobileMore.themeDark') : t('nav:mobileMore.themeLight')}
+                </span>
+              </button>
+              <a
+                href={DOWNLOAD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMoreOpen(false)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800 sm:hidden"
+              >
+                <Download className="h-4 w-4" />
+                <span>{t('nav:downloadApp')}</span>
+              </a>
+              <div className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-stone-700 dark:text-stone-200 sm:hidden">
+                <LanguageSwitcher compact />
+                <span>{t('nav:mobileMore.language')}</span>
+              </div>
               {/* 代理：窄屏顶部不显示，收进这里 */}
               <button
                 onClick={() => {

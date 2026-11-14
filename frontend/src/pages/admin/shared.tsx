@@ -1,5 +1,6 @@
-import React from 'react';
-import { LucideIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { LucideIcon, ArrowLeftRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import i18next from '@/i18n';
 import { useLanguageStore } from '@/stores';
 import { formatRelativeTime as formatRelativeTimeBase } from '@/utils/relativeTime';
@@ -63,11 +64,58 @@ export const Pagination: React.FC<{ page: number; totalPages: number; onPageChan
   <WorkbenchPagination variant="bar" page={page} totalPages={totalPages} onChange={onPageChange} />
 );
 
-export const TableWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 overflow-hidden">
-    <div className="overflow-x-auto">{children}</div>
-  </div>
-);
+/**
+ * 后台表格容器：窄屏横向滚动时给出可感知的暗示。
+ * 之前只有原生滚动条，移动端滚动条不可见，用户不知道右侧还有列。
+ * 表头统一 nowrap，避免窄列把「登录次数」压成逐字竖排。
+ */
+export const TableWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { t } = useTranslation('admin');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = useState(false);
+  const [atEnd, setAtEnd] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      setScrollable(max > 4);
+      setAtEnd(el.scrollLeft >= max - 4);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    el.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener('scroll', update);
+    };
+  }, []);
+
+  return (
+    <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 overflow-hidden">
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          className="overflow-x-auto [&_th]:whitespace-nowrap [&_th]:align-middle"
+        >
+          {children}
+        </div>
+        {scrollable && !atEnd && (
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent dark:from-surface-800" />
+        )}
+      </div>
+      {scrollable && (
+        <div className="flex items-center gap-1.5 border-t border-surface-200 px-3 py-1.5 text-[11px] text-surface-400 dark:border-surface-700 dark:text-surface-500">
+          <ArrowLeftRight className="h-3 w-3 shrink-0" />
+          {t('table.scrollHint')}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -96,7 +144,7 @@ export const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, su
           <Icon className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0">
-          <div className="text-sm text-surface-500 dark:text-surface-400 truncate">{label}</div>
+          <div className="text-sm leading-tight text-surface-500 dark:text-surface-400">{label}</div>
           <div className="text-xl font-bold text-surface-900 dark:text-surface-100">
             {typeof value === 'number' ? value.toLocaleString() : value}
           </div>
@@ -108,7 +156,7 @@ export const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, su
 };
 
 export const StatsGrid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
     {children}
   </div>
 );

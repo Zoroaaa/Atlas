@@ -128,7 +128,16 @@ export const SessionsTab: React.FC = () => {
       <TableWrapper>
         <table className="w-full text-sm">
           <thead className="bg-surface-50 dark:bg-surface-900">
-            <tr>{[t('admin:sessions.table.colUser'), t('admin:sessions.table.colIp'), t('admin:sessions.table.colDevice'), t('admin:sessions.table.colLastActive'), t('admin:sessions.table.colExpiry'), t('admin:sessions.table.colStatus'), t('admin:sessions.table.colActions')].map(h => <th key={h} className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{h}</th>)}</tr>
+            {/* 窄屏列优先级：IP/设备先让位，保证用户、最近活跃、状态、操作可同屏 */}
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:sessions.table.colUser')}</th>
+              <th className="hidden px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400 sm:table-cell">{t('admin:sessions.table.colIp')}</th>
+              <th className="hidden px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400 sm:table-cell">{t('admin:sessions.table.colDevice')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:sessions.table.colLastActive')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:sessions.table.colExpiry')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:sessions.table.colStatus')}</th>
+              <th className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">{t('admin:sessions.table.colActions')}</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
             {loading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">{t('admin:sessions.table.loading')}</td></tr>
@@ -136,12 +145,12 @@ export const SessionsTab: React.FC = () => {
               : sessions.map(s => (
                 <tr key={s.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
                   <td className="px-4 py-3"><div className="font-medium text-surface-900 dark:text-surface-100">{s.username || '-'}</div><div className="text-xs text-surface-500 truncate max-w-[120px]">{s.email || '-'}</div></td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-surface-400" /><span>{s.ipAddress || '-'}</span></div></td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1 max-w-[200px]">{(() => { const { label, isMobile } = parseUserAgent(s.userAgent); const Icon = isMobile ? Smartphone : Monitor; return <><Icon className="w-3 h-3 text-surface-400 shrink-0" /><span className="truncate text-surface-500 text-xs" title={s.userAgent}>{label}</span></>; })()}</div></td>
+                  <td className="hidden px-4 py-3 sm:table-cell"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-surface-400" /><span>{s.ipAddress || '-'}</span></div></td>
+                  <td className="hidden px-4 py-3 sm:table-cell"><div className="flex items-center gap-1 max-w-[200px]">{(() => { const { label, isMobile } = parseUserAgent(s.userAgent); const Icon = isMobile ? Smartphone : Monitor; return <><Icon className="w-3 h-3 text-surface-400 shrink-0" /><span className="truncate text-surface-500 text-xs" title={s.userAgent}>{label}</span></>; })()}</div></td>
                   <td className="px-4 py-3 text-surface-500">{formatRelativeTime(s.lastActivity)}</td>
                   <td className="px-4 py-3 text-surface-500">{formatExpiry(s.expiresInSeconds)}</td>
                   <td className="px-4 py-3">
-                    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', s.isActive ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>
+                    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap', s.isActive ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-400')}>
                       {s.isActive ? t('admin:sessions.table.statusActive') : t('admin:sessions.table.statusExpired')}
                     </span>
                   </td>

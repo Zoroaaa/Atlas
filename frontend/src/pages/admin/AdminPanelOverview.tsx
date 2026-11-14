@@ -214,10 +214,9 @@ export const AdminPanelOverview: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title={t('admin:overview.stat.totalUsers')}
-          value={data.users.total}
+          title={t('admin:overview.stat.totalUsers')}          value={data.users.total}
           subtitle={t('admin:overview.stat.activeUsers', { count: data.users.active })}
           icon={<Users className="w-6 h-6 text-white" />}
           color="blue"
@@ -245,7 +244,7 @@ export const AdminPanelOverview: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title={t('admin:overview.stat.actionsToday')}
           value={data.actions.today}

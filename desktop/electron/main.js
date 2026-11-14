@@ -36,7 +36,11 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 900,
-    minWidth: 960,
+    // 内容区至少 1024：1024 是桌面布局（固定侧栏/文字标签）的起点。
+    // 若按窗口外框算，Windows 标题栏与边框会吃掉十几像素，内容区掉到 lg 以下，
+    // 后台会退化成汉堡抽屉，因此显式以内容尺寸为准。
+    useContentSize: true,
+    minWidth: 1024,
     minHeight: 640,
     show: false,
     backgroundColor: '#0a0a0b',
