@@ -56,7 +56,7 @@ export const NotificationBell: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative p-1.5 sm:p-2 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
+        className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all duration-200"
         aria-label={unread > 0 ? t('notify:unreadAria', { count: unread }) : t('notify:title')}
         title={t('notify:title')}
         aria-expanded={open}

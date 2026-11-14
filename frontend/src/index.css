@@ -1000,14 +1000,6 @@
     scroll-behavior: smooth;
   }
 
-  .mobile-header-btn, .theme-toggle-btn, .proxy-toggle-btn, .github-link-btn, .help-btn {
-    min-height: 44px;
-    min-width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   .search-input {
     font-size: 16px;
   }
