@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
 import { success, error, generateId, getClientIP, hashToken, verifyToken } from '@/utils';
 import { authMiddleware } from '@/middleware';
-import { ConfigService } from '@/services';
+import { ConfigService, fetchLatestAndroidRelease } from '@/services';
 import { DB_CONFIG_KEYS } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 
@@ -41,6 +41,44 @@ systemRoutes.get('/public-config', async (c) => {
   } catch (err) {
     console.error('Get public config error:', err);
     return c.json(error('SERVER_ERROR', '获取配置失败'), 500);
+  }
+});
+
+/** APK 版本查询缓存：10 分钟内同一边缘节点只回源 GitHub 一次 */
+const APP_RELEASE_CACHE_TTL_SECONDS = 600;
+
+systemRoutes.get('/app-release', async (c) => {
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = new Request(new URL('/api/app-release', c.req.url).toString(), { method: 'GET' });
+
+  if (cache) {
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+  }
+
+  try {
+    const release = await fetchLatestAndroidRelease(c.env.GITHUB_RELEASE_TOKEN);
+    const response = new Response(JSON.stringify(success(release)), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': `public, max-age=${APP_RELEASE_CACHE_TTL_SECONDS}`,
+      },
+    });
+
+    if (cache) {
+      const put = cache.put(cacheKey, response.clone()).catch(() => {});
+      try {
+        c.executionCtx.waitUntil(put);
+      } catch {
+        // 无 executionCtx 时放弃写缓存，不影响响应
+      }
+    }
+
+    return response;
+  } catch (err) {
+    console.error('Get app release error:', err);
+    return c.json(error('UPSTREAM_ERROR', '获取版本信息失败'), 502);
   }
 });
 

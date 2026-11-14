@@ -8,6 +8,11 @@ export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
 }
 
+/** 仅 Android 原生壳：APK 更新检查只在这个环境生效 */
+export function isAndroidApp(): boolean {
+  return isNativeApp() && Capacitor.getPlatform() === 'android';
+}
+
 export type HapticStyle = 'light' | 'medium' | 'heavy';
 
 export async function hapticTap(style: HapticStyle = 'light'): Promise<void> {

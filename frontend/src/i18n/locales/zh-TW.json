@@ -1,4 +1,22 @@
 {
+  "update": {
+    "availableTitle": "發現新版本 v{{version}}",
+    "availableDescription": "目前版本 v{{current}}，前往 GitHub 查看更新說明並下載安裝。",
+    "updateNow": "去更新",
+    "later": "稍後",
+    "dismiss": "關閉更新提示",
+    "checkTitle": "檢查更新",
+    "checkButton": "檢查更新",
+    "checkingShort": "檢查中",
+    "checking": "正在檢查新版本...",
+    "currentVersion": "目前版本 v{{version}}",
+    "idleHint": "點擊檢查是否有新版本",
+    "availableInline": "目前 v{{current}} · 發現 v{{latest}}",
+    "upToDateInline": "目前 v{{current}} · 已是最新版本",
+    "checkFailed": "檢查失敗，點擊重試",
+    "retry": "重試",
+    "goUpdate": "去更新"
+  },
   "common": {
     "appName": "Atlas",
     "buttons": {

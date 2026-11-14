@@ -10,3 +10,12 @@ export {
   type JavCodeKind,
   type JavCodeInfo,
 } from './jav-code';
+
+export {
+  normalizeVersion,
+  compareVersions,
+  selectLatestAndroidRelease,
+  type AndroidRelease,
+  type GitHubRelease,
+  type GitHubReleaseAsset,
+} from './app-release';
