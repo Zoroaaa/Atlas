@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, CheckCheck, UserCheck, Settings2, Bell, BellOff, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -9,8 +10,9 @@ import { getProxyImageUrl } from '@/utils/imageProxy';
 import { FollowWorkShareButton } from './FollowWorkShareButton';
 import { FollowFeedToolbar } from './FollowFeedToolbar';
 import {
-  useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE,
+  useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys,
 } from '@/hooks';
+import { usePullToRefresh } from '@/components/layout/PullToRefresh';
 import type { FollowFeedTab } from '@/types';
 
 interface FollowFeedPanelProps {
@@ -34,6 +36,13 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
   const follows = useMemo(() => followsData?.follows ?? [], [followsData]);
   const unread = followsData?.unread ?? 0;
   const { unfollow, setNotify, markViewed } = useFollowActions();
+  const queryClient = useQueryClient();
+
+  const refreshFeed = useCallback(async () => {
+    if (!show || !expanded) return;
+    await queryClient.invalidateQueries({ queryKey: followKeys.all });
+  }, [show, expanded, queryClient]);
+  usePullToRefresh(refreshFeed);
 
   const { data: feed, isLoading, isError: feedError } = useFollowFeed(tab, page, show && follows.length > 0 && expanded, {
     entity: filterKey || undefined,

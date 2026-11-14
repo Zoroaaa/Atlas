@@ -1,4 +1,12 @@
 {
+  "refresh": {
+    "done": "已重新整理",
+    "failed": "重新整理失敗，請稍後再試"
+  },
+  "network": {
+    "offline": "目前離線，顯示的是快取內容",
+    "restored": "網路已恢復"
+  },
   "update": {
     "availableTitle": "發現新版本 v{{version}}",
     "availableDescription": "目前版本 v{{current}}，前往 GitHub 查看更新說明並下載安裝。",

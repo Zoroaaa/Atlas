@@ -16,7 +16,13 @@ export function isAndroidApp(): boolean {
 export type HapticStyle = 'light' | 'medium' | 'heavy';
 
 export async function hapticTap(style: HapticStyle = 'light'): Promise<void> {
-  if (!isNativeApp()) return;
+  if (!isNativeApp()) {
+    // 浏览器/PWA 里也尽量给一点反馈（Android Chrome 支持 vibrate）
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(style === 'heavy' ? 18 : style === 'medium' ? 12 : 8);
+    }
+    return;
+  }
   try {
     const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
     const styleMap = {
@@ -31,7 +37,12 @@ export async function hapticTap(style: HapticStyle = 'light'): Promise<void> {
 }
 
 export async function hapticSuccess(): Promise<void> {
-  if (!isNativeApp()) return;
+  if (!isNativeApp()) {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([10, 40, 10]);
+    }
+    return;
+  }
   try {
     const { Haptics, NotificationType } = await import('@capacitor/haptics');
     await Haptics.notification({ type: NotificationType.Success });

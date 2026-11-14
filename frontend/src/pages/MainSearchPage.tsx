@@ -32,6 +32,7 @@ import { FeedbackButton } from '@/components/feedback';
 import { SEARCH_TABS } from '@/config/tabs';
 import { useTranslation } from 'react-i18next';
 import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
+import { usePullToRefresh } from '@/components/layout/PullToRefresh';
 
 export const MainSearchPage: React.FC = () => {
   const { t } = useTranslation(['tabs', 'home', 'search']);
@@ -68,6 +69,12 @@ export const MainSearchPage: React.FC = () => {
 
   const favoritesManager = useFavoritesManager({ keyword: searchFlow.keyword });
   const historyManager = useSearchHistoryManager();
+
+  usePullToRefresh(async () => {
+    if (searchFlow.hasSearched && searchFlow.keyword.trim()) {
+      await searchFlow.handleSearch(searchFlow.keyword, searchFlow.enrichedPage || 1);
+    }
+  });
 
   const javEnrichedData = searchFlow.enrichedData?.resultType === 'jav'
     ? (searchFlow.enrichedData as JavEnrichedData)

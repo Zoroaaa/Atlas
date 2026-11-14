@@ -1,6 +1,7 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { ProxyImage } from '@/components/ui/ImagePreview';
+import { hapticTap } from '@/utils/nativeShell';
 
 interface MediaCardProps {
   cover?: string;
@@ -43,6 +44,12 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 }) => {
   const isRow = orientation === 'row';
   const isAuto = !isRow && coverAspect === 'auto';
+  const select = onSelect
+    ? () => {
+        void hapticTap('light');
+        onSelect();
+      }
+    : undefined;
   const coverClass = isRow
     ? coverSize === 'sm'
       ? 'h-[76px] w-14'
@@ -92,17 +99,18 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           ? 'bg-primary-50/60 ring-1 ring-primary-300/50 dark:bg-primary-900/10'
           : 'hover:bg-surface-50 dark:hover:bg-surface-800/40',
         onSelect && 'cursor-pointer',
+        isRow && 'cv-row',
         className
       )}
-      onClick={onSelect}
+      onClick={select}
       role={onSelect ? 'button' : undefined}
       tabIndex={onSelect ? 0 : undefined}
       onKeyDown={
-        onSelect
+        select
           ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                onSelect();
+                select();
               }
             }
           : undefined

@@ -3,8 +3,6 @@
    暗夜奢华风格：深色基调 + 琥珀金点缀 + 精致动效
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Sora:wght@300;400;500;600;700;800&display=swap');
-
 @import "tailwindcss";
 
 /* ============================================================
@@ -87,8 +85,8 @@
   --color-error-900: #7f1d1d;
 
   /* Font families */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Sora Variable', 'Plus Jakarta Sans Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Screens (breakpoints) */
@@ -216,6 +214,8 @@
     @apply scroll-smooth;
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
+    /* 关闭系统边界回弹，交给自定义下拉刷新 */
+    overscroll-behavior-y: contain;
     font-feature-settings: "cv02","cv03","cv04","cv11","ss01";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -223,7 +223,7 @@
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans Variable', system-ui, -apple-system, sans-serif;
     @apply bg-stone-50 text-stone-900 dark:bg-[#0a0a0b] dark:text-stone-100;
     letter-spacing: -0.01em;
     /* 横屏 / 刘海屏：整体内容让出左右安全区，避免被圆角与刘海裁切 */
@@ -271,7 +271,7 @@
   }
 
   .display-font {
-    font-family: 'Sora', sans-serif;
+    font-family: 'Sora Variable', sans-serif;
     letter-spacing: -0.03em;
   }
 
@@ -398,7 +398,7 @@
     border-color: rgba(231,229,228,0.8);
     @apply dark:bg-stone-800/60 dark:border-stone-700/60;
     @apply transition-all duration-200;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans Variable', sans-serif;
   }
   .input-modern:focus {
     @apply outline-none;
@@ -418,7 +418,7 @@
     border-color: rgba(231,229,228,0.8);
     @apply dark:bg-stone-800/80 dark:border-stone-700/50;
     transition: all 0.25s var(--ease-smooth);
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans Variable', sans-serif;
     letter-spacing: -0.01em;
     position: relative;
   }
@@ -908,6 +908,8 @@
     padding-right: env(safe-area-inset-right);
   }
   .touch-manipulation { touch-action: manipulation; }
+  /* 长列表离屏行跳过渲染，减少滚动时的布局与绘制开销 */
+  .cv-row { content-visibility: auto; contain-intrinsic-size: auto 120px; }
   .will-change-transform { will-change: transform; }
   .backface-hidden { backface-visibility: hidden; }
   .perspective-1000 { perspective: 1000px; }

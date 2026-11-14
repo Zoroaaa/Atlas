@@ -1,4 +1,12 @@
 {
+  "refresh": {
+    "done": "Refreshed",
+    "failed": "Refresh failed, please try again"
+  },
+  "network": {
+    "offline": "Offline — showing cached content",
+    "restored": "Back online"
+  },
   "update": {
     "availableTitle": "New version v{{version}} available",
     "availableDescription": "You are on v{{current}}. Open GitHub for release notes and download.",
