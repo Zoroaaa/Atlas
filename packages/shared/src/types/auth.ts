@@ -20,16 +20,27 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: 'zh-CN',
 };
 
-export interface LoginRequest {
-  identifier: string;
-  password: string;
-}
+// 请求契约类型统一由 zod schema 推导，避免 schema 与类型两套定义
+export type {
+  LoginRequest,
+  RegisterRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  DeleteAccountRequest,
+  SendRegistrationCodeRequest,
+  VerifyCurrentEmailRequest,
+  EmailChangeRequest,
+  SendEmailChangeCodeRequest,
+  VerifyEmailChangeCodeRequest,
+  CancelEmailChangeRequest,
+} from '../schemas/auth';
 
-export interface RegisterRequest {
-  username: string;
+// smart-send-code 仅后端内部使用，没有前端调用方，schema 留在后端，类型仍手写
+export interface SendVerificationCodeRequest {
   email: string;
-  password: string;
-  verificationCode: string;
+  verificationType: 'registration' | 'password_reset' | 'email_change_old' | 'email_change_new' | 'account_delete';
+  force?: boolean;
 }
 
 export interface AuthResponse {
@@ -39,34 +50,6 @@ export interface AuthResponse {
     user: User;
     token: string;
   };
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  email: string;
-  verificationCode: string;
-  code?: string;
-  newPassword: string;
-}
-
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-  verificationCode?: string;
-}
-
-export interface DeleteAccountRequest {
-  verificationCode: string;
-  confirmText: string;
-}
-
-export interface SendVerificationCodeRequest {
-  email: string;
-  verificationType: 'registration' | 'password_reset' | 'email_change_old' | 'email_change_new' | 'account_delete';
-  force?: boolean;
 }
 
 export interface VerificationStatusResponse {
@@ -90,20 +73,4 @@ export interface UserLoginLog {
   loginStatus: 'success' | 'failed';
   loginMethod: string;
   failureReason: string | null;
-}
-
-export interface EmailChangeRequest {
-  newEmail: string;
-  currentPassword: string;
-}
-
-export interface SendEmailChangeCodeRequest {
-  requestId: string;
-  emailType: 'old' | 'new';
-}
-
-export interface VerifyEmailChangeCodeRequest {
-  requestId: string;
-  emailType: 'old' | 'new';
-  code: string;
 }

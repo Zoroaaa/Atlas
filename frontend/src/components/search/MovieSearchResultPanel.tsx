@@ -300,7 +300,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
             <div className="px-4 pb-4 sm:px-5 sm:pb-5">
               {results.length > 0 ? (
                 <>
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  <div className="h-scroll flex gap-2 pb-1">
                     {results.map((item) => (
                       <div key={`${item.mediaType}-${item.id}`} className="w-[220px] shrink-0">
                         <MediaCard

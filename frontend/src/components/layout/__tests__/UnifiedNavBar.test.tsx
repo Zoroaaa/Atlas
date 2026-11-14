@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('UnifiedNavBar 移动端入口', () => {
-  it('移动端页头保留 5 个搜索分类入口，“更多”抽屉不再重复主题切换', () => {
+  it('移动端页头保留 5 个搜索分类入口，窄屏次要入口收进“更多”抽屉', () => {
     render(
       <UnifiedNavBar
         activeTab="jav"
@@ -78,8 +78,11 @@ describe('UnifiedNavBar 移动端入口', () => {
     expect(within(dialog).getByText('源站收录')).toBeInTheDocument();
     expect(within(dialog).getByText('帮助中心')).toBeInTheDocument();
     expect(within(dialog).getByText('GitHub')).toBeInTheDocument();
-    // 主题切换只保留顶部一个入口
-    expect(within(dialog).queryByText('主题切换')).not.toBeInTheDocument();
+    // 通知/语言常驻顶栏，抽屉内不得重复；<sm 顶栏放不下的主题/下载才进抽屉
+    expect(within(dialog).queryByText('通知')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('语言')).not.toBeInTheDocument();
+    expect(within(dialog).getByText('主题切换')).toBeInTheDocument();
+    expect(within(dialog).getByText('下载 App')).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByText('源站收录'));
     expect(onTabChange).toHaveBeenCalledWith('sources');

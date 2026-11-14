@@ -63,7 +63,7 @@ export const MobileTabBar: React.FC = () => {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom safe-area-inset-x border-t border-stone-200/60 dark:border-stone-700/60"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass safe-area-inset-bottom safe-area-inset-x border-t border-stone-200/60 dark:border-stone-700/60"
       aria-label={t('nav:mobileNav.ariaLabel')}
     >
       <div className="flex h-14 items-stretch">

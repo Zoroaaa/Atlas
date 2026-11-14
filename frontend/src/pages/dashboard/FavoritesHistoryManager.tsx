@@ -263,7 +263,7 @@ export const FavoritesManager: React.FC = () => {
 
       {favorites.length > 0 ? (
         <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {favorites.map(favorite => (
             <Card key={favorite.id} className="p-3 sm:p-4 border-surface-200/50 dark:border-surface-700/50 shadow-lg hover:shadow-xl transition-all duration-300">
               <div className="flex flex-col gap-2 sm:gap-3">
@@ -733,12 +733,15 @@ export const HistoryManager: React.FC = () => {
                     className="flex flex-col gap-3 p-4 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.has(item.id)}
-                        onChange={() => handleSelectItem(item.id)}
-                        className="rounded border-surface-300 dark:border-surface-600"
-                      />
+                      {/* 16px 复选框外面套 44px 命中区，触屏可点 */}
+                      <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(item.id)}
+                          onChange={() => handleSelectItem(item.id)}
+                          className="h-4 w-4 rounded border-surface-300 dark:border-surface-600"
+                        />
+                      </label>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {item.code && (

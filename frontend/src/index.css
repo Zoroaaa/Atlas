@@ -498,9 +498,10 @@
   .category-filter-wrapper {
     @apply flex items-center gap-2 pt-4 border-t border-stone-100 dark:border-stone-800;
     @apply overflow-x-auto -mx-1 px-1;
-    -ms-overflow-style: none; scrollbar-width: none;
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
   }
-  .category-filter-wrapper::-webkit-scrollbar { display: none; }
+  .category-filter-wrapper > * { scroll-snap-align: start; }
 
   .category-filter-btn {
     @apply px-4 py-1.5 text-sm font-medium rounded-full transition-all duration-200 shrink-0;
@@ -890,8 +891,15 @@
   .animation-delay-400 { animation-delay: 400ms; }
   .animation-delay-500 { animation-delay: 500ms; }
   .animation-delay-600 { animation-delay: 600ms; }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .h-scroll {
+    overflow-x: auto;
+    /* 横向筛选/分类条不再完全隐藏滚动条：细滚动条 + 吸附，提示右侧还有内容 */
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+  }
+  .h-scroll > * { scroll-snap-align: start; }
   .safe-area-inset-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-area-inset-top { padding-top: env(safe-area-inset-top); }
   /* 横屏 / 刘海屏：左右安全区，避免内容被圆角与刘海裁切 */
@@ -977,8 +985,10 @@
   body { min-height: 100dvh; }
 }
 
-/* --- Mobile Touch Optimization --- */
-@media (max-width: 640px) {
+/* --- Touch Optimization ---
+   覆盖触屏设备（含 641–1023 的平板）与窄屏：同一批按钮不应在平板比手机更难点击。
+   pointer: coarse 用于大屏触控设备，窄屏规则兜底鼠标模拟的窄窗口。 */
+@media (max-width: 1023px), (pointer: coarse) {
   button, a, input:not([type="checkbox"]):not([type="radio"]), select, textarea {
     min-height: 44px;
     min-width: 44px;

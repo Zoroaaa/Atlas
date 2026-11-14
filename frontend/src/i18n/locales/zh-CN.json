@@ -808,6 +808,9 @@
   },
 
   "admin": {
+    "table": {
+      "scrollHint": "左右滑动查看更多列"
+    },
     "aliases": {
       "title": "别名管理",
       "subtitle": "跨语言查询词解析",

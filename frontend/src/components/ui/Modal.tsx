@@ -51,6 +51,8 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={clsx(
           'relative w-full bg-white dark:bg-surface-800 rounded-t-2xl sm:rounded-xl shadow-soft-lg',
+          // 底部弹层：给全面屏手势条留出安全区，避免底部按钮被压住
+          'pb-[env(safe-area-inset-bottom)] sm:pb-0',
           'animate-scale-in max-h-[90vh] flex flex-col',
           sizeStyles[size]
         )}

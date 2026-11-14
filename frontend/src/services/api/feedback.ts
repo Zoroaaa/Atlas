@@ -1,13 +1,9 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import i18next from '@/i18n';
+import type { FeedbackCreateRequest, FeedbackUpdateRequest } from '@codeseek/shared';
 
-export interface FeedbackSubmit {
-  type: 'bug' | 'suggestion' | 'other';
-  title: string;
-  content: string;
-  contactEmail?: string;
-  pageUrl?: string;
-}
+export type FeedbackSubmit = import('@codeseek/shared').FeedbackCreateRequest;
 
 export interface FeedbackItem {
   id: string;
@@ -40,13 +36,7 @@ export interface FeedbackStats {
   high_priority: number;
 }
 
-export interface AdminHandleFeedback {
-  status?: 'pending' | 'processing' | 'resolved' | 'closed';
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
-  adminReply?: string;
-  adminNotes?: string;
-  sendEmail?: boolean;
-}
+export type AdminHandleFeedback = import('@codeseek/shared').FeedbackUpdateRequest;
 
 interface PaginatedResult<T> {
   items: T[];
@@ -59,9 +49,11 @@ interface PaginatedResult<T> {
 export const feedbackApi = {
   /** 提交反馈（登录/未登录均可） */
   submit: async (data: FeedbackSubmit): Promise<{ id: string }> => {
+    const { createFeedbackSchema } = await import('@codeseek/shared/schemas/feedback');
+    const payload = await parseRequest<FeedbackCreateRequest>(createFeedbackSchema, data);
     const res = await apiClient.post<{ success: boolean; data: { id: string } }>(
       '/feedback',
-      data
+      payload
     );
     if (!res.success) throw new Error(i18next.t('errors:api.feedback.submitFailed'));
     return res.data;
@@ -124,9 +116,11 @@ export const feedbackApi = {
     id: string,
     data: AdminHandleFeedback
   ): Promise<{ emailSent: boolean; emailError?: string }> => {
+    const { updateFeedbackSchema } = await import('@codeseek/shared/schemas/feedback');
+    const payload = await parseRequest<FeedbackUpdateRequest>(updateFeedbackSchema, data);
     const res = await apiClient.put<{ success: boolean; data: { emailSent: boolean; emailError?: string } }>(
       `/feedback/admin/${id}`,
-      data
+      payload
     );
     if (!res.success) throw new Error(i18next.t('errors:api.feedback.handleFailed'));
     return res.data;

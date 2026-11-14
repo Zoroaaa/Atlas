@@ -61,7 +61,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, color, 
           <p className="text-sm text-surface-500 dark:text-surface-400 mb-1">{title}</p>
           <p className="text-3xl font-bold text-surface-900 dark:text-surface-100">{value}</p>
           {change !== undefined && (
-            <div className={`flex items-center gap-1 mt-2 text-sm ${change >= 0 ? 'text-success-600' : 'text-error-600'}`}>
+            <div className={`flex items-center gap-1 mt-2 text-sm whitespace-nowrap ${change >= 0 ? 'text-success-600' : 'text-error-600'}`}>
               {change >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
               <span>{Math.abs(change)}%</span>
               <span className="text-surface-400">{t('dashboard:overview.vsLastWeek')}</span>
@@ -293,7 +293,7 @@ export const OverviewManager: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title={t('dashboard:overview.stats.searchCount')}
           value={userStats.searchCount}

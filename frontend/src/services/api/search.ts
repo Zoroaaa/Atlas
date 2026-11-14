@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import { camelizeKeys } from '@/utils';
 import type {
   SearchHistoryItem,
@@ -7,7 +8,14 @@ import type {
   SearchHistoryStats,
   AddFavoriteRequest,
   SaveSearchHistoryRequest,
+  SearchRequest,
 } from '@/types';
+import type {
+  UpdateSearchHistoryRequest,
+  BatchDeleteSearchHistoryRequest,
+  UpdateFavoriteStatusRequest,
+  UpdateSettingsRequest,
+} from '@codeseek/shared';
 import type {
   SearchEndpointResponse,
   SearchSuggestionsResponse,
@@ -20,16 +28,10 @@ import type {
 } from './types';
 
 export const searchApi = {
-  search: async (data: {
-    keyword: string;
-    sourceIds?: string[];
-    categoryId?: string;
-    majorCategoryId?: string;
-    page?: number;
-    pageSize?: number;
-    javSubMode?: 'code' | 'actress' | 'title';
-  }): Promise<SearchEndpointResponse> => {
-    return apiClient.post<SearchEndpointResponse>('/search', data);
+  search: async (data: SearchRequest): Promise<SearchEndpointResponse> => {
+    const { searchSchema } = await import('@codeseek/shared/schemas/search');
+    const payload = await parseRequest<SearchRequest>(searchSchema, data);
+    return apiClient.post<SearchEndpointResponse>('/search', payload);
   },
 
   getSuggestions: async (keyword: string, limit = 10, signal?: AbortSignal, source?: string): Promise<SearchSuggestionsResponse> => {
@@ -60,7 +62,9 @@ export const userApi = {
     data: { settings: Record<string, unknown> }; 
     message: string 
   }> => {
-    return apiClient.put('/user/settings', { settings });
+    const { updateSettingsSchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<UpdateSettingsRequest>(updateSettingsSchema, { settings });
+    return apiClient.put('/user/settings', payload);
   },
 
   getFavoritesPage: async (
@@ -183,19 +187,23 @@ export const userApi = {
     data: FavoriteItem; 
     message: string 
   }> => {
-    return apiClient.post('/user/favorites', data);
+    const { addFavoriteSchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<AddFavoriteRequest>(addFavoriteSchema, data);
+    return apiClient.post('/user/favorites', payload);
   },
 
   removeFavorite: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/user/favorites/${id}`);
   },
 
-  updateFavoriteStatus: async (id: string, status: string): Promise<{ 
+  updateFavoriteStatus: async (id: string, status: UpdateFavoriteStatusRequest['status']): Promise<{ 
     success: boolean; 
     data: { id: string; status: string }; 
     message: string 
   }> => {
-    return apiClient.patch(`/user/favorites/${id}/status`, { status });
+    const { updateFavoriteStatusSchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<UpdateFavoriteStatusRequest>(updateFavoriteStatusSchema, { status });
+    return apiClient.patch(`/user/favorites/${id}/status`, payload);
   },
 
   getSearchHistory: async (limit = 50): Promise<SearchHistoryResponse> => {
@@ -258,21 +266,15 @@ export const userApi = {
   },
 
   batchDeleteSearchHistory: async (ids: string[]): Promise<{ success: boolean; data: { deletedCount: number }; message: string }> => {
-    return apiClient.post('/user/search-history/batch-delete', { ids });
+    const { batchDeleteSearchHistorySchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<BatchDeleteSearchHistoryRequest>(batchDeleteSearchHistorySchema, { ids });
+    return apiClient.post('/user/search-history/batch-delete', payload);
   },
 
-  updateSearchHistory: async (id: string, data: {
-    title?: string;
-    subtitle?: string;
-    code?: string;
-    actors?: string;
-    duration?: string;
-    tags?: string;
-    releaseDate?: string;
-    publisher?: string;
-    keyword?: string;
-  }): Promise<{ success: boolean; message: string }> => {
-    return apiClient.put(`/user/search-history/${id}`, data);
+  updateSearchHistory: async (id: string, data: UpdateSearchHistoryRequest): Promise<{ success: boolean; message: string }> => {
+    const { updateSearchHistorySchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<UpdateSearchHistoryRequest>(updateSearchHistorySchema, data);
+    return apiClient.put(`/user/search-history/${id}`, payload);
   },
 
   getSearchStats: async (): Promise<SearchStatsResponse> => {

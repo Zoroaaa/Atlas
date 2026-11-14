@@ -17,7 +17,7 @@ export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-stone-50 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 dark:bg-stone-950">
+    <div className="min-h-screen bg-stone-50 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0 dark:bg-stone-950">
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-40 glass safe-area-inset-top">

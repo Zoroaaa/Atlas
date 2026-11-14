@@ -808,6 +808,9 @@
   },
 
   "admin": {
+    "table": {
+      "scrollHint": "Swipe horizontally for more columns"
+    },
     "aliases": {
       "title": "Alias Management",
       "subtitle": "Cross-language query resolution",

@@ -292,7 +292,7 @@ export const AdminPanelLayout: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 md:pb-6 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:p-8 overflow-auto">
           <Outlet />
         </main>
       </div>

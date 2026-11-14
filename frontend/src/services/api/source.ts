@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import { getApiBaseUrl } from '@/constants';
 import type {
   MajorCategory,
@@ -147,14 +148,18 @@ export const sourceApi = {
     data: MajorCategory; 
     message: string 
   }> => {
-    return apiClient.post('/search-sources/major-categories', data);
+    const { createMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateMajorCategoryRequest>(createMajorCategorySchema, data);
+    return apiClient.post('/search-sources/major-categories', payload);
   },
 
   updateMajorCategory: async (id: string, data: UpdateMajorCategoryRequest): Promise<{ 
     success: boolean; 
     message: string 
   }> => {
-    return apiClient.put(`/search-sources/major-categories/${id}`, data);
+    const { updateMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateMajorCategoryRequest>(updateMajorCategorySchema, data);
+    return apiClient.put(`/search-sources/major-categories/${id}`, payload);
   },
 
   deleteMajorCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
@@ -215,14 +220,18 @@ export const sourceApi = {
     data: Category; 
     message: string 
   }> => {
-    return apiClient.post('/search-sources/categories', data);
+    const { createCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateCategoryRequest>(createCategorySchema, data);
+    return apiClient.post('/search-sources/categories', payload);
   },
 
   updateCategory: async (id: string, data: UpdateCategoryRequest): Promise<{ 
     success: boolean; 
     message: string 
   }> => {
-    return apiClient.put(`/search-sources/categories/${id}`, data);
+    const { updateCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateCategoryRequest>(updateCategorySchema, data);
+    return apiClient.put(`/search-sources/categories/${id}`, payload);
   },
 
   deleteCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
@@ -234,14 +243,18 @@ export const sourceApi = {
     data: SearchSource; 
     message: string 
   }> => {
-    return apiClient.post('/search-sources', data);
+    const { createSourceSchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateSourceRequest>(createSourceSchema, data);
+    return apiClient.post('/search-sources', payload);
   },
 
   updateSource: async (id: string, data: UpdateSourceRequest): Promise<{ 
     success: boolean; 
     message: string 
   }> => {
-    return apiClient.put(`/search-sources/${id}`, data);
+    const { updateSourceSchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateSourceRequest>(updateSourceSchema, data);
+    return apiClient.put(`/search-sources/${id}`, payload);
   },
 
   deleteSource: async (id: string): Promise<{ success: boolean; message: string }> => {
@@ -447,7 +460,9 @@ export const sourceApi = {
     success: boolean; 
     message: string 
   }> => {
-    return apiClient.put(`/user/source-configs/${sourceId}`, config);
+    const { updateSourceConfigSchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<UpdateUserSourceConfigRequest>(updateSourceConfigSchema, config);
+    return apiClient.put(`/user/source-configs/${sourceId}`, payload);
   },
 
   batchUpdateUserSourceConfigs: async (data: BatchUpdateUserSourceConfigRequest): Promise<{ 
@@ -455,7 +470,9 @@ export const sourceApi = {
     data: { updatedCount: number }; 
     message: string 
   }> => {
-    return apiClient.post('/search-sources/user-configs/batch', data);
+    const { batchUpdateUserConfigsSchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<BatchUpdateUserSourceConfigRequest>(batchUpdateUserConfigsSchema, data);
+    return apiClient.post('/search-sources/user-configs/batch', payload);
   },
 
   getSourceCatalog: async (params: SourceCatalogParams = {}): Promise<{
@@ -650,7 +667,9 @@ export const sourceApi = {
       checkedAt: number;
     }
   }> => {
-    return apiClient.post('/source-status-batch', { sourceIds });
+    const { batchSourceStatusSchema } = await import('@codeseek/shared/schemas/system');
+    const payload = await parseRequest<{ sourceIds: string[] }>(batchSourceStatusSchema, { sourceIds });
+    return apiClient.post('/source-status-batch', payload);
   },
 
   clearSourceStatusCache: async (sourceId: string): Promise<{ success: boolean; message: string }> => {

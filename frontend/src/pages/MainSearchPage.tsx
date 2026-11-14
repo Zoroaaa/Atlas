@@ -212,7 +212,7 @@ export const MainSearchPage: React.FC = () => {
     && (!isAuthenticated || historyManager.searchHistory.length === 0);
 
   return (
-    <div className="min-h-screen page-bg pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="min-h-screen page-bg pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
 
       <main className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">

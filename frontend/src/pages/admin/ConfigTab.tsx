@@ -264,11 +264,11 @@ export const ConfigTab: React.FC = () => {
   const renderConfigItem = (config: SystemConfigItem) => (
     <div
       key={config.key}
-      className="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+      className="flex flex-col gap-3 p-4 bg-surface-50 dark:bg-surface-800/50 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-mono text-sm font-medium text-surface-900 dark:text-surface-100">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <span className="font-mono text-sm font-medium break-all text-surface-900 dark:text-surface-100">
             {config.key}
           </span>
           <span className="px-2 py-0.5 text-xs rounded-full bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
@@ -291,8 +291,8 @@ export const ConfigTab: React.FC = () => {
           </p>
         )}
       </div>
-      <div className="flex items-center gap-3">
-        <div className="max-w-xs truncate text-sm text-surface-700 dark:text-surface-300">
+      <div className="flex w-full items-center gap-3 sm:w-auto sm:justify-end">
+        <div className="min-w-0 flex-1 truncate text-sm text-surface-700 dark:text-surface-300 sm:max-w-xs sm:flex-none">
           {renderConfigValue(config)}
         </div>
         <div className="flex items-center gap-1">
@@ -611,17 +611,17 @@ export const ConfigTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-lg shadow-primary-500/25">
             <Settings className="w-6 h-6 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{t('admin:config.headerTitle')}</h2>
             <p className="text-surface-500 dark:text-surface-400">{t('admin:config.headerSubtitle')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"

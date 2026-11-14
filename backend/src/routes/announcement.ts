@@ -76,7 +76,7 @@ announcementRoutes.post('/admin', authMiddleware, adminMiddleware, validateBody(
   const adminUser = c.get('user') as JwtPayload;
 
   const body = c.get('validatedBody') as z.infer<typeof schemas.announcement.create>;
-  const { title, content, type, isPinned, startTime, endTime } = body;
+  const { title, content, type, isPinned, isActive, startTime, endTime } = body;
 
   try {
     const now = Date.now();
@@ -86,13 +86,14 @@ announcementRoutes.post('/admin', authMiddleware, adminMiddleware, validateBody(
       INSERT INTO site_announcements (
         id, title, content, type, is_pinned, is_active,
         start_time, end_time, admin_user_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id,
       title.trim(),
       content.trim(),
       type || 'info',
       isPinned ? 1 : 0,
+      isActive === false ? 0 : 1,
       startTime || null,
       endTime || null,
       adminUser.userId,

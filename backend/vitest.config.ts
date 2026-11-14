@@ -12,6 +12,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: '@codeseek/shared/schemas',
+        replacement: resolveFromBackend('../packages/shared/src/schemas/index.ts'),
+      },
+      {
         find: '@codeseek/shared/utils',
         replacement: resolveFromBackend('../packages/shared/src/utils/index.ts'),
       },

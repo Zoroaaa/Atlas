@@ -4,7 +4,6 @@ import type { SearchEndpointResponse } from '@/services/api/types';
 
 export interface SearchMutationVars {
   keyword: string;
-  sourceIds?: string[];
   majorCategoryId?: string;
   page?: number;
   pageSize?: number;

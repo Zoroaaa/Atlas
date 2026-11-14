@@ -255,15 +255,23 @@ export async function resetJavDetailRetry(
   return meta;
 }
 
-export async function countJavMagnets(db: D1Database, recordId: string): Promise<number> {
+/**
+ * 记录是否已有磁力来源。
+ *
+ * 只是判断「有没有」，不需要总数：命中第一条即可返回。
+ * 原写法用 COUNT(*)，在批量补全里等于每条记录都去把来源表翻一遍（N+1），
+ * 已改为由调用方直接传入刚写入的磁力数量，只有数量为 0 时才走这里探测。
+ */
+export async function hasJavMagnets(db: D1Database, recordId: string): Promise<boolean> {
   const row = await db
     .prepare(
-      `SELECT COUNT(*) AS n FROM data_record_sources
-       WHERE record_id = ? AND source_type = 'magnet'`
+      `SELECT 1 AS one FROM data_record_sources
+       WHERE record_id = ? AND source_type = 'magnet'
+       LIMIT 1`
     )
     .bind(recordId)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+    .first<{ one: number }>();
+  return row !== null;
 }
 
 /**
@@ -276,10 +284,21 @@ export async function applyJavDetailSuccess(
   db: D1Database,
   recordId: string,
   detail: JavDetailLike,
-  options: { magnetFetchFailed?: boolean; previous?: JavDetailMeta } = {}
+  options: {
+    magnetFetchFailed?: boolean;
+    previous?: JavDetailMeta;
+    /** 调用方刚写入的磁力数量；>0 时无需再查库 */
+    magnetCount?: number;
+  } = {}
 ): Promise<JavDetailMeta> {
   const previous = options.previous ?? (await readJavDetailMeta(db, recordId));
-  const magnetCount = await countJavMagnets(db, recordId);
+  // 只有数量为 0（可能库存有旧磁力）时才做一次存在性探测，不再逐条 COUNT
+  const magnetCount =
+    options.magnetCount && options.magnetCount > 0
+      ? options.magnetCount
+      : (await hasJavMagnets(db, recordId))
+        ? 1
+        : 0;
   let mask = computeMissingMask(detail, magnetCount);
 
   // 磁力请求失败时不能断言「源站没有磁力」，先不把磁力计入缺失，

@@ -1,5 +1,7 @@
 import { apiClient } from './client';
+import { parseRequest } from '../validation';
 import type { SystemStats, RecordActionRequest, AnalyticsEvent, AnalyticsStats } from '@/types';
+import type { ConfigImportRequest, UpdateConfigRequest } from '@codeseek/shared';
 
 export interface SystemConfigItem {
   key: string;
@@ -61,7 +63,9 @@ export const systemApi = {
   }): Promise<void> => {
     // 静默上报：失败不影响用户，所有异常都吞掉
     try {
-      await apiClient.post('/errors', data);
+      const { reportErrorSchema } = await import('@codeseek/shared/schemas/system');
+      const payload = await parseRequest<typeof data>(reportErrorSchema, data);
+      await apiClient.post('/errors', payload);
     } catch {
       // 上报端点自身失败，吞掉
     }
@@ -184,7 +188,9 @@ export const analyticsApi = {
     success: boolean; 
     data: { eventId: string } 
   }> => {
-    return apiClient.post('/config/analytics/events', data);
+    const { recordAnalyticsEventSchema } = await import('@codeseek/shared/schemas/config');
+    const payload = await parseRequest<AnalyticsEvent>(recordAnalyticsEventSchema, data);
+    return apiClient.post('/config/analytics/events', payload);
   },
 
   getStats: async (days = 7): Promise<{ 
@@ -214,31 +220,18 @@ export const configApi = {
     return apiClient.get(`/config/${encodeURIComponent(key)}`);
   },
 
-  updateConfig: async (key: string, data: { 
-    value: string; 
-    description?: string; 
-    configType?: string; 
-    configGroup?: string;
-    isPublic?: boolean; 
-    isSensitive?: boolean;
-    changeReason?: string;
-  }): Promise<{ success: boolean; message: string }> => {
-    return apiClient.put(`/config/${encodeURIComponent(key)}`, data);
+  updateConfig: async (key: string, data: UpdateConfigRequest): Promise<{ success: boolean; message: string }> => {
+    const { updateConfigSchema } = await import('@codeseek/shared/schemas/config');
+    const payload = await parseRequest<UpdateConfigRequest>(updateConfigSchema, data);
+    return apiClient.put(`/config/${encodeURIComponent(key)}`, payload);
   },
 
   deleteConfig: async (key: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/config/${encodeURIComponent(key)}`);
   },
 
-  batchUpdateConfig: async (configs: Array<{
-    key: string;
-    value: string;
-    description?: string;
-    configType?: string;
-    configGroup?: string;
-    isPublic?: boolean;
-    isSensitive?: boolean;
-  }>, changeReason?: string): Promise<{ 
+  // 后端批量更新只接受 key/value；该接口前端暂无调用方，类型与后端契约保持一致
+  batchUpdateConfig: async (configs: Array<{ key: string; value: string }>, changeReason?: string): Promise<{ 
     success: boolean; 
     data: { 
       results: Array<{ key: string; success: boolean; error?: string }>;
@@ -310,15 +303,7 @@ export const configApi = {
     return apiClient.get('/config/export');
   },
 
-  importConfig: async (configs: Array<{
-    key: string;
-    value: string;
-    description?: string;
-    configType?: string;
-    configGroup?: string;
-    isPublic?: boolean;
-    isSensitive?: boolean;
-  }>, overwrite = false): Promise<{
+  importConfig: async (configs: ConfigImportRequest['configs'], overwrite = false): Promise<{
     success: boolean;
     data: {
       results: Array<{ key: string; success: boolean; action: string; error?: string }>;
@@ -328,6 +313,8 @@ export const configApi = {
     };
     message: string;
   }> => {
-    return apiClient.post('/config/import', { configs, overwrite });
+    const { importConfigSchema } = await import('@codeseek/shared/schemas/config');
+    const payload = await parseRequest<ConfigImportRequest>(importConfigSchema, { configs, overwrite });
+    return apiClient.post('/config/import', payload);
   },
 };

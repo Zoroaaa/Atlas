@@ -31,8 +31,7 @@ import {
   stopJavDetailJob,
 } from '@/services/jav-detail-job';
 
-/** 看板统计的固定缓存 key（全局数据，不含用户维度）与 TTL */
-const STATS_CACHE_KEY = 'https://internal/admin-data-storage-stats-v1';
+/** 看板统计的缓存 TTL（缓存 key 由请求 origin 推导，见 /stats 处理函数） */
 const STATS_CACHE_TTL_SECONDS = 300;
 
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
@@ -49,15 +48,24 @@ const VALID_STATUSES = ['active', 'hidden'];
 
 dataStorageRoutes.get('/stats', async (c) => {
   // 看板统计是全量聚合（标签展开、来源分组、时间窗计数），单次约十几万行读取。
-  // 这些数字的变化粒度是「天」，5 分钟内重复计算没有任何意义：
-  // 结果按固定 key 缓存在边缘，所有管理员共用（数据本身是全局的，不含用户维度）。
+  // 这些数字的变化粒度是「天」，5 分钟内重复计算没有意义：结果按固定路径缓存在边缘，
+  // 所有管理员共用（数据本身是全局的，不含用户维度）。
+  //
+  // 注意：Cache API 只接受「本 zone 的 URL」。之前用 https://internal/... 作为 key，
+  // 写入会被拒绝（未捕获的 rejection），缓存实际从未生效；这里改用当前请求的 origin。
   const cache = typeof caches !== 'undefined' ? caches.default : null;
-  const cacheKey = new Request(STATS_CACHE_KEY);
+  let cacheKey: Request | null = null;
   if (cache) {
+    const keyUrl = new URL(c.req.url);
+    keyUrl.pathname = '/__edge-cache/admin-data-storage-stats-v1';
+    keyUrl.search = '';
+    cacheKey = new Request(keyUrl.toString());
     const hit = await cache.match(cacheKey);
     if (hit) {
       // 用 c.json 重新输出，保证与未命中路径一致的响应头（缓存副本只存 body）
-      return c.json((await hit.json()) as Record<string, unknown>);
+      return c.json((await hit.json()) as Record<string, unknown>, 200, {
+        'X-Stats-Cache': 'HIT',
+      });
     }
   }
 
@@ -194,7 +202,7 @@ dataStorageRoutes.get('/stats', async (c) => {
         javDetail,
       });
 
-    if (cache) {
+    if (cache && cacheKey) {
       // 只缓存成功结果；缓存副本带 max-age，返回给前端的响应不带客户端缓存头
       const cacheable = new Response(JSON.stringify(payload), {
         headers: {
@@ -202,14 +210,17 @@ dataStorageRoutes.get('/stats', async (c) => {
           'Cache-Control': `max-age=${STATS_CACHE_TTL_SECONDS}`,
         },
       });
+      // 写入失败（URL 不属于本 zone、缓存不可用）不能影响响应，必须吞掉 rejection
+      const put = cache.put(cacheKey, cacheable).catch(() => undefined);
       try {
-        c.executionCtx.waitUntil(cache.put(cacheKey, cacheable));
+        c.executionCtx.waitUntil(put);
       } catch {
-        // 非 Worker 运行时（测试）没有 executionCtx，忽略缓存写入
+        // 非 Worker 运行时（测试）没有 executionCtx，直接丢弃本次写入
+        void put;
       }
     }
 
-    return c.json(payload);
+    return c.json(payload, 200, { 'X-Stats-Cache': 'MISS' });
   } catch (err) {
     console.error('[data-storage] stats error:', err);
     return c.json(error('SERVER_ERROR', '获取统计失败'), 500);

@@ -154,7 +154,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
       {/* 内容区域 */}
       <div className="p-4 space-y-3">
         {/* 标题 */}
-        <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm leading-snug line-clamp-1">
+        <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm leading-snug line-clamp-1 break-words" title={post.title}>
           {post.title}
         </h3>
 

@@ -120,7 +120,7 @@ export const BrowseTab: React.FC = () => {
           {/* 类型筛选 + 排序 + 视图切换 */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* 类型筛选 */}
-            <div className="no-scrollbar flex w-full min-w-0 items-center gap-1 overflow-x-auto rounded-xl bg-stone-100 p-1 sm:w-auto dark:bg-stone-800">
+            <div className="h-scroll flex w-full min-w-0 items-center gap-1 rounded-xl bg-stone-100 p-1 sm:w-auto dark:bg-stone-800">
               {TYPE_FILTERS.map((filter) => (
                 <button
                   key={filter.key}

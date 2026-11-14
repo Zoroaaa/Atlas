@@ -456,6 +456,9 @@ export async function persistDataRecord(
     let payload: RecordPayload | null = null;
     let sources: SourceEntry[] = [];
     let javDetail: JavDetail | null = null;
+    // 本批实际写入的磁力数：落库后据此判断「磁力是否缺失」，
+    // 避免再按 recordId 逐条查一次来源表
+    let javMagnetCount = 0;
 
     switch (resultType) {
       case 'jav': {
@@ -488,6 +491,7 @@ export async function persistDataRecord(
               !magnetFetchFailed && computeMissingMask(detail, magnetCountOf(magnets)) === 0 ? 1 : 0,
           };
           sources = magnetsToSources(magnets, detail.detailUrl);
+          javMagnetCount = magnetCountOf(magnets);
           break;
         }
         // JAV 女优搜索：result.actresses[] 列表，采首条
@@ -662,10 +666,12 @@ export async function persistDataRecord(
     if (recordId && sources.length) {
       await insertSources(db, recordId, sources);
     }
-    // 按库中真实磁力来源数复核完整度，避免「抓过详情 = 完整」的历史误判
+    // 按库中真实磁力来源数复核完整度，避免「抓过详情 = 完整」的历史误判；
+    // 本次已写入磁力时直接用数量，不再回表 COUNT
     if (recordId && javDetail) {
       await applyJavDetailSuccess(db, recordId, javDetail, {
         magnetFetchFailed: result.magnetFetchFailed === true,
+        magnetCount: javMagnetCount,
       });
     }
   } catch (err) {
@@ -790,6 +796,8 @@ export async function enrichDataRecordFromDetail(
     await insertSources(db, recordId, magnetsToSources(magnets, d.detailUrl));
     await applyJavDetailSuccess(db, recordId, d, {
       magnetFetchFailed: input.magnetFetchFailed,
+      // 刚写入的磁力数量已知，只有 0 条时才需要回查库存
+      magnetCount: magnetCountOf(magnets),
     });
   } catch (err) {
     console.error('[data-storage] enrichDataRecordFromDetail error:', err);

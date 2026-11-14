@@ -808,6 +808,9 @@
   },
 
   "admin": {
+    "table": {
+      "scrollHint": "左右滑動查看更多欄位"
+    },
     "aliases": {
       "title": "別名管理",
       "subtitle": "跨語言查詢詞解析",

@@ -13,6 +13,8 @@
  *   放 DB   → 管理员在后台调一下就能生效（功能开关、安全限制）
  */
 
+import { VALIDATION_PATTERNS } from '@codeseek/shared';
+
 export const CONFIG = {
 
   // ==================================================================
@@ -34,9 +36,9 @@ export const CONFIG = {
   // ==================================================================
 
   VALIDATION: {
-    USERNAME_REGEX: /^[a-zA-Z0-9_]+$/,
-    EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    VERIFICATION_CODE_REGEX: /^\d{6}$/,
+    USERNAME_REGEX: VALIDATION_PATTERNS.USERNAME,
+    EMAIL_REGEX: VALIDATION_PATTERNS.EMAIL,
+    VERIFICATION_CODE_REGEX: VALIDATION_PATTERNS.VERIFICATION_CODE,
   },
 
   // ==================================================================
