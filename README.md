@@ -7,7 +7,7 @@
 **An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -22,7 +22,7 @@
 ## Table of Contents
 
 - [Quick Access](#-quick-access)
-- [v1.7.0 Highlights](#v170-highlights)
+- [v1.8.0 Highlights](#v180-highlights)
 - [Project Documentation](#-project-documentation)
 - [Project Features](#-project-features)
 - [Technology Stack Overview](#️-technology-stack-overview)
@@ -43,14 +43,14 @@
 
 </div>
 
-## v1.7.0 Highlights
+## v1.8.0 Highlights
 
-- **JAV library-first search**: Code searches return the local collection immediately when magnets exist; the detail card’s “External source” button re-fetches JavBus and writes the result back to the local collection.
-- **JAV tag recommendations**: Personalized tags based on favorites and search history, tag-based work browsing, and a weekly JavBus tag dictionary sync.
-- **Data storage & detail completion**: Async deduplicated persistence, an admin data console, and resumable batch detail jobs with missing-field filters.
-- **PWA & mobile navigation**: Installable app with update prompts, plus a mobile bottom tab bar and a dedicated “Me” page.
-- **Single Worker deployment**: Frontend assets and API are served from the same Worker `atlas` on one origin; Workers Builds deploys on every push to `main`.
-- **Help center & docs**: New “Usage limits and quotas” section, unified button labels across breakpoints, and expanded rate-limit documentation.
+- **Multilingual query resolution**: Chinese, Japanese, English and romanized titles resolve to the same work through a shared alias table; each source is queried in its own indexing language, and the admin console gains alias ingestion and review.
+- **Follow any entity**: Directors, studios, publishers, series and tags can be followed alongside actresses; the follow feed filters by target and searches across everything you follow by keyword.
+- **Entity browsing from JAV details**: Click a director, studio, publisher, series or tag on a detail card to browse their works, and the returned list is written back to the local library.
+- **Local library detail cards**: Any history or favorite entry opens its local detail card, and every cover across the site zooms on click or keyboard.
+- **Admin data operations**: The data storage console filters transient failures, retries or completes single records, resets source-missing counters, and caps the 30-day retry queue per day.
+- **Faster, steadier data**: Cached panel polling, single-pass statistics, snapshot caches and new indexes cut D1 reads sharply; rankings import, magnet detection and the four media search paths were reworked.
 
 ## Project Documentation
 
@@ -62,7 +62,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), **v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment), **v1.8.0 (multilingual query aliases + entity follows + local library detail cards + D1 read reduction)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 
 ### Frontend Specialized Documentation
@@ -76,11 +76,11 @@ The project uses a modular documentation system, where each specialized document
 ### Core Advantages
 
 #### 1. Open-Source Search Engine with Aggregated Content
-- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v1.4.0 new, data source JavBus). Code searches hit the local collection first when magnets exist, and the detail card offers a one-click JavBus refresh that writes back to the local collection.
-- **Anime Search**: Aggregates data from Bangumi, Mikan, and ShowRSS, including subtitles (nyaa source disabled due to deployment environment restrictions, v1.4.0 adjusted)
+- **JAV Search**: Aggregates metadata from DMM/FANZA and searches magnets from JavBus/JavDB, with a new actress search submode (v1.4.0 new, data source JavBus). Code searches hit the local collection first when magnets exist, and the detail card offers a one-click JavBus refresh that writes back to the local collection. Directors, studios, publishers, series and tags open browsable work lists that are written back to the local library (v1.8.0).
+- **Anime Search**: Aggregates data from Bangumi, Mikan, and DMHY, including subtitles (nyaa source disabled due to deployment environment restrictions, v1.4.0 adjusted)
 - **Movie Search**: Aggregates metadata from TMDB, YTS, EZTV, and TPB, including seeds and magnets
-- **Comic Search**: Aggregates metadata from MangaDex and 13 other search sources
-- **Novel Search**: Aggregates book metadata from Anna's Archive and TXT direct links from Qishu (v1.3.0 new)
+- **Comic Search**: Aggregates metadata from MangaDex and MangaUpdates plus 13 search sources
+- **Novel Search**: Aggregates book metadata from Anna's Archive and TXT direct links from Qishu (v1.3.0 new; Qishu now served from qishuxia.com)
 - **Unified Experience**: All five categories are accessible from a single entry, with search results aggregated from multiple sources
 
 #### 2. Modern Technology Architecture
@@ -238,7 +238,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Favorites & History Pagination**: Server-side pagination with totals; console statistics are aggregated server-side (v1.6.0)
 
 #### Notification Center (v1.6.0)
-- **One Inbox**: Actress follow updates (`follow.new_work` / `follow.release_soon`), community likes / comments / favorites / report results, and site announcements are merged into `/dashboard/notifications`
+- **One Inbox**: Follow updates for any followed entity — actress, director, studio, publisher, series or tag (`follow.new_work` / `follow.release_soon`) — plus community likes / comments / favorites / report results, and site announcements, merged into `/dashboard/notifications`
 - **Read-Time Announcement Merge**: Announcements stay in `site_announcements`; the inbox merges them on read and only stores each user's read/dismissed state in `user_announcement_reads`
 - **Per-Type Preferences**: Independent in-app and email switches for every notification type; email cannot be enabled before the address is verified
 - **Email Verification Entry**: The notification preferences page can send and verify an email code without leaving the page
@@ -380,16 +380,10 @@ npm install
 # Create the D1 database and keep the returned database_id for backend/wrangler.toml
 npx wrangler d1 create codeseek
 
-# Initialize a fresh database in this exact order (01 → 19).
+# Initialize a fresh database by running every script in database/ in filename order.
 # All scripts are idempotent, so partial reruns are safe.
-for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
-         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
-         08_data_tags 09_indexes_triggers 10_schema_system_errors \
-         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
-         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
-         16_email_notifications 17_schema_announcement_reads \
-         18_backfill_community_notifications 19_schema_community_post_views; do
-  npx wrangler d1 execute codeseek --remote --file=database/$f.sql
+for f in database/[0-9]*.sql; do
+  npx wrangler d1 execute codeseek --remote --file="$f"
 done
 
 # Local development (two terminals; frontend runs on :3000 and proxies /api to :8787)
@@ -403,7 +397,7 @@ npm run deploy --workspace=backend
 
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
-[See v1.7.0 Changelog](docs/CHANGELOG.md)
+[See v1.8.0 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 

@@ -7,7 +7,7 @@
 **开源聚合搜索引擎 — JAV / 动漫 / 影视 / 漫画/小说，一站式搜索**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -17,7 +17,7 @@
 ## 目录
 
 - [快速访问](#-快速访问)
-- [v1.7.0 版本亮点](#v170-版本亮点)
+- [v1.8.0 版本亮点](#v180-版本亮点)
 - [项目文档](#-项目文档)
 - [项目特色](#-项目特色)
 - [技术栈概览](#️-技术栈概览)
@@ -38,14 +38,14 @@
 
 </div>
 
-## v1.7.0 版本亮点
+## v1.8.0 版本亮点
 
-- **JAV 本地库优先**：番号搜索命中本地库磁力时直接返回，详情卡「外部源」按钮可回源 JavBus 并写回本地库。
-- **JAV 推荐标签**：按收藏与搜索画像推荐标签，支持按标签浏览作品，JavBus 标签词典每周同步。
-- **数据存储与详情补全**：搜索结果异步去重落库，后台数据管理，支持可暂停 / 恢复的批量详情补全与缺失字段筛选。
-- **PWA 与移动端导航**：支持安装到主屏幕、版本更新提示，新增底部 Tab 与「我的」聚合页。
-- **单 Worker 部署**：前端静态资源与 API 由同一个 Worker `atlas` 同源托管，push 到 `main` 自动构建部署。
-- **帮助中心与文档**：新增「用量、限速与配额」章节，全站按钮文字统一，限流文档补齐。
+- **跨语言查询解析**：中文、日文、英文与罗马音标题通过统一别名表指向同一作品，各源站按自身索引语言取词，管理端提供别名灌入与候选审核。
+- **关注任意实体**：除女优外，导演、制作商、发行商、系列与标签均可关注；关注动态可按关注对象筛选，并支持跨关注对象的关键词搜索。
+- **JAV 详情实体浏览**：详情卡的导演、制作商、发行商、系列与标签可直接点击查看作品，返回列表同步写回本地库。
+- **本地库详情卡片**：搜索历史与收藏条目点击即查看本地库详情卡；全站封面支持点击或键盘放大。
+- **数据存储运维**：后台可按暂时失败筛选、单条重试或补详情、重置源站缺失次数，30 天重试按日限额错峰。
+- **更快更稳的数据层**：面板轻量轮询、单趟统计、快照缓存与新索引大幅削减 D1 读取；榜单导入、磁力判定与四类媒体搜索路径同步修复。
 
 ## 项目文档
 
@@ -57,7 +57,7 @@
 |------|------|------|
 | **配置说明文档** | 前端配置、后端配置、环境变量、代理服务、数据库配置、角色权限配置 | [docs/config.md](docs/config.md) |
 | **部署指南文档** | 环境要求、本地开发、后端部署、前端部署、数据库配置、常见问题解答 | [docs/deploy.md](docs/deploy.md) |
-| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、v1.6.0（帮助中心+统一通知收件箱+邮件投递）、**v1.7.0（本地库优先+JAV推荐标签+PWA/移动端+单 Worker 部署）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **版本变更日志** | 完整的版本变更记录：v1.0.0（首个公开发布）、v1.1.0（动漫&影视搜索+架构升级）、v1.2.0（漫画搜索+架构优化）、v1.3.0（小说搜索+聚合视图+观测体系）、v1.4.0（JAV 女优搜索+数据存储管理+社区完善）、v1.5.0（一体化工作台+三语国际化+榜单与推荐）、v1.6.0（帮助中心+统一通知收件箱+邮件投递）、v1.7.0（本地库优先+JAV推荐标签+PWA/移动端+单 Worker 部署）、**v1.8.0（跨语言查询别名+实体关注+本地库详情卡+D1 读取治理）** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub 推送指南** | Git 操作流程、提交规范、分支管理、GitHub Actions 自动部署配置 | [docs/github_push.md](docs/github_push.md) |
 
 ### 前端专项文档
@@ -71,11 +71,11 @@
 ### 核心优势
 
 #### 1. 开源聚合搜索引擎
-- **JAV 搜索**: DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力多源搜索，新增女优搜索子模式（v1.4.0 新增，数据源 JavBus）。番号搜索命中本地库磁力时优先返回本地数据，详情卡可一键回源 JavBus 并写回本地库。
-- **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + ShowRSS 订阅（nyaa 源因部署环境限制已禁用，v1.4.0 调整）
+- **JAV 搜索**: DMM/FANZA 元数据聚合 + JavBus/JavDB 磁力多源搜索，新增女优搜索子模式（v1.4.0 新增，数据源 JavBus）。番号搜索命中本地库磁力时优先返回本地数据，详情卡可一键回源 JavBus 并写回本地库。导演、制作商、发行商、系列与标签可直接点击查看作品，列表同步写回本地库（v1.8.0）。
+- **动漫搜索**: Bangumi 番剧信息 + Mikan 字幕组 + DMHY 订阅（nyaa 源因部署环境限制已禁用，v1.4.0 调整）
 - **影视搜索**: TMDB 电影剧集 + YTS 电影种子 + EZTV 剧集种子 + TPB 兜底磁力
-- **漫画搜索**: MangaDex 漫画元数据 + 13个搜索源聚合
-- **小说搜索**: Anna's Archive 图书元数据 + 奇书网 TXT 直链资源（v1.3.0 新增）
+- **漫画搜索**: MangaDex 漫画元数据 + MangaUpdates 补充信息 + 13个搜索源聚合
+- **小说搜索**: Anna's Archive 图书元数据 + 奇书网 TXT 直链资源（v1.3.0 新增，奇书网现用 qishuxia.com 域名）
 - **一站式体验**: 五大类别统一入口，一次搜索聚合多源结果
 
 #### 2. 现代化技术架构
@@ -97,7 +97,7 @@
 - **RBAC 权限系统**: 四级角色权限（超级管理员/管理员/用户/访客），细粒度权限控制
 
 #### 5. 通知与内置帮助（v1.6.0）
-- **统一通知中心**: 社区互动、关注女优动态与站点公告共用一个收件箱、一个未读角标和一套站内/邮件偏好
+- **统一通知中心**: 社区互动、关注对象动态与站点公告共用一个收件箱、一个未读角标和一套站内/邮件偏好
 - **内置帮助中心**: `/help` 覆盖所有用户可见模块，每类均含功能介绍、使用步骤与注意事项
 
 ### 技术亮点
@@ -233,7 +233,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **收藏/历史分页（v1.6.0）**: 改为服务端分页并返回总数，控制台统计走服务端聚合
 
 #### 通知中心（v1.6.0）
-- **统一收件箱**: 关注女优动态（`follow.new_work` / `follow.release_soon`）、社区点赞/评论/收藏/举报处理结果、站点公告统一进入 `/dashboard/notifications`
+- **统一收件箱**: 关注动态（女优、导演、制作商、发行商、系列、标签；`follow.new_work` / `follow.release_soon`）、社区点赞/评论/收藏/举报处理结果、站点公告统一进入 `/dashboard/notifications`
 - **公告读时合并**: 公告仍存放在 `site_announcements`，收件箱读取时合并，仅用 `user_announcement_reads` 记录每个用户的已读/删除状态
 - **按类型偏好**: 每种通知类型独立控制「站内 / 邮件」开关；邮箱未验证时不能开启邮件通知
 - **邮箱验证入口**: 通知偏好页可直接发送并校验邮箱验证码，无需跳转
@@ -375,15 +375,9 @@ npm install
 # 创建 D1 数据库，将返回的 database_id 填入 backend/wrangler.toml
 npx wrangler d1 create codeseek
 
-# 全新库按此顺序初始化（01 → 19）。所有脚本均可重复执行。
-for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
-         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
-         08_data_tags 09_indexes_triggers 10_schema_system_errors \
-         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
-         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
-         16_email_notifications 17_schema_announcement_reads \
-         18_backfill_community_notifications 19_schema_community_post_views; do
-  npx wrangler d1 execute codeseek --remote --file=database/$f.sql
+# 全新库按文件名顺序执行 database/ 下全部脚本，所有脚本均可重复执行。
+for f in database/[0-9]*.sql; do
+  npx wrangler d1 execute codeseek --remote --file="$f"
 done
 
 # 本地开发（两个终端；前端运行在 :3000，并把 /api 代理到 :8787）
@@ -397,7 +391,7 @@ npm run deploy --workspace=backend
 
 [查看详细部署指南](docs/deploy.md)
 [查看配置说明](docs/config.md)
-[查看 v1.7.0 变更日志](docs/CHANGELOG.md)
+[查看 v1.8.0 变更日志](docs/CHANGELOG.md)
 
 ## 性能优化
 

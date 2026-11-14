@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v1.8.0] - 2026-11-14
+
+本次版本覆盖 v1.7.0 以来的全部变更，核心变化：搜索接入跨语言别名解析，中文 / 日文 / 英文 / 罗马音标题可指向同一作品；关注对象从女优扩展到导演、制作商、发行商、系列与标签，并支持筛选与关键词搜索；JAV 详情卡与历史 / 收藏条目接入本地库详情卡与实体作品浏览；管理端补齐数据存储的重试、单条补全与失败筛选；同时治理生产 D1 读放大。
 
 ### 新增
 
@@ -10,6 +12,15 @@ All notable changes to this project will be documented in this file.
 - **搜索源按语言挑词**：`toSourceCards` 按源站索引语言生成查询词（如 JavBus 用日文艺名、TPB 用英文小写），未收录的源保持原文透传
 - **别名灌入**：TMDB 各地区片名、Bangumi、MangaDex、Wikipedia langlinks、Wikidata labels/aliases 可写入别名表；新增管理端 `POST /api/admin/aliases/ingest`、`POST /api/admin/aliases/suggest`
 - **AI 候选旁路**：Workers AI（`@cf/meta/m2m100-1.2b`）生成候选，经 Wikidata 校验后才以 `source=ai`、`confidence=0.5` 入库；默认关闭（`ENABLE_ALIAS_AI=0`）
+- **关注对象扩展**：导演、制作商、发行商、系列与标签均可关注，关注 key 统一为「类型:JavBus 路径」；`database/33_follow_entity_targets.sql` 通过视图与索引复用既有女优关注表；实体卡片、个人中心关注管理与热门女优榜口径同步更新
+- **关注动态筛选与搜索**：主页与个人中心共用 `FollowFeedToolbar`，按关注对象类型分组筛选；新增 `/api/follows/search` 跨全部关注对象匹配番号、标题、标签与对象名称
+- **JAV 实体作品浏览**：详情解析保留导演 / 制作商 / 发行商 / 系列 / 标签链接，新增 `/api/jav/entity` 与 `/api/jav/entity/resolve`（路径校验、限流、边缘缓存）；点击实体查看作品列表，结果统一回写本地库
+- **本地库详情卡片**：新增只读接口 `/api/library/record`，搜索历史与收藏条目点击后按本地库数据渲染详情卡，查不到时提供去搜索入口
+- **全站封面放大**：`ProxyImage` 支持点击与键盘放大、Esc / 关闭按钮关闭，媒体卡片、榜单、实体作品、数据存储、社区帖子与分享预览统一接入
+- **PWA 连续更新**：点击「立即更新」后，若刷新后仍有待更新版本会自动继续，单轮最多 5 次、2 分钟窗口、版本不变即停止；未点击更新不会自动刷新
+- **管理端数据存储操作**：新增「暂时失败」筛选与「重试暂时失败」、单条补详情、重置源站缺失次数、是否还会重试筛选；批次大小统一为每分钟 5 条（`database/35_jav_detail_job_batch_size_5.sql`）
+- **磁力误判恢复**：`database/34_recover_misjudged_magnet_missing.sql` 重置带缺磁力标记记录的重试计数，存量重新进入自动补全，同时保留缺失掩码便于筛选
+- **数据库迁移**：新增 `32`–`36`，覆盖别名表、关注实体扩展、磁力误判恢复、补全批次归一与第二轮查询性能索引
 
 ### 变更
 
@@ -17,12 +28,34 @@ All notable changes to this project will be documented in this file.
 - 动漫 / 漫画：命中结果后异步灌入 Bangumi / MangaDex 多语言标题（仅在别名覆盖不足时触发）
 - JAV 女优：搜索前先查 person 别名表，未命中再回退人工映射表 + OpenCC
 - `SearchContext` 新增 `waitUntil`，Provider 可提交不阻塞响应的后台任务
+- 影视 / 动漫 / 漫画 / 小说四类搜索统一 `errorKinds`（超时 / 限流 / 源不可用），源卡片映射到真实抓取器，关源后对应抓取器真正跳过
+- 动漫订阅源由 ShowRSS 改为 DMHY RSS；AnimeTosho 改为解析搜索页；奇书网接入新域名 `qishuxia.com`；漫画新增 MangaUpdates 作为第二元数据源；小说源站详情与 TXT 下载拆分为独立操作
+- 影视聚合视图：主作品无匹配资源但总资源大于 0 时默认切到分源视图
+- 磁力失败错误码改为 `MAGNET_FETCH_FAILED`，前端兼容历史中文文案
+- 详情卡片抽取 `JavDetailShared`，标签改为与导演 / 制作商 / 发行商 / 系列一致的样式，演员保留红底红字并新增下划线
+- 30 天重试增加单日上限 60 条，超出自动顺延一天；自动重试由每小时 `:05` 的榜单补全任务执行
+- 前端不再硬编码补全批次大小，统一由后端默认值控制
+- 版本号统一升级到 `1.8.0`（根与各 workspace 包、`APP_VERSION`、前端版本常量、README 徽章与相关文档）
 
 ### 修复
 
 - TPB 查询词清洗：剥离 TMDB 片名中的厂牌营销前缀（`Marvel Studios' Iron Man` → `Iron Man`）、维基消歧后缀（`Up (2009 film)` → `Up`）与书名号包裹，避免按词匹配的源站返回 0 条；TMDB 别名灌入时同步清洗
 - TPB / EZTV 部分请求失败不再误报整源错误：只要有一个关键词或剧集查询成功，就保留已返回资源，不显示「请求失败」
 - 影视 / 动漫聚合视图：主作品没有匹配资源、但其他作品有资源时，默认切到「分源视图」展示全部资源，避免用户误以为资源被丢弃（「未匹配资源」只包含没有归到任何作品的资源）
+- **榜单导入**：改为纯新增，不再覆盖已有记录，避免 JavBus 补全过的封面被改回 JavDB 旧链接；按番号预查分批（50 个 key）执行，修复 D1 绑定变量超限导致的导入 500
+- **磁力判定**：区分真实磁力链接、明确「暂无磁力」提示与旧版脚本，源站合法空结果不再被写成磁力接口不可用；被拦截 / 验证页 / 未解压响应只计入临时失败
+- **账号与契约**：删号不再要求密码并移除硬编码中文确认文案，英语 / 繁中环境可正常删号；社区封面允许空串；配置导入将数字 / 布尔值归一化为字符串；`RegisterRequest.verificationCode` 改为必填
+- **收藏与搜索**：搜索结果无 URL 时在入口拦截并提示，不再用空串请求收藏接口
+- **界面**：手机端想看按钮不再撑高收藏行；平板宽度下关注动态筛选条不再溢出
+- **文案**：修正别名管理页面的 i18n 命名空间；历史 / 收藏详情卡的磁力数量改为带计数的三语文案
+
+### 优化
+
+- **D1 读放大治理**：管理面板轮询改用 `scope=progress` 轻量接口（15s），仅在打开页面 / 任务结束时取完整视图；`getJavDetailStats` 合并为单趟 `SUM(CASE)`；`/stats` 与榜单快照按全局 key 缓存 300s；失败列表改为子查询先取 20 条再回表；榜单取数改为 `IN` 子查询驱动；新增 `database/36_query_perf_indexes_phase2.sql`
+- **查询索引**：`jav_detail_meta(updated_at/next_retry_at)`、`data_record_sources(source_type/source_url)`、`user_search_history(user_id,source)`、`data_records(first_seen_at)`、`data_records(record_type,title)`
+- **CI**：`javdb-cli` 改用 fork 版本并钉死 v0.8.2 commit SHA
+- **构建**：后端补充 `@codeseek/shared` 的 tsconfig paths，链接失效时仍可完成类型检查
+- **文档**：README、CHANGELOG、`docs/config.md`、`docs/deploy.md`、`docs/github_push.md` 校准到 v1.8.0；部署文档的数据库初始化改为按文件名顺序执行全部脚本，并补齐 `21`–`36` 的说明
 
 ## [v1.7.0] - 2026-11-11
 
@@ -663,4 +696,4 @@ All notable changes to this project will be documented in this file.
 
 **让搜索更简单，让体验更美好！**
 
-Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 1.7.0 | 2026-11-11
+Made with ❤️ by [Zoro](https://github.com/Zoroaaa) | Version 1.8.0 | 2026-11-14

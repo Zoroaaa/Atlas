@@ -1,6 +1,6 @@
 # 部署指南
 
-> 适用版本：v1.7.0+
+> 适用版本：v1.8.0+
 > 本文面向**从零部署一套全新实例**：一个 Cloudflare Worker 同时托管前端静态资源与 API，数据库为 D1，
 > 部署入口为 Workers Builds（直连 GitHub，push 即部署）。文中 `<your-domain>` 请替换为你的自定义域。
 
@@ -75,7 +75,7 @@ database_id = "<返回的 database_id>"
 
 | 变量 | 必填 | 用途 | 缺失/错误后果 |
 |---|---|---|---|
-| `APP_VERSION` | 建议 | `/api`、`/api/system/version`、前端版本展示 | 兜底 `1.7.0`（代码内写死，发版不更新会显示旧版本） |
+| `APP_VERSION` | 建议 | `/api`、`/api/system/version`、前端版本展示 | 兜底 `1.8.0`（代码内写死，发版不更新会显示旧版本） |
 | `SITE_URL` | **必需** | 邮件模板中的「访问站点」链接、反馈通知页脚 | 兜底 `https://example.com`，邮件里的按钮会指向无效页面 |
 | `FRONTEND_URL` | **必需** | OAuth 完成后跳转的前端地址 | 兜底 `https://atlas.wort.uk`，换域名后必须显式配置 |
 | `BACKEND_URL` | **必需** | OAuth callback 构造、邮件退订链接 `${BACKEND_URL}/api/email/unsubscribe` | 兜底 `https://atlas.wort.uk`；错了会导致登录回调 404、退订失效 |
@@ -119,20 +119,13 @@ npx wrangler secret put TMDB_API_KEY
 
 ## 五、初始化数据库
 
-脚本位于 `database/`，全新库必须按编号顺序执行（`20` 是一次性有损修复脚本，只能执行一次）：
+脚本位于 `database/`，全新库按文件名顺序执行全部脚本（`20` 是一次性有损修复脚本，只能执行一次）：
 
 ```bash
 cd backend
 
-for f in 01_schema_core 02_schema_search 03_schema_community 04_schema_security \
-         05_schema_feedback_announcements 06_data_system 07_data_search_sources \
-         08_data_tags 09_indexes_triggers 10_schema_system_errors \
-         11_schema_data_storage 12_schema_search_tier 13_backfill_search_tier \
-         14_schema_notifications_follows 15_migrate_actress_favorites_to_follows \
-         16_email_notifications 17_schema_announcement_reads \
-         18_backfill_community_notifications 19_schema_community_post_views \
-         20_fix_community_user_stats 21_schema_jav_genres 22_cron_locks; do
-  npx wrangler d1 execute codeseek --remote --file=../database/$f.sql
+for f in ../database/[0-9]*.sql; do
+  npx wrangler d1 execute codeseek --remote --file="$f"
 done
 ```
 
@@ -140,18 +133,8 @@ PowerShell 写法：
 
 ```powershell
 cd backend
-$scripts = @(
-  '01_schema_core','02_schema_search','03_schema_community','04_schema_security',
-  '05_schema_feedback_announcements','06_data_system','07_data_search_sources',
-  '08_data_tags','09_indexes_triggers','10_schema_system_errors',
-  '11_schema_data_storage','12_schema_search_tier','13_backfill_search_tier',
-  '14_schema_notifications_follows','15_migrate_actress_favorites_to_follows',
-  '16_email_notifications','17_schema_announcement_reads',
-  '18_backfill_community_notifications','19_schema_community_post_views',
-  '20_fix_community_user_stats','21_schema_jav_genres','22_cron_locks'
-)
-foreach ($s in $scripts) {
-  npx wrangler d1 execute codeseek --remote --file="../database/$s.sql"
+Get-ChildItem ../database/[0-9]*.sql | Sort-Object Name | ForEach-Object {
+  npx wrangler d1 execute codeseek --remote --file="$($_.FullName)"
 }
 ```
 
@@ -167,7 +150,19 @@ foreach ($s in $scripts) {
 | `19_schema_community_post_views` | 帖子浏览 24 小时去重表 | 必需 |
 | `20_fix_community_user_stats` | 社区统计改为实时聚合，删除冗余列/表/触发器 | **有损，只能执行一次** |
 | `21_schema_jav_genres` | 推荐标签词典与标签分页状态 | 必需 |
-| `22_cron_locks` | cron 任务租约表 | 必需（缺失时定时任务无法去重） |
+| `22_indexes_data_retention` | 数据保留清理所需索引 | 必需 |
+| `23_drop_legacy_permissions` | 删除遗留权限表 | **有损，只能执行一次** |
+| `24_composite_indexes` | 复合索引 | 必需 |
+| `25_cron_locks` | cron 任务租约表 | 必需（缺失时定时任务无法去重） |
+| `26_jav_detail_meta` | JAV 详情完整度与批量补全任务 | 必需 |
+| `27_cron_read_reduction` | 削减定时任务的 D1 读取 | 必需 |
+| `28_query_perf_indexes` | 查询性能索引 | 必需 |
+| `29`–`31` | 详情任务开关、间隔字段、缺失字段筛选 | 必需 |
+| `32_schema_entity_aliases` | 跨语言实体别名表 | 必需 |
+| `33_follow_entity_targets` | 关注对象扩展到导演 / 制作商 / 发行商 / 系列 / 标签 | 必需 |
+| `34_recover_misjudged_magnet_missing` | 重置磁力误判记录的重试计数 | 必需（可重复执行） |
+| `35_jav_detail_job_batch_size_5` | 每分钟补全条数归一为 5 | 必需 |
+| `36_query_perf_indexes_phase2` | 第二轮查询性能索引 | 必需 |
 
 除 `20` 外均可重复执行。本地库把 `--remote` 换成 `--local`。
 
@@ -267,7 +262,7 @@ run_worker_first = ["/api", "/api/*"]   # 必须同时写裸路径与通配符
 | `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（≤20 次子请求）+ 邮件摘要合并发送（≤15 封） |
 | `* * * * *` | 每分钟 | 管理看板手动触发的 JAV 详情补全批次 |
 
-小时任务固定在 `:05`，与 `*/30` 的 `:00/:30` 错开，避免同一分钟抢 D1 写。各任务各自持有 `cron_locks` 租约（`database/22_cron_locks.sql`），上一轮未跑完时本轮跳过。
+小时任务固定在 `:05`，与 `*/30` 的 `:00/:30` 错开，避免同一分钟抢 D1 写。各任务各自持有 `cron_locks` 租约（`database/25_cron_locks.sql`），上一轮未跑完时本轮跳过。
 
 **手动触发**
 
@@ -394,4 +389,4 @@ SPA 回退**只能**由 `wrangler.toml` 的 `not_found_handling = "single-page-a
 
 ### Q9: cron 不执行
 
-面板 Triggers 是否为空（未部署成功时不会注册）；`22_cron_locks` 是否缺失（任务会因取不到租约而跳过）；`* * * * *` 与免费计划上限（5 个）是否冲突。
+面板 Triggers 是否为空（未部署成功时不会注册）；`25_cron_locks` 是否缺失（任务会因取不到租约而跳过）；`* * * * *` 与免费计划上限（5 个）是否冲突。
