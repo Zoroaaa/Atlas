@@ -22,7 +22,8 @@ async function generateIcons() {
     mkdirSync(screenshotsDir, { recursive: true });
   }
 
-  const logoPath = join(publicDir, 'logo.svg');
+  // 与 Android 自适应图标共用同一张纯 mark 源图，避免 PWA 图标继续烤文字
+  const logoPath = join(frontendDir, '..', 'mobile', 'assets', 'icon-only.png');
   
   console.log('开始生成PWA图标...');
   

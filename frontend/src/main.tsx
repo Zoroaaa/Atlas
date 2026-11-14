@@ -4,6 +4,8 @@ import App from './App';
 import { ConfigProvider } from '@/contexts';
 import { installGlobalErrorListeners } from '@/components/ErrorBoundary';
 import '@/i18n';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/sora';
 import './index.css';
 
 // 安装全局错误监听（window.onerror + unhandledrejection）

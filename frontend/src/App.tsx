@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/services/api/queryClient';
@@ -14,21 +14,38 @@ import { MobileTabBar } from '@/components/layout/MobileTabBar';
 import { AppUpdatePrompt } from '@/components/layout/AppUpdatePrompt';
 import { NativeShell } from '@/components/layout/NativeShell';
 import { RouteScrollRestoration } from '@/components/layout/RouteScrollRestoration';
+import { PullToRefreshProvider } from '@/components/layout/PullToRefresh';
+import { NetworkStatusBar } from '@/components/layout/NetworkStatusBar';
 import { ToastContainer } from '@/components/ui/Toast';
 import { PwaPrompts } from '@/components/pwa/PwaPrompts';
 import { useFeatureFlags } from '@/contexts';
 import { HomePage } from '@/pages/HomePage';
 import { MainSearchPage } from '@/pages/MainSearchPage';
-import { TermsPage } from '@/pages/TermsPage';
-import { PrivacyPage } from '@/pages/PrivacyPage';
-import { HelpCenterPage } from '@/pages/help/HelpCenterPage';
-import { DashboardPage, UserActivitiesPage } from '@/pages/dashboard';
-import { AdminManager, AdminPanelOverview } from '@/pages/admin';
-import { CommunityManager, PostDetailPage } from '@/pages/community';
 import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage, GoogleCallbackPage } from '@/pages/auth';
 import { MePage } from '@/pages/MePage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { isAppShell } from '@/utils/appShell';
+
+// 非首屏页面按路由拆包：降低主包体积，缩短 App 冷启动时间
+const TermsPage = lazy(() => import('@/pages/TermsPage').then((m) => ({ default: m.TermsPage })));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const HelpCenterPage = lazy(() => import('@/pages/help/HelpCenterPage').then((m) => ({ default: m.HelpCenterPage })));
+const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const UserActivitiesPage = lazy(() => import('@/pages/dashboard/UserActivitiesPage').then((m) => ({ default: m.UserActivitiesPage })));
+const AdminManager = lazy(() => import('@/pages/admin/AdminManager').then((m) => ({ default: m.AdminManager })));
+const AdminPanelOverview = lazy(() => import('@/pages/admin/AdminPanelOverview').then((m) => ({ default: m.AdminPanelOverview })));
+const CommunityManager = lazy(() => import('@/pages/community/CommunityManager').then((m) => ({ default: m.CommunityManager })));
+const PostDetailPage = lazy(() => import('@/pages/community/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
+
+const RouteLoading: React.FC = () => (
+  <div className="flex min-h-[40vh] items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-500" />
+  </div>
+);
+
+const withSuspense = (node: React.ReactNode) => (
+  <Suspense fallback={<RouteLoading />}>{node}</Suspense>
+);
 
 interface GuardRouteProps {
   children: React.ReactNode;
@@ -185,15 +202,17 @@ const App: React.FC = () => {
         <PageTracker />
         <NativeShell />
         <RouteScrollRestoration />
+        <PullToRefreshProvider>
+        <NetworkStatusBar />
         <ErrorBoundary>
         <Routes>
         {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar）
             应用壳内跳过门户首页，直接进入登录/主界面 */}
         <Route path="/" element={<AppShellAwareHome />} />
         <Route element={<MainLayout />}>
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/help" element={<HelpCenterPage />} />
+          <Route path="/terms" element={withSuspense(<TermsPage />)} />
+          <Route path="/privacy" element={withSuspense(<PrivacyPage />)} />
+          <Route path="/help" element={withSuspense(<HelpCenterPage />)} />
           <Route path="/me" element={<GuardRoute><MePage /></GuardRoute>} />
         </Route>
         <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
@@ -225,49 +244,49 @@ const App: React.FC = () => {
         } />
         
         <Route path="/dashboard" element={<GuardRoute><DashboardLayout /></GuardRoute>}>
-          <Route index element={<DashboardPage />} />
-          <Route path="stats" element={<DashboardPage />} />
-          <Route path="sources" element={<DashboardPage />} />
-          <Route path="categories" element={<GuardRoute requiredRole="admin"><DashboardPage /></GuardRoute>} />
-          <Route path="favorites" element={<DashboardPage />} />
-          <Route path="history" element={<DashboardPage />} />
-          <Route path="follows" element={<DashboardPage />} />
-          <Route path="follow-feed" element={<DashboardPage />} />
-          <Route path="notifications" element={<DashboardPage />} />
-          <Route path="settings" element={<DashboardPage />} />
-          <Route path="activities" element={<UserActivitiesPage />} />
+          <Route index element={withSuspense(<DashboardPage />)} />
+          <Route path="stats" element={withSuspense(<DashboardPage />)} />
+          <Route path="sources" element={withSuspense(<DashboardPage />)} />
+          <Route path="categories" element={<GuardRoute requiredRole="admin">{withSuspense(<DashboardPage />)}</GuardRoute>} />
+          <Route path="favorites" element={withSuspense(<DashboardPage />)} />
+          <Route path="history" element={withSuspense(<DashboardPage />)} />
+          <Route path="follows" element={withSuspense(<DashboardPage />)} />
+          <Route path="follow-feed" element={withSuspense(<DashboardPage />)} />
+          <Route path="notifications" element={withSuspense(<DashboardPage />)} />
+          <Route path="settings" element={withSuspense(<DashboardPage />)} />
+          <Route path="activities" element={withSuspense(<UserActivitiesPage />)} />
         </Route>
         
         <Route path="/community" element={<GuardRoute requiredFlag={communityEnabled !== undefined ? communityEnabled : true}><CommunityPanelLayout /></GuardRoute>}>
-          <Route index element={<CommunityManager />} />
-          <Route path="my-shares" element={<CommunityManager />} />
-          <Route path="my-favorites" element={<CommunityManager />} />
-          <Route path="tags" element={<CommunityManager />} />
-          <Route path="post/:postId" element={<PostDetailPage />} />
+          <Route index element={withSuspense(<CommunityManager />)} />
+          <Route path="my-shares" element={withSuspense(<CommunityManager />)} />
+          <Route path="my-favorites" element={withSuspense(<CommunityManager />)} />
+          <Route path="tags" element={withSuspense(<CommunityManager />)} />
+          <Route path="post/:postId" element={withSuspense(<PostDetailPage />)} />
         </Route>
         
         <Route path="/admin-panel" element={<GuardRoute requiredRole='admin'><AdminPanelLayout /></GuardRoute>}>
-          <Route index element={<AdminPanelOverview />} />
-          <Route path="users" element={<AdminManager />} />
-          <Route path="sessions" element={<AdminManager />} />
-          <Route path="actions" element={<AdminManager />} />
-          <Route path="email-logs" element={<AdminManager />} />
-          <Route path="analytics" element={<AdminManager />} />
-          <Route path="observability" element={<AdminManager />} />
-          <Route path="trends" element={<AdminManager />} />
-          <Route path="activity-ranking" element={<AdminManager />} />
-          <Route path="reports" element={<AdminManager />} />
-          <Route path="roles" element={<AdminManager />} />
-          <Route path="config" element={<AdminManager />} />
-          <Route path="cleanup" element={<AdminManager />} />
-          <Route path="feedback" element={<AdminManager />} />
-          <Route path="announcements" element={<AdminManager />} />
-          <Route path="data-storage" element={<AdminManager />} />
-          <Route path="aliases" element={<AdminManager />} />
+          <Route index element={withSuspense(<AdminPanelOverview />)} />
+          <Route path="users" element={withSuspense(<AdminManager />)} />
+          <Route path="sessions" element={withSuspense(<AdminManager />)} />
+          <Route path="actions" element={withSuspense(<AdminManager />)} />
+          <Route path="email-logs" element={withSuspense(<AdminManager />)} />
+          <Route path="analytics" element={withSuspense(<AdminManager />)} />
+          <Route path="observability" element={withSuspense(<AdminManager />)} />
+          <Route path="trends" element={withSuspense(<AdminManager />)} />
+          <Route path="activity-ranking" element={withSuspense(<AdminManager />)} />
+          <Route path="reports" element={withSuspense(<AdminManager />)} />
+          <Route path="roles" element={withSuspense(<AdminManager />)} />
+          <Route path="config" element={withSuspense(<AdminManager />)} />
+          <Route path="cleanup" element={withSuspense(<AdminManager />)} />
+          <Route path="feedback" element={withSuspense(<AdminManager />)} />
+          <Route path="announcements" element={withSuspense(<AdminManager />)} />
+          <Route path="data-storage" element={withSuspense(<AdminManager />)} />
+          <Route path="aliases" element={withSuspense(<AdminManager />)} />
         </Route>
         
         <Route path="/admin" element={<GuardRoute requiredRole='admin'><DashboardLayout /></GuardRoute>}>
-          <Route index element={<AdminManager />} />
+          <Route index element={withSuspense(<AdminManager />)} />
         </Route>
       </Routes>
         </ErrorBoundary>
@@ -276,6 +295,7 @@ const App: React.FC = () => {
       <AppUpdatePrompt />
       <ToastContainer />
       <PwaPrompts />
+      </PullToRefreshProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

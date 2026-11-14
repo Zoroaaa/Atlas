@@ -2,10 +2,23 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { followApi, ApiError } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/hooks/useNotification';
+import { readPersisted, writePersisted } from '@/utils/persistentCache';
 import i18next from 'i18next';
-import type { FollowEntityType, FollowFeedTab } from '@/types';
+import type { FollowEntityType, FollowFeedTab, FollowsData, FollowFeedData } from '@/types';
 
 export const FOLLOW_FEED_PAGE_SIZE = 10;
+
+// 后端关注检查每 30 分钟跑一轮，这之内直接读缓存；24 小时用于离线兜底
+const FOLLOW_STALE_TIME = 30 * 60 * 1000;
+const FOLLOW_CACHE_TTL = 24 * 60 * 60 * 1000;
+const FOLLOW_CACHE_PREFIX = 'follow:';
+
+/** 下一次刷新安排在缓存满 30 分钟时，而不是从挂载时刻重新计时 */
+function followRefreshInterval(query: { state: { dataUpdatedAt: number } }): number {
+  const updatedAt = query.state.dataUpdatedAt;
+  if (!updatedAt) return FOLLOW_STALE_TIME;
+  return Math.max(60 * 1000, FOLLOW_STALE_TIME - (Date.now() - updatedAt));
+}
 
 export const followKeys = {
   all: ['follows'] as const,
@@ -20,12 +33,22 @@ export const followKeys = {
 export function useFollows() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
+  const cacheKey = `${FOLLOW_CACHE_PREFIX}list:${userId}`;
 
   return useQuery({
     queryKey: followKeys.list(userId),
-    queryFn: () => followApi.list(),
+    queryFn: async (): Promise<FollowsData> => {
+      const data = await followApi.list();
+      writePersisted(cacheKey, data);
+      return data;
+    },
     enabled: isAuthenticated && !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: FOLLOW_STALE_TIME,
+    refetchInterval: followRefreshInterval,
+    initialData: userId ? () => readPersisted<FollowsData>(cacheKey, FOLLOW_CACHE_TTL)?.data : undefined,
+    initialDataUpdatedAt: userId
+      ? () => readPersisted<FollowsData>(cacheKey, FOLLOW_CACHE_TTL)?.cachedAt
+      : undefined,
   });
 }
 
@@ -39,13 +62,27 @@ export function useFollowFeed(
   const userId = useAuthStore((s) => s.user?.id);
   const pageSize = opts.pageSize ?? FOLLOW_FEED_PAGE_SIZE;
   const entity = opts.entity ?? '';
+  // 只缓存默认视图（无关注对象筛选），筛选组合不落本地避免缓存膨胀
+  const persist = !entity;
+  const cacheKey = `${FOLLOW_CACHE_PREFIX}feed:${userId}:${tab}:${pageSize}:${page}:${entity || 'all'}`;
 
   return useQuery({
     queryKey: followKeys.feed(userId, tab, page, pageSize, entity),
-    queryFn: () => followApi.feed(tab, page, pageSize, entity || undefined),
+    queryFn: async (): Promise<FollowFeedData> => {
+      const data = await followApi.feed(tab, page, pageSize, entity || undefined);
+      if (persist) writePersisted(cacheKey, data);
+      return data;
+    },
     enabled: enabled && !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: persist ? FOLLOW_STALE_TIME : 5 * 60 * 1000,
+    refetchInterval: persist ? followRefreshInterval : false,
     placeholderData: keepPreviousData,
+    initialData: persist && userId
+      ? () => readPersisted<FollowFeedData>(cacheKey, FOLLOW_CACHE_TTL)?.data
+      : undefined,
+    initialDataUpdatedAt: persist && userId
+      ? () => readPersisted<FollowFeedData>(cacheKey, FOLLOW_CACHE_TTL)?.cachedAt
+      : undefined,
   });
 }
 
@@ -57,7 +94,7 @@ export function useFollowFeedSearch(q: string, page: number, enabled: boolean) {
     queryKey: followKeys.search(userId, q, page, FOLLOW_FEED_PAGE_SIZE),
     queryFn: () => followApi.feedSearch(q, page, FOLLOW_FEED_PAGE_SIZE),
     enabled: enabled && !!userId && q.trim().length > 0,
-    staleTime: 5 * 60 * 1000,
+    staleTime: FOLLOW_STALE_TIME,
     placeholderData: keepPreviousData,
   });
 }
