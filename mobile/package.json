@@ -1,0 +1,17 @@
+{
+  "name": "atlas-mobile",
+  "version": "1.8.0",
+  "private": true,
+  "description": "Atlas Android 客户端",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.2"
+  }
+}

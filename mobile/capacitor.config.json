@@ -1,0 +1,18 @@
+{
+  "appId": "uk.wort.atlas",
+  "appName": "Atlas",
+  "webDir": "../frontend/dist",
+  "server": {
+    "url": "https://atlas.wort.uk",
+    "cleartext": false,
+    "allowNavigation": [
+      "atlas.wort.uk",
+      "*.atlas.wort.uk"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#0a0a0b",
+    "allowMixedContent": false,
+    "appendUserAgent": "AtlasApp/1.8.0"
+  }
+}

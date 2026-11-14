@@ -7,6 +7,7 @@ import { authApi } from '@/services/api';
 import { Input } from '@/components/ui';
 import { useNotification } from '@/hooks';
 import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
+import { isAppShell } from '@/utils/appShell';
 
 type Step = 'form' | 'verify' | 'success';
 
@@ -336,10 +337,13 @@ export const RegisterPage: React.FC = () => {
         </div>
 
         <div className="w-full max-w-md relative">
-          <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            {t('auth:register.backHome')}
-          </Link>
+          {/* 应用壳内没有门户首页，不展示返回链接 */}
+          {!isAppShell() && (
+            <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              {t('auth:register.backHome')}
+            </Link>
+          )}
 
           <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8 text-center"
             style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -386,10 +390,13 @@ export const RegisterPage: React.FC = () => {
 
       <div className="w-full max-w-md relative">
 
-        <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          {t('auth:register.backHome')}
-        </Link>
+        {/* 应用壳内没有门户首页，不展示返回链接 */}
+        {!isAppShell() && (
+          <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            {t('auth:register.backHome')}
+          </Link>
+        )}
 
         <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>

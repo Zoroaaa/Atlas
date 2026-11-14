@@ -25,6 +25,7 @@ import { CommunityManager, PostDetailPage } from '@/pages/community';
 import { LoginPage, RegisterPage, ForgotPasswordPage, GitHubCallbackPage, GoogleCallbackPage } from '@/pages/auth';
 import { MePage } from '@/pages/MePage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { isAppShell } from '@/utils/appShell';
 
 interface GuardRouteProps {
   children: React.ReactNode;
@@ -74,6 +75,18 @@ const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
   
   return <>{children}</>;
+};
+
+/**
+ * 应用壳入口：桌面端/Android 端不展示门户首页，
+ * 未登录直接进登录页，已登录由登录页的 AuthRedirect 转到搜索主界面。
+ * 浏览器访问保持原门户介绍页。
+ */
+const AppShellAwareHome: React.FC = () => {
+  if (isAppShell()) {
+    return <Navigate to="/login" replace />;
+  }
+  return <AuthRedirect><HomePage /></AuthRedirect>;
 };
 
 // 页面访问追踪组件（挂在 BrowserRouter 内部以使用 useLocation）
@@ -169,8 +182,9 @@ const App: React.FC = () => {
         <PageTracker />
         <ErrorBoundary>
         <Routes>
-        {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar） */}
-        <Route path="/" element={<AuthRedirect><HomePage /></AuthRedirect>} />
+        {/* 首页独立渲染，不使用 MainLayout（HomePage 内部已包含 UnifiedNavBar）
+            应用壳内跳过门户首页，直接进入登录/主界面 */}
+        <Route path="/" element={<AppShellAwareHome />} />
         <Route element={<MainLayout />}>
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
