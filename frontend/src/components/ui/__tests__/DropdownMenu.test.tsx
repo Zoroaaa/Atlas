@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DropdownMenu, userMenuItems } from '../DropdownMenu';
 
@@ -43,8 +43,26 @@ describe('userMenuItems', () => {
   const navigate = vi.fn();
   const logout = vi.fn();
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   const ids = (isAdmin: boolean) =>
     userMenuItems(t, navigate, logout, { isAdmin }).map((item) => item.id);
+
+  it('桌面端下拉统一提供个人中心、社区、设置与退出登录', () => {
+    const menuIds = ids(false);
+
+    expect(menuIds).toEqual(expect.arrayContaining(['dashboard', 'community', 'settings', 'logout']));
+  });
+
+  it('设置项进入独立设置页，而不是个人中心子路由', () => {
+    const settings = userMenuItems(t, navigate, logout, { isAdmin: false }).find((item) => item.id === 'settings');
+
+    settings?.onClick?.();
+
+    expect(navigate).toHaveBeenCalledWith('/settings');
+  });
 
   it('不再包含收藏与搜索历史，并提供社区入口', () => {
     const menuIds = ids(false);
