@@ -878,6 +878,25 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* ============================================================
+     Public Portal — shared rhythm for the marketing entry page
+     ============================================================ */
+  .home-container {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-6 lg:px-8;
+  }
+
+  .home-section {
+    @apply py-16 md:py-24 lg:py-[120px];
+  }
+
+  .home-eyebrow {
+    @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400;
+  }
+
+  .home-frame {
+    box-shadow: 0 24px 70px -28px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
 }
 
 /* ============================================================
