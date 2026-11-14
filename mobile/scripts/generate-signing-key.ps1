@@ -1,4 +1,4 @@
-# 生成 Android release 签名密钥（本地执行；密码不落盘、不经网络）
+﻿# 生成 Android release 签名密钥（本地执行；密码不落盘、不经网络）
 # 用法：powershell -ExecutionPolicy Bypass -File mobile\scripts\generate-signing-key.ps1
 param(
   [string]$OutDir = "$env:USERPROFILE\.atlas-signing",
