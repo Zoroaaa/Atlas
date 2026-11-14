@@ -153,6 +153,9 @@
     "appShell": {
       "exitHint": "Press back again to exit Atlas"
     },
+    "menu": {
+      "back": "Back"
+    },
     "me": {
       "title": "Me",
       "settings": "Settings"

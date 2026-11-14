@@ -153,6 +153,9 @@
     "appShell": {
       "exitHint": "再按一次返回键退出 Atlas"
     },
+    "menu": {
+      "back": "返回"
+    },
     "me": {
       "title": "我的",
       "settings": "个人设置"
