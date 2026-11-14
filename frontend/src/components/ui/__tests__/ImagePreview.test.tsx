@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ProxyImage } from '../ImagePreview';
 
@@ -33,6 +33,22 @@ describe('ProxyImage 放大查看', () => {
     expect(screen.queryByRole('button', { name: /坏图封面/ })).not.toBeInTheDocument();
     fireEvent.click(image);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('缓存命中、错过 load 事件时封面仍然可见', () => {
+    const completeSpy = vi
+      .spyOn(HTMLImageElement.prototype, 'complete', 'get')
+      .mockReturnValue(true);
+    const widthSpy = vi
+      .spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get')
+      .mockReturnValue(800);
+
+    render(<ProxyImage src="/cached.jpg" alt="缓存封面" />);
+
+    expect(screen.getByAltText('缓存封面')).toHaveStyle({ opacity: '1' });
+
+    completeSpy.mockRestore();
+    widthSpy.mockRestore();
   });
 
   it('zoomable=false 时不开启放大', () => {
