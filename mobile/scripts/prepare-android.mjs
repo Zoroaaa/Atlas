@@ -51,3 +51,20 @@ if (hasSigning && !gradle.includes('signingConfigs {')) {
 
 fs.writeFileSync(gradlePath, gradle);
 console.log(`[android] versionName=${version} versionCode=${versionCode} signed=${hasSigning}`);
+
+// OAuth 深链回跳：系统浏览器授权完成后用 atlas://auth/callback 唤起 App。
+// Android 工程不入库，这里在生成的 Manifest 中注入自定义 scheme（幂等）。
+const manifestPath = path.join(mobileDir, 'android/app/src/main/AndroidManifest.xml');
+let manifest = fs.readFileSync(manifestPath, 'utf8');
+if (!manifest.includes('android:scheme="atlas"')) {
+  const deepLinkFilter = `            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="atlas" android:host="auth" />
+            </intent-filter>
+        </activity>`;
+  manifest = manifest.replace('</activity>', deepLinkFilter);
+  fs.writeFileSync(manifestPath, manifest);
+  console.log('[android] injected atlas://auth/callback deep link');
+}

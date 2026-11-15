@@ -322,12 +322,14 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 
 ### 2. 榜单抓取 workflow
 
-`.github/workflows/javdb-ranking-daily.yml`（每天 18:00 UTC）需要两个仓库 Secret：
+`.github/workflows/javdb-ranking-daily.yml`（每天 18:00 UTC）需要四个仓库 Secret：
 
 | 仓库 Secret | 值 | 缺了会怎样 |
 |---|---|---|
-| `ATLAS_RANKING_IMPORT_URL` | `https://atlas.wort.uk/api/internal/rankings/import` | 第 92 行判空后 `exit 1`，导入步骤直接失败 |
+| `ATLAS_RANKING_IMPORT_URL` | `https://atlas.wort.uk/api/internal/rankings/import` | 判空后 `exit 1`，导入步骤直接失败 |
 | `RANKINGS_IMPORT_SECRET` | 与 Worker 上同名 secret 完全一致 | 接口返回 401 `榜单导入密钥不匹配` |
+| `JAVDB_USERNAME` | JavDB 账号用户名 | 抓取步骤报 `Missing JAVDB_USERNAME or JAVDB_PASSWORD` |
+| `JAVDB_PASSWORD` | JavDB 账号密码 | 同上；登录失败时会输出 JavDB 返回的错误码（如账号不存在、密码错误） |
 
 - 不要填已退役的 `atlasapi.wort.uk`；也不要填 `*.workers.dev`，除非自定义域名前面被 WAF 拦。
 - 若导入返回 403，说明 WAF / Bot Fight 拦了 Actions 出口 IP，需要给 `/api/internal/rankings/import` 加 WAF 跳过规则。

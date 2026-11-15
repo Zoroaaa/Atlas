@@ -74,3 +74,33 @@ export async function hideSplashScreen(): Promise<void> {
     // 已经关闭或壳层不可用时忽略
   }
 }
+
+/**
+ * 打开第三方 OAuth 授权页。
+ * 原生壳内用系统浏览器（Custom Tab）打开：WebView 直接跳转 GitHub / Google
+ * 会被系统浏览器接管，回调 cookie 与登录态都无法回到 App；网页端保持整页跳转。
+ */
+export async function openOAuthUrl(url: string): Promise<void> {
+  if (!isNativeApp()) {
+    window.location.href = url;
+    return;
+  }
+  try {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url });
+  } catch {
+    // 插件不可用时退回当前 WebView
+    window.location.href = url;
+  }
+}
+
+/** 关闭 OAuth 使用的系统浏览器（App 通过深链回跳后调用） */
+export async function closeOAuthBrowser(): Promise<void> {
+  if (!isNativeApp()) return;
+  try {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.close();
+  } catch {
+    // 已关闭或壳层不可用时忽略
+  }
+}

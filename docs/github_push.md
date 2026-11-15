@@ -342,6 +342,8 @@ git branch -d feature/amazing-feature
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID（后端部署） |
 | `ATLAS_RANKING_IMPORT_URL` | 榜单导入接口完整地址（`${BACKEND_URL}/api/internal/rankings/import`） |
 | `RANKINGS_IMPORT_SECRET` | 榜单导入共享密钥，与 Worker Secret 保持一致 |
+| `JAVDB_USERNAME` | JavDB 账号用户名（榜单抓取登录用） |
+| `JAVDB_PASSWORD` | JavDB 账号密码（榜单抓取登录用） |
 
 ### 创建API Token
 
