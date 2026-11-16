@@ -10,8 +10,8 @@
  *
  * 分批与限速：
  *   - 每个通道固定 250 条，App API 单页 20 条，共 13 页；
- *   - 每页请求间隔 PAGE_DELAY_MS（默认 5 秒，带随机抖动）；
- *   - 每 BATCH_SIZE 页（默认 4 页）为一批，批间等待 BATCH_DELAY_MS（默认 20 秒）；
+ *   - 每页请求间隔 10–15 秒随机（所有通道一致）；
+ *   - 每 BATCH_SIZE 页（默认 4 页）为一批，批间额外等待 BATCH_DELAY_MS（默认 20 秒）；
  *   - 多个通道串行执行，通道间等待 15 秒。
  *
  * 环境变量：
@@ -33,12 +33,15 @@ const DEFAULT_HOSTS = ['https://jdforrepam.com', 'https://apidd.czssdgz.com', 'h
 const PAGE_SIZE = 20;
 const MAX_PAGES = 13;
 const MAX_ITEMS = 250;
-const PAGE_DELAY_MS = 5_000;
+const PAGE_DELAY_MIN_MS = 10_000;
+const PAGE_DELAY_MAX_MS = 15_000;
 const BATCH_SIZE = 4;
 const BATCH_DELAY_MS = 20_000;
 const CHANNEL_DELAY_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
+const AUTH_RETRY_DELAY_MS = 60_000;
+const AUTH_MAX_RETRIES = 2;
 
 const YEAR_START = 2008;
 const YEAR_END = 2026;
@@ -91,10 +94,10 @@ function baseHeaders() {
   };
 }
 
-/** 全局限速：所有 JavDB 请求共享同一间隔 */
-async function pace(minIntervalMs = 0) {
-  const interval = Math.max(PAGE_DELAY_MS - 1000, minIntervalMs);
-  const wait = lastRequestAt + interval + Math.random() * 800 - Date.now();
+/** 全局限速：所有 JavDB 请求共享同一间隔，每页 10–15 秒随机 */
+async function pace() {
+  const interval = PAGE_DELAY_MIN_MS + Math.random() * (PAGE_DELAY_MAX_MS - PAGE_DELAY_MIN_MS);
+  const wait = lastRequestAt + interval - Date.now();
   if (wait > 0) await sleep(wait);
   lastRequestAt = Date.now();
 }
@@ -164,10 +167,13 @@ function isAuthError(payload) {
 async function authorized(path, options) {
   if (!token) await login();
   let payload = await javdbRequest(path, options);
-  if (isAuthError(payload)) {
-    // App API 短时间请求过多也会返回 JWTVerificationError（并非 token 过期），
-    // 先冷却再重新登录，避免连续重试继续触发限流。
-    await sleep(15_000);
+  let authRetries = 0;
+  while (isAuthError(payload) && authRetries < AUTH_MAX_RETRIES) {
+    authRetries += 1;
+    console.warn(
+      `${path} auth error (${payload.action || 'AUTH'}), cooling ${AUTH_RETRY_DELAY_MS / 1000}s before re-login (${authRetries}/${AUTH_MAX_RETRIES})`
+    );
+    await sleep(AUTH_RETRY_DELAY_MS);
     await login();
     payload = await javdbRequest(path, options);
   }
