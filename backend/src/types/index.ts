@@ -13,15 +13,35 @@ export interface WorkersAiBinding {
   run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
 }
 
+/** Cloudflare Email Service send_email 绑定的最小接口 */
+export interface EmailBinding {
+  send(message: {
+    to: string | { email: string; name?: string };
+    from: string | { email: string; name?: string };
+    subject: string;
+    html?: string;
+    text?: string;
+    headers?: Record<string, string>;
+  }): Promise<{ messageId: string }>;
+}
+
 export interface Env {
   // 基础设施绑定
   DB: D1Database;
+  /** Cloudflare Email Service（Workers Paid；wrangler.toml 的 send_email 绑定） */
+  EMAIL?: EmailBinding;
   /** Workers AI（可选：仅在启用别名候选生成时需要） */
   AI?: WorkersAiBinding;
 
   // Secrets（通过 `wrangler secret put` 注入，不在 wrangler.toml 中出现）
   JWT_SECRET: string;
   RESEND_API_KEY?: string;
+  /** Mailtrap API Token（Email Sending → Transactional Stream） */
+  MAILTRAP_API_TOKEN?: string;
+  /** Mailtrap 发送地址；默认生产端点，测试 Sandbox 时改为 sandbox 地址 */
+  MAILTRAP_API_URL?: string;
+  /** Brevo API Key（Transactional Email） */
+  BREVO_API_KEY?: string;
 
   // 部署级 vars（对应 wrangler.toml [vars]）
   APP_VERSION?: string;

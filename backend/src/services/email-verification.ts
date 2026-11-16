@@ -3,9 +3,10 @@ import { generateId, hashToken, maskEmail } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from './config';
 import {
-  sendResendEmail,
+  sendEmail as sendEmailViaProvider,
   logEmailSend as writeEmailSendLog,
   assertVerificationEmailRateLimit,
+  type EmailProvider,
 } from './email-sender';
 
 export type VerificationType =
@@ -98,14 +99,10 @@ export const emailVerificationUtils = {
 
 export class EmailVerificationService {
   private env: Env;
-  private resendApiKey: string | undefined;
-  private defaultFromEmail: string;
   private siteUrl: string;
 
   constructor(env: Env) {
     this.env = env;
-    this.resendApiKey = env.RESEND_API_KEY;
-    this.defaultFromEmail = env.DEFAULT_FROM_EMAIL || 'noreply@tempemail.pp.ua';
     this.siteUrl = env.SITE_URL || 'https://tempemail.pp.ua';
   }
 
@@ -479,10 +476,6 @@ export class EmailVerificationService {
     templateVars: Record<string, unknown> = {},
     logContext: { userId?: string | null; ipAddress?: string | null } = {}
   ): Promise<{ success: boolean; messageId?: string; message: string }> {
-    if (!this.resendApiKey) {
-      throw new Error('邮件服务未配置');
-    }
-
     const configService = new ConfigService(this.env);
     const verificationCodeExpiry = await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
     const defaultFromName = this.env.DEFAULT_FROM_NAME || 'Atlas';
@@ -508,19 +501,20 @@ export class EmailVerificationService {
     const htmlContent = this.renderTemplate(template.html_template, vars);
     const textContent = this.renderTemplate(template.text_template || '', vars);
 
+    let provider: EmailProvider = 'resend';
     try {
-      const result = await sendResendEmail(this.env, {
+      const result = await sendEmailViaProvider(this.env, {
         to: email,
         subject,
         html: htmlContent,
         text: textContent,
         fromName: defaultFromName,
-        fromEmail: this.defaultFromEmail,
         tags: [
           { name: 'type', value: mappedTemplateType },
           { name: 'source', value: 'email-verification' },
         ],
       });
+      provider = result.provider || provider;
 
       if (!result.ok) {
         throw new Error(result.error || '邮件发送失败');
@@ -530,6 +524,7 @@ export class EmailVerificationService {
         recipientEmail: email,
         emailType: mappedTemplateType,
         status: 'sent',
+        provider,
         messageId: result.messageId,
         subject,
         templateName: template.template_name,
@@ -549,6 +544,7 @@ export class EmailVerificationService {
         recipientEmail: email,
         emailType: mappedTemplateType,
         status: 'failed',
+        provider,
         error: (error as Error).message,
         subject,
         templateName: template.template_name,

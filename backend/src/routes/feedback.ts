@@ -10,7 +10,7 @@ import { feedbackSchema } from '@/utils/validators';
 import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
 import { validateBody, schemas } from '@/validation';
-import { sendResendEmail, logEmailSend } from '@/services/email-sender';
+import { sendEmail, logEmailSend } from '@/services/email-sender';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
 
@@ -357,17 +357,13 @@ async function sendFeedbackReplyEmail(
   adminReply: string,
   newStatus: string
 ): Promise<{ sent: boolean; error?: string }> {
-  if (!env.RESEND_API_KEY) return { sent: false, error: '邮件服务未配置' };
-
-  const escapeHtml = (v: string) =>
-    v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const escapeHtml = (v: string) =>    v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   const recipientEmail = feedback.contact_email;
   if (!recipientEmail) return { sent: false, error: '无收件人邮箱' };
 
   const siteName = env.DEFAULT_FROM_NAME || 'Atlas';
-  const fromEmail = env.DEFAULT_FROM_EMAIL || 'noreply@example.com';
   const siteUrl = env.SITE_URL || 'https://example.com';
   const typeLabel = TYPE_LABELS[feedback.type] || feedback.type;
   const statusLabel = STATUS_LABELS[newStatus] || newStatus;
@@ -440,12 +436,11 @@ async function sendFeedbackReplyEmail(
 </body>
 </html>`.trim();
 
-  const result = await sendResendEmail(env, {
+  const result = await sendEmail(env, {
     to: recipientEmail,
     subject,
     html: htmlContent,
     fromName: siteName,
-    fromEmail,
     tags: [{ name: 'type', value: 'feedback_reply' }],
   });
 
@@ -454,6 +449,7 @@ async function sendFeedbackReplyEmail(
     recipientEmail,
     emailType: 'feedback_reply',
     status: result.ok ? 'sent' : 'failed',
+    provider: result.provider,
     messageId: result.messageId ?? null,
     templateName: 'feedback_reply',
     subject,

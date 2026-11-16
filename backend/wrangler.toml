@@ -31,7 +31,8 @@ FRONTEND_URL = "https://atlas.wort.uk"
 # 后端 API 域名 — 用于 OAuth callback URI 构造；前端已同源，API 不再单独用子域
 BACKEND_URL = "https://atlas.wort.uk"
 
-# 邮件发件人 — 与邮件服务商域名验证绑定，改了必须重新部署
+# Cloudflare 发件人 — 绑定 Cloudflare Email Sending 的已 onboard 域名，改了必须重新部署
+# 其它服务商使用各自的发件子域名（在 backend/src/services/email-sender.ts 中固定绑定）
 DEFAULT_FROM_EMAIL = "noreply@mail.wort.uk"
 DEFAULT_FROM_NAME = "Atlas"
 
@@ -50,6 +51,9 @@ ENABLE_ALIAS_AI = "0"
 # 以下配置通过 `wrangler secret put` 注入（不得写入此文件中）：
 # 🔐 JWT_SECRET
 # 🔐 RESEND_API_KEY
+# 🔐 MAILTRAP_API_TOKEN     (Mailtrap Email Sending API Token，可选)
+# 🔐 MAILTRAP_API_URL       (可选：默认 https://send.api.mailtrap.io/api/send)
+# 🔐 BREVO_API_KEY          (Brevo Transactional Email API Key，可选)
 # 🔐 TMDB_API_KEY            (影视元数据搜索，缺失时该来源静默跳过)
 # 🔐 GITHUB_CLIENT_ID        (GitHub OAuth App Client ID)
 # 🔐 GITHUB_CLIENT_SECRET    (GitHub OAuth App Client Secret)
@@ -63,6 +67,12 @@ ENABLE_ALIAS_AI = "0"
 binding = "DB"
 database_name = "codeseek"
 database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
+
+# Cloudflare Email Service（Workers Paid 的 Email Sending）
+# 发送域名需先在 Cloudflare 面板 Compute → Email Service → Email Sending 完成 onboard。
+# 未配置或被管理端切换为 Resend 时不会使用该绑定。
+[[send_email]]
+name = "EMAIL"
 
 # Workers AI（可选）：启用 ENABLE_ALIAS_AI 时取消注释。
 # 账号未开通 Workers AI 时保留注释，否则部署会失败。

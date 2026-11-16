@@ -14,6 +14,7 @@ const EMAIL_TYPES = [
   'email_change',
   'email_verify',
   'account_delete',
+  'admin_test',
 ] as const;
 
 const QUEUE_TYPES = [
@@ -28,6 +29,7 @@ const QUEUE_TYPES = [
 
 const LOG_STATUS = ['sent', 'failed'] as const;
 const QUEUE_STATUS = ['pending', 'sent', 'skipped', 'failed'] as const;
+const EMAIL_PROVIDERS = ['cloudflare', 'resend', 'mailtrap', 'brevo'] as const;
 
 const statusClass = (status: string) => clsx(
   'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium',
@@ -49,6 +51,7 @@ export const EmailLogsTab: React.FC = () => {
   const [logsTotal, setLogsTotal] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [providerFilter, setProviderFilter] = useState('');
 
   const [queue, setQueue] = useState<EmailQueueRow[]>([]);
   const [queueLoading, setQueueLoading] = useState(true);
@@ -66,6 +69,7 @@ export const EmailLogsTab: React.FC = () => {
         pageSize: 20,
         type: typeFilter || undefined,
         status: statusFilter || undefined,
+        provider: providerFilter || undefined,
       });
       setLogs(result.items);
       setLogsTotal(result.total);
@@ -75,7 +79,7 @@ export const EmailLogsTab: React.FC = () => {
     } finally {
       setLogsLoading(false);
     }
-  }, [logsPage, typeFilter, statusFilter, toast, t]);
+  }, [logsPage, typeFilter, statusFilter, providerFilter, toast, t]);
 
   const loadQueue = useCallback(async () => {
     setQueueLoading(true);
@@ -143,6 +147,18 @@ export const EmailLogsTab: React.FC = () => {
                 <option key={status} value={status}>{t(`admin:emailLogs.status.${status}`)}</option>
               ))}
             </select>
+            <select
+              value={providerFilter}
+              onChange={(e) => { setProviderFilter(e.target.value); setLogsPage(1); }}
+              className="px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+            >
+              <option value="">{t('admin:emailLogs.allProviders')}</option>
+              {EMAIL_PROVIDERS.map((provider) => (
+                <option key={provider} value={provider}>
+                  {t(`admin:emailLogs.providers.${provider}`, { defaultValue: provider })}
+                </option>
+              ))}
+            </select>
             <span className="text-sm text-surface-500">{t('admin:emailLogs.totalCount', { count: logsTotal })}</span>
           </div>
 
@@ -150,7 +166,7 @@ export const EmailLogsTab: React.FC = () => {
             <table className="w-full text-sm">
               <thead className="bg-surface-50 dark:bg-surface-900">
                 <tr>
-                  {['time', 'user', 'recipient', 'type', 'status', 'subject', 'ip'].map((key) => (
+                  {['time', 'user', 'recipient', 'type', 'provider', 'status', 'subject', 'ip'].map((key) => (
                     <th key={key} className="px-4 py-3 text-left font-medium text-surface-600 dark:text-surface-400">
                       {t(`admin:emailLogs.columns.${key}`)}
                     </th>
@@ -159,9 +175,9 @@ export const EmailLogsTab: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
                 {logsLoading ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">{t('admin:emailLogs.loading')}</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-surface-500">{t('admin:emailLogs.loading')}</td></tr>
                 ) : logs.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-surface-500">{t('admin:emailLogs.noData')}</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-surface-500">{t('admin:emailLogs.noData')}</td></tr>
                 ) : logs.map((log) => (
                   <tr key={log.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50">
                     <td className="px-4 py-3 text-surface-500 whitespace-nowrap">
@@ -171,6 +187,9 @@ export const EmailLogsTab: React.FC = () => {
                     <td className="px-4 py-3 font-medium text-surface-900 dark:text-surface-100">{log.username || '-'}</td>
                     <td className="px-4 py-3 text-surface-600 dark:text-surface-300">{log.recipient_email}</td>
                     <td className="px-4 py-3 text-surface-500">{t(`admin:emailLogs.types.${log.email_type}`, { defaultValue: log.email_type })}</td>
+                    <td className="px-4 py-3 text-surface-600 dark:text-surface-300">
+                      {t(`admin:emailLogs.providers.${log.provider}`, { defaultValue: log.provider })}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={statusClass(log.send_status)}>
                         {t(`admin:emailLogs.status.${log.send_status}`, { defaultValue: log.send_status })}

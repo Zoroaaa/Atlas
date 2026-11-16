@@ -1400,7 +1400,8 @@
         "integer": "整数",
         "float": "小数",
         "boolean": "布尔值",
-        "json": "JSON"
+        "json": "JSON",
+        "select": "单选"
       },
       "loadFailed": "加载失败",
       "loadLogsFailed": "加载日志失败",
@@ -1431,6 +1432,26 @@
       "showValueTitle": "显示值",
       "editTitle": "编辑",
       "resetTitle": "重置为默认值",
+      "testEmailBtn": "测试邮件",
+      "testEmailModal": {
+        "title": "发送测试邮件",
+        "desc": "指定收件人与服务商，直接走该通道发送，不受优先级与每日限额影响。停用的服务商也可以测试。",
+        "recipientLabel": "收件人邮箱",
+        "recipientPlaceholder": "recipient@example.com",
+        "providerLabel": "发送服务商",
+        "enabled": "已启用",
+        "disabled": "已停用（可测试）",
+        "notConfigured": "未配置凭据",
+        "loadingProviders": "加载服务商状态中...",
+        "loadProvidersFailed": "加载服务商失败",
+        "cancel": "取消",
+        "send": "发送测试",
+        "success": "测试邮件已发送",
+        "successMsg": "{{provider}} 通道发送成功，请查收 {{to}}",
+        "failed": "发送失败",
+        "recipientRequired": "请输入收件人邮箱",
+        "providerNotConfigured": "该服务商未配置凭据，无法发送"
+      },
       "editModal": {
         "title": "编辑配置: {{key}}",
         "descLabel": "描述",
@@ -1731,6 +1752,7 @@
       "refresh": "刷新",
       "allTypes": "全部类型",
       "allStatus": "全部状态",
+      "allProviders": "全部供应商",
       "totalCount": "共 {{count}} 条",
       "loading": "加载中...",
       "noData": "暂无记录",
@@ -1740,6 +1762,7 @@
         "user": "用户",
         "recipient": "收件人",
         "type": "类型",
+        "provider": "供应商",
         "status": "状态",
         "subject": "主题",
         "ip": "IP",
@@ -1752,7 +1775,14 @@
         "forgot_password": "找回密码",
         "email_change": "修改邮箱",
         "email_verify": "当前邮箱验证",
-        "account_delete": "注销账户"
+        "account_delete": "注销账户",
+        "admin_test": "管理员测试"
+      },
+      "providers": {
+        "cloudflare": "Cloudflare",
+        "resend": "Resend",
+        "mailtrap": "Mailtrap",
+        "brevo": "Brevo"
       },
       "status": {
         "sent": "成功",

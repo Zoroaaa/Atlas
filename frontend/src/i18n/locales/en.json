@@ -1400,7 +1400,8 @@
         "integer": "Integer",
         "float": "Float",
         "boolean": "Boolean",
-        "json": "JSON"
+        "json": "JSON",
+        "select": "Select"
       },
       "loadFailed": "Load failed",
       "loadLogsFailed": "Failed to load logs",
@@ -1431,6 +1432,26 @@
       "showValueTitle": "Show value",
       "editTitle": "Edit",
       "resetTitle": "Reset to default",
+      "testEmailBtn": "Test email",
+      "testEmailModal": {
+        "title": "Send test email",
+        "desc": "Choose a recipient and provider; the email is sent through that channel directly, bypassing priority and daily limits. Disabled providers can still be tested.",
+        "recipientLabel": "Recipient email",
+        "recipientPlaceholder": "recipient@example.com",
+        "providerLabel": "Provider",
+        "enabled": "Enabled",
+        "disabled": "Disabled (testable)",
+        "notConfigured": "Not configured",
+        "loadingProviders": "Loading provider status...",
+        "loadProvidersFailed": "Failed to load providers",
+        "cancel": "Cancel",
+        "send": "Send test",
+        "success": "Test email sent",
+        "successMsg": "Sent successfully via {{provider}} to {{to}}",
+        "failed": "Send failed",
+        "recipientRequired": "Please enter a recipient email",
+        "providerNotConfigured": "This provider has no credentials configured"
+      },
       "editModal": {
         "title": "Edit config: {{key}}",
         "descLabel": "Description",
@@ -1731,6 +1752,7 @@
       "refresh": "Refresh",
       "allTypes": "All types",
       "allStatus": "All statuses",
+      "allProviders": "All providers",
       "totalCount": "{{count}} records",
       "loading": "Loading...",
       "noData": "No records",
@@ -1740,6 +1762,7 @@
         "user": "User",
         "recipient": "Recipient",
         "type": "Type",
+        "provider": "Provider",
         "status": "Status",
         "subject": "Subject",
         "ip": "IP",
@@ -1752,7 +1775,14 @@
         "forgot_password": "Password Reset",
         "email_change": "Email Change",
         "email_verify": "Email Verification",
-        "account_delete": "Account Deletion"
+        "account_delete": "Account Deletion",
+        "admin_test": "Admin Test"
+      },
+      "providers": {
+        "cloudflare": "Cloudflare",
+        "resend": "Resend",
+        "mailtrap": "Mailtrap",
+        "brevo": "Brevo"
       },
       "status": {
         "sent": "Sent",

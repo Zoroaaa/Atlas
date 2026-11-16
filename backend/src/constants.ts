@@ -146,6 +146,16 @@ export const DB_CONFIG_KEYS = {
   // 邮件限制 — 防滥用需要动态调整
   EMAIL_RATE_LIMIT_PER_HOUR: 'email_rate_limit_per_hour',
   EMAIL_RATE_LIMIT_PER_DAY: 'email_rate_limit_per_day',
+  /** 邮件服务商优先级（数值越小越优先，-1 表示停用） */
+  EMAIL_PRIORITY_CLOUDFLARE: 'email_priority_cloudflare',
+  EMAIL_PRIORITY_RESEND: 'email_priority_resend',
+  EMAIL_PRIORITY_MAILTRAP: 'email_priority_mailtrap',
+  EMAIL_PRIORITY_BREVO: 'email_priority_brevo',
+  /** 邮件服务商每日发送上限（0 表示不限额） */
+  EMAIL_DAILY_LIMIT_CLOUDFLARE: 'email_daily_limit_cloudflare',
+  EMAIL_DAILY_LIMIT_RESEND: 'email_daily_limit_resend',
+  EMAIL_DAILY_LIMIT_MAILTRAP: 'email_daily_limit_mailtrap',
+  EMAIL_DAILY_LIMIT_BREVO: 'email_daily_limit_brevo',
 
   // 验证码过期时间 — 安全策略需要动态调整
   VERIFICATION_CODE_EXPIRY: 'verification_code_expiry',

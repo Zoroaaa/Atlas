@@ -51,7 +51,7 @@ import {
   handleReportSchema,
   updateDataRecordStatusSchema,
 } from './admin';
-import { importConfigSchema, recordAnalyticsEventSchema, updateConfigSchema } from './config';
+import { importConfigSchema, recordAnalyticsEventSchema, updateConfigSchema, testEmailSchema } from './config';
 import { createAnnouncementSchema, updateAnnouncementSchema } from './announcement';
 import { createFeedbackSchema, updateFeedbackSchema } from './feedback';
 import { relatedSchema } from './recommend';
@@ -131,6 +131,7 @@ export const schemas = {
     importConfig: importConfigSchema,
     recordAnalyticsEvent: recordAnalyticsEventSchema,
     updateConfig: updateConfigSchema,
+    testEmail: testEmailSchema,
   },
 
   announcement: {

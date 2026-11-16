@@ -2,6 +2,9 @@
  * 配置中心请求契约 — 前后端共用同一份 zod schema
  */
 import { z } from 'zod';
+import { VALIDATION_RULES } from '../validations';
+
+const R = VALIDATION_RULES;
 
 export const importConfigSchema = z.object({
   configs: z.array(z.object({
@@ -43,6 +46,15 @@ export const updateConfigSchema = z.object({
   changeReason: z.string().max(500).optional().nullable(),
 });
 
+/** 管理员测试邮件：指定收件人与发送服务商 */
+export const testEmailSchema = z.object({
+  to: z.string().trim().toLowerCase().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
+  provider: z.enum(['cloudflare', 'resend', 'mailtrap', 'brevo'], {
+    error: '不支持的邮件服务商',
+  }),
+});
+
 export type ConfigImportRequest = z.infer<typeof importConfigSchema>;
 export type AnalyticsEvent = z.infer<typeof recordAnalyticsEventSchema>;
 export type UpdateConfigRequest = z.infer<typeof updateConfigSchema>;
+export type TestEmailRequest = z.infer<typeof testEmailSchema>;

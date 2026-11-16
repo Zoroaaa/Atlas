@@ -128,7 +128,7 @@ TypeScript → Type safety, interface definition, generic constraints
 Cloudflare Workers → Edge computing, V8 isolation environment, zero cold start
 Cloudflare D1 → SQLite-compatible, globally distributed, with automatic backup
 JWT (jose) → Standardized authentication, support for multiple algorithms
-Resend → Modern email service with high deliverability and real-time tracking
+Cloudflare Email Sending / Mailtrap / Resend / Brevo → Transactional email with provider priority and daily quotas
 ```
 
 ### User Experience
@@ -295,7 +295,7 @@ Category (large category)        Classification (subcategory)         Source (so
 #### Email Operations (v1.6.0)
 - **Email Send Logs**: Admin page lists every message with type, status, user, IP, and error details (`GET /api/config/email/logs`)
 - **Email Queue**: Inspect pending / sent / skipped / failed digest tasks, including the last failure reason (`GET /api/config/email/queue`)
-- **Unified Sender**: All transactional and notification mail goes through one sender with Resend, logging, and rate-limit metadata
+- **Unified Sender**: All transactional and notification mail goes through one sender with Cloudflare Email Sending, Mailtrap, Resend, or Brevo; provider priority, per-provider daily quotas, logging, and rate-limit metadata are configurable from the admin console
 
 #### System Monitoring
 - **Dashboard**: One-view system operation status and user activity
@@ -350,7 +350,7 @@ Category (large category)        Classification (subcategory)         Source (so
 **Backend Service Layer (v1.6.0)**
 - Hono Framework / TypeScript
 - Cloudflare Workers / D1
-- JWT authentication (jose) / Resend
+- JWT authentication (jose) / Cloudflare Email Sending / Mailtrap / Resend / Brevo
 - D1 persisted rate limiting (v1.3.0)
 - Google OAuth (v1.3.0)
 - Data storage management (v1.4.0)
@@ -450,6 +450,10 @@ But you must:
 ### Technical Platforms
 - **[Cloudflare](https://www.cloudflare.com/)** - providing an excellent edge computing platform
 - **[GitHub](https://github.com/)** - code hosting and collaboration platform
+- **[Cloudflare Email Service](https://developers.cloudflare.com/email-service/)** - email sending
+- **[Mailtrap](https://mailtrap.io/)** - email sending service
+- **[Brevo](https://www.brevo.com/)** - email sending service
+
 - **[Resend](https://resend.com/)** - email sending service
 
 ### Open Source Community

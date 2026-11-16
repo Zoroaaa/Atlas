@@ -1400,7 +1400,8 @@
         "integer": "整數",
         "float": "小數",
         "boolean": "布林值",
-        "json": "JSON"
+        "json": "JSON",
+        "select": "單選"
       },
       "loadFailed": "載入失敗",
       "loadLogsFailed": "載入日誌失敗",
@@ -1431,6 +1432,26 @@
       "showValueTitle": "顯示值",
       "editTitle": "編輯",
       "resetTitle": "重置為預設值",
+      "testEmailBtn": "測試郵件",
+      "testEmailModal": {
+        "title": "發送測試郵件",
+        "desc": "指定收件人與服務商，直接走該通道發送，不受優先級與每日限額影響。停用的服務商也可以測試。",
+        "recipientLabel": "收件人郵箱",
+        "recipientPlaceholder": "recipient@example.com",
+        "providerLabel": "發送服務商",
+        "enabled": "已啟用",
+        "disabled": "已停用（可測試）",
+        "notConfigured": "未配置憑據",
+        "loadingProviders": "載入服務商狀態中...",
+        "loadProvidersFailed": "載入服務商失敗",
+        "cancel": "取消",
+        "send": "發送測試",
+        "success": "測試郵件已發送",
+        "successMsg": "{{provider}} 通道發送成功，請查收 {{to}}",
+        "failed": "發送失敗",
+        "recipientRequired": "請輸入收件人郵箱",
+        "providerNotConfigured": "該服務商未配置憑據，無法發送"
+      },
       "editModal": {
         "title": "編輯設定: {{key}}",
         "descLabel": "描述",
@@ -1731,6 +1752,7 @@
       "refresh": "重新整理",
       "allTypes": "全部類型",
       "allStatus": "全部狀態",
+      "allProviders": "全部供應商",
       "totalCount": "共 {{count}} 筆",
       "loading": "載入中...",
       "noData": "暫無記錄",
@@ -1740,6 +1762,7 @@
         "user": "使用者",
         "recipient": "收件人",
         "type": "類型",
+        "provider": "供應商",
         "status": "狀態",
         "subject": "主旨",
         "ip": "IP",
@@ -1752,7 +1775,14 @@
         "forgot_password": "找回密碼",
         "email_change": "修改信箱",
         "email_verify": "目前信箱驗證",
-        "account_delete": "註銷帳戶"
+        "account_delete": "註銷帳戶",
+        "admin_test": "管理員測試"
+      },
+      "providers": {
+        "cloudflare": "Cloudflare",
+        "resend": "Resend",
+        "mailtrap": "Mailtrap",
+        "brevo": "Brevo"
       },
       "status": {
         "sent": "成功",

@@ -17,11 +17,20 @@ import {
   Globe,
   Shield,
   Mail,
+  Send,
   Zap,
   Trash2,
 } from 'lucide-react';
 import { Card, Button, Input, Modal } from '@/components/ui';
-import { configApi, type SystemConfigItem, type ConfigGroup, type GroupedConfigs, type ConfigChangeLog } from '@/services/api';
+import {
+  configApi,
+  type SystemConfigItem,
+  type ConfigGroup,
+  type GroupedConfigs,
+  type ConfigChangeLog,
+  type EmailProviderName,
+  type EmailProviderStatus,
+} from '@/services/api';
 import { useNotification } from '@/hooks';
 import { useConfig } from '@/contexts';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +41,33 @@ const CONFIG_TYPE_LABELS: Record<string, string> = {
   float: 'admin:config.type.float',
   boolean: 'admin:config.type.boolean',
   json: 'admin:config.type.json',
+  select: 'admin:config.type.select',
 };
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+/** 解析 system_config.options：兼容 ["a","b"] 与 [{value,label}] */
+function parseSelectOptions(raw: string | null | undefined): SelectOption[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item): SelectOption | null => {
+        if (typeof item === 'string') return { value: item, label: item };
+        if (item && typeof item === 'object' && typeof item.value === 'string') {
+          return { value: item.value, label: typeof item.label === 'string' ? item.label : item.value };
+        }
+        return null;
+      })
+      .filter((item): item is SelectOption => Boolean(item));
+  } catch {
+    return [];
+  }
+}
 
 const CONFIG_GROUP_ICONS: Record<string, React.ReactNode> = {
   basic: <Globe className="w-4 h-4" />,
@@ -40,6 +75,13 @@ const CONFIG_GROUP_ICONS: Record<string, React.ReactNode> = {
   security: <Shield className="w-4 h-4" />,
   email: <Mail className="w-4 h-4" />,
   cleanup: <Trash2 className="w-4 h-4" />,
+};
+
+const EMAIL_PROVIDER_LABELS: Record<EmailProviderName, string> = {
+  cloudflare: 'Cloudflare',
+  resend: 'Resend',
+  mailtrap: 'Mailtrap',
+  brevo: 'Brevo',
 };
 
 export const ConfigTab: React.FC = () => {
@@ -62,6 +104,12 @@ export const ConfigTab: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importData, setImportData] = useState('');
   const [importOverwrite, setImportOverwrite] = useState(false);
+  const [showTestEmailModal, setShowTestEmailModal] = useState(false);
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testEmailProvider, setTestEmailProvider] = useState<EmailProviderName>('cloudflare');
+  const [emailProviders, setEmailProviders] = useState<EmailProviderStatus[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [testEmailSending, setTestEmailSending] = useState(false);
 
   const loadConfigs = useCallback(async () => {
     setIsLoading(true);
@@ -202,6 +250,62 @@ export const ConfigTab: React.FC = () => {
     }
   };
 
+  const openTestEmailModal = async () => {
+    setShowTestEmailModal(true);
+    setProvidersLoading(true);
+    try {
+      const response = await configApi.getEmailProviders();
+      if (response.success && response.data) {
+        const providers = response.data.providers;
+        setEmailProviders(providers);
+        const current = providers.find((item) => item.provider === testEmailProvider);
+        if (!current?.configured) {
+          const fallback = providers.find((item) => item.enabled) || providers.find((item) => item.configured);
+          if (fallback) setTestEmailProvider(fallback.provider);
+        }
+      }
+    } catch (error: any) {
+      notification.error(t('admin:config.testEmailModal.loadProvidersFailed'), error.message);
+    } finally {
+      setProvidersLoading(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmailTo.trim()) {
+      notification.error(t('admin:config.testEmailModal.failed'), t('admin:config.testEmailModal.recipientRequired'));
+      return;
+    }
+
+    const target = emailProviders.find((item) => item.provider === testEmailProvider);
+    if (!target?.configured) {
+      notification.error(t('admin:config.testEmailModal.failed'), t('admin:config.testEmailModal.providerNotConfigured'));
+      return;
+    }
+
+    setTestEmailSending(true);
+    try {
+      const response = await configApi.sendTestEmail({ to: testEmailTo.trim(), provider: testEmailProvider });
+      if (response.success) {
+        notification.success(
+          t('admin:config.testEmailModal.success'),
+          t('admin:config.testEmailModal.successMsg', {
+            provider: EMAIL_PROVIDER_LABELS[testEmailProvider],
+            to: response.data.to,
+          })
+        );
+        setShowTestEmailModal(false);
+        setTestEmailTo('');
+      } else {
+        notification.error(t('admin:config.testEmailModal.failed'), response.message || t('admin:config.unknownError'));
+      }
+    } catch (error: any) {
+      notification.error(t('admin:config.testEmailModal.failed'), error.message);
+    } finally {
+      setTestEmailSending(false);
+    }
+  };
+
   const toggleGroup = (groupName: string) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupName)) {
@@ -256,6 +360,10 @@ export const ConfigTab: React.FC = () => {
             {t('admin:config.booleanNo')}
           </span>
         );
+      case 'select': {
+        const option = parseSelectOptions(config.options).find((item) => item.value === config.value);
+        return option?.label || config.value;
+      }
       default:
         return config.value;
     }
@@ -389,6 +497,27 @@ export const ConfigTab: React.FC = () => {
                   <span className="block mt-1 text-sm">{t('admin:config.booleanNo')}</span>
                 </button>
               </div>
+            ) : editingConfig.config_type === 'select' && parseSelectOptions(editingConfig.options).length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {parseSelectOptions(editingConfig.options).map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setEditValue(option.value)}
+                    className={`rounded-xl border-2 p-4 text-left transition-all ${
+                      editValue === option.value
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-surface-200 dark:border-surface-700'
+                    }`}
+                  >
+                    <span className="block text-sm font-medium text-surface-900 dark:text-surface-100">
+                      {option.label}
+                    </span>
+                    <span className="mt-0.5 block font-mono text-xs text-surface-500">
+                      {option.value}
+                    </span>
+                  </button>
+                ))}
+              </div>
             ) : (
               <Input
                 type={editingConfig.config_type === 'integer' || editingConfig.config_type === 'float' ? 'number' : 'text'}
@@ -427,6 +556,115 @@ export const ConfigTab: React.FC = () => {
       )}
     </Modal>
   );
+
+  const renderTestEmailModal = () => {
+    const selectedProvider = emailProviders.find((item) => item.provider === testEmailProvider);
+
+    return (
+      <Modal
+        isOpen={showTestEmailModal}
+        onClose={() => {
+          if (!testEmailSending) setShowTestEmailModal(false);
+        }}
+        title={t('admin:config.testEmailModal.title')}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 rounded-xl">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-surface-600 dark:text-surface-400">
+                {t('admin:config.testEmailModal.desc')}
+              </p>
+            </div>
+          </div>
+
+          <Input
+            label={t('admin:config.testEmailModal.recipientLabel')}
+            type="email"
+            value={testEmailTo}
+            onChange={(e) => setTestEmailTo(e.target.value)}
+            placeholder={t('admin:config.testEmailModal.recipientPlaceholder')}
+            fullWidth
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+              {t('admin:config.testEmailModal.providerLabel')}
+            </label>
+            {providersLoading ? (
+              <div className="text-sm text-surface-500 py-4">{t('admin:config.testEmailModal.loadingProviders')}</div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {emailProviders.map((item) => {
+                  const isSelected = item.provider === testEmailProvider;
+                  const unavailable = !item.configured;
+                  return (
+                    <button
+                      key={item.provider}
+                      type="button"
+                      disabled={unavailable || testEmailSending}
+                      onClick={() => setTestEmailProvider(item.provider)}
+                      className={`rounded-xl border-2 p-4 text-left transition-all ${
+                        isSelected
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-surface-200 dark:border-surface-700'
+                      } ${unavailable ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-300'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">
+                          {EMAIL_PROVIDER_LABELS[item.provider]}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded-full ${
+                            unavailable
+                              ? 'bg-surface-200 dark:bg-surface-700 text-surface-500'
+                              : item.enabled
+                                ? 'bg-success-100 dark:bg-success-900/30 text-success-600 dark:text-success-400'
+                                : 'bg-warning-100 dark:bg-warning-900/30 text-warning-600 dark:text-warning-400'
+                          }`}
+                        >
+                          {unavailable
+                            ? t('admin:config.testEmailModal.notConfigured')
+                            : item.enabled
+                              ? t('admin:config.testEmailModal.enabled')
+                              : t('admin:config.testEmailModal.disabled')}
+                        </span>
+                      </div>
+                      <span className="mt-1 block font-mono text-xs break-all text-surface-500">
+                        {item.fromEmail}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              fullWidth
+              disabled={testEmailSending}
+              onClick={() => setShowTestEmailModal(false)}
+            >
+              {t('admin:config.testEmailModal.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
+              isLoading={testEmailSending}
+              disabled={providersLoading || !selectedProvider?.configured || !testEmailTo.trim()}
+              onClick={handleSendTestEmail}
+              leftIcon={<Send className="w-4 h-4" />}
+            >
+              {t('admin:config.testEmailModal.send')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
 
   const renderLogsModal = () => (
     <Modal
@@ -625,6 +863,14 @@ export const ConfigTab: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={openTestEmailModal}
+            leftIcon={<Send className="w-4 h-4" />}
+          >
+            {t('admin:config.testEmailBtn')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               setShowLogsModal(true);
               loadConfigLogs();
@@ -704,6 +950,7 @@ export const ConfigTab: React.FC = () => {
       </div>
 
       {renderEditModal()}
+      {renderTestEmailModal()}
       {renderLogsModal()}
       {renderExportModal()}
       {renderImportModal()}

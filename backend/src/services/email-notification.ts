@@ -12,20 +12,20 @@ import { CONFIG, EMAIL } from '@/constants';
 import { generateId } from '@/utils';
 import type { Env } from '@/types';
 
-// ─── Resend 发送（复用统一发送器）────────────────────────────────────────
+// ─── 统一发送（Cloudflare / Resend 由服务端配置决定）────────────────────
 
-import { sendResendEmail, buildEmailSendLogStatement } from './email-sender';
+import { sendEmail as sendEmailViaProvider, buildEmailSendLogStatement } from './email-sender';
 export type { OutgoingEmail, SendResult } from './email-sender';
 
 /**
  * 通知摘要/测试邮件的发送入口：保留原有 source 标签。
- * 实际 HTTP 与日志均走统一发送器。
+ * 实际发送通道与日志均走统一发送器。
  */
 export async function sendEmail(
   env: Env,
   email: import('./email-sender').OutgoingEmail
 ): Promise<import('./email-sender').SendResult> {
-  return sendResendEmail(env, {
+  return sendEmailViaProvider(env, {
     ...email,
     tags: email.tags ?? [{ name: 'source', value: 'notification-digest' }],
   });
@@ -231,7 +231,13 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
   const now = Date.now();
   const dayAgo = now - 24 * 60 * 60 * 1000;
 
-  if (!env.RESEND_API_KEY) return result; // 未配置发信服务：邮件留在队列里
+  const hasProvider = Boolean(
+    env.EMAIL ||
+    env.RESEND_API_KEY ||
+    env.MAILTRAP_API_TOKEN ||
+    env.BREVO_API_KEY
+  );
+  if (!hasProvider) return result; // 未配置发信服务：邮件留在队列里
 
   // 清理历史（便宜的收尾，不影响主流程）
   await db
@@ -395,6 +401,7 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
           recipientEmail: user.email,
           emailType: 'notification_digest',
           status: 'sent',
+          provider: sent.provider,
           messageId: sent.messageId ?? null,
           templateName: 'notification_digest',
           subject: content.subject ?? null,
@@ -412,6 +419,7 @@ export async function runEmailDigest(env: Env): Promise<DigestRunResult> {
           recipientEmail: user.email,
           emailType: 'notification_digest',
           status: 'failed',
+          provider: sent.provider,
           subject: content.subject ?? null,
           error: (sent.error || '').slice(0, 300),
           createdAt: now,

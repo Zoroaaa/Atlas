@@ -38,7 +38,7 @@
 | 自定义域名 | 托管在 Cloudflare 的 Zone | 用于 Workers Custom Domain |
 | GitHub OAuth App | 必需 | 登录功能依赖 |
 | Google OAuth Client | 可选 | 不配则仅支持 GitHub 登录 |
-| Resend 账号 + 已验证发件域 | 邮件功能需要 | 不配则验证码/通知邮件全部发不出 |
+| Cloudflare Email Sending（Workers Paid）/ Mailtrap / Resend / Brevo | 邮件功能需要 | 至少配置一家，否则验证码/通知邮件全部发不出 |
 | TMDB API Key | 可选 | 影视元数据搜索来源，缺失时该来源静默跳过 |
 
 ---
@@ -79,7 +79,7 @@ database_id = "<返回的 database_id>"
 | `SITE_URL` | **必需** | 邮件模板中的「访问站点」链接、反馈通知页脚 | 兜底 `https://example.com`，邮件里的按钮会指向无效页面 |
 | `FRONTEND_URL` | **必需** | OAuth 完成后跳转的前端地址 | 兜底 `https://atlas.wort.uk`，换域名后必须显式配置 |
 | `BACKEND_URL` | **必需** | OAuth callback 构造、邮件退订链接 `${BACKEND_URL}/api/email/unsubscribe` | 兜底 `https://atlas.wort.uk`；错了会导致登录回调 404、退订失效 |
-| `DEFAULT_FROM_EMAIL` | **必需** | Resend 发件人地址，必须属于已验证域名 | 各邮件模快速兜底值不一致（`noreply@example.com`、`noreply@tempemail.pp.ua`），会导致发信失败或域名不匹配 |
+| `DEFAULT_FROM_EMAIL` | **必需** | Cloudflare 发件人地址，必须属于 Cloudflare Email Sending 已 onboard 域名 | 缺失时兜底 `noreply@mail.wort.uk`，域名不匹配会导致发信失败 |
 | `DEFAULT_FROM_NAME` | 建议 | 发件人显示名、反馈邮件站点名 | 兜底 `Atlas` |
 | `JWT_EXPIRY_DAYS` | 建议 | 登录令牌有效期（天） | 兜底 `30` |
 | `ENABLE_ACTION_LOGGING` | 建议 | 行为日志开关，判定条件是 `=== 'true'` | 删除/设为其他值 **等于关闭** 行为日志（不是报错，而是静默停记） |
@@ -93,7 +93,10 @@ database_id = "<返回的 database_id>"
 | `JWT_SECRET` | **必需** | 签发/校验 JWT、邮件退订 token | 登录态与退订链接全部失效 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | **必需** | GitHub OAuth 登录 | `/api/auth/github/*` 不可用 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 可选 | Google OAuth 登录 | 该登录入口不可用 |
-| `RESEND_API_KEY` | 邮件功能必需 | 发送验证码、通知、反馈邮件 | 邮件留队列不发，验证码流程不可用 |
+| `RESEND_API_KEY` | 可选 | Resend API Key | 未配置时 Resend 不参与发送队列 |
+| `MAILTRAP_API_TOKEN` | 可选 | Mailtrap Email Sending API Token | 未配置时 Mailtrap 不参与发送队列 |
+| `MAILTRAP_API_URL` | 可选 | Mailtrap 发送端点 | 默认 `https://send.api.mailtrap.io/api/send`；Sandbox 测试时覆盖 |
+| `BREVO_API_KEY` | 可选 | Brevo Transactional Email API Key | 未配置时 Brevo 不参与发送队列 |
 | `RANKINGS_IMPORT_SECRET` | 榜单导入必需 | GitHub Actions 调 `/api/internal/rankings/import` 时的共享密钥 | 导入接口 401 |
 | `TMDB_API_KEY` | 可选 | 影视元数据搜索 | 该来源静默跳过 |
 
@@ -110,6 +113,26 @@ npx wrangler secret put TMDB_API_KEY
 ```
 
 本地开发写入 `backend/.dev.vars`（已 gitignore，格式同上 `KEY=value`）。
+
+#### 邮件服务商优先级与限额
+
+Cloudflare、Resend、Mailtrap、Brevo 可以同时配置，发送时按管理端「系统配置 → 邮件」依次尝试：
+
+1. 每家使用独立发件子域名（隔离域名信誉，代码内固定绑定）：Cloudflare `noreply@mail.wort.uk`、Resend `noreply@resend.wort.uk`、Mailtrap `noreply@mailtrap.wort.uk`、Brevo `noreply@brevo.wort.uk`；
+2. `email_priority_cloudflare` / `email_priority_resend` / `email_priority_mailtrap` / `email_priority_brevo`：默认 `0 / -1 / -1 / -1`，数值越小越优先，`-1` 停用；调整阶段仅保留 Cloudflare，某家子域名验证完成后在管理端改回 `0`~`3` 启用；
+3. `email_daily_limit_*`：默认每家 `100` 封/天，`0` 不限额；达到上限自动跳到下一优先级；
+4. 未配置凭据或发送失败也会继续尝试下一家。
+
+Cloudflare 启用前确认：
+
+1. 账号为 Workers Paid，并在 **Compute → Email Service → Email Sending** 为发件域完成 onboard；
+2. `DEFAULT_FROM_EMAIL` 属于该已 onboard 域名；
+3. 迁移 `37_email_providers.sql` 已执行，管理端能看到优先级与限额配置。
+
+Mailtrap 启用前确认：API Token 具备发送权限、发件域名已在 Mailtrap 验证，并在 Sending Setup 中切换到 Transactional Stream 的 API 模式。
+
+Brevo 启用前确认：API Key 具备发送权限，发件域名/发件人已在 Brevo 完成验证。
+
 
 ### 3. 代码内的域名白名单（不属于环境变量）
 
@@ -163,6 +186,7 @@ Get-ChildItem ../database/[0-9]*.sql | Sort-Object Name | ForEach-Object {
 | `34_recover_misjudged_magnet_missing` | 重置磁力误判记录的重试计数 | 必需（可重复执行） |
 | `35_jav_detail_job_batch_size_5` | 每分钟补全条数归一为 5 | 必需 |
 | `36_query_perf_indexes_phase2` | 第二轮查询性能索引 | 必需 |
+| `37_email_providers` | 邮件服务商优先级与每日限额（含发件子域名；默认仅 Cloudflare 启用） | 必需（可重复执行） |
 
 除 `20` 外均可重复执行。本地库把 `--remote` 换成 `--local`。
 
@@ -379,7 +403,7 @@ SPA 回退**只能**由 `wrangler.toml` 的 `not_found_handling = "single-page-a
 
 ### Q6: 邮件全部发不出
 
-按顺序查：`RESEND_API_KEY` 是否配置 → `DEFAULT_FROM_EMAIL` 的域名是否在 Resend 验证过 → `email_send_logs.status` / `error_message` → `email_queue` 是否堆在 `failed` → 用户邮箱是否已验证、通知偏好是否开启。
+按顺序查：`email_priority_*` 与 `email_daily_limit_*` 配置 → 对应服务商凭据（Cloudflare 绑定 / `RESEND_API_KEY` / `MAILTRAP_API_TOKEN` / `BREVO_API_KEY`）→ 各服务商是否已按独立子域名完成验证（Cloudflare 用 `DEFAULT_FROM_EMAIL`，其它见第 4 节发件地址表）→ `email_send_logs.status` / `error_message` / `provider` → `email_queue` 是否堆在 `failed` → 用户邮箱是否已验证、通知偏好是否开启。
 
 ### Q7: 页面能打开但所有接口失败
 

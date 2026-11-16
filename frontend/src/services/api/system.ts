@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import type { SystemStats, RecordActionRequest, AnalyticsEvent, AnalyticsStats } from '@/types';
-import type { ConfigImportRequest, UpdateConfigRequest } from '@codeseek/shared';
+import type { ConfigImportRequest, UpdateConfigRequest, TestEmailRequest } from '@codeseek/shared';
 
 export interface SystemConfigItem {
   key: string;
@@ -31,6 +31,26 @@ export interface ConfigChangeLog {
   ip_address: string | null;
   user_agent: string | null;
   created_at: number;
+}
+
+export type EmailProviderName = 'cloudflare' | 'resend' | 'mailtrap' | 'brevo';
+
+export interface EmailProviderStatus {
+  provider: EmailProviderName;
+  /** 数值越小越优先；-1 表示停用 */
+  priority: number;
+  dailyLimit: number;
+  configured: boolean;
+  /** 已配置且未被停用时才参与正式发送 */
+  enabled: boolean;
+  fromEmail: string;
+}
+
+export interface TestEmailResult {
+  provider: EmailProviderName;
+  fromEmail: string;
+  to: string;
+  messageId: string | null;
 }
 
 export interface ConfigGroup {
@@ -316,5 +336,22 @@ export const configApi = {
     const { importConfigSchema } = await import('@codeseek/shared/schemas/config');
     const payload = await parseRequest<ConfigImportRequest>(importConfigSchema, { configs, overwrite });
     return apiClient.post('/config/import', payload);
+  },
+
+  getEmailProviders: async (): Promise<{
+    success: boolean;
+    data: { providers: EmailProviderStatus[] };
+  }> => {
+    return apiClient.get('/config/email/providers');
+  },
+
+  sendTestEmail: async (data: TestEmailRequest): Promise<{
+    success: boolean;
+    data: TestEmailResult;
+    message: string;
+  }> => {
+    const { testEmailSchema } = await import('@codeseek/shared/schemas/config');
+    const payload = await parseRequest<TestEmailRequest>(testEmailSchema, data);
+    return apiClient.post('/config/email/test', payload);
   },
 };

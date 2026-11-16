@@ -694,12 +694,14 @@ export const adminApi = {
     pageSize?: number;
     type?: string;
     status?: string;
+    provider?: string;
   } = {}): Promise<PaginatedResponse<EmailLogRow>> => {
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.set('page', params.page.toString());
     if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
     if (params.type) queryParams.set('type', params.type);
     if (params.status) queryParams.set('status', params.status);
+    if (params.provider) queryParams.set('provider', params.provider);
 
     const response = await apiClient.get<{
       success: boolean;

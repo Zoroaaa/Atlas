@@ -46,7 +46,7 @@ export type {
   HandleReportRequest,
   UpdateDataRecordStatusRequest,
 } from '../schemas/admin';
-export type { ConfigImportRequest, AnalyticsEvent, UpdateConfigRequest } from '../schemas/config';
+export type { ConfigImportRequest, AnalyticsEvent, UpdateConfigRequest, TestEmailRequest } from '../schemas/config';
 export type { AnnouncementCreateRequest, AnnouncementUpdateRequest } from '../schemas/announcement';
 export type { FeedbackCreateRequest, FeedbackUpdateRequest } from '../schemas/feedback';
 export type { JavRelatedRequest } from '../schemas/recommend';

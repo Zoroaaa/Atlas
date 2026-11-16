@@ -123,7 +123,7 @@ TypeScript            → 类型安全、接口定义、泛型约束
 Cloudflare Workers    → 边缘计算、V8 隔离环境、零冷启动
 Cloudflare D1         → SQLite 兼容、全球分布、自动备份
 JWT (jose)            → 标准化认证、多种算法支持
-Resend                → 现代邮件服务、高送达率、实时追踪
+Cloudflare Email Sending / Mailtrap / Resend / Brevo → 事务邮件，支持服务商优先级与每日限额
 ```
 
 ### 用户体验
@@ -290,7 +290,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 #### 邮件运维（v1.6.0）
 - **邮件发送日志**: 后台按类型/状态查看每封邮件的发送结果、用户、IP 与错误信息（`GET /api/config/email/logs`）
 - **邮件队列**: 查看 pending / sent / skipped / failed 的摘要任务及最近一次失败原因（`GET /api/config/email/queue`）
-- **统一发送器**: 事务邮件与通知邮件统一走同一发送器，接入 Resend、发送日志与限流元数据
+- **统一发送器**: 事务邮件与通知邮件统一走同一发送器，支持 Cloudflare Email Sending / Mailtrap / Resend / Brevo，服务商优先级与每日限额可在管理端配置，并记录发送日志与限流元数据
 
 #### 系统监控
 - **仪表盘**: 一览系统运行状态、用户活跃度
@@ -345,7 +345,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 **后端服务层 (v1.6.0)**
 - Hono 框架 / TypeScript
 - Cloudflare Workers / D1
-- JWT Token 认证（jose）/ Resend
+- JWT Token 认证（jose）/ Cloudflare Email Sending / Mailtrap / Resend / Brevo
 - D1 持久化限流（v1.3.0）
 - Google OAuth 登录（v1.3.0）
 - 数据存储管理（v1.4.0）
@@ -444,6 +444,9 @@ npm run deploy --workspace=backend
 ### 技术平台
 - **[Cloudflare](https://www.cloudflare.com/)** — 提供优秀的边缘计算平台
 - **[GitHub](https://github.com/)** — 代码托管与协作平台
+- **[Cloudflare Email Service](https://developers.cloudflare.com/email-service/)** — 邮件发送
+- **[Mailtrap](https://mailtrap.io/)** — 邮件发送服务
+- **[Brevo](https://www.brevo.com/)** — 邮件发送服务
 - **[Resend](https://resend.com/)** — 邮件发送服务
 
 ### 开源社区

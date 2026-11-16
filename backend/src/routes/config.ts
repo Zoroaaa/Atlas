@@ -10,6 +10,7 @@ import { Env, SystemConfig, EmailSendLog, ConfigChangeLog, ConfigGroup } from '@
 import { success, error, generateId } from '@/utils';
 import { authMiddleware, checkIsAdmin, checkIsSuperAdmin } from '@/middleware/auth';
 import { ConfigService } from '@/services';
+import { getEmailProviderStatuses, sendEmailWithProvider, logEmailSend, type EmailProvider } from '@/services/email-sender';
 import { validateBody, schemas } from '@/validation';
 
 export const configRoutes = new Hono<{ Bindings: Env }>();
@@ -45,7 +46,7 @@ configRoutes.use('*', authMiddleware);
 
 // 不再使用本地权限检查函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
 
-const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string; configType: string; configGroup: string; isPublic: number; isSensitive: number; validationRules?: string }> = {
+const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string; configType: string; configGroup: string; isPublic: number; isSensitive: number; validationRules?: string; options?: string }> = {
   'site_name': { value: 'Atlas', description: '网站名称', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'site_description': { value: '搜索全网资源，一步直达', description: '网站描述', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'enable_registration': { value: '1', description: '是否开放注册', configType: 'boolean', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
@@ -57,6 +58,78 @@ const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string
   'password_reset_lockout_duration': { value: '3600000', description: '密码重置锁定持续时间（毫秒，默认1小时）', configType: 'integer', configGroup: 'security', isPublic: 0, isSensitive: 0, validationRules: '{"min": 300000, "max": 86400000}' },
   'email_rate_limit_per_hour': { value: '5', description: '每小时最大发送邮件数', configType: 'integer', configGroup: 'email', isPublic: 0, isSensitive: 0, validationRules: '{"min": 1, "max": 20}' },
   'email_rate_limit_per_day': { value: '20', description: '每天最大发送邮件数', configType: 'integer', configGroup: 'email', isPublic: 0, isSensitive: 0, validationRules: '{"min": 1, "max": 100}' },
+  'email_priority_cloudflare': {
+    value: '0',
+    description: 'Cloudflare 邮件优先级（数值越小越优先；-1 表示停用）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": -1, "max": 99}',
+  },
+  'email_priority_resend': {
+    value: '-1',
+    description: 'Resend 邮件优先级（数值越小越优先；-1 表示停用）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": -1, "max": 99}',
+  },
+  'email_priority_mailtrap': {
+    value: '-1',
+    description: 'Mailtrap 邮件优先级（数值越小越优先；-1 表示停用）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": -1, "max": 99}',
+  },
+  'email_priority_brevo': {
+    value: '-1',
+    description: 'Brevo 邮件优先级（数值越小越优先；-1 表示停用）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": -1, "max": 99}',
+  },
+  'email_daily_limit_cloudflare': {
+    value: '100',
+    description: 'Cloudflare 每日发送上限（0 表示不限额，达到后自动使用下一优先级）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": 0, "max": 1000000}',
+  },
+  'email_daily_limit_resend': {
+    value: '100',
+    description: 'Resend 每日发送上限（0 表示不限额，达到后自动使用下一优先级）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": 0, "max": 1000000}',
+  },
+  'email_daily_limit_mailtrap': {
+    value: '100',
+    description: 'Mailtrap 每日发送上限（0 表示不限额，达到后自动使用下一优先级）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": 0, "max": 1000000}',
+  },
+  'email_daily_limit_brevo': {
+    value: '100',
+    description: 'Brevo 每日发送上限（0 表示不限额，达到后自动使用下一优先级）',
+    configType: 'integer',
+    configGroup: 'email',
+    isPublic: 0,
+    isSensitive: 0,
+    validationRules: '{"min": 0, "max": 1000000}',
+  },
   'verification_code_expiry': { value: '900000', description: '验证码过期时间（毫秒，默认15分钟）', configType: 'integer', configGroup: 'email', isPublic: 0, isSensitive: 0, validationRules: '{"min": 60000, "max": 3600000}' },
   'reset_password_code_expiry': { value: '1800000', description: '重置密码验证码过期时间（毫秒，默认30分钟）', configType: 'integer', configGroup: 'email', isPublic: 0, isSensitive: 0, validationRules: '{"min": 600000, "max": 7200000}' },
   'password_reset_log_retention_days': { value: '30', description: '密码重置日志保留天数', configType: 'integer', configGroup: 'cleanup', isPublic: 0, isSensitive: 0, validationRules: '{"min": 7, "max": 90}' },
@@ -102,7 +175,19 @@ async function logConfigChange(
   }
 }
 
-function validateConfigValue(value: string, configType: string, validationRules?: string | null): { valid: boolean; error?: string } {
+function validateConfigValue(
+  value: string,
+  configType: string,
+  validationRules?: string | null,
+  options?: string | null
+): { valid: boolean; error?: string } {
+  if (configType === 'select') {
+    const allowed = parseSelectOptions(options);
+    if (allowed.length > 0 && !allowed.includes(value)) {
+      return { valid: false, error: `值必须是以下之一：${allowed.join(' / ')}` };
+    }
+    return { valid: true };
+  }
   if (!validationRules) return { valid: true };
 
   try {
@@ -154,6 +239,24 @@ function validateConfigValue(value: string, configType: string, validationRules?
     return { valid: true };
   } catch {
     return { valid: true };
+  }
+}
+
+/** 解析 system_config.options：既支持 ["a","b"]，也支持 [{value,label}] */
+function parseSelectOptions(raw?: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'value' in item) return String(item.value);
+        return '';
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
   }
 }
 
@@ -361,6 +464,7 @@ configRoutes.get('/email/logs', async (c) => {
   const pageSize = Math.min(parseInt(c.req.query('pageSize') || '50'), 200);
   const emailType = c.req.query('type');
   const status = c.req.query('status');
+  const provider = c.req.query('provider');
 
   try {
     let whereClause = 'WHERE 1=1';
@@ -374,6 +478,11 @@ configRoutes.get('/email/logs', async (c) => {
     if (status) {
       whereClause += ' AND send_status = ?';
       params.push(status);
+    }
+
+    if (provider) {
+      whereClause += ' AND provider = ?';
+      params.push(provider);
     }
 
     const countResult = await c.env.DB.prepare(
@@ -454,6 +563,110 @@ configRoutes.get('/email/queue', async (c) => {
   } catch (err) {
     console.error('Get email queue error:', err);
     return c.json(error('SERVER_ERROR', '获取邮件队列失败'), 500);
+  }
+});
+
+// ─── 管理端邮件测试 ──────────────────────────────────────────────────────
+
+const EMAIL_PROVIDER_LABELS: Record<EmailProvider, string> = {
+  cloudflare: 'Cloudflare',
+  resend: 'Resend',
+  mailtrap: 'Mailtrap',
+  brevo: 'Brevo',
+};
+
+configRoutes.get('/email/providers', async (c) => {
+  if (!await checkIsAdmin(c)) {
+    return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
+  }
+
+  try {
+    const providers = await getEmailProviderStatuses(c.env);
+    return c.json(success({ providers }));
+  } catch (err) {
+    console.error('Get email providers error:', err);
+    return c.json(error('SERVER_ERROR', '获取邮件服务商失败'), 500);
+  }
+});
+
+configRoutes.post('/email/test', validateBody(schemas.config.testEmail), async (c) => {
+  const user = c.get('user');
+
+  if (!await checkIsAdmin(c)) {
+    return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
+  }
+
+  const { to, provider } = c.get('validatedBody') as z.infer<typeof schemas.config.testEmail>;
+
+  try {
+    const target = (await getEmailProviderStatuses(c.env)).find((item) => item.provider === provider);
+    if (!target?.configured) {
+      return c.json(error('PROVIDER_NOT_CONFIGURED', `${EMAIL_PROVIDER_LABELS[provider]} 未配置凭据，无法发送`), 400);
+    }
+
+    const now = Date.now();
+    const siteName = c.env.DEFAULT_FROM_NAME || 'Atlas';
+    const label = EMAIL_PROVIDER_LABELS[provider];
+    const subject = `[${siteName}] 邮件通道测试 - ${label}`;
+    const html = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${subject}</title></head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr><td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);padding:28px 36px;">
+          <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${siteName} 邮件通道测试</h1>
+        </td></tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7;">这是一封来自管理端的测试邮件，收到即表示该服务商通道可用。</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:0;">
+            <tr><td style="padding:12px 16px;font-size:14px;color:#6b7280;width:96px;">服务商</td><td style="padding:12px 16px;font-size:14px;color:#111827;font-weight:600;">${label}</td></tr>
+            <tr><td style="padding:12px 16px;font-size:14px;color:#6b7280;">发件地址</td><td style="padding:12px 16px;font-size:14px;color:#111827;">${target.fromEmail}</td></tr>
+            <tr><td style="padding:12px 16px;font-size:14px;color:#6b7280;">发送时间</td><td style="padding:12px 16px;font-size:14px;color:#111827;">${new Date(now).toISOString()}</td></tr>
+          </table>
+          <p style="margin:24px 0 0;color:#9ca3af;font-size:12px;">此邮件由管理员手动触发，请勿直接回复。</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+    const result = await sendEmailWithProvider(c.env, provider, {
+      to,
+      subject,
+      html,
+      text: `这是一封来自管理端的测试邮件，收到即表示 ${label} 通道可用。\n发件地址：${target.fromEmail}\n发送时间：${new Date(now).toISOString()}`,
+      tags: [{ name: 'source', value: 'admin-test' }],
+    });
+
+    await logEmailSend(c.env.DB, {
+      userId: user.userId,
+      recipientEmail: to,
+      emailType: 'admin_test',
+      status: result.ok ? 'sent' : 'failed',
+      provider,
+      messageId: result.messageId ?? null,
+      templateName: 'admin_test',
+      subject,
+      error: result.ok ? null : (result.error || '测试邮件发送失败'),
+      ipAddress: c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null,
+      createdAt: now,
+    });
+
+    if (!result.ok) {
+      return c.json(error('EMAIL_SEND_FAILED', result.error || '测试邮件发送失败'), 502);
+    }
+
+    return c.json(
+      success({ provider, fromEmail: target.fromEmail, to, messageId: result.messageId ?? null }, '测试邮件已发送'),
+      200
+    );
+  } catch (err) {
+    console.error('Send test email error:', err);
+    return c.json(error('SERVER_ERROR', (err as Error).message || '测试邮件发送失败'), 500);
   }
 });
 
@@ -601,7 +814,8 @@ configRoutes.put('/batch', validateBody(schemas.config.batchUpdateConfig), async
         const validation = validateConfigValue(
           value, 
           existing?.config_type || 'string', 
-          existing?.validation_rules
+          existing?.validation_rules,
+          existing?.options
         );
 
         if (!validation.valid) {
@@ -727,8 +941,9 @@ configRoutes.put('/:key', validateBody(schemas.config.updateConfig), async (c) =
 
     const configTypeToUse = configType || existing?.config_type || 'string';
     const validationRules = existing?.validation_rules || DEFAULT_CONFIG_VALUES[key]?.validationRules || null;
+    const optionsToUse = existing?.options || DEFAULT_CONFIG_VALUES[key]?.options || null;
 
-    const validation = validateConfigValue(value, configTypeToUse, validationRules);
+    const validation = validateConfigValue(value, configTypeToUse, validationRules, optionsToUse);
     if (!validation.valid) {
       return c.json(error('VALIDATION_ERROR', validation.error || '配置值验证失败'), 400);
     }

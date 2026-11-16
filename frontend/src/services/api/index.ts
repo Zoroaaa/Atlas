@@ -7,7 +7,7 @@ export { adminApi } from './admin';
 export type { EmailLogRow, EmailQueueRow } from './admin';
 export { dataStorageApi } from './admin';
 export { systemApi, analyticsApi, configApi } from './system';
-export type { SystemConfigItem, ConfigGroup, GroupedConfigs, ConfigChangeLog } from './system';
+export type { SystemConfigItem, ConfigGroup, GroupedConfigs, ConfigChangeLog, EmailProviderName, EmailProviderStatus, TestEmailResult } from './system';
 export { feedbackApi } from './feedback';
 export type { FeedbackSubmit, FeedbackItem, FeedbackStats, AdminHandleFeedback } from './feedback';
 export { announcementApi } from './announcement';

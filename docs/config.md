@@ -26,7 +26,7 @@
 | `SITE_URL` | `https://atlas.wort.uk` | 站点主地址，邮件模板中的站点链接 |
 | `FRONTEND_URL` | `https://atlas.wort.uk` | 前端地址，OAuth 完成后跳转目标 |
 | `BACKEND_URL` | `https://atlas.wort.uk` | 后端地址，OAuth 回调与邮件退订链接 |
-| `DEFAULT_FROM_EMAIL` | `noreply@mail.wort.uk` | 默认发件邮箱（需与 Resend 已验证域名一致） |
+| `DEFAULT_FROM_EMAIL` | `noreply@mail.wort.uk` | Cloudflare 发件邮箱（需与 Cloudflare Email Sending 已 onboard 域名一致） |
 | `DEFAULT_FROM_NAME` | `Atlas` | 默认发件人名称 |
 | `JWT_EXPIRY_DAYS` | `30` | 登录令牌有效期（天） |
 | `ENABLE_ACTION_LOGGING` | `true` | 是否记录用户行为日志 |
@@ -49,6 +49,8 @@ npx wrangler secret put GITHUB_CLIENT_SECRET
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put MAILTRAP_API_TOKEN
+npx wrangler secret put BREVO_API_KEY
 npx wrangler secret put RANKINGS_IMPORT_SECRET
 ```
 
@@ -57,11 +59,46 @@ npx wrangler secret put RANKINGS_IMPORT_SECRET
 | `JWT_SECRET` | 是 | JWT 签名密钥，建议 32 字节以上随机字符串 |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | 是 | GitHub OAuth App |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 否 | Google OAuth，未配置时 Google 登录不可用 |
-| `RESEND_API_KEY` | 邮件功能必填 | Resend API Key；未配置时验证码/通知邮件发送失败并写入 `email_send_logs` |
+| `RESEND_API_KEY` | 否 | Resend API Key；配置后作为邮件服务商之一参与优先级排队 |
+| `MAILTRAP_API_TOKEN` | 否 | Mailtrap Email Sending API Token；配置后作为邮件服务商之一参与优先级排队 |
+| `MAILTRAP_API_URL` | 否 | Mailtrap 发送端点，默认 `https://send.api.mailtrap.io/api/send`；用 Sandbox 时改为 sandbox 地址 |
+| `BREVO_API_KEY` | 否 | Brevo Transactional Email API Key；配置后作为邮件服务商之一参与优先级排队 |
 | `RANKINGS_IMPORT_SECRET` | 否 | JavDB 榜单导入接口的共享密钥（`/api/internal/rankings/import`） |
 | `TMDB_API_KEY` | 否 | TMDB 影视元数据增强；不配置时回退到搜索源聚合结果 |
 
 > 搜索源以 D1 `search_sources` 为准，不需要 DMM/FANZA 的 API Key。
+
+### 邮件服务商（Cloudflare / Resend / Mailtrap / Brevo）
+
+`backend/wrangler.toml` 已声明 Cloudflare 邮件绑定：
+
+```toml
+[[send_email]]
+name = "EMAIL"
+```
+
+四家服务商都可以同时配置，发送时按管理端优先级依次尝试。每家使用独立发件子域名，隔离发件域名信誉：
+
+| 服务商 | 发件地址 | 发件域名验证位置 |
+|---|---|---|
+| Cloudflare | `noreply@mail.wort.uk`（`DEFAULT_FROM_EMAIL`） | Cloudflare 面板 |
+| Resend | `noreply@resend.wort.uk` | Resend 后台 |
+| Mailtrap | `noreply@mailtrap.wort.uk` | Mailtrap 后台 |
+| Brevo | `noreply@brevo.wort.uk` | Brevo 后台 |
+
+
+> 发件地址按服务商在代码中固定绑定，业务层不可覆盖，避免选错通道后使用未验证域名发信。
+
+- `email_priority_cloudflare` / `email_priority_resend` / `email_priority_mailtrap` / `email_priority_brevo`：默认 `0 / -1 / -1 / -1`（调整阶段仅保留 Cloudflare），数值越小越优先，`-1` 表示停用。某家子域名验证完成后到管理端改回 `0`~`3` 即可启用。
+- `email_daily_limit_cloudflare` / `email_daily_limit_resend` / `email_daily_limit_mailtrap` / `email_daily_limit_brevo`：默认每家 `100`，每天成功发送上限，`0` 表示不限额；达到上限自动切换到下一优先级。
+- 某个服务商未配置凭据或发送失败时，也会继续尝试下一优先级；每日额度按 Asia/Shanghai 自然日统计。
+
+各服务商准备：
+
+- **Cloudflare**：在面板 **Compute → Email Service → Email Sending** 为发件域完成 onboard，`DEFAULT_FROM_EMAIL` 必须属于该域名。
+- **Resend**：配置 `RESEND_API_KEY`，并确保子域名 `resend.wort.uk` 已在 Resend 验证。
+- **Mailtrap**：配置 `MAILTRAP_API_TOKEN`，并确保子域名 `mailtrap.wort.uk` 已在 Mailtrap 验证；默认走 Transactional Stream。
+- **Brevo**：配置 `BREVO_API_KEY`，并确保子域名 `brevo.wort.uk` 已在 Brevo 验证；走 Transactional Email API。
 
 ---
 
@@ -189,6 +226,8 @@ database_id = "<创建 D1 后返回的 database_id>"
 | `password_reset_lockout_duration` | `3600000` | 找回密码锁定时长（毫秒） |
 | `email_rate_limit_per_hour` | `5` | 每用户每小时发信上限 |
 | `email_rate_limit_per_day` | `20` | 每用户每天发信上限 |
+| `email_priority_cloudflare` / `_resend` / `_mailtrap` / `_brevo` | `0` / `-1` / `-1` / `-1` | 邮件服务商优先级，越小越优先，`-1` 停用（调整阶段仅 Cloudflare） |
+| `email_daily_limit_cloudflare` / `_resend` / `_mailtrap` / `_brevo` | `100` | 服务商每日成功发送上限，`0` 不限额，达到后切换下一优先级 |
 | `verification_code_expiry` | `900000` | 验证码有效期（毫秒） |
 | `reset_password_code_expiry` | `1800000` | 找回密码验证码有效期（毫秒） |
 | `password_reset_log_retention_days` | `30` | 找回密码日志保留天数 |
