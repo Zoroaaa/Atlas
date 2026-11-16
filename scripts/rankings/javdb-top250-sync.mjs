@@ -165,6 +165,9 @@ async function authorized(path, options) {
   if (!token) await login();
   let payload = await javdbRequest(path, options);
   if (isAuthError(payload)) {
+    // App API 短时间请求过多也会返回 JWTVerificationError（并非 token 过期），
+    // 先冷却再重新登录，避免连续重试继续触发限流。
+    await sleep(15_000);
     await login();
     payload = await javdbRequest(path, options);
   }
@@ -226,9 +229,9 @@ function channelLabel(channel) {
 }
 
 function buildParams(channel, page) {
-  const startRank = (page - 1) * PAGE_SIZE + 1;
+  // 只传 page：App API 会把 page 和 start_rank 的偏移叠加，
+  // 两个都传相当于每页跳过一整页，13 页只能拿到 130 条。
   const params = {
-    start_rank: String(startRank),
     page: String(page),
     limit: String(PAGE_SIZE),
     ignore_watched: 'false',
