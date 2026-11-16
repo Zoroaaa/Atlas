@@ -1125,7 +1125,7 @@
     },
     "rankingArchive": {
       "title": "Rankings Archive",
-      "subtitle": "Browse historical weekly, monthly, yearly, and TOP250 rankings. Filter by period, section, year, snapshot, or code.",
+      "subtitle": "Browse historical weekly, monthly, yearly, and TOP250 rankings. Filter by period, section, year, snapshot, or code. Each channel keeps only the latest snapshot for a given period.",
       "refresh": "Refresh",
       "retry": "Retry",
       "loadFailed": "Failed to load rankings archive",
