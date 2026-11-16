@@ -127,7 +127,7 @@ Cloudflare 启用前确认：
 
 1. 账号为 Workers Paid，并在 **Compute → Email Service → Email Sending** 为发件域完成 onboard；
 2. `DEFAULT_FROM_EMAIL` 属于该已 onboard 域名；
-3. 迁移 `37_email_providers.sql` 已执行，管理端能看到优先级与限额配置。
+3. `database/01_schema.sql` 与 `database/02_data.sql` 已执行，管理端能看到优先级与限额配置。
 
 Mailtrap 启用前确认：API Token 具备发送权限、发件域名已在 Mailtrap 验证，并在 Sending Setup 中切换到 Transactional Stream 的 API 模式。
 
@@ -142,53 +142,22 @@ Brevo 启用前确认：API Key 具备发送权限，发件域名/发件人已�
 
 ## 五、初始化数据库
 
-脚本位于 `database/`，全新库按文件名顺序执行全部脚本（`20` 是一次性有损修复脚本，只能执行一次）：
+脚本位于 `database/`，全新库按顺序执行两个文件：
 
 ```bash
 cd backend
-
-for f in ../database/[0-9]*.sql; do
-  npx wrangler d1 execute codeseek --remote --file="$f"
-done
-```
-
-PowerShell 写法：
-
-```powershell
-cd backend
-Get-ChildItem ../database/[0-9]*.sql | Sort-Object Name | ForEach-Object {
-  npx wrangler d1 execute codeseek --remote --file="$($_.FullName)"
-}
+npx wrangler d1 execute codeseek --remote --file=../database/01_schema.sql
+npx wrangler d1 execute codeseek --remote --file=../database/02_data.sql
 ```
 
 | 脚本 | 作用 | 说明 |
 |---|---|---|
-| `01`–`12` | 基础表、搜索、社区、安全、公告、标签、索引、数据存储、搜索档位 | 必需 |
-| `13_backfill_search_tier` | 回填用户搜索档位 | 空表时无操作 |
-| `14_schema_notifications_follows` | 通知、关注、邮件偏好、公告已读 | 必需 |
-| `15_migrate_actress_favorites_to_follows` | 女优收藏迁移为关注 | 新库无数据，安全 |
-| `16_email_notifications` | 邮件日志、队列、退订令牌 | 必需 |
-| `17_schema_announcement_reads` | 公告已读表 | 必需 |
-| `18_backfill_community_notifications` | 历史社区互动补写通知 | 新库无数据 |
-| `19_schema_community_post_views` | 帖子浏览 24 小时去重表 | 必需 |
-| `20_fix_community_user_stats` | 社区统计改为实时聚合，删除冗余列/表/触发器 | **有损，只能执行一次** |
-| `21_schema_jav_genres` | 推荐标签词典与标签分页状态 | 必需 |
-| `22_indexes_data_retention` | 数据保留清理所需索引 | 必需 |
-| `23_drop_legacy_permissions` | 删除遗留权限表 | **有损，只能执行一次** |
-| `24_composite_indexes` | 复合索引 | 必需 |
-| `25_cron_locks` | cron 任务租约表 | 必需（缺失时定时任务无法去重） |
-| `26_jav_detail_meta` | JAV 详情完整度与批量补全任务 | 必需 |
-| `27_cron_read_reduction` | 削减定时任务的 D1 读取 | 必需 |
-| `28_query_perf_indexes` | 查询性能索引 | 必需 |
-| `29`–`31` | 详情任务开关、间隔字段、缺失字段筛选 | 必需 |
-| `32_schema_entity_aliases` | 跨语言实体别名表 | 必需 |
-| `33_follow_entity_targets` | 关注对象扩展到导演 / 制作商 / 发行商 / 系列 / 标签 | 必需 |
-| `34_recover_misjudged_magnet_missing` | 重置磁力误判记录的重试计数 | 必需（可重复执行） |
-| `35_jav_detail_job_batch_size_5` | 每分钟补全条数归一为 5 | 必需 |
-| `36_query_perf_indexes_phase2` | 第二轮查询性能索引 | 必需 |
-| `37_email_providers` | 邮件服务商优先级与每日限额（含发件子域名；默认仅 Cloudflare 启用） | 必需（可重复执行） |
+| `01_schema.sql` | 最终表结构：全部表、索引、触发器（无 ALTER / DROP） | 全新库执行一次 |
+| `02_data.sql` | 初始化数据：角色、系统配置、搜索源、标签、邮件模板（INSERT OR IGNORE） | 全新库执行一次；可在尾部追加新种子数据后重复执行 |
 
-除 `20` 外均可重复执行。本地库把 `--remote` 换成 `--local`。
+- 全新库只执行上面两个文件，不再需要按编号逐个跑历史迁移。
+- 已有生产库**不要**重新执行 `01_schema.sql`；后续新增配置或种子数据时，在 `02_data.sql` 末尾追加后单独执行该文件即可。
+- 本地库把 `--remote` 换成 `--local`。
 
 ---
 
@@ -286,7 +255,7 @@ run_worker_first = ["/api", "/api/*"]   # 必须同时写裸路径与通配符
 | `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（≤20 次子请求）+ 邮件摘要合并发送（≤15 封） |
 | `* * * * *` | 每分钟 | 管理看板手动触发的 JAV 详情补全批次 |
 
-小时任务固定在 `:05`，与 `*/30` 的 `:00/:30` 错开，避免同一分钟抢 D1 写。各任务各自持有 `cron_locks` 租约（`database/25_cron_locks.sql`），上一轮未跑完时本轮跳过。
+小时任务固定在 `:05`，与 `*/30` 的 `:00/:30` 错开，避免同一分钟抢 D1 写。各任务各自持有 `cron_locks` 租约（`database/01_schema.sql`），上一轮未跑完时本轮跳过。
 
 **手动触发**
 

@@ -114,7 +114,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 ```
 
 - 建库：`npx wrangler d1 create codeseek`
-- 全新库初始化脚本顺序见 [部署指南](./deploy.md)，必须从 `01` 执行到 `19`
+- 全新库初始化见 [部署指南](./deploy.md)：依次执行 `database/01_schema.sql` 与 `database/02_data.sql`
 - 本地开发使用 `--local`，生产使用 `--remote`，两者数据互不影响
 
 ---
@@ -211,7 +211,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 ## 九、运行时配置（system_config）
 
-管理后台 → 系统配置可修改以下键（`database/06_data_system.sql` 初始化）：
+管理后台 → 系统配置可修改以下键（`database/02_data.sql` 初始化）：
 
 | 键 | 默认 | 说明 |
 |----|------|------|
@@ -256,7 +256,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 新增一个搜索类别（以 `novel` 为例）：
 
-1. 在 `database/07_data_search_sources.sql` 追加大类、分类、搜索源（使用 `INSERT OR IGNORE`）
+1. 在 `database/02_data.sql` 追加大类、分类、搜索源（使用 `INSERT OR IGNORE`）
 2. 在前端 `frontend/src/constants.ts` 的 `SEARCH_CATEGORIES` 中添加对应配置
 3. 在 `frontend/src/i18n/locales/{zh-CN,zh-TW,en}/*.ts` 补充三语文案
 4. 执行 `npx wrangler d1 execute codeseek --remote --file=database/07_data_search_sources.sql`

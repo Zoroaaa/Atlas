@@ -258,7 +258,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Comment Rating**: Publish reviews on search sources to help others choose
 - **Like/Favorite**: Like quality search sources and collect them in personal list
 - **Report Mechanism**: Report inappropriate content, with admin processing
-- **View De-duplication (v1.6.0)**: The same user viewing the same post only increments `view_count` once per 24 hours (author self-views never count); requires `database/19_schema_community_post_views.sql`
+- **View De-duplication (v1.6.0)**: The same user viewing the same post only increments `view_count` once per 24 hours (author self-views never count); requires `database/01_schema.sql`
 - **Unified Notifications (v1.6.0)**: Likes, comments, favorites, and report results are delivered to the unified notification inbox; the separate community notification tab and its legacy endpoints were removed
 
 #### Contribution Statistics

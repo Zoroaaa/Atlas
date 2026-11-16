@@ -1,5 +1,7 @@
 # Changelog
 
+> 注：历史条目中的 `database/NN_*.sql` 迁移文件已合并为 `database/01_schema.sql` 与 `database/02_data.sql`。
+
 All notable changes to this project will be documented in this file.
 
 ## [v1.8.0] - 2026-11-14

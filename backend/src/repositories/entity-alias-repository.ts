@@ -1,7 +1,7 @@
 /**
  * 跨语言实体别名数据访问层
  *
- * 表结构见 database/32_schema_entity_aliases.sql。
+ * 表结构见 database/01_schema.sql。
  * 查询统一走 alias_key（NFKC + 小写 + 去空白/标点），写入做 upsert 幂等。
  */
 import { aliasKey } from '@/services/query-normalizer';
