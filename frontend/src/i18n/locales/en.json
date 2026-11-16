@@ -203,6 +203,7 @@
         "trends": "Trends Report",
         "activityRanking": "Activity Ranking",
         "dataStorage": "Data Storage",
+        "rankingsArchive": "Rankings Archive",
         "reports": "Report Handling",
         "roles": "Role Management",
         "config": "System Config",
@@ -1120,6 +1121,56 @@
         "empty": "No data",
         "anonymous": "Anonymous",
         "view": "View"
+      }
+    },
+    "rankingArchive": {
+      "title": "Rankings Archive",
+      "subtitle": "Browse historical weekly, monthly, yearly, and TOP250 rankings. Filter by period, section, year, snapshot, or code.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "loadFailed": "Failed to load rankings archive",
+      "empty": "No archived rankings yet",
+      "emptyHint": "Each successful ranking sync leaves a snapshot here. Try adjusting the filters above.",
+      "stats": {
+        "snapshots": "Snapshots",
+        "entries": "Entries",
+        "works": "Works"
+      },
+      "listType": {
+        "all": "All lists",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "top250": "TOP250"
+      },
+      "section": {
+        "all": "All sections",
+        "censored": "Censored",
+        "uncensored": "Uncensored",
+        "western": "Western",
+        "fc2": "FC2",
+        "sitewide": "Site-wide"
+      },
+      "yearLabel": "Year",
+      "yearAll": "All years",
+      "snapshotLabel": "Snapshot",
+      "snapshotAll": "All snapshots",
+      "searchPlaceholder": "Search code or title",
+      "search": "Search",
+      "total": "{{count}} entries",
+      "col": {
+        "rank": "Rank",
+        "work": "Work",
+        "list": "List",
+        "section": "Section",
+        "year": "Year",
+        "snapshot": "Snapshot",
+        "score": "Score",
+        "detail": "Detail"
+      },
+      "detail": {
+        "complete": "Complete",
+        "incomplete": "Incomplete"
       }
     },
     "activityRanking": {
@@ -2375,7 +2426,7 @@
       "openTagWorks": "View works tagged {{name}}"
     },
     "rankings": {
-      "title": "JAV rankings",
+      "title": "Recently Hot",
       "sourceLabel": "JavDB",
       "periodMonthly": "Monthly",
       "periodWeekly": "Weekly",
@@ -2388,6 +2439,22 @@
       "emptyWeekly": "This week's ranking is syncing; it usually updates early each morning",
       "footerHint": "Click a row to search the code",
       "updatedAt": "Updated {{time}}"
+    },
+    "top250": {
+      "title": "TOP250",
+      "overall": "Overall",
+      "yearLabel": "Year",
+      "tab": {
+        "all": "All",
+        "censored": "Censored",
+        "uncensored": "Uncensored",
+        "western": "Western",
+        "fc2": "FC2"
+      },
+      "refresh": "Refresh TOP250",
+      "loading": "Syncing TOP250...",
+      "empty": "No TOP250 data yet",
+      "emptyHint": "The list syncs on schedule and may be briefly empty right after a sync"
     },
     "recommend": {
       "titleForYou": "For You",
@@ -3522,7 +3589,7 @@
       },
       "discover": {
         "title": "Discover & recommendations",
-        "description": "For You, JAV rankings, and trending actresses on the home page."
+        "description": "For You, Recently Hot, and trending actresses on the home page."
       },
       "search": {
         "title": "Search & browsing",
@@ -3567,7 +3634,7 @@
         "summary": "Atlas is an aggregated search and discovery platform that brings results from multiple sources together, with rankings, recommendations, community, and follows.",
         "features": [
           "One search box covers five content categories: JAV, anime, movies, manga, and novels.",
-          "The JAV home page includes the follow feed, For You, JAV rankings, and trending actresses.",
+          "The JAV home page includes the follow feed, For You, Recently Hot, and trending actresses.",
           "After signing in, search history, favorites, follows, notifications, and community content sync with your account.",
           "The top-right corner lets you switch the proxy and theme/language, and open this Help Center at any time."
         ],
@@ -3623,8 +3690,8 @@
         ]
       },
       "jav-rankings": {
-        "title": "JAV rankings",
-        "summary": "The rankings on the JAV home page are grouped by weekly / monthly and censored / uncensored. Data syncs from JavDB and shows the update time.",
+        "title": "Recently Hot",
+        "summary": "Recently Hot is grouped by weekly / monthly and censored / uncensored. Data syncs from JavDB and shows the update time.",
         "features": [
           "Two periods (weekly, monthly) × two types (censored, uncensored), for four lists in total.",
           "Shows rank, NEW or up/down markers, cover, title, and code. Click a cover to enlarge it.",
@@ -3632,7 +3699,7 @@
           "Clicking an entry starts a search by its code."
         ],
         "steps": [
-          "Open the JAV home page and scroll to “JAV rankings”.",
+          "Open the JAV home page and scroll to “Recently Hot”.",
           "Choose weekly or monthly, then censored or uncensored.",
           "Click an entry to view the work; use the bottom pager for more.",
           "If data is not updated yet, click refresh or wait for the next early-morning sync."
@@ -3641,6 +3708,26 @@
           "Rankings sync from third-party data, usually in the early morning. They may be briefly empty right after a sync.",
           "Rank reflects popularity on the source site, not a rating on Atlas.",
           "A failed ranking load does not affect normal search. Try refreshing later."
+        ]
+      },
+      "jav-top250": {
+        "title": "TOP250",
+        "summary": "TOP250 lists the 250 highest-rated works on JavDB, with Overall, Censored, Uncensored, Western, and FC2 charts plus yearly charts from 2008 to 2026.",
+        "features": [
+          "Five overall charts: All, Censored, Uncensored, Western, and FC2, synced monthly.",
+          "Yearly charts cover 2008–2026 and sync every two months.",
+          "Shows rank, cover, title, and code. Clicking a row searches by code."
+        ],
+        "steps": [
+          "Open the JAV home page and find TOP250 below “Recently Hot”.",
+          "Switch between All, Censored, Uncensored, Western, and FC2.",
+          "To view past years, pick 2008–2026 from the year selector on the right.",
+          "Click a row to view the work; click refresh if the data has not updated yet."
+        ],
+        "caveats": [
+          "TOP250 comes from a third-party site; ranks change with its ratings.",
+          "Overall charts update monthly and yearly charts every two months; they may be briefly empty right after a sync.",
+          "A failed TOP250 load does not affect normal search or Recently Hot."
         ]
       },
       "trending-actresses": {
@@ -3781,7 +3868,7 @@
           "Library first: code searches use details and magnets already collected on this site and open instantly. Use “External source” on the detail card to pull the latest data from JavBus.",
           "Actress search: enter an actress name to see her works and follow her directly.",
           "Title search: find works by title or keyword.",
-          "Home modules: follow feed, For You, JAV rankings, and trending actresses.",
+          "Home modules: follow feed, For You, Recently Hot, and trending actresses.",
           "Detail fields: code, release date, duration, studio, series, tags, actresses, magnet links, and more."
         ],
         "steps": [

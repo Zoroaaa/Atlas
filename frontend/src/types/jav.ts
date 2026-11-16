@@ -51,12 +51,45 @@ export interface HotActressRanking {
   updatedAt: number;
 }
 
+// ── TOP250 ─────────────────────────────────────────────────────────────
+
+export type JavTop250Section = 'all' | 'censored' | 'uncensored' | 'western' | 'fc2';
+
+export interface JavTop250Entry {
+  code: string;
+  title: string;
+  cover?: string;
+  rank: number;
+  score?: string;
+  url?: string;
+}
+
+export interface JavTop250 {
+  section: JavTop250Section;
+  year: number | null;
+  items: JavTop250Entry[];
+  updatedAt: number;
+  total: number;
+  years: number[];
+}
+
+export const JAV_TOP250_PAGE_SIZE = 20;
+export const JAV_TOP250_YEARS: number[] = Array.from(
+  { length: 2026 - 2008 + 1 },
+  (_, index) => 2008 + index
+);
+
+export const JAV_TOP250_CACHE_KEY = 'jav_top250_cache_v1';
+// 与同步周期一致：总榜每月一次，年度榜每两个月一次；用户点刷新会强制重取
+export const JAV_TOP250_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
+export const JAV_TOP250_YEAR_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
+
 export const JAV_RANKINGS_PAGE_SIZE = 10;
 export const JAV_ACTRESSES_DISPLAY = 18;
 
-export const JAV_CACHE_KEY = 'jav_rankings_cache_v4';
-// 榜单由每日定时任务更新（见 javdb-ranking-daily.yml），缓存 6 小时；用户点刷新会强制重取
-export const JAV_CACHE_TTL = 6 * 60 * 60 * 1000;
+export const JAV_CACHE_KEY = 'jav_rankings_cache_v5';
+// 「最近热播」每天凌晨同步一次，缓存与同步周期一致（24 小时）；用户点刷新会强制重取
+export const JAV_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v5';
 export const ACTRESSES_CACHE_TTL = 6 * 60 * 60 * 1000;

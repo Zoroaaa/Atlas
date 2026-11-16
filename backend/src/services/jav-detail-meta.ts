@@ -20,6 +20,10 @@ export const DETAIL_FIELD_BITS = {
 export type JavDetailField = keyof typeof DETAIL_FIELD_BITS;
 export type JavDetailStatus = 'pending' | 'complete' | 'partial' | 'absent' | 'error';
 
+/** 四个字段全缺（尚未抓过详情） */
+export const DETAIL_ALL_FIELDS_MASK =
+  DETAIL_FIELD_BITS.director | DETAIL_FIELD_BITS.maker | DETAIL_FIELD_BITS.publisher | DETAIL_FIELD_BITS.magnets;
+
 export const DETAIL_RETRY_DELAY_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
 export const DETAIL_MAX_ATTEMPTS = 3;
 export const TRANSIENT_BASE_DELAY_MS = 10 * 60 * 1000; // 10 分钟
@@ -159,6 +163,44 @@ export async function readJavDetailMeta(db: D1Database, recordId: string): Promi
     .bind(recordId)
     .first<JavDetailMetaRow>();
   return row ? rowToMeta(row) : { ...EMPTY_META };
+}
+
+/**
+ * 为「只有列表级信息」的记录补一条待补全元数据。
+ *
+ * 榜单 / 关注 / 标签 / 实体浏览写入的作品天然只有番号、标题、封面，
+ * 没有磁力、导演、制作商、发行商。这里显式写入 missing_mask，
+ * 管理页才能打出「详情不完整 · 缺磁力/导演/制作商/发行商」标签；
+ * 已有 meta 行（包括已补全）绝不覆盖。
+ */
+export async function markJavDetailPending(
+  db: D1Database,
+  recordIds: string[],
+  mask: number = DETAIL_ALL_FIELDS_MASK
+): Promise<void> {
+  const ids = Array.from(new Set(recordIds.filter(Boolean)));
+  if (ids.length === 0) return;
+
+  const now = Date.now();
+  for (let i = 0; i < ids.length; i += 50) {
+    const slice = ids.slice(i, i + 50);
+    const placeholders = slice.map(() => '?').join(',');
+    // 只给「尚未补全」的记录补标记：历史 detail_completed=1 但没有 meta 行的记录
+    // 不能因为缺 meta 就被误判成详情不完整。
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO jav_detail_meta
+           (record_id, status, missing_mask, attempts, transient_failures,
+            next_retry_at, retry_exhausted, last_error, fetched_at, updated_at)
+         SELECT id, 'pending', ?, 0, 0, 0, 0, NULL, NULL, ?
+         FROM data_records
+         WHERE id IN (${placeholders})
+           AND record_type = 'jav'
+           AND detail_completed = 0`
+      )
+      .bind(mask, now, ...slice)
+      .run();
+  }
 }
 
 /** 批量读取，管理页列表用；避免 N+1 查询 */

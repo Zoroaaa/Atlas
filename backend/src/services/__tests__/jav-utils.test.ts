@@ -3,6 +3,7 @@ import {
   fetchJavbusDetailWithMagnets,
   isJavbusEmptyMagnetResponse,
   isJavbusVerificationPage,
+  isReleasedBeforeMonthsAgo,
   parseMagnets,
 } from '../jav-utils';
 
@@ -190,5 +191,31 @@ describe('fetchJavbusDetailWithMagnets', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toBe('HTTP_ERROR');
+  });
+});
+
+describe('isReleasedBeforeMonthsAgo（搜索本地优先的 3 个月边界）', () => {
+  // 2026-11-16 12:00 CST
+  const now = Date.UTC(2026, 10, 16, 4);
+
+  it('3 个月前之前发行 → true', () => {
+    expect(isReleasedBeforeMonthsAgo('2026-08-15', 3, now)).toBe(true);
+    expect(isReleasedBeforeMonthsAgo('2023-01-01', 3, now)).toBe(true);
+  });
+
+  it('刚好 3 个月边界当天 → 不算更早', () => {
+    expect(isReleasedBeforeMonthsAgo('2026-08-16', 3, now)).toBe(false);
+    expect(isReleasedBeforeMonthsAgo('2026-08-17', 3, now)).toBe(false);
+  });
+
+  it('近 3 个月或未来发行 → false', () => {
+    expect(isReleasedBeforeMonthsAgo('2026-11-01', 3, now)).toBe(false);
+    expect(isReleasedBeforeMonthsAgo('2027-01-01', 3, now)).toBe(false);
+  });
+
+  it('日期缺失/格式异常 → false（按近期处理，优先回源）', () => {
+    expect(isReleasedBeforeMonthsAgo(undefined, 3, now)).toBe(false);
+    expect(isReleasedBeforeMonthsAgo('', 3, now)).toBe(false);
+    expect(isReleasedBeforeMonthsAgo('2026/08/15', 3, now)).toBe(false);
   });
 });

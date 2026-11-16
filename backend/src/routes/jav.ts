@@ -22,8 +22,17 @@ import {
   type JavItem,
 } from '@/services/jav-utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
-import { JAV_RANKING, GENRE_REC, GENRE_WORKS } from '@/constants';
+import {
+  JAV_RANKING,
+  JAV_TOP250,
+  JAV_TOP250_SECTION_KEYS,
+  JAV_TOP250_YEARS,
+  GENRE_REC,
+  GENRE_WORKS,
+  type JavTop250SectionKey,
+} from '@/constants';
 import { getJavRankingSnapshot } from '@/services/ranking-snapshot';
+import { getTop250Snapshot } from '@/services/ranking-archive';
 import { getHotActressRanking } from '@/services/actress-ranking';
 import { enrichDataRecordFromDetail } from '@/services/data-storage';
 import { getLibraryJavDetail } from '@/services/library-detail';
@@ -34,6 +43,10 @@ import { checkIsAdmin } from '@/middleware/auth';
 import { getGenreByKey } from '@/repositories/genre-repository';
 import { getGenreRecommendations } from '@/services/genre-recommendation';
 import { getGenreWorks } from '@/services/genre-works';
+import {
+  rankingCacheKeyUrl,
+  top250CacheKeyUrl,
+} from '@/services/ranking-cache';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
@@ -338,18 +351,16 @@ javRoutes.get('/genre-works', async (c) => {
 javRoutes.get('/rankings', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
 
-  const cacheKey = new Request('https://internal/jav-rankings-v5');
+  // Cache API 只接受本 zone 的 URL：用请求 origin + 固定内部路径，导入成功后会主动删除
+  const cacheKey = new Request(rankingCacheKeyUrl(new URL(c.req.url).origin));
   const cache = caches.default;
 
   if (!forceRefresh) {
     const cached = await cache.match(cacheKey);
     if (cached) {
-      return new Response(cached.body, {
-        headers: {
-          ...Object.fromEntries(cached.headers),
-          'X-Cache': 'HIT',
-        },
-      });
+      const headers = new Headers(cached.headers);
+      headers.set('X-Cache', 'HIT');
+      return new Response(cached.body, { headers });
     }
   }
 
@@ -371,6 +382,76 @@ javRoutes.get('/rankings', async (c) => {
   } catch (err) {
     console.error('JAV rankings error:', err);
     return c.json({ success: false, error: { code: 'FETCH_ERROR', message: '获取榜单失败' } }, 500);
+  }
+});
+
+// ─────────────────────────────────────────────
+// TOP250：全部 + 四个大类（月度）/ 年度榜（双月）
+// GET /api/jav/top250?section=all|censored|uncensored|western|fc2&year=2026|all
+// ─────────────────────────────────────────────
+
+javRoutes.get('/top250', async (c) => {
+  const rawSection = (c.req.query('section') ?? 'all').trim().toLowerCase();
+  const rawYear = (c.req.query('year') ?? '').trim();
+  const forceRefresh = c.req.query('refresh') === '1';
+
+  const section = JAV_TOP250_SECTION_KEYS.includes(rawSection as JavTop250SectionKey)
+    ? rawSection as JavTop250SectionKey
+    : 'all';
+
+  let year: number | null = null;
+  if (rawYear && rawYear !== 'all') {
+    const parsed = Number.parseInt(rawYear, 10);
+    if (!JAV_TOP250_YEARS.includes(parsed)) {
+      return c.json(error('INVALID_YEAR', `年份仅支持 ${JAV_TOP250.YEAR_START}-${JAV_TOP250.YEAR_END}`), 400);
+    }
+    year = parsed;
+  }
+
+  const ttl = year == null
+    ? JAV_TOP250.OVERALL_CACHE_TTL_SECONDS
+    : JAV_TOP250.YEAR_CACHE_TTL_SECONDS;
+  const cacheKey = new Request(
+    top250CacheKeyUrl(new URL(c.req.url).origin, year == null ? section : 'all', year)
+  );
+  const cache = caches.default;
+
+  if (!forceRefresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set('X-Cache', 'HIT');
+      return new Response(cached.body, { headers });
+    }
+  }
+
+  try {
+    // 年度榜只有「全部」分类，忽略总榜 tab 的分类选择
+    const snapshot = await getTop250Snapshot(c.env.DB, year == null ? section : 'all', year);
+    const body = JSON.stringify({
+      success: true,
+      data: {
+        ...snapshot,
+        years: JAV_TOP250_YEARS,
+      },
+    });
+    const response = new Response(body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${ttl}`,
+        'X-Cache': forceRefresh ? 'BYPASS' : 'MISS',
+        'X-Fetched-At': new Date().toISOString(),
+      },
+    });
+
+    // 空结果不写长缓存：迁移未执行/瞬时报错时不能让面板 30 天看不到数据
+    if (snapshot.items.length > 0) {
+      c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+    }
+    return response;
+  } catch (err) {
+    console.error('JAV top250 error:', err);
+    return c.json(error('FETCH_ERROR', '获取 TOP250 失败'), 500);
   }
 });
 

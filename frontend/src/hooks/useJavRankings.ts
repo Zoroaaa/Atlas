@@ -76,7 +76,7 @@ export function useJavRankings() {
       }
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
-      console.error('JAV rankings fetch error:', err);
+      console.error('JAV recently-hot fetch error:', err);
       setError(i18next.t('errors:hooks.javRankings.networkFailed'));
     } finally {
       if (requestId === requestIdRef.current) {

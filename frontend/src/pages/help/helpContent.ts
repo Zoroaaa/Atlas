@@ -34,7 +34,7 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
   {
     id: 'discover',
     icon: Compass,
-    sections: ['for-you', 'jav-rankings', 'trending-actresses'],
+    sections: ['for-you', 'jav-rankings', 'jav-top250', 'trending-actresses'],
   },
   {
     id: 'search',

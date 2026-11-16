@@ -20,7 +20,6 @@ import {
   applyJavDetailAbsent,
   applyJavDetailSuccess,
   applyJavDetailTransientFailure,
-  computeMissingMask,
   magnetCountOf,
 } from './jav-detail-meta';
 
@@ -203,9 +202,11 @@ async function insertSources(
   const statements = sources.map((s) =>
     db
       .prepare(
-        `INSERT OR IGNORE INTO data_record_sources
+        `INSERT INTO data_record_sources
            (id, record_id, source_name, source_type, source_url, source_data, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(record_id, source_name, source_url)
+         DO UPDATE SET source_data = excluded.source_data`
       )
       .bind(
         generateId(),
@@ -455,44 +456,23 @@ export async function persistDataRecord(
 
     let payload: RecordPayload | null = null;
     let sources: SourceEntry[] = [];
-    let javDetail: JavDetail | null = null;
-    // 本批实际写入的磁力数：落库后据此判断「磁力是否缺失」，
-    // 避免再按 recordId 逐条查一次来源表
-    let javMagnetCount = 0;
 
     switch (resultType) {
       case 'jav': {
-        // JAV 番号搜索：result.detail 存在则为完整详情
-        const detail = result.detail as JavDetail | undefined;
+        // JAV 番号搜索：result.detail 存在则为完整详情。
+        // 搜索链路要求「近 3 个月外部源优先并更新本地，磁力一起新增/更新」，
+        // 因此这里统一走 enrichDataRecordFromDetail（存在则更新、不存在则新建），
+        // 而不是首写优先的 upsertRecord。
+        const detail = result.detail as (JavDetail & { magnets?: MagnetItem[] }) | undefined;
         if (detail && detail.code && detail.title) {
-          const magnets = (result.magnets as MagnetItem[] | undefined) || [];
-          const magnetFetchFailed = result.magnetFetchFailed === true;
-          const resolvedCover = resolveJavCover(detail.cover);
-          javDetail = detail;
-          payload = {
-            recordType: 'jav',
-            dedupKey: `jav:${detail.code}`,
-            title: detail.title,
-            cover: resolvedCover,
-            code: detail.code,
-            actors: detail.actresses?.length ? JSON.stringify(detail.actresses) : undefined,
-            duration: detail.duration,
-            releaseDate: detail.releaseDate,
-            publisher: detail.publisher,
-            tags: detail.tags,
-            contentData: {
-              ...detail,
-              cover: resolvedCover,
-              // 磁力只写 data_record_sources（唯一事实源），避免同一批磁力在
-              // content_data 与子表双份存储；详情读取走 library-detail 的 sources 查询
-            },
-            // 首采只做保守判断，落库后由 applyJavDetailSuccess 按真实来源数复核
-            detailCompleted:
-              !magnetFetchFailed && computeMissingMask(detail, magnetCountOf(magnets)) === 0 ? 1 : 0,
-          };
-          sources = magnetsToSources(magnets, detail.detailUrl);
-          javMagnetCount = magnetCountOf(magnets);
-          break;
+          const { magnets: detailMagnets, ...detailFields } = detail;
+          const magnets = detailMagnets ?? (result.magnets as MagnetItem[] | undefined) ?? [];
+          await enrichDataRecordFromDetail(db, {
+            detail: detailFields as JavDetail,
+            magnets,
+            magnetFetchFailed: result.magnetFetchFailed === true,
+          });
+          return;
         }
         // JAV 女优搜索：result.actresses[] 列表，采首条
         const actresses = result.actresses as ActressItem[] | undefined;
@@ -665,14 +645,6 @@ export async function persistDataRecord(
     const recordId = await upsertRecord(db, payload);
     if (recordId && sources.length) {
       await insertSources(db, recordId, sources);
-    }
-    // 按库中真实磁力来源数复核完整度，避免「抓过详情 = 完整」的历史误判；
-    // 本次已写入磁力时直接用数量，不再回表 COUNT
-    if (recordId && javDetail) {
-      await applyJavDetailSuccess(db, recordId, javDetail, {
-        magnetFetchFailed: result.magnetFetchFailed === true,
-        magnetCount: javMagnetCount,
-      });
     }
   } catch (err) {
     console.error('[data-storage] persistDataRecord error:', err);

@@ -11,6 +11,7 @@
 import { FOLLOW } from '@/constants';
 import { inspectJavCode } from '@codeseek/shared/utils';
 import { normalizeJavdbCover } from '@/services/javdb-cover';
+import { upsertWorksToLibrary } from '@/services/library-writer';
 
 export interface UpcomingTarget {
   watchKey: string;
@@ -203,6 +204,28 @@ export async function importUpcomingSnapshot(
         )
         .bind(target.watchKey, entityType, target.javdbEntityId ?? null, now, now, now)
     );
+
+    // 即将发售作品也进本地库（只新增，已入库完全不更新）：
+    // 这样搜索、详情、数据存储页都能看到这条占位记录，并带「详情不完整」标记。
+    if (normalized.length > 0) {
+      await upsertWorksToLibrary(
+        db,
+        normalized.map((work) => ({
+          code: work.code,
+          title: work.title,
+          cover: work.cover ?? undefined,
+          date: work.releaseDate,
+          source: 'javdb',
+        })),
+        {
+          sourceName: 'JavDB',
+          sourceType: 'info',
+          sourceData: { via: 'upcoming', watchKey: target.watchKey },
+          sourceUrlOf: (item) => `https://javdb.com/search?q=${encodeURIComponent(item.code)}`,
+          now,
+        }
+      ).catch((err) => console.error('[follow-upcoming] save works to library failed:', err));
+    }
 
     for (const work of normalized) {
       works++;

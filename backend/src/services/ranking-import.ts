@@ -1,22 +1,37 @@
 /**
  * 榜单导入服务
  *
- * 做三件事：
- *   1. 把周榜/月榜作品作为占位记录扩充进 data_records（只新增，已存在则完全跳过）；
- *   2. 把名次写入 data_record_sources（按 period + section 分来源，历史保留）；
- *   3. 返回各通道导入计数，供 workflow 判断。
+ * 做四件事：
+ *   1. 把周榜/月榜/TOP250 作品作为占位记录扩充进 data_records（只新增，已存在则完全跳过）；
+ *   2. 周榜/月榜把名次写入 data_record_sources（现有「最近热播」面板读取）；
+ *   3. 所有榜单把每次导入写成 jav_ranking_snapshots + jav_ranking_entries 归档，
+ *      供管理端查看历史名次；
+ *   4. 为新入库的占位记录补 jav_detail_meta（标记详情不完整、缺哪些字段）。
  *
- * JavDB 只负责「库里没有时创建」：已存在记录（尤其已被 JavBus 详情补全过）
- * 的任何字段都不允许被榜单数据覆盖，因此冲突时直接 DO NOTHING。
+ * 更新策略（2026-11 起）：JavDB 只负责「库里没有时创建」。
+ * 已存在记录（尤其已被 JavBus 详情补全过）的任何字段都不允许被榜单数据覆盖，
+ * 因此冲突时直接 DO NOTHING；重复导入只追加/刷新名次快照，不更新作品数据。
+ *
  * 番号匹配以规范化 code 为准，经典番号额外兼容无横杠写法（jav:WAAA-624 / jav:WAAA624）。
  *
  * 不参与推荐打分。
  */
 import { generateId } from '@/utils';
 import { normalizeJavdbCover } from '@/services/javdb-cover';
-import { JAV_RANKING } from '@/constants';
-import type { RankingImportPayload } from '@/types';
+import {
+  JAV_RANKING,
+  JAV_TOP250,
+  javTop250SourceName,
+  javTop250YearSourceName,
+  type JavTop250SectionKey,
+} from '@/constants';
+import type {
+  RankingImportPayload,
+  RankingImportPeriod,
+  RankingImportSection,
+} from '@/types';
 import { compactJavCode, inspectJavCode } from '@codeseek/shared/utils';
+import { markJavDetailPending } from './jav-detail-meta';
 
 // D1 单条 SQL 最多 100 个绑定变量；每次 IN 查询最多 50 个 key，留足余量
 const LOOKUP_CHUNK_SIZE = 50;
@@ -25,10 +40,14 @@ export interface RankingImportResult {
   created: number;
   existing: number;
   sources: number;
+  archived: number;
   skipped: number;
-  period: 'weekly' | 'monthly';
-  section: 'censored' | 'uncensored';
-  rejected?: 'TOO_FEW_ITEMS';
+  period: RankingImportPeriod;
+  section: RankingImportSection;
+  year?: number;
+  snapshotAt?: number;
+  sourceName?: string;
+  rejected?: 'TOO_FEW_ITEMS' | 'INVALID_CHANNEL';
 }
 
 interface NormalizedItem {
@@ -40,20 +59,46 @@ interface NormalizedItem {
   url?: string;
 }
 
-
-
-const SOURCE_BY_KEY = {
+const SOURCE_BY_KEY: Record<string, { name: string; url: string }> = {
   'censored:weekly': JAV_RANKING.SOURCE.CENSORED_WEEKLY,
   'uncensored:weekly': JAV_RANKING.SOURCE.UNCENSORED_WEEKLY,
   'censored:monthly': JAV_RANKING.SOURCE.CENSORED_MONTHLY,
   'uncensored:monthly': JAV_RANKING.SOURCE.UNCENSORED_MONTHLY,
-} as const;
+};
 
-function sourceOf(
-  section: 'censored' | 'uncensored',
-  period: 'weekly' | 'monthly'
-) {
-  return SOURCE_BY_KEY[`${section}:${period}`];
+function isTop250Section(section: RankingImportSection): section is JavTop250SectionKey {
+  return JAV_TOP250.SECTIONS.some((item) => item.key === section);
+}
+
+/**
+ * 通道校验与来源名称。
+ * 返回 null 表示通道组合非法（例如周榜传了 TOP250 的「欧美」分类）。
+ */
+function resolveChannel(payload: RankingImportPayload): { name: string; url: string } | null {
+  const { period, section, year } = payload;
+
+  if (period === 'weekly' || period === 'monthly') {
+    if (section !== 'censored' && section !== 'uncensored') return null;
+    return SOURCE_BY_KEY[`${section}:${period}`] ?? null;
+  }
+
+  if (period === 'top250') {
+    if (!isTop250Section(section)) return null;
+    const sourceName = javTop250SourceName(section);
+    const meta = JAV_TOP250.SECTIONS.find((item) => item.key === section);
+    return {
+      name: sourceName,
+      url: `https://javdb.com/rankings/top250?type=${meta?.apiValue ?? 'all'}`,
+    };
+  }
+
+  // yearly：TOP250 年度榜，只有「全部」分类
+  if (section !== 'all' || !Number.isInteger(year)) return null;
+  if (year! < JAV_TOP250.YEAR_START || year! > JAV_TOP250.YEAR_END) return null;
+  return {
+    name: javTop250YearSourceName(year!),
+    url: `https://javdb.com/rankings/top250?year=${year}`,
+  };
 }
 
 async function runBatches(
@@ -102,7 +147,21 @@ export async function importRankingSnapshot(
 ): Promise<RankingImportResult> {
   const now = Date.now();
   const fetchedAt = payload.fetchedAt ?? now;
-  const source = sourceOf(payload.section, payload.period);
+  const channel = resolveChannel(payload);
+
+  if (!channel) {
+    return {
+      created: 0,
+      existing: 0,
+      sources: 0,
+      archived: 0,
+      skipped: 0,
+      period: payload.period,
+      section: payload.section,
+      year: payload.year,
+      rejected: 'INVALID_CHANNEL',
+    };
+  }
 
   const seen = new Set<string>();
   const items: NormalizedItem[] = [];
@@ -125,25 +184,20 @@ export async function importRankingSnapshot(
     });
   });
 
-  if (items.length === 0) {
-    return {
-      created: 0,
-      existing: 0,
-      sources: 0,
-      skipped,
-      period: payload.period,
-      section: payload.section,
-    };
-  }
+  const minItems = payload.period === 'top250' || payload.period === 'yearly'
+    ? JAV_TOP250.MIN_IMPORT_ITEMS
+    : JAV_RANKING.MIN_IMPORT_ITEMS;
 
-  if (items.length < JAV_RANKING.MIN_IMPORT_ITEMS) {
+  if (items.length === 0 || items.length < minItems) {
     return {
       created: 0,
       existing: 0,
       sources: 0,
+      archived: 0,
       skipped,
       period: payload.period,
       section: payload.section,
+      year: payload.year,
       rejected: 'TOO_FEW_ITEMS',
     };
   }
@@ -188,13 +242,17 @@ export async function importRankingSnapshot(
     );
   await runBatches(db, insertStatements);
 
-  // 新增后再统一取一次记录 ID，供写入本期榜单名次（命中旧写法也在其中）
+  // 新增后再统一取一次记录 ID，供写入来源与归档（命中旧写法也在其中）
   const recordIdByKey = await loadRecordIdsByKey(db, lookupKeys);
   const recordIdOf = (code: string): string | undefined =>
     keysOf(code).map((key) => recordIdByKey.get(key)).find((id): id is string => Boolean(id));
 
   const createdCount = Math.max(0, items.length - existingCount);
 
+  // ── 来源记录 ──
+  // 周榜/月榜用 source_type='ranking'（现有「最近热播」面板读取）；
+  // TOP250/年度榜用 'info'，只做本地库来源与名次存证，避免拖慢榜单面板。
+  const isWeeklyMonthly = payload.period === 'weekly' || payload.period === 'monthly';
   const sourceStatements: D1PreparedStatement[] = [];
   for (const item of items) {
     const recordId = recordIdOf(item.code);
@@ -206,6 +264,7 @@ export async function importRankingSnapshot(
       section: payload.section,
       period: payload.period,
       fetchedAt,
+      ...(payload.year ? { year: payload.year } : {}),
       ...(item.url ? { url: item.url } : {}),
     });
 
@@ -214,15 +273,16 @@ export async function importRankingSnapshot(
         .prepare(
           `INSERT INTO data_record_sources
              (id, record_id, source_name, source_type, source_url, source_data, created_at)
-           VALUES (?, ?, ?, 'ranking', ?, ?, ?)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(record_id, source_name, source_url)
            DO UPDATE SET source_data = excluded.source_data`
         )
         .bind(
           generateId(),
           recordId,
-          source.name,
-          source.url,
+          channel.name,
+          isWeeklyMonthly ? 'ranking' : 'info',
+          channel.url,
           sourceData,
           now
         )
@@ -230,12 +290,83 @@ export async function importRankingSnapshot(
   }
   await runBatches(db, sourceStatements);
 
+  // ── 归档：snapshot + entries（所有榜单通道） ──
+  const snapshotKey = `${channel.name}:${fetchedAt}`;
+  await db
+    .prepare(
+      `INSERT INTO jav_ranking_snapshots
+         (snapshot_key, source_name, list_type, section, year, snapshot_at, item_count, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(snapshot_key) DO UPDATE SET
+         item_count = excluded.item_count`
+    )
+    .bind(
+      snapshotKey,
+      channel.name,
+      payload.period,
+      payload.section,
+      payload.year ?? null,
+      fetchedAt,
+      items.length,
+      now
+    )
+    .run();
+
+  const archiveStatements: D1PreparedStatement[] = [];
+  for (const item of items) {
+    archiveStatements.push(
+      db
+        .prepare(
+          `INSERT INTO jav_ranking_entries
+             (id, snapshot_key, record_id, code, title, cover, rank, score, url,
+              list_type, section, year, source_name, snapshot_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(snapshot_key, code) DO UPDATE SET
+             rank = excluded.rank,
+             score = excluded.score,
+             title = excluded.title,
+             cover = COALESCE(excluded.cover, jav_ranking_entries.cover),
+             url = COALESCE(excluded.url, jav_ranking_entries.url),
+             record_id = COALESCE(excluded.record_id, jav_ranking_entries.record_id)`
+        )
+        .bind(
+          `${snapshotKey}:${item.code}`,
+          snapshotKey,
+          recordIdOf(item.code) ?? null,
+          item.code,
+          item.title,
+          item.cover,
+          item.rank,
+          item.rating,
+          item.url ?? null,
+          payload.period,
+          payload.section,
+          payload.year ?? null,
+          channel.name,
+          fetchedAt,
+          now
+        )
+    );
+  }
+  await runBatches(db, archiveStatements);
+
+  // 新入库的占位记录显式标记「详情不完整 + 缺哪些字段」；
+  // 已有 meta 行（包括已补全）不会被覆盖。
+  const recordIds = items
+    .map((item) => recordIdOf(item.code))
+    .filter((id): id is string => Boolean(id));
+  await markJavDetailPending(db, recordIds);
+
   return {
     created: createdCount,
     existing: existingCount,
     sources: sourceStatements.length,
+    archived: archiveStatements.length,
     skipped,
     period: payload.period,
     section: payload.section,
+    year: payload.year,
+    snapshotAt: fetchedAt,
+    sourceName: channel.name,
   };
 }

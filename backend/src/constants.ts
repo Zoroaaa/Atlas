@@ -199,8 +199,9 @@ export const JAV_RANKING = {
     },
   },
   PANEL_LIMIT: 60,
-  // 榜单由每日定时任务导入，缓存 6 小时即可
-  CACHE_TTL_SECONDS: 6 * 60 * 60,
+  // 榜单由每日 18:00 UTC 的定时任务导入；缓存与同步周期一致（24 小时），
+  // 导入成功后由导入接口主动失效，避免「刚同步仍看到旧榜」。
+  CACHE_TTL_SECONDS: 24 * 60 * 60,
   MIN_IMPORT_ITEMS: 5,
   ACTRESS_LIMIT: 18,
   ACTRESS_CACHE_TTL_SECONDS: 6 * 60 * 60,
@@ -209,6 +210,48 @@ export const JAV_RANKING = {
   ACTRESS_WORK_WEIGHT: 5,
   ACTRESS_FOLLOW_WEIGHT: 2,
 } as const;
+
+// ==================================================================
+// JavDB TOP250 — 总榜（全部 + 四个大类）每月、年度榜每两月同步
+// ==================================================================
+
+export const JAV_TOP250 = {
+  /** 总的类别：来源站点的 type_value（all / 0 / 1 / 2 / 3） */
+  SECTIONS: [
+    { key: 'all', apiValue: 'all', sourceName: 'JavDB:TOP250全部' },
+    { key: 'censored', apiValue: '0', sourceName: 'JavDB:TOP250有码' },
+    { key: 'uncensored', apiValue: '1', sourceName: 'JavDB:TOP250无码' },
+    { key: 'western', apiValue: '2', sourceName: 'JavDB:TOP250欧美' },
+    { key: 'fc2', apiValue: '3', sourceName: 'JavDB:TOP250FC2' },
+  ] as const,
+  /** 年度榜范围（含首尾） */
+  YEAR_START: 2008,
+  YEAR_END: 2026,
+  /** 每个榜单固定 250 条，App API 单页最大 20 条 */
+  MAX_ITEMS: 250,
+  PAGE_SIZE: 20,
+  /** 总榜每月同步一次；年度榜每两个月同步一次 */
+  OVERALL_CACHE_TTL_SECONDS: 30 * 24 * 60 * 60,
+  YEAR_CACHE_TTL_SECONDS: 60 * 24 * 60 * 60,
+  MIN_IMPORT_ITEMS: 20,
+} as const;
+
+export const JAV_TOP250_SECTION_KEYS = JAV_TOP250.SECTIONS.map((item) => item.key);
+export type JavTop250SectionKey = (typeof JAV_TOP250.SECTIONS)[number]['key'];
+
+export const JAV_TOP250_YEARS: number[] = Array.from(
+  { length: JAV_TOP250.YEAR_END - JAV_TOP250.YEAR_START + 1 },
+  (_, index) => JAV_TOP250.YEAR_START + index
+);
+
+export function javTop250SourceName(section: JavTop250SectionKey): string {
+  return JAV_TOP250.SECTIONS.find((item) => item.key === section)?.sourceName
+    ?? JAV_TOP250.SECTIONS[0].sourceName;
+}
+
+export function javTop250YearSourceName(year: number): string {
+  return `JavDB:TOP250年度${year}`;
+}
 
 // ==================================================================
 // 关注女优 / 通知系统常量

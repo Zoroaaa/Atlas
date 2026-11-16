@@ -70,6 +70,11 @@ export interface Env {
   // 榜单导入密钥（GitHub Actions 调用内部导入接口）
   RANKINGS_IMPORT_SECRET?: string;
 
+  // GitHub Actions 调度（关注动态每 10 分钟同步；GitHub 原生 schedule 会延迟/跳过）
+  GITHUB_DISPATCH_TOKEN?: string;
+  GITHUB_REPOSITORY?: string;
+  GITHUB_DISPATCH_REF?: string;
+
   // AI 别名候选生成（旁路，默认关闭）
   ENABLE_ALIAS_AI?: string;
   ALIAS_AI_MODEL?: string;
@@ -121,10 +126,17 @@ export interface RankingImportItem {
   url?: string;
 }
 
+/** 榜单通道：周榜/月榜；TOP250 总榜；TOP250 年度榜 */
+export type RankingImportPeriod = 'weekly' | 'monthly' | 'top250' | 'yearly';
+/** 榜单分类：有码/无码，或 TOP250 的四个大类 + 全部 */
+export type RankingImportSection = 'censored' | 'uncensored' | 'western' | 'fc2' | 'all';
+
 export interface RankingImportPayload {
   source: 'javdb';
-  section: 'censored' | 'uncensored';
-  period: 'weekly' | 'monthly';
+  section: RankingImportSection;
+  period: RankingImportPeriod;
+  /** 年度榜年份（period=yearly 时必填） */
+  year?: number;
   fetchedAt?: number;
   items: RankingImportItem[];
 }

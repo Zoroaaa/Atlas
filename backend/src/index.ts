@@ -27,6 +27,7 @@ import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
 import { runDataRetention } from '@/services/data-retention';
 import { withCronLock } from '@/services/cron-lock';
+import { dispatchFollowUpcomingSync } from '@/services/follow-upcoming-dispatch';
 
 /** 10 分钟一轮的任务：租约 9 分钟，超过即认为上一轮已异常终止 */
 const TEN_MINUTE_LOCK_TTL_MS = 9 * 60_000;
@@ -186,6 +187,20 @@ export default {
             if (r && r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`);
           } catch (err) {
             console.error('[email] digest failed:', err);
+          }
+
+          // GitHub 原生 schedule 会延迟/跳过：由 Worker 主动 dispatch 同一 workflow。
+          // 未配置 GITHUB_DISPATCH_TOKEN 时静默跳过，不影响其他任务。
+          try {
+            const dispatched = await withCronLock(
+              env.DB,
+              'follow.upcoming.dispatch',
+              TEN_MINUTE_LOCK_TTL_MS,
+              () => dispatchFollowUpcomingSync(env)
+            );
+            if (dispatched === 'dispatched') console.log('[follow-upcoming-dispatch] workflow dispatched');
+          } catch (err) {
+            console.error('[follow-upcoming-dispatch] cron failed:', err);
           }
         })()
       );

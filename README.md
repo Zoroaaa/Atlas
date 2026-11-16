@@ -303,7 +303,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Behavior Logs**: User operation behavior record and analysis
 - **Configuration Management**: Dynamic modification of system configuration without redeployment
 
-### 6. JAV Ranking Function
+### 6. Recently Hot / TOP250
 
 #### Weekly / Monthly Rankings
 - **JavDB Weekly / Monthly**: censored and uncensored rankings, 20 entries per tab
@@ -319,7 +319,7 @@ Category (large category)        Classification (subcategory)         Source (so
 ### 7. Help Center (v1.6.0)
 
 - **Route**: `/help`, linked from the main navigation
-- **Categories**: Getting started, discovery (for-you / JAV rankings / trending actresses), search basics & tab differences, category guides, detail page, community, actress follows, notifications & email, account security, general notices, FAQ
+- **Categories**: Getting started, discovery (for-you / Recently Hot / TOP250 / trending actresses), search basics & tab differences, category guides, detail page, community, actress follows, notifications & email, account security, general notices, FAQ
 - **Structure**: Every section follows “feature overview + step-by-step guide + caveats”, plus a standalone general notices chapter
 - **Consistency**: Content is kept in sync with shipped behavior; JAV search is named “JAV search” everywhere instead of “JAV code search”
 

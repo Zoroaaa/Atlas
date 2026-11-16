@@ -1,0 +1,65 @@
+name: JavDB TOP250 Sync
+
+# 每天 19:30 UTC（东八区次日 03:30）检查今天该跑哪个 TOP250 通道：
+#   - 每月 1–5 日：全部 / 有码 / 无码 / 欧美 / FC2（一天一个，错开跑）
+#   - 奇数月 6–24 日：年度榜 2008–2026（一天一个，两个月一轮）
+# 脚本内部按 13 页抓取，每 4 页一批，批间等待 20 秒；通道间等待 15 秒。
+#
+# 复用榜单同步的 Secrets：ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET、JAVDB_USERNAME、JAVDB_PASSWORD
+# workflow_dispatch 可传 list / year 手动补跑某个通道。
+
+on:
+  schedule:
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+    inputs:
+      list:
+        description: 'all | censored | uncensored | western | fc2 | year'
+        required: false
+        default: ''
+      year:
+        description: '年度榜年份（list=year 时必填，2008-2026）'
+        required: false
+        default: ''
+      pages:
+        description: '抓取页数（1-13，调试用）'
+        required: false
+        default: ''
+
+concurrency:
+  group: javdb-top250-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sync TOP250
+        env:
+          JAVDB_USERNAME: ${{ secrets.JAVDB_USERNAME }}
+          JAVDB_PASSWORD: ${{ secrets.JAVDB_PASSWORD }}
+          ATLAS_RANKING_IMPORT_URL: ${{ secrets.ATLAS_RANKING_IMPORT_URL }}
+          RANKINGS_IMPORT_SECRET: ${{ secrets.RANKINGS_IMPORT_SECRET }}
+          TOP250_LIST: ${{ github.event.inputs.list || '' }}
+          TOP250_YEAR: ${{ github.event.inputs.year || '' }}
+          TOP250_PAGES: ${{ github.event.inputs.pages || '' }}
+        run: |
+          if [ -z "${JAVDB_USERNAME:-}" ] || [ -z "${JAVDB_PASSWORD:-}" ]; then
+            echo "Missing JAVDB_USERNAME or JAVDB_PASSWORD"
+            exit 1
+          fi
+          if [ -z "${ATLAS_RANKING_IMPORT_URL:-}" ] || [ -z "${RANKINGS_IMPORT_SECRET:-}" ]; then
+            echo "Missing ATLAS_RANKING_IMPORT_URL or RANKINGS_IMPORT_SECRET"
+            exit 1
+          fi
+          node scripts/rankings/javdb-top250-sync.mjs

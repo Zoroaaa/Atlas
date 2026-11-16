@@ -1,16 +1,21 @@
 /**
  * 作品写本地库（data_records / data_record_sources）的公共实现。
  *
- * 关注女优与推荐标签共用同一套语义：
- * - 库里没有的：新增（detail_completed=0，之后由每小时补全任务补详情）
- * - 库里已有的：只补空缺的演员/发行日期，不覆盖标题/封面/标签
+ * 关注动态、推荐标签、实体浏览共用同一套语义：
+ * - 库里没有的：新增（detail_completed=0，之后由补全任务补详情）
+ * - 库里已有的：完全跳过，不更新任何字段
  *
- * 标签归属不能写进 data_records.tags：详情补全会无条件覆盖为真实标签；
+ * 2026-11 起定时同步统一改为「只插入不更新」：外部列表页只负责发现新番号，
+ * 已入库作品的数据不再被列表页的标题/日期/演员覆盖。缺的详情交给用户查看详情、
+ * 搜索近 3 个月作品或补全任务处理。
+ *
+ * 标签归属不能写进 data_records.tags：详情补全会覆盖为真实标签；
  * 归属信息放在 data_record_sources.source_data。
  */
 import { generateId } from '@/utils';
 import { inspectJavCode } from '@codeseek/shared/utils';
 import type { JavItem } from '@/services/jav-utils';
+import { markJavDetailPending } from './jav-detail-meta';
 
 export interface LibraryWriteOptions {
   sourceName: string;
@@ -18,6 +23,8 @@ export interface LibraryWriteOptions {
   sourceData: Record<string, unknown>;
   /** 演员名列表；关注链路传女优名，标签链路不传 */
   actorNames?: string[];
+  /** 来源 URL 生成器；默认 JavBus 详情页，JavDB 链路可传自己的地址 */
+  sourceUrlOf?: (item: JavItem) => string | undefined;
   now?: number;
 }
 
@@ -43,11 +50,11 @@ export async function upsertWorksToLibrary(
   const placeholders = keys.map(() => '?').join(',');
   const existing = await db
     .prepare(
-      `SELECT id, dedup_key, actors, release_date FROM data_records
+      `SELECT id, dedup_key FROM data_records
        WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
     )
     .bind(...keys)
-    .all<{ id: string; dedup_key: string; actors: string | null; release_date: string | null }>();
+    .all<{ id: string; dedup_key: string }>();
   const byKey = new Map((existing.results || []).map((row) => [row.dedup_key, row]));
 
   const actorsJson = JSON.stringify(actorNames ?? []);
@@ -56,20 +63,8 @@ export async function upsertWorksToLibrary(
 
   for (const item of items) {
     const key = `jav:${item.code}`;
-    const row = byKey.get(key);
-
-    if (row) {
-      const needActors = Boolean(actorNames?.length) && (!row.actors || row.actors === '[]');
-      const needDate = !row.release_date && Boolean(item.date);
-      if (needActors || needDate) {
-        statements.push(
-          db
-            .prepare('UPDATE data_records SET actors = ?, release_date = ?, last_updated_at = ? WHERE id = ?')
-            .bind(needActors ? actorsJson : row.actors, needDate ? item.date! : row.release_date, now, row.id)
-        );
-      }
-      continue;
-    }
+    // 已入库：只插入新作品，不更新任何已有字段
+    if (byKey.has(key)) continue;
 
     const recordId = generateId();
     statements.push(
@@ -95,7 +90,8 @@ export async function upsertWorksToLibrary(
         )
         .bind(
           generateId(), options.sourceName, options.sourceType,
-          `https://www.javbus.com/${item.code}`, sourceDataJson, now, key
+          options.sourceUrlOf?.(item) ?? `https://www.javbus.com/${item.code}`,
+          sourceDataJson, now, key
         )
     );
   }
@@ -103,4 +99,15 @@ export async function upsertWorksToLibrary(
   for (let i = 0; i < statements.length; i += 50) {
     await db.batch(statements.slice(i, i + 50));
   }
+
+  // 列表页写入的记录只有番号/标题/封面，显式标记详情不完整；
+  // 已有 meta 行（包括已补全）不会被覆盖。
+  const refreshed = await db
+    .prepare(
+      `SELECT id FROM data_records
+       WHERE record_type = 'jav' AND dedup_key IN (${placeholders})`
+    )
+    .bind(...keys)
+    .all<{ id: string }>();
+  await markJavDetailPending(db, (refreshed.results || []).map((row) => row.id));
 }

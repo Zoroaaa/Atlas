@@ -95,8 +95,9 @@ const backendOnlySchemas = {
     // 榜单导入由后端任务调用
     import: z.object({
       source: z.enum(['javdb']),
-      section: z.enum(['censored', 'uncensored']),
-      period: z.enum(['weekly', 'monthly']),
+      section: z.enum(['censored', 'uncensored', 'western', 'fc2', 'all']),
+      period: z.enum(['weekly', 'monthly', 'top250', 'yearly']),
+      year: z.number().int().min(1900).max(2100).optional(),
       fetchedAt: z.number().int().optional(),
       items: z.array(z.object({
         code: z.string().min(1).max(40),
@@ -105,7 +106,7 @@ const backendOnlySchemas = {
         rank: z.number().int().min(1).max(500).optional(),
         score: z.union([z.number(), z.string().max(20)]).optional(),
         url: z.string().max(500).optional(),
-      })).min(1).max(200),
+      })).min(1).max(300),
     }),
   },
 

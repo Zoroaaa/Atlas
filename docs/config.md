@@ -306,9 +306,11 @@ resolve: {
 |------|----------|------|
 | 推荐画像 | 5 分钟 | `backend/src/services/recommendation.ts` |
 | 热度信号 | 1 小时 | `backend/src/services/hot-signals.ts` |
-| JAV 榜单 / 热门女优 | 6 小时 | `backend/src/routes/jav.ts` |
+| 最近热播 | 24 小时 | `backend/src/routes/jav.ts` |
+| TOP250 总榜 / 年度榜 | 30 天 / 60 天 | `backend/src/routes/jav.ts` |
+| 热门女优 | 6 小时 | `backend/src/routes/jav.ts` |
 | 收藏/历史统计 | 服务端聚合 | `backend/src/routes/user.ts` |
-| 榜单数据 | 前端请求缓存 | `frontend/src/hooks/useJavRankings.ts` |
+| 最近热播 / TOP250 | 24 小时 / 30 天 / 60 天 | `frontend/src/hooks/useJavRankings.ts`、`frontend/src/hooks/useJavTop250.ts` |
 
 ---
 

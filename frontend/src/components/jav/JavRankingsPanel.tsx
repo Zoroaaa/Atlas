@@ -23,7 +23,7 @@ interface JavRankingsPanelProps {
 
 const RANK_COLORS = ['text-primary-500', 'text-surface-400', 'text-primary-700'];
 
-const RankingRow: React.FC<{
+export const RankingRow: React.FC<{
   item: JavRankingEntry;
   onClick: (code: string) => void;
 }> = ({ item, onClick }) => {

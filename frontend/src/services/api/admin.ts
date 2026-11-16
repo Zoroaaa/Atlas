@@ -16,6 +16,10 @@ import type {
   DataRecordStatus,
   JavDetailJobView,
   JavDetailFieldName,
+  RankingArchiveEntry,
+  RankingArchiveSnapshot,
+  RankingArchiveMeta,
+  RankingArchiveQuery,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -920,6 +924,49 @@ export const dataStorageApi = {
       '/admin/data-storage/detail-jobs/resume',
       {}
     );
+    return response.data;
+  },
+
+  getRankingArchiveMeta: async (): Promise<RankingArchiveMeta> => {
+    const response = await apiClient.get<{ success: boolean; data: RankingArchiveMeta }>(
+      '/admin/data-storage/rankings/meta'
+    );
+    return response.data;
+  },
+
+  getRankingArchiveSnapshots: async (
+    params: RankingArchiveQuery = {}
+  ): Promise<PaginatedResponse<RankingArchiveSnapshot>> => {
+    const query = new URLSearchParams();
+    if (params.listType) query.set('listType', params.listType);
+    if (params.section) query.set('section', params.section);
+    if (params.year) query.set('year', String(params.year));
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+
+    const response = await apiClient.get<{
+      success: boolean;
+      data: PaginatedResponse<RankingArchiveSnapshot>;
+    }>(`/admin/data-storage/rankings/snapshots?${query.toString()}`);
+    return response.data;
+  },
+
+  getRankingArchiveEntries: async (
+    params: RankingArchiveQuery = {}
+  ): Promise<PaginatedResponse<RankingArchiveEntry>> => {
+    const query = new URLSearchParams();
+    if (params.listType) query.set('listType', params.listType);
+    if (params.section) query.set('section', params.section);
+    if (params.year) query.set('year', String(params.year));
+    if (params.snapshotKey) query.set('snapshotKey', params.snapshotKey);
+    if (params.search) query.set('search', params.search);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+
+    const response = await apiClient.get<{
+      success: boolean;
+      data: PaginatedResponse<RankingArchiveEntry>;
+    }>(`/admin/data-storage/rankings/entries?${query.toString()}`);
     return response.data;
   },
 };

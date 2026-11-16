@@ -35,6 +35,33 @@ export interface JavEntityLink {
   path: string;
 }
 
+/**
+ * 发行时间是否早于 N 个月前（按东八区自然日计算）。
+ *
+ * 搜索链路用它决定「本地库优先」还是「外部源优先」：
+ * 近 N 个月的作品仍可能补磁力/详情，必须回源；更早且本地有磁力的直接读库。
+ * 日期缺失或格式异常时返回 false（按近期处理，优先回源，避免拿到不完整旧数据）。
+ */
+export function isReleasedBeforeMonthsAgo(
+  releaseDate: string | undefined,
+  months: number,
+  now: number = Date.now()
+): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(releaseDate ?? '').trim());
+  if (!match) return false;
+  const releasedAt = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (!Number.isFinite(releasedAt)) return false;
+
+  const cstNow = new Date(now + 8 * 3600_000);
+  const cutoff = Date.UTC(
+    cstNow.getUTCFullYear(),
+    cstNow.getUTCMonth() - months,
+    cstNow.getUTCDate()
+  ) - 8 * 3600_000;
+
+  return releasedAt < cutoff;
+}
+
 // ─── JavBus 网格项类型 ─────────────────────────────────────────────────
 
 export interface JavItem {

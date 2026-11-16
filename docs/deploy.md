@@ -98,6 +98,7 @@ database_id = "<返回的 database_id>"
 | `MAILTRAP_API_URL` | 可选 | Mailtrap 发送端点 | 默认 `https://send.api.mailtrap.io/api/send`；Sandbox 测试时覆盖 |
 | `BREVO_API_KEY` | 可选 | Brevo Transactional Email API Key | 未配置时 Brevo 不参与发送队列 |
 | `RANKINGS_IMPORT_SECRET` | 榜单导入必需 | GitHub Actions 调 `/api/internal/rankings/import` 时的共享密钥 | 导入接口 401 |
+| `GITHUB_DISPATCH_TOKEN` | 可选 | Worker 每 10 分钟 dispatch 关注即将发售 workflow（`actions:write`） | 退回 GitHub 原生 schedule，可能延迟/跳过 |
 | `TMDB_API_KEY` | 可选 | 影视元数据搜索 | 该来源静默跳过 |
 
 ```bash
@@ -109,6 +110,7 @@ npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put RANKINGS_IMPORT_SECRET
+npx wrangler secret put GITHUB_DISPATCH_TOKEN
 npx wrangler secret put TMDB_API_KEY
 ```
 
@@ -350,9 +352,21 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 - 若导入返回 403，说明 WAF / Bot Fight 拦了 Actions 出口 IP，需要给 `/api/internal/rankings/import` 加 WAF 跳过规则。
 - `javdb-ranking-probe.yml` 不读这两个 secret。
 
+TOP250 使用 `.github/workflows/javdb-top250-sync.yml`（每天 19:30 UTC，东八区次日 03:30）：
+- 每月 1–5 日分别同步「全部 / 有码 / 无码 / 欧美 / FC2」总榜；
+- 奇数月 6–24 日分别同步 2008–2026 年度榜（两个月一轮）；
+- 每个榜单 13 页，按 4 页一批、批间 20 秒执行；手动运行可指定 `list` / `year` / `pages`；
+- 需要先执行 `database/14_jav_ranking_archive.sql`，榜单归档与 TOP250 读取依赖新表。
+
 ### 3. 即将发售同步 workflow
 
-`.github/workflows/follow-upcoming-sync.yml` 每 10 分钟运行一次，复用上面的四个 Secret：
+`.github/workflows/follow-upcoming-sync.yml` 由 Worker 每 10 分钟通过 GitHub API 主动触发（原生 `schedule` 仅兜底，GitHub 会延迟或跳过）。
+
+- Worker `[vars]` 已配置 `GITHUB_REPOSITORY` / `GITHUB_DISPATCH_REF`；
+- 需要在 Worker 上执行 `npx wrangler secret put GITHUB_DISPATCH_TOKEN`，PAT 权限为 `actions:write`；
+- 未配置该 secret 时 Worker 静默跳过，仅依赖 GitHub 原生 schedule。
+
+workflow 复用上面的四个 Secret：
 
 - `ATLAS_RANKING_IMPORT_URL` 只用于推导站点 origin，脚本会请求 `/api/internal/follows/upcoming/targets` 与 `/api/internal/follows/upcoming/import`。
 - 两处内部接口与榜单导入共用 `RANKINGS_IMPORT_SECRET` 和 `x-rankings-secret` 请求头。

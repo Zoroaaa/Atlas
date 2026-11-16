@@ -10,6 +10,7 @@ import { Env } from '@/types';
 import { success, error } from '@/utils';
 import { validateBody, schemas } from '@/validation';
 import { importRankingSnapshot } from '@/services/ranking-import';
+import { purgeRankingCaches } from '@/services/ranking-cache';
 
 export const rankingsRoutes = new Hono<{ Bindings: Env }>();
 
@@ -47,6 +48,13 @@ rankingsRoutes.post(
       if (result.rejected === 'TOO_FEW_ITEMS') {
         return c.json(error('TOO_FEW_ITEMS', '有效榜单条目过少，已拒绝本次导入'), 400);
       }
+      if (result.rejected === 'INVALID_CHANNEL') {
+        return c.json(error('INVALID_CHANNEL', '榜单通道或年份不合法'), 400);
+      }
+
+      // 写库成功后立即失效对应的榜单缓存，保证下一次请求拿到新榜
+      await purgeRankingCaches(new URL(c.req.url).origin, body);
+
       return c.json(success(result, '榜单导入完成'));
     } catch (err) {
       console.error('[rankings] import error:', err);

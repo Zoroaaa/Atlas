@@ -1,9 +1,13 @@
 name: Follow Upcoming Sync (JavDB)
 
-# 每 10 分钟同步关注对象的「即将发售」：GitHub Actions 登录 JavDB App API，
+# 同步关注对象的「即将发售」：GitHub Actions 登录 JavDB App API，
 # 拉取未发售作品后回传 Worker。复用榜单工作流的 Secrets：
 #   ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET、JAVDB_USERNAME、JAVDB_PASSWORD
 # 单轮最多 20 个对象，按 5 个一批执行，批间等待 10 秒；批内请求间隔 3 秒。
+#
+# 调度说明：GitHub 原生 schedule 会延迟/跳过，主调度由 Worker 的 */10 cron
+# 通过 GitHub API dispatch 本 workflow（Worker 需配置 GITHUB_DISPATCH_TOKEN、
+# GITHUB_REPOSITORY）。下面的 schedule 仅作为兜底。
 
 on:
   schedule:

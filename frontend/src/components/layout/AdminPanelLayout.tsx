@@ -54,6 +54,7 @@ const adminPanelNavItems: NavItem[] = [
   { id: 'trends', label: 'nav:adminPanel.items.trends', icon: <TrendingUp className="w-[18px] h-[18px]" />, path: '/admin-panel/trends' },
   { id: 'activity-ranking', label: 'nav:adminPanel.items.activityRanking', icon: <Trophy className="w-[18px] h-[18px]" />, path: '/admin-panel/activity-ranking' },
   { id: 'data-storage', label: 'nav:adminPanel.items.dataStorage', icon: <Database className="w-[18px] h-[18px]" />, path: '/admin-panel/data-storage' },
+  { id: 'rankings-archive', label: 'nav:adminPanel.items.rankingsArchive', icon: <Trophy className="w-[18px] h-[18px]" />, path: '/admin-panel/rankings-archive' },
   { id: 'aliases', label: 'nav:adminPanel.items.aliases', icon: <Languages className="w-[18px] h-[18px]" />, path: '/admin-panel/aliases' },
   { id: 'reports', label: 'nav:adminPanel.items.reports', icon: <AlertTriangle className="w-[18px] h-[18px]" />, path: '/admin-panel/reports' },
   { id: 'roles', label: 'nav:adminPanel.items.roles', icon: <Shield className="w-[18px] h-[18px]" />, path: '/admin-panel/roles' },

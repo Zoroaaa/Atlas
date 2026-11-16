@@ -42,6 +42,11 @@ JWT_EXPIRY_DAYS = "30"
 # 用户行为日志 — 生产/开发环境可能不同，属于环境级开关
 ENABLE_ACTION_LOGGING = "true"
 
+# GitHub Actions 调度：仓库固定；PAT 通过 wrangler secret 注入（GITHUB_DISPATCH_TOKEN）
+# Worker 每 10 分钟 dispatch follow-upcoming-sync.yml，弥补 GitHub 原生 schedule 的延迟/跳过
+GITHUB_REPOSITORY = "Zoroaaa/Atlas"
+GITHUB_DISPATCH_REF = "main"
+
 # AI 别名候选生成（旁路）：默认关闭；开启前需在下方声明 [ai] binding 并部署
 ENABLE_ALIAS_AI = "0"
 # 可选：覆盖默认翻译模型
@@ -60,6 +65,7 @@ ENABLE_ALIAS_AI = "0"
 # 🔐 GOOGLE_CLIENT_ID        (Google OAuth 2.0 Client ID, Google Cloud Console 创建)
 # 🔐 GOOGLE_CLIENT_SECRET    (Google OAuth 2.0 Client Secret)
 # 🔐 RANKINGS_IMPORT_SECRET  (GitHub Actions 调用 /api/internal/rankings/import)
+# 🔐 GITHUB_DISPATCH_TOKEN   (PAT actions:write，用于每 10 分钟 dispatch 关注同步 workflow)
 # =====================================================================
 
 # 数据库绑定

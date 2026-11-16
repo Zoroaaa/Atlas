@@ -18,7 +18,7 @@ import {
 import type { LibraryDetailTarget } from '@/components/search';
 import type { LibraryRecordType } from '@/services/api/library';
 import { useFeatureFlags } from '@/contexts/ConfigContext';
-import { JavRankingsPanel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
+import { JavRankingsPanel, JavTop250Panel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
@@ -291,6 +291,9 @@ export const MainSearchPage: React.FC = () => {
                       </LazyMount>
                       <LazyMount minHeight={200}>
                         <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
+                      </LazyMount>
+                      <LazyMount minHeight={200}>
+                        <JavTop250Panel onCodeClick={searchFlow.handleCodeClick} />
                       </LazyMount>
                     </>
                   ) : null}

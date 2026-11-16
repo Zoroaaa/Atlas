@@ -4,6 +4,7 @@ export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
 export { useJavDetail } from './useJavDetail';
 export { useJavRankings } from './useJavRankings';
+export { useJavTop250 } from './useJavTop250';
 export { useJavRecommendations } from './useJavRecommendations';
 export { useGenreRecommendations } from './useGenreRecommendations';
 export { useGenreWorks } from './useGenreWorks';

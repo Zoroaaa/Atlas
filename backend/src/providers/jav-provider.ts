@@ -21,6 +21,7 @@ import {
   fetchJavbusDetailWithMagnets,
   getHtml,
   describeJavbusFetchError,
+  isReleasedBeforeMonthsAgo,
   type JavEntityLink,
   type JavItem,
   type MagnetItem,
@@ -154,13 +155,14 @@ export class JavProvider implements SearchProvider {
 
     const code = info.code;
 
-    // 本地库优先：只做磁力校验，有磁力即返回本地库数据（不做有效期控制）
     const local = await getLibraryJavDetail(ctx.db, code).catch((err) => {
       console.error('[jav-provider] library lookup failed:', err);
       return null;
     });
-    if (local?.detail && local.detail.magnets.length > 0) {
-      const localDetail = local.detail;
+    const localDetail = local?.detail;
+
+    const localResult = (): JavSearchResult | null => {
+      if (!localDetail) return null;
       return {
         resultType: 'jav',
         keyword,
@@ -195,12 +197,27 @@ export class JavProvider implements SearchProvider {
           fromLibrary: true,
         },
       };
+    };
+
+    // 本地库优先的边界：发行超过 3 个月，且本地已有磁力。
+    // 近 3 个月仍处于补磁力/补详情的窗口，必须回源更新本地；
+    // 发行时间缺失或格式异常时也按近期处理，宁可回源也不展示残缺旧数据。
+    if (
+      localDetail
+      && localDetail.magnets.length > 0
+      && isReleasedBeforeMonthsAgo(localDetail.releaseDate, 3)
+    ) {
+      return localResult()!;
     }
 
     try {
       const fetched = await fetchJavbusDetailWithMagnets(code, 15000);
 
       if (!fetched.ok) {
+        // 外部源失败（网络/拦截/确实不存在）时，只要本地有数据就回退本地，
+        // 前端仍会显示「拉取 JavBus 外部源」按钮，用户可以手动重试。
+        const fallback = localResult();
+        if (fallback) return fallback;
         return {
           resultType: 'jav',
           keyword,
@@ -224,6 +241,8 @@ export class JavProvider implements SearchProvider {
         magnetFetchFailed,
       };
     } catch (err) {
+      const fallback = localResult();
+      if (fallback) return fallback;
       return {
         resultType: 'jav',
         keyword,

@@ -30,6 +30,12 @@ import {
   startJavDetailJob,
   stopJavDetailJob,
 } from '@/services/jav-detail-job';
+import {
+  getRankingArchiveMeta,
+  listRankingEntries,
+  listRankingSnapshots,
+  parseArchivePagination,
+} from '@/services/ranking-archive';
 
 /** 看板统计的缓存 TTL（缓存 key 由请求 origin 推导，见 /stats 处理函数） */
 const STATS_CACHE_TTL_SECONDS = 300;
@@ -756,6 +762,77 @@ dataStorageRoutes.post('/detail-jobs/resume', async (c) => {
   } catch (err) {
     console.error('[data-storage] resume detail job error:', err);
     return c.json(error('SERVER_ERROR', '继续批量任务失败'), 500);
+  }
+});
+
+// ============================================================
+// 10. 榜单归档（周榜 / 月榜 / 年度榜 / TOP250 历史名次）
+// ============================================================
+
+dataStorageRoutes.get('/rankings/meta', async (c) => {
+  try {
+    return c.json(success(await getRankingArchiveMeta(c.env.DB)));
+  } catch (err) {
+    console.error('[data-storage] ranking meta error:', err);
+    return c.json(error('SERVER_ERROR', '获取榜单归档概览失败'), 500);
+  }
+});
+
+dataStorageRoutes.get('/rankings/snapshots', async (c) => {
+  const pagination = parseArchivePagination({
+    page: c.req.query('page'),
+    pageSize: c.req.query('pageSize'),
+  });
+
+  try {
+    const result = await listRankingSnapshots(
+      c.env.DB,
+      {
+        listType: c.req.query('listType'),
+        section: c.req.query('section'),
+        year: c.req.query('year'),
+      },
+      pagination
+    );
+    return c.json(success({
+      ...result,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      totalPages: Math.ceil(result.total / pagination.pageSize),
+    }));
+  } catch (err) {
+    console.error('[data-storage] ranking snapshots error:', err);
+    return c.json(error('SERVER_ERROR', '获取榜单快照失败'), 500);
+  }
+});
+
+dataStorageRoutes.get('/rankings/entries', async (c) => {
+  const pagination = parseArchivePagination({
+    page: c.req.query('page'),
+    pageSize: c.req.query('pageSize'),
+  });
+
+  try {
+    const result = await listRankingEntries(
+      c.env.DB,
+      {
+        listType: c.req.query('listType'),
+        section: c.req.query('section'),
+        year: c.req.query('year'),
+        snapshotKey: c.req.query('snapshotKey'),
+        search: c.req.query('search'),
+      },
+      pagination
+    );
+    return c.json(success({
+      ...result,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      totalPages: Math.ceil(result.total / pagination.pageSize),
+    }));
+  } catch (err) {
+    console.error('[data-storage] ranking entries error:', err);
+    return c.json(error('SERVER_ERROR', '获取榜单名次失败'), 500);
   }
 });
 
