@@ -2,7 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 
 interface TabsProps {
-  tabs: { id: string; label: string; icon?: React.ReactNode }[];
+  tabs: { id: string; label: React.ReactNode; icon?: React.ReactNode }[];
   activeTab: string;
   onChange: (id: string) => void;
   className?: string;

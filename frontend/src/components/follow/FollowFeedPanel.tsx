@@ -36,6 +36,8 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
   const { data: followsData } = useFollows();
   const follows = useMemo(() => followsData?.follows ?? [], [followsData]);
   const unread = followsData?.unread ?? 0;
+  const unreadNew = followsData?.unreadNew ?? 0;
+  const unreadUpcoming = followsData?.unreadUpcoming ?? 0;
   const { unfollow, setNotify, markViewed } = useFollowActions();
   const queryClient = useQueryClient();
 
@@ -160,8 +162,24 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                   onChange={setTab}
                   ariaLabel={t('follow:title')}
                   options={[
-                    { value: 'new', label: t('follow:tabNew') },
-                    { value: 'upcoming', label: t('follow:tabUpcoming') },
+                    {
+                      value: 'new',
+                      label: (
+                        <span className="flex items-center gap-1">
+                          {t('follow:tabNew')}
+                          {unreadNew > 0 ? <CountBadge>{unreadNew}</CountBadge> : null}
+                        </span>
+                      ),
+                    },
+                    {
+                      value: 'upcoming',
+                      label: (
+                        <span className="flex items-center gap-1">
+                          {t('follow:tabUpcoming')}
+                          {unreadUpcoming > 0 ? <CountBadge>{unreadUpcoming}</CountBadge> : null}
+                        </span>
+                      ),
+                    },
                   ]}
                 />
               </div>

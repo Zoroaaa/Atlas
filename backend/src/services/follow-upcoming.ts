@@ -10,6 +10,7 @@
  */
 import { FOLLOW } from '@/constants';
 import { inspectJavCode } from '@codeseek/shared/utils';
+import { normalizeJavdbCover } from '@/services/javdb-cover';
 
 export interface UpcomingTarget {
   watchKey: string;
@@ -110,14 +111,7 @@ interface NormalizedWork {
   releaseDate: string;
 }
 
-function normalizeCover(raw?: string): string | null {
-  if (!raw) return null;
-  const cover = raw.trim();
-  if (!cover) return null;
-  if (cover.startsWith('//')) return `https:${cover}`;
-  if (cover.startsWith('/')) return `https://javdb.com${cover}`;
-  return cover;
-}
+
 
 async function runBatches(db: D1Database, statements: D1PreparedStatement[]): Promise<void> {
   for (let i = 0; i < statements.length; i += 50) {
@@ -185,7 +179,7 @@ export async function importUpcomingSnapshot(
       normalized.push({
         code: info.code,
         title: (raw.title || info.code).trim().slice(0, 300) || info.code,
-        cover: normalizeCover(raw.cover),
+        cover: normalizeJavdbCover(raw.cover),
         releaseDate: raw.releaseDate,
       });
       if (normalized.length >= FOLLOW.UPCOMING_MAX_WORKS) break;

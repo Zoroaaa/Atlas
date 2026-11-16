@@ -66,9 +66,13 @@ const cachedList: FollowsData = {
       lastCheckedAt: Date.now(),
       checkFailing: false,
       unread: 1,
+      unreadNew: 1,
+      unreadUpcoming: 0,
     },
   ],
   unread: 1,
+  unreadNew: 1,
+  unreadUpcoming: 0,
   limit: 100,
 };
 

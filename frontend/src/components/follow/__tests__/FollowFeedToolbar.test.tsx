@@ -13,6 +13,8 @@ const makeFollow = (overrides: Partial<FollowItem>): FollowItem => ({
   lastCheckedAt: 0,
   checkFailing: false,
   unread: 0,
+  unreadNew: 0,
+  unreadUpcoming: 0,
   ...overrides,
 });
 

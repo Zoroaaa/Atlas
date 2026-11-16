@@ -71,6 +71,21 @@ const ALLOWED_IMAGE_HOSTS = [
   'www.minnano-av.com',
 ];
 
+/** 部分 CDN 返回 application/octet-stream，按文件头识别图片类型，避免 nosniff 导致 <img> 拒绝渲染 */
+function detectImageMime(data: ArrayBuffer): string | null {
+  const bytes = new Uint8Array(data.slice(0, 12));
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
+  if (bytes.length >= 3 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+  if (
+    bytes.length >= 12
+    && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+    && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) return 'image/webp';
+  if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d) return 'image/bmp';
+  return null;
+}
+
 function isPrivateIP(hostname: string): boolean {
   const privatePatterns = [
     /^127\./,
@@ -177,8 +192,23 @@ javRoutes.get('/proxy-image', async (c) => {
         });
       }
 
-      const contentType = resp.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
       const data = await resp.arrayBuffer();
+      const upstreamType = resp.headers.get('content-type')?.split(';')[0].trim() || '';
+      let contentType = upstreamType;
+      if (!contentType.startsWith('image/')) {
+        contentType = detectImageMime(data) || '';
+        if (!contentType) {
+          console.error('Image returned non-image content:', targetUrl, upstreamType);
+          return new Response(fallbackGif, {
+            status: 200,
+            headers: {
+              'Content-Type': 'image/gif',
+              'Cache-Control': 'no-store',
+              'Cross-Origin-Resource-Policy': 'cross-origin',
+            },
+          });
+        }
+      }
 
       return new Response(data, {
         headers: {

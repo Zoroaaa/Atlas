@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCheck, Heart, RefreshCw, Rss } from 'lucide-react';
 import { Button, Card, EmptyState, Loading, Tabs } from '@/components/ui';
-import { Chip, MediaCard, Pagination } from '@/components/workbench';
+import { Chip, CountBadge, MediaCard, Pagination } from '@/components/workbench';
 import {
   useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE,
 } from '@/hooks';
@@ -27,6 +27,8 @@ export const FollowFeedManager: React.FC = () => {
   const { data: followsData } = useFollows();
   const follows = useMemo(() => followsData?.follows ?? [], [followsData]);
   const unread = followsData?.unread ?? 0;
+  const unreadNew = followsData?.unreadNew ?? 0;
+  const unreadUpcoming = followsData?.unreadUpcoming ?? 0;
   const { markViewed } = useFollowActions();
 
   const { data: feed, isLoading, isFetching, refetch } = useFollowFeed(tab, page, follows.length > 0, {
@@ -109,8 +111,24 @@ export const FollowFeedManager: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <Tabs
                 tabs={[
-                  { id: 'new', label: t('follow:tabNew') },
-                  { id: 'upcoming', label: t('follow:tabUpcoming') },
+                  {
+                    id: 'new',
+                    label: (
+                      <span className="flex items-center gap-1.5">
+                        {t('follow:tabNew')}
+                        {unreadNew > 0 ? <CountBadge>{unreadNew}</CountBadge> : null}
+                      </span>
+                    ),
+                  },
+                  {
+                    id: 'upcoming',
+                    label: (
+                      <span className="flex items-center gap-1.5">
+                        {t('follow:tabUpcoming')}
+                        {unreadUpcoming > 0 ? <CountBadge>{unreadUpcoming}</CountBadge> : null}
+                      </span>
+                    ),
+                  },
                 ]}
                 activeTab={tab}
                 onChange={(id) => setTab(id as FollowFeedTab)}

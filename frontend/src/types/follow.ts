@@ -14,11 +14,15 @@ export interface FollowItem {
   lastCheckedAt: number;
   checkFailing: boolean;
   unread: number;
+  unreadNew: number;
+  unreadUpcoming: number;
 }
 
 export interface FollowsData {
   follows: FollowItem[];
   unread: number;
+  unreadNew: number;
+  unreadUpcoming: number;
   limit: number;
 }
 

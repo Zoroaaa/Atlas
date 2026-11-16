@@ -35,7 +35,8 @@ interface FollowRow {
   notify_in_app: number;
   last_checked_at: number;
   fail_count: number;
-  unread: number;
+  unread_new: number;
+  unread_upcoming: number;
 }
 
 // 我的关注列表（≤ MAX_PER_USER，一次返回）
@@ -47,9 +48,9 @@ followRoutes.get('/', async (c) => {
       `SELECT f.watch_key AS key, t.entity_type, t.entity_key, t.name, t.avatar,
               f.created_at, f.notify_in_app, t.last_checked_at, t.fail_count,
               (SELECT COUNT(*) FROM actress_works w
-                WHERE w.watch_key = f.watch_key AND w.first_detected_at > f.last_viewed_at)
-              + (SELECT COUNT(*) FROM follow_upcoming u
-                WHERE u.watch_key = f.watch_key AND u.first_detected_at > f.last_viewed_at) AS unread
+                WHERE w.watch_key = f.watch_key AND w.first_detected_at > f.last_viewed_at) AS unread_new,
+              (SELECT COUNT(*) FROM follow_upcoming u
+                WHERE u.watch_key = f.watch_key AND u.first_detected_at > f.last_viewed_at) AS unread_upcoming
        FROM user_follows f
        JOIN follow_targets t ON t.watch_key = f.watch_key
        WHERE f.user_id = ?
@@ -66,12 +67,19 @@ followRoutes.get('/', async (c) => {
       notifyInApp: r.notify_in_app === 1,
       lastCheckedAt: r.last_checked_at,
       checkFailing: r.fail_count >= 3,
-      unread: r.unread,
+      unreadNew: r.unread_new,
+      unreadUpcoming: r.unread_upcoming,
+      unread: r.unread_new + r.unread_upcoming,
     }));
+
+    const unreadNew = follows.reduce((sum, f) => sum + f.unreadNew, 0);
+    const unreadUpcoming = follows.reduce((sum, f) => sum + f.unreadUpcoming, 0);
 
     return c.json(success({
       follows,
-      unread: follows.reduce((sum, f) => sum + f.unread, 0),
+      unread: unreadNew + unreadUpcoming,
+      unreadNew,
+      unreadUpcoming,
       limit: FOLLOW.MAX_PER_USER,
     }));
   } catch (err) {

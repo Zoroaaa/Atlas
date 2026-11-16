@@ -13,6 +13,7 @@
  * 不参与推荐打分。
  */
 import { generateId } from '@/utils';
+import { normalizeJavdbCover } from '@/services/javdb-cover';
 import { JAV_RANKING } from '@/constants';
 import type { RankingImportPayload } from '@/types';
 import { compactJavCode, inspectJavCode } from '@codeseek/shared/utils';
@@ -39,14 +40,7 @@ interface NormalizedItem {
   url?: string;
 }
 
-function normalizeCover(raw?: string): string | null {
-  if (!raw) return null;
-  const cover = raw.trim();
-  if (!cover) return null;
-  if (cover.startsWith('//')) return `https:${cover}`;
-  if (cover.startsWith('/')) return `https://javdb.com${cover}`;
-  return cover;
-}
+
 
 const SOURCE_BY_KEY = {
   'censored:weekly': JAV_RANKING.SOURCE.CENSORED_WEEKLY,
@@ -125,7 +119,7 @@ export async function importRankingSnapshot(
       code: info.code,
       rank: Math.max(1, raw.rank ?? index + 1),
       title: (raw.title || info.code).trim().slice(0, 300),
-      cover: normalizeCover(raw.cover),
+      cover: normalizeJavdbCover(raw.cover),
       rating: raw.score != null ? String(raw.score).slice(0, 20) : null,
       url: raw.url,
     });
