@@ -43,7 +43,7 @@ JWT_EXPIRY_DAYS = "30"
 ENABLE_ACTION_LOGGING = "true"
 
 # GitHub Actions 调度：仓库固定；PAT 通过 wrangler secret 注入（GITHUB_DISPATCH_TOKEN）
-# Worker 每 10 分钟 dispatch follow-upcoming-sync.yml，弥补 GitHub 原生 schedule 的延迟/跳过
+# Worker 每 30 分钟 dispatch follow-upcoming-sync.yml，弥补 GitHub 原生 schedule 的延迟/跳过
 GITHUB_REPOSITORY = "Zoroaaa/Atlas"
 GITHUB_DISPATCH_REF = "main"
 
@@ -65,7 +65,7 @@ ENABLE_ALIAS_AI = "0"
 # 🔐 GOOGLE_CLIENT_ID        (Google OAuth 2.0 Client ID, Google Cloud Console 创建)
 # 🔐 GOOGLE_CLIENT_SECRET    (Google OAuth 2.0 Client Secret)
 # 🔐 RANKINGS_IMPORT_SECRET  (GitHub Actions 调用 /api/internal/rankings/import)
-# 🔐 GITHUB_DISPATCH_TOKEN   (PAT actions:write，用于每 10 分钟 dispatch 关注同步 workflow)
+# 🔐 GITHUB_DISPATCH_TOKEN   (PAT actions:write，用于每 30 分钟 dispatch 关注同步 workflow)
 # =====================================================================
 
 # 数据库绑定
@@ -90,9 +90,9 @@ name = "EMAIL"
 enabled = true
 
 [triggers]
-# 关注检测 + 邮件摘要每 10 分钟一轮；小时任务固定在 :05，避免整点争抢 D1 写；
+# 关注检测 + 邮件摘要每 30 分钟一轮；小时任务固定在 :05，避免整点争抢 D1 写；
 # * * * * * 用于管理看板手动触发的 JAV 详情补全批次（Cloudflare 免费计划上限 5 个 cron）
-crons = ["5 * * * *", "*/10 * * * *", "* * * * *"]
+crons = ["5 * * * *", "*/30 * * * *", "* * * * *"]
 
 # =====================================================================
 # [assets] — 前端静态资源（与 API 同一个 Worker）

@@ -15,7 +15,7 @@
          ├─ /api、/api/*   → Hono 路由（run_worker_first）
          ├─ 其余路径        → frontend/dist（not_found_handling = single-page-application）
          ├─ D1（绑定名 DB，database_name = codeseek）
-         ├─ Cron Triggers（每小时清理 / 每 10 分钟关注检测 + 邮件摘要 / 每分钟补全批次）
+         ├─ Cron Triggers（每小时清理 / 每 30 分钟关注检测 + 邮件摘要 / 每分钟补全批次）
          ├─ 外部服务（GitHub OAuth / Google OAuth / Resend / TMDB / 搜索源）
          └─ 自定义域：<your-domain>（前端与 API 同源）
 ```
@@ -98,7 +98,7 @@ database_id = "<返回的 database_id>"
 | `MAILTRAP_API_URL` | 可选 | Mailtrap 发送端点 | 默认 `https://send.api.mailtrap.io/api/send`；Sandbox 测试时覆盖 |
 | `BREVO_API_KEY` | 可选 | Brevo Transactional Email API Key | 未配置时 Brevo 不参与发送队列 |
 | `RANKINGS_IMPORT_SECRET` | 榜单导入必需 | GitHub Actions 调 `/api/internal/rankings/import` 时的共享密钥 | 导入接口 401 |
-| `GITHUB_DISPATCH_TOKEN` | 可选 | Worker 每 10 分钟 dispatch 关注即将发售 workflow（`actions:write`） | 退回 GitHub 原生 schedule，可能延迟/跳过 |
+| `GITHUB_DISPATCH_TOKEN` | 可选 | Worker 每 30 分钟 dispatch 关注即将发售 workflow（`actions:write`） | 退回 GitHub 原生 schedule，可能延迟/跳过 |
 | `TMDB_API_KEY` | 可选 | 影视元数据搜索 | 该来源静默跳过 |
 
 ```bash
@@ -276,10 +276,10 @@ run_worker_first = ["/api", "/api/*"]   # 必须同时写裸路径与通配符
 | Cron | 频率 | 任务 |
 |---|---|---|
 | `5 * * * *` | 每小时 | 清理过期会话、7 天前验证码、分批数据清理（rate_limits / post_views / data_records）、补全待处理 JAV 记录、推荐标签词典同步（7 天到期判断） |
-| `*/10 * * * *` | 每 10 分钟 | 关注对象新作检测（≤20 个，5 个一批、批间 10 秒）+ 邮件摘要合并发送（≤15 封）；两者串行执行 |
+| `*/30 * * * *` | 每 30 分钟 | 关注对象新作检测（≤20 个，5 个一批、批间 10 秒）+ 邮件摘要合并发送（≤15 封）；两者串行执行 |
 | `* * * * *` | 每分钟 | 管理看板手动触发的 JAV 详情补全批次 |
 
-小时任务固定在 `:05`，避开 `*/10` 的整十分钟。各任务各自持有 `cron_locks` 租约（`database/06_system.sql`），上一轮未跑完时本轮跳过。
+小时任务固定在 `:05`，避开 `*/30` 的整半点。各任务各自持有 `cron_locks` 租约（`database/06_system.sql`），上一轮未跑完时本轮跳过。
 
 **手动触发**
 
@@ -360,7 +360,7 @@ TOP250 使用 `.github/workflows/javdb-top250-sync.yml`（每天 19:30 UTC，东
 
 ### 3. 即将发售同步 workflow
 
-`.github/workflows/follow-upcoming-sync.yml` 由 Worker 每 10 分钟通过 GitHub API 主动触发（原生 `schedule` 仅兜底，GitHub 会延迟或跳过）。
+`.github/workflows/follow-upcoming-sync.yml` 由 Worker 每 30 分钟通过 GitHub API 主动触发（原生 `schedule` 仅兜底，GitHub 会延迟或跳过）。
 
 - Worker `[vars]` 已配置 `GITHUB_REPOSITORY` / `GITHUB_DISPATCH_REF`；
 - 需要在 Worker 上执行 `npx wrangler secret put GITHUB_DISPATCH_TOKEN`，PAT 权限为 `actions:write`；

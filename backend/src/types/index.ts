@@ -70,7 +70,7 @@ export interface Env {
   // 榜单导入密钥（GitHub Actions 调用内部导入接口）
   RANKINGS_IMPORT_SECRET?: string;
 
-  // GitHub Actions 调度（关注动态每 10 分钟同步；GitHub 原生 schedule 会延迟/跳过）
+  // GitHub Actions 调度（关注动态每 30 分钟同步；GitHub 原生 schedule 会延迟/跳过）
   GITHUB_DISPATCH_TOKEN?: string;
   GITHUB_REPOSITORY?: string;
   GITHUB_DISPATCH_REF?: string;

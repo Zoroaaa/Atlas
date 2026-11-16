@@ -259,7 +259,7 @@ export function javTop250YearSourceName(year: number): string {
 
 export const FOLLOW = {
   MAX_PER_USER: 100,
-  /** 每轮（每 10 分钟）最多检查 20 位关注对象 */
+  /** 每轮（每 30 分钟）最多检查 20 位关注对象 */
   WATCH_BATCH: 20,
   /** 抓取分批：5 个一批，批间等待 10 秒，避免一次性打满外部站 */
   WATCH_GROUP_SIZE: 5,
@@ -269,7 +269,7 @@ export const FOLLOW = {
   WATCH_MAX_BACKOFF_EXP: 5,
   FEED_MAX_PAGE_SIZE: 50,
   /**
-   * 即将发售（JavDB）：每 10 分钟一轮、每轮最多 20 个关注对象；
+   * 即将发售（JavDB）：每 30 分钟一轮、每轮最多 20 个关注对象；
    * 单个对象最快 30 分钟刷新一次，失败按 2 的幂退避。
    * 脚本内部同样按 5 个一批、批间 10 秒执行。
    */
@@ -283,7 +283,7 @@ export const FOLLOW = {
 } as const;
 
 export const EMAIL = {
-  /** 每轮（每 10 分钟）最多处理几位用户的邮件：一封一次子请求；与关注检测（≤20）合计 ≤35，低于 50 上限 */
+  /** 每轮（每 30 分钟）最多处理几位用户的邮件：一封一次子请求；与关注检测（≤20）合计 ≤35，低于 50 上限 */
   DIGEST_BATCH_USERS: 15,
   /** 最早一条待发通知攒够这么久才发，让同一批新作合并成一封 */
   MIN_DELAY_MS: 10 * 60 * 1000,

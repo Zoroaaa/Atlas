@@ -2,9 +2,9 @@
  * 触发 GitHub Actions「关注动态即将发售」同步
  *
  * 背景：GitHub Actions 的原生 schedule 只是尽力而为，免费/公共仓库高峰期
- * 经常延迟十几分钟甚至跳过，表现为「配置了每 10 分钟但没有按点跑」。
- * Worker 本身已有每 10 分钟一次的 cron，这里通过 GitHub API 主动 dispatch 同一个 workflow，
- * 用「最近一次运行时间 < 8 分钟则跳过」避免与原生 schedule 重复触发。
+ * 经常延迟十几分钟甚至跳过，表现为「配置了每 30 分钟但没有按点跑」。
+ * Worker 本身已有每 30 分钟一次的 cron，这里通过 GitHub API 主动 dispatch 同一个 workflow，
+ * 用「最近一次运行时间 < 25 分钟则跳过」避免与原生 schedule 重复触发。
  *
  * 需要 Worker secrets/vars：
  *   GITHUB_DISPATCH_TOKEN  GitHub PAT（actions:write）
@@ -16,7 +16,7 @@
 import type { Env } from '@/types';
 
 const WORKFLOW_FILE = 'follow-upcoming-sync.yml';
-const MIN_GAP_MS = 8 * 60 * 1000;
+const MIN_GAP_MS = 25 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export type DispatchResult = 'disabled' | 'skipped' | 'dispatched' | 'failed';
@@ -39,7 +39,7 @@ export async function dispatchFollowUpcomingSync(env: Env): Promise<DispatchResu
   const headers = githubHeaders(token);
 
   try {
-    // 最近一次运行（包含原生 schedule / 手动 / 本调度）距离现在不足 8 分钟则跳过
+    // 最近一次运行（包含原生 schedule / 手动 / 本调度）距离现在不足 25 分钟则跳过
     const runsResp = await fetch(`${base}/runs?per_page=1`, {
       headers,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

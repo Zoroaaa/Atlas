@@ -5,13 +5,13 @@ name: Follow Upcoming Sync (JavDB)
 #   ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET、JAVDB_USERNAME、JAVDB_PASSWORD
 # 单轮最多 20 个对象，按 5 个一批执行，批间等待 10 秒；批内请求间隔 3 秒。
 #
-# 调度说明：GitHub 原生 schedule 会延迟/跳过，主调度由 Worker 的 */10 cron
+# 调度说明：GitHub 原生 schedule 会延迟/跳过，主调度由 Worker 的 */30 cron
 # 通过 GitHub API dispatch 本 workflow（Worker 需配置 GITHUB_DISPATCH_TOKEN、
 # GITHUB_REPOSITORY）。下面的 schedule 仅作为兜底。
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
       limit:

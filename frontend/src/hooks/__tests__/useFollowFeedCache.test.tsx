@@ -105,10 +105,10 @@ describe('关注动态离线缓存', () => {
     expect(mockFeed).not.toHaveBeenCalled();
   });
 
-  it('缓存超过 10 分钟后仍先展示旧数据，并在后台刷新', async () => {
+  it('缓存超过 30 分钟后仍先展示旧数据，并在后台刷新', async () => {
     localStorage.setItem(
       'cs_cache_v1:follow:feed:u1:new:10:1:all',
-      JSON.stringify({ data: cachedFeed, cachedAt: Date.now() - 11 * 60 * 1000 })
+      JSON.stringify({ data: cachedFeed, cachedAt: Date.now() - 31 * 60 * 1000 })
     );
     const fresh: FollowFeedData = { ...cachedFeed, items: [{ ...cachedFeed.items[0], title: 'Fresh work' }] };
     mockFeed.mockResolvedValue(fresh);

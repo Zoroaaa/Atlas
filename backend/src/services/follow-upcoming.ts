@@ -1,7 +1,7 @@
 /**
  * 关注动态「即将发售」同步服务
  *
- * 数据来源：GitHub Actions 每 10 分钟调用 JavDB App API（需登录），
+ * 数据来源：GitHub Actions 每 30 分钟调用 JavDB App API（需登录），
  * 按关注对象回传未发售作品。Worker 不直接访问 JavDB，避免账号凭据与出站限制。
  *
  * 这里只做两件事：
