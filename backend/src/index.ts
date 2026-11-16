@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, emailUnsubscribeRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, followsInternalRoutes, emailUnsubscribeRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
@@ -28,8 +28,8 @@ import { syncGenreDictionary } from '@/services/genre-dictionary';
 import { runDataRetention } from '@/services/data-retention';
 import { withCronLock } from '@/services/cron-lock';
 
-/** 30 分钟一轮的任务：租约 25 分钟，超过即认为上一轮已异常终止 */
-const HALF_HOUR_LOCK_TTL_MS = 25 * 60_000;
+/** 10 分钟一轮的任务：租约 9 分钟，超过即认为上一轮已异常终止 */
+const TEN_MINUTE_LOCK_TTL_MS = 9 * 60_000;
 /** 1 小时一轮的任务：租约 50 分钟 */
 const HOURLY_LOCK_TTL_MS = 50 * 60_000;
 
@@ -104,6 +104,7 @@ app.route('/api/notifications', notificationRoutes);
 app.route('/api/follows', followRoutes);
 app.route('/api/email', emailUnsubscribeRoutes);
 app.route('/api/internal/rankings', rankingsRoutes);
+app.route('/api/internal/follows', followsInternalRoutes);
 app.route('/api/admin/data-storage', dataStorageRoutes);
 app.route('/api/feedback', feedbackRoutes);
 app.route('/api/announcements', announcementRoutes);
@@ -163,21 +164,30 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    // 两类触发器特意错开分钟：*/30 落在 :00/:30，小时任务在 :05，
-    // 避免两套任务在同一分钟抢 D1 写。
-    if (event.cron === '*/30 * * * *') {
-      // 每 30 分钟：关注女优新作检测 + 邮件通知合并发送。
+    // 三类触发器错开分钟：*/10 落在 :00/:10/...，小时任务在 :05，
+    // 每分钟任务只推进手动触发的详情补全，不参与关注/邮件链路。
+    if (event.cron === '*/10 * * * *') {
+      // 每 10 分钟：关注女优新作检测 + 邮件通知合并发送。
+      // 两个任务串行执行：关注检测按 5 个一批、批间 10 秒限速；邮件排在后面发送，
+      // 避免同一时刻对 JavBus 与邮件服务产生突发子请求。
       // 每个任务各自持租约锁：上一轮没跑完（抓外部站慢）时，本轮直接跳过，
       // 由下一轮补上，避免重复写库、重复通知。
       ctx.waitUntil(
-        withCronLock(env.DB, 'follow.check', HALF_HOUR_LOCK_TTL_MS, () => runWatchCheck(env.DB))
-          .then((r) => { if (r && r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`); })
-          .catch((err) => console.error('[follow] watch check failed:', err))
-      );
-      ctx.waitUntil(
-        withCronLock(env.DB, 'email.digest', HALF_HOUR_LOCK_TTL_MS, () => runEmailDigest(env))
-          .then((r) => { if (r && r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`); })
-          .catch((err) => console.error('[email] digest failed:', err))
+        (async () => {
+          try {
+            const r = await withCronLock(env.DB, 'follow.check', TEN_MINUTE_LOCK_TTL_MS, () => runWatchCheck(env.DB));
+            if (r && r.checked > 0) console.log(`[follow] checked=${r.checked} failed=${r.failed}`);
+          } catch (err) {
+            console.error('[follow] watch check failed:', err);
+          }
+
+          try {
+            const r = await withCronLock(env.DB, 'email.digest', TEN_MINUTE_LOCK_TTL_MS, () => runEmailDigest(env));
+            if (r && r.users > 0) console.log(`[email] users=${r.users} sent=${r.sent} failed=${r.failed} skipped=${r.skipped}`);
+          } catch (err) {
+            console.error('[email] digest failed:', err);
+          }
+        })()
       );
     }
     if (event.cron === '* * * * *') {

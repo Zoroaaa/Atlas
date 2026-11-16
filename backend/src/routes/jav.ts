@@ -46,6 +46,9 @@ const ALLOWED_IMAGE_HOSTS = [
   'img.javbus.com',
   // JavDB 榜单封面 CDN（P3 导入的 cover_url）
   'tp.spfcas.com',
+  // JavDB App API 作品封面（即将发售同步）
+  'javdb.com',
+  'www.javdb.com',
   'lain.bgm.tv',
   'image.tmdb.org',
   'uploads.mangadex.org',
@@ -112,7 +115,13 @@ javRoutes.get('/proxy-image', async (c) => {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: '不允许访问内网地址' } }, 403);
   }
 
-  if (!ALLOWED_IMAGE_HOSTS.includes(parsed.hostname)) {
+  // JavDB 封面 CDN 使用 c0/c1/... 子域，按受控后缀放行
+  const allowedHost = ALLOWED_IMAGE_HOSTS.includes(parsed.hostname)
+    || parsed.hostname === 'jdbstatic.com'
+    || parsed.hostname.endsWith('.jdbstatic.com')
+    || parsed.hostname === 'javdb.com'
+    || parsed.hostname.endsWith('.javdb.com');
+  if (!allowedHost) {
     return c.json({ success: false, error: { code: 'FORBIDDEN_HOST', message: `不允许的域名: ${parsed.hostname}` } }, 403);
   }
 
@@ -127,11 +136,14 @@ javRoutes.get('/proxy-image', async (c) => {
     'www.xqishuta.org': 'https://www.xqishuta.org/',
     'www.minnano-av.com': 'https://www.minnano-av.com/',
   };
+  const referer = parsed.hostname.endsWith('jdbstatic.com') || parsed.hostname.endsWith('javdb.com')
+    ? 'https://javdb.com/'
+    : refererMap[parsed.hostname] || `https://${parsed.hostname}/`;
   const imageFetchHeaders: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Referer': refererMap[parsed.hostname] || `https://${parsed.hostname}/`,
+    'Referer': referer,
     'Sec-Fetch-Dest': 'image',
     'Sec-Fetch-Mode': 'no-cors',
     'Sec-Fetch-Site': 'same-origin',

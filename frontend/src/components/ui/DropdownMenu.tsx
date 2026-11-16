@@ -329,6 +329,15 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
         )}
       </div>
 
+      {/* 点击模式：透明遮罩拦截页面点击，避免关闭菜单时误触下面的卡片/按钮 */}
+      {isOpen && triggerMode === 'click' && (
+        <div
+          className="fixed inset-0 z-40"
+          aria-hidden="true"
+          onClick={closeMenu}
+        />
+      )}
+
       {/* 下拉菜单：显式锚定在触发器下方，避免绝对定位在 flex 容器内落到触发器上方 */}
       {isOpen && (
         <div

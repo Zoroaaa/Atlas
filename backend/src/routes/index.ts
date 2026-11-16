@@ -15,4 +15,5 @@ export { recommendRoutes } from './recommend';
 export { rankingsRoutes } from './rankings';
 export { notificationRoutes } from './notifications';
 export { followRoutes } from './follows';
+export { followsInternalRoutes } from './follows-internal';
 export { emailUnsubscribeRoutes } from './email-unsubscribe';

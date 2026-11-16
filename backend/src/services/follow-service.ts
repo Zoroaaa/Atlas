@@ -244,11 +244,15 @@ export async function runWatchCheck(db: D1Database): Promise<{ checked: number; 
   const keys = (due.results || []).map((r) => r.key);
   let failed = 0;
 
-  for (let i = 0; i < keys.length; i += FOLLOW.WATCH_CONCURRENCY) {
-    const chunk = keys.slice(i, i + FOLLOW.WATCH_CONCURRENCY);
-    const results = await Promise.allSettled(chunk.map((key) => syncWatch(db, key)));
+  // 5 个一批并发抓取，批间等待 10 秒：一轮 20 个拆成 4 批，避免瞬时打满 JavBus
+  for (let i = 0; i < keys.length; i += FOLLOW.WATCH_GROUP_SIZE) {
+    const group = keys.slice(i, i + FOLLOW.WATCH_GROUP_SIZE);
+    const results = await Promise.allSettled(group.map((key) => syncWatch(db, key)));
     for (const r of results) {
       if (r.status === 'rejected' || !r.value.ok) failed++;
+    }
+    if (i + FOLLOW.WATCH_GROUP_SIZE < keys.length) {
+      await new Promise((resolve) => setTimeout(resolve, FOLLOW.WATCH_GROUP_DELAY_MS));
     }
   }
 

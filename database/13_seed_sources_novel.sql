@@ -1,0 +1,22 @@
+-- Atlas 数据库 · 种子 · 小说搜索源
+-- 依赖：03_search_sources.sql
+-- 本文件可重复执行：表/视图/索引/触发器均使用 IF NOT EXISTS，种子数据使用 INSERT OR IGNORE。
+
+-- ──────────────────────────────────────────────
+-- 种子数据
+-- ──────────────────────────────────────────────
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('zlibrary', 'novel_database', 'Z-Library', '全球最大电子图书馆', '全球最大的影子图书馆，含小说、学术、非小说等海量电子书', '📚', 'https://zh.z-library.sk/s/{keyword}', 'https://zh.z-library.sk', 'search', 1, 1, 1, 1, 1, 0, NULL, NULL, 1786419801500, 1786419801500);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('annas_archive', 'novel_database', 'Anna''s Archive', '安娜图书馆，全球最大电子书搜索引擎', '聚合 LibGen/Z-Library/互联网档案的电子书搜索引擎，含小说、学术、非小说等', '📚', 'https://zh.annas-archive.gl/search?q={keyword}', 'https://zh.annas-archive.gl', 'search', 1, 2, 1, 1, 2, 0, NULL, NULL, 1786419802000, 1786419802000);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('zxcs', 'novel_database', '知轩藏书', '精校版全本TXT下载', '知轩藏书dzs，提供精校版全本TXT小说免费下载，质量高无错字', '📖', 'https://zxcs.zip/search?q={keyword}', 'https://zxcs.zip', 'search', 1, 3, 1, 1, 3, 0, NULL, NULL, 1786419802500, 1786419802500);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('xqishuta', 'novel_database', '奇书网', 'TXT小说电子书全本免费下载', '奇书网新域名（qishuxia.com）；站内搜索为 POST 表单，跳转后请从首页搜索', '📖', 'https://www.qishuxia.com/', 'https://www.qishuxia.com', 'search', 1, 4, 1, 1, 4, 0, NULL, NULL, 1786419803000, 1786419803000);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('sobooks', 'novel_database', 'SoBooks', '电子书免费下载', '免费电子书下载站，含小说、人文、社科等分类', '📚', 'https://sobooks.cc/?s={keyword}', 'https://sobooks.cc', 'search', 1, 5, 1, 1, 5, 0, NULL, NULL, 1786419804000, 1786419804000);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('lunarora', 'novel_database', 'Lunarora', '电子书搜索引擎', '电子书搜索与下载站', '📚', 'https://lunarora.com/search?q={keyword}', 'https://lunarora.com', 'search', 1, 6, 1, 1, 6, 0, NULL, NULL, 1786419805000, 1786419805000);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('pdfs', 'novel_database', 'PDFs.top', 'PDF电子书下载', 'PDF电子书搜索与下载站', '📄', 'https://pdfs.top/search?query={keyword}', 'https://pdfs.top', 'search', 1, 7, 1, 1, 7, 0, NULL, NULL, 1786419806000, 1786419806000);
+
+INSERT OR IGNORE INTO "search_sources" ("id", "category_id", "name", "subtitle", "description", "icon", "url_template", "homepage_url", "site_type", "searchable", "search_priority", "is_system", "is_active", "display_order", "usage_count", "last_used_at", "created_by", "created_at", "updated_at") VALUES ('dushupai', 'novel_database', '读书派', '电子书搜索下载', '电子书搜索与下载站', '📖', 'https://www.dushupai.com/search.html?k={keyword}', 'https://www.dushupai.com', 'search', 1, 8, 1, 1, 8, 0, NULL, NULL, 1786419807000, 1786419807000);

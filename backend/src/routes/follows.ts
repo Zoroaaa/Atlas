@@ -47,7 +47,9 @@ followRoutes.get('/', async (c) => {
       `SELECT f.watch_key AS key, t.entity_type, t.entity_key, t.name, t.avatar,
               f.created_at, f.notify_in_app, t.last_checked_at, t.fail_count,
               (SELECT COUNT(*) FROM actress_works w
-                WHERE w.watch_key = f.watch_key AND w.first_detected_at > f.last_viewed_at) AS unread
+                WHERE w.watch_key = f.watch_key AND w.first_detected_at > f.last_viewed_at)
+              + (SELECT COUNT(*) FROM follow_upcoming u
+                WHERE u.watch_key = f.watch_key AND u.first_detected_at > f.last_viewed_at) AS unread
        FROM user_follows f
        JOIN follow_targets t ON t.watch_key = f.watch_key
        WHERE f.user_id = ?
@@ -248,8 +250,10 @@ followRoutes.get('/feed', async (c) => {
       ? todayParam
       : new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
+    // upcoming 读 JavDB 同步表；new 读 JavBus 已发售作品表
+    const source = tab === 'upcoming' ? 'follow_upcoming' : 'actress_works';
     const cond = tab === 'upcoming'
-      ? 'w.release_date IS NOT NULL AND w.release_date > ?'
+      ? 'w.release_date >= ?'
       : '(w.release_date IS NULL OR w.release_date <= ?)';
     const order = tab === 'upcoming'
       ? 'w.release_date ASC, w.code ASC'
@@ -259,7 +263,7 @@ followRoutes.get('/feed', async (c) => {
     const filterParam = (c.req.query('entity') || c.req.query('actress') || '').trim();
     const entityFilter = KEY_PATTERN.test(filterParam);
 
-    const base = `FROM actress_works w
+    const base = `FROM ${source} w
        JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
        JOIN follow_targets t ON t.watch_key = w.watch_key
        WHERE ${cond}${entityFilter ? ' AND w.watch_key = ?' : ''}`;
@@ -314,8 +318,18 @@ followRoutes.get('/search', async (c) => {
     const pageSize = Math.min(FOLLOW.FEED_MAX_PAGE_SIZE, Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10));
     const pattern = `%${escapeLike(q)}%`;
 
-    const base = `FROM actress_works w
-       JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
+    // 已发售 + 即将发售一起搜：先在子查询里按用户过滤，避免把全站作品都物化
+    const base = `FROM (
+         SELECT w.watch_key, w.code, w.title, w.cover, w.release_date,
+                w.first_detected_at, f.last_viewed_at
+         FROM actress_works w
+         JOIN user_follows f ON f.watch_key = w.watch_key AND f.user_id = ?
+         UNION ALL
+         SELECT u.watch_key, u.code, u.title, u.cover, u.release_date,
+                u.first_detected_at, f.last_viewed_at
+         FROM follow_upcoming u
+         JOIN user_follows f ON f.watch_key = u.watch_key AND f.user_id = ?
+       ) w
        JOIN follow_targets t ON t.watch_key = w.watch_key
        LEFT JOIN data_records dr ON dr.record_type = 'jav' AND dr.code = w.code
        WHERE (t.name LIKE ? ESCAPE '\\' OR w.title LIKE ? ESCAPE '\\'
@@ -328,15 +342,15 @@ followRoutes.get('/search', async (c) => {
                 MAX(w.watch_key) AS watch_key, MAX(t.entity_type) AS entity_type,
                 MAX(t.entity_key) AS entity_key,
                 GROUP_CONCAT(DISTINCT t.name) AS entity_names,
-                MAX(CASE WHEN w.first_detected_at > f.last_viewed_at THEN 1 ELSE 0 END) AS is_unread
+                MAX(CASE WHEN w.first_detected_at > w.last_viewed_at THEN 1 ELSE 0 END) AS is_unread
          ${base}
          GROUP BY w.code
          ORDER BY COALESCE(MAX(w.release_date), '') DESC, MIN(w.first_detected_at) DESC, w.code ASC
          LIMIT ? OFFSET ?`
-      ).bind(user.userId, pattern, pattern, pattern, pattern, pageSize, (page - 1) * pageSize),
+      ).bind(user.userId, user.userId, pattern, pattern, pattern, pattern, pageSize, (page - 1) * pageSize),
       c.env.DB.prepare(
         `SELECT COUNT(DISTINCT w.code) AS count ${base}`
-      ).bind(user.userId, pattern, pattern, pattern, pattern),
+      ).bind(user.userId, user.userId, pattern, pattern, pattern, pattern),
     ]);
 
     const itemRows = (results[0]?.results ?? []) as unknown as SearchRow[];

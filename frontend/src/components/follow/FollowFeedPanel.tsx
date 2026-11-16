@@ -9,6 +9,7 @@ import {
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { FollowWorkShareButton } from './FollowWorkShareButton';
 import { FollowFeedToolbar } from './FollowFeedToolbar';
+import { ReleaseCountdownChip } from './ReleaseCountdownChip';
 import {
   useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE, followKeys,
 } from '@/hooks';
@@ -177,6 +178,10 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                 activeKeyword={activeKeyword}
               />
 
+              {tab === 'upcoming' && !activeKeyword ? (
+                <p className="type-micro mb-2 px-1 text-surface-400">{t('follow:upcomingSyncHint')}</p>
+              ) : null}
+
               {!activeKeyword && feedError && items.length > 0 ? (
                 <p className="type-micro mb-2 px-1 text-surface-400">{t('follow:offlineCacheHint')}</p>
               ) : null}
@@ -205,6 +210,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                         badges={
                           <>
                             <Chip tone="primary" truncate>{item.code}</Chip>
+                            <ReleaseCountdownChip releaseDate={item.releaseDate} />
                             {item.isUnread ? <Chip tone="accent" size="xs">{t('follow:newBadge')}</Chip> : null}
                           </>
                         }
@@ -233,7 +239,11 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                   {Array.from({ length: 3 }).map((_, index) => <div key={index} className="skeleton h-16 w-full" />)}
                 </div>
               ) : items.length === 0 ? (
-                <EmptyBlock title={t('follow:noFeed')} className="min-h-[96px]" />
+                <EmptyBlock
+                  title={tab === 'upcoming' ? t('follow:noUpcoming') : t('follow:noFeed')}
+                  hint={tab === 'upcoming' ? t('follow:noUpcomingHint') : undefined}
+                  className="min-h-[96px]"
+                />
               ) : (
                 <div className={clsx('divide-y divide-surface-100 dark:divide-surface-800/70')}>
                   {items.map((item) => (
@@ -244,6 +254,7 @@ export const FollowFeedPanel: React.FC<FollowFeedPanelProps> = ({ show = true, o
                       badges={
                         <>
                           <Chip tone="primary" truncate>{item.code}</Chip>
+                          {tab === 'upcoming' ? <ReleaseCountdownChip releaseDate={item.releaseDate} /> : null}
                           {item.isUnread ? <Chip tone="accent" size="xs">{t('follow:newBadge')}</Chip> : null}
                         </>
                       }

@@ -15,7 +15,7 @@
          ├─ /api、/api/*   → Hono 路由（run_worker_first）
          ├─ 其余路径        → frontend/dist（not_found_handling = single-page-application）
          ├─ D1（绑定名 DB，database_name = codeseek）
-         ├─ Cron Triggers（每小时清理 / 每 30 分钟关注检测 + 邮件摘要 / 每分钟补全批次）
+         ├─ Cron Triggers（每小时清理 / 每 10 分钟关注检测 + 邮件摘要 / 每分钟补全批次）
          ├─ 外部服务（GitHub OAuth / Google OAuth / Resend / TMDB / 搜索源）
          └─ 自定义域：<your-domain>（前端与 API 同源）
 ```
@@ -127,7 +127,7 @@ Cloudflare 启用前确认：
 
 1. 账号为 Workers Paid，并在 **Compute → Email Service → Email Sending** 为发件域完成 onboard；
 2. `DEFAULT_FROM_EMAIL` 属于该已 onboard 域名；
-3. `database/01_schema.sql` 与 `database/02_data.sql` 已执行，管理端能看到优先级与限额配置。
+3. `database/02_config.sql` 与 `database/05_security_email.sql` 已执行，管理端能看到优先级与限额配置。
 
 Mailtrap 启用前确认：API Token 具备发送权限、发件域名已在 Mailtrap 验证，并在 Sending Setup 中切换到 Transactional Stream 的 API 模式。
 
@@ -142,21 +142,43 @@ Brevo 启用前确认：API Key 具备发送权限，发件域名/发件人已�
 
 ## 五、初始化数据库
 
-脚本位于 `database/`，全新库按顺序执行两个文件：
+脚本按业务类别拆在 `database/`，按文件名顺序执行。所有文件都可重复执行：
+表/视图/索引/触发器使用 `IF NOT EXISTS`，种子数据使用 `INSERT OR IGNORE`。
 
 ```bash
 cd backend
-npx wrangler d1 execute codeseek --remote --file=../database/01_schema.sql
-npx wrangler d1 execute codeseek --remote --file=../database/02_data.sql
+# Bash / WSL / Git Bash
+for f in ../database/*.sql; do
+  npx wrangler d1 execute codeseek --remote --file="$f"
+done
 ```
 
-| 脚本 | 作用 | 说明 |
-|---|---|---|
-| `01_schema.sql` | 最终表结构：全部表、索引、触发器（无 ALTER / DROP） | 全新库执行一次 |
-| `02_data.sql` | 初始化数据：角色、系统配置、搜索源、标签、邮件模板（INSERT OR IGNORE） | 全新库执行一次；可在尾部追加新种子数据后重复执行 |
+```powershell
+# PowerShell
+cd backend
+Get-ChildItem ../database/*.sql | Sort-Object Name | ForEach-Object {
+  npx wrangler d1 execute codeseek --remote --file=$_.FullName
+}
+```
 
-- 全新库只执行上面两个文件，不再需要按编号逐个跑历史迁移。
-- 已有生产库**不要**重新执行 `01_schema.sql`；后续新增配置或种子数据时，在 `02_data.sql` 末尾追加后单独执行该文件即可。
+| 文件 | 内容 |
+|---|---|
+| `01_core.sql` | 角色、用户、会话、收藏、搜索历史、行为日志、分析事件 |
+| `02_config.sql` | 系统配置、配置分组、配置变更日志 |
+| `03_search_sources.sql` | 搜索大类、分类、搜索源、用户源配置、状态缓存 |
+| `04_community.sql` | 社区标签、帖子、评论、点赞、举报、浏览去重 |
+| `05_security_email.sql` | 验证码、改邮箱、密码重置、登录锁定、安全事件、邮件模板与发送日志 |
+| `06_system.sql` | 反馈、站点公告、系统错误、Cron 锁 |
+| `07_notifications_follows.sql` | 站内通知、关注对象、关注作品、即将发售、邮件队列 |
+| `08_jav_library.sql` | JAV 作品库、来源、标签词典、详情补全、实体别名 |
+| `09_seed_sources_jav.sql` | JAV 搜索源种子 |
+| `10_seed_sources_anime.sql` | 动漫搜索源种子 |
+| `11_seed_sources_movie.sql` | 影视搜索源种子 |
+| `12_seed_sources_manga.sql` | 漫画搜索源种子 |
+| `13_seed_sources_novel.sql` | 小说搜索源种子 |
+
+- 全新库按 `01` → `13` 顺序执行；已有生产库可只执行本次改动的分类文件，重复执行不会清空数据。
+- `CREATE TABLE IF NOT EXISTS` 不会给已有表补列；未来新增列时，在对应分类文件追加可重复执行的升级语句，或单独加一个一次性升级脚本。
 - 本地库把 `--remote` 换成 `--local`。
 
 ---
@@ -252,10 +274,10 @@ run_worker_first = ["/api", "/api/*"]   # 必须同时写裸路径与通配符
 | Cron | 频率 | 任务 |
 |---|---|---|
 | `5 * * * *` | 每小时 | 清理过期会话、7 天前验证码、分批数据清理（rate_limits / post_views / data_records）、补全待处理 JAV 记录、推荐标签词典同步（7 天到期判断） |
-| `*/30 * * * *` | 每 30 分钟 | 关注女优新作检测（≤20 次子请求）+ 邮件摘要合并发送（≤15 封） |
+| `*/10 * * * *` | 每 10 分钟 | 关注对象新作检测（≤20 个，5 个一批、批间 10 秒）+ 邮件摘要合并发送（≤15 封）；两者串行执行 |
 | `* * * * *` | 每分钟 | 管理看板手动触发的 JAV 详情补全批次 |
 
-小时任务固定在 `:05`，与 `*/30` 的 `:00/:30` 错开，避免同一分钟抢 D1 写。各任务各自持有 `cron_locks` 租约（`database/01_schema.sql`），上一轮未跑完时本轮跳过。
+小时任务固定在 `:05`，避开 `*/10` 的整十分钟。各任务各自持有 `cron_locks` 租约（`database/06_system.sql`），上一轮未跑完时本轮跳过。
 
 **手动触发**
 
@@ -327,6 +349,17 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 - 不要填已退役的 `atlasapi.wort.uk`；也不要填 `*.workers.dev`，除非自定义域名前面被 WAF 拦。
 - 若导入返回 403，说明 WAF / Bot Fight 拦了 Actions 出口 IP，需要给 `/api/internal/rankings/import` 加 WAF 跳过规则。
 - `javdb-ranking-probe.yml` 不读这两个 secret。
+
+### 3. 即将发售同步 workflow
+
+`.github/workflows/follow-upcoming-sync.yml` 每 10 分钟运行一次，复用上面的四个 Secret：
+
+- `ATLAS_RANKING_IMPORT_URL` 只用于推导站点 origin，脚本会请求 `/api/internal/follows/upcoming/targets` 与 `/api/internal/follows/upcoming/import`。
+- 两处内部接口与榜单导入共用 `RANKINGS_IMPORT_SECRET` 和 `x-rankings-secret` 请求头。
+- 单轮默认最多 20 个关注对象，按 5 个一批执行，批间等待 10 秒；批内请求间隔至少 3 秒并带随机抖动。
+- 单个对象最快 30 分钟刷新一次，失败按指数退避；目标按最后同步时间轮转，关注较多时自动分散到后续轮次。
+- 手动运行时可传 `limit` 输入（1-20）验证链路，不会修改任何本地文件。
+- 若这两个接口返回 403，说明 WAF / Bot Fight 拦了 Actions 出口 IP，需要给 `/api/internal/follows/*` 也加与榜单导入相同的 WAF 跳过规则。
 
 ---
 

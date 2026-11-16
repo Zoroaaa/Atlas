@@ -1,0 +1,43 @@
+name: Follow Upcoming Sync (JavDB)
+
+# 每 10 分钟同步关注对象的「即将发售」：GitHub Actions 登录 JavDB App API，
+# 拉取未发售作品后回传 Worker。复用榜单工作流的 Secrets：
+#   ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET、JAVDB_USERNAME、JAVDB_PASSWORD
+# 单轮最多 20 个对象，按 5 个一批执行，批间等待 10 秒；批内请求间隔 3 秒。
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: '本轮最多同步多少个关注对象（1-20）'
+        required: false
+        default: '20'
+
+concurrency:
+  group: follow-upcoming-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sync upcoming works
+        env:
+          ATLAS_RANKING_IMPORT_URL: ${{ secrets.ATLAS_RANKING_IMPORT_URL }}
+          RANKINGS_IMPORT_SECRET: ${{ secrets.RANKINGS_IMPORT_SECRET }}
+          JAVDB_USERNAME: ${{ secrets.JAVDB_USERNAME }}
+          JAVDB_PASSWORD: ${{ secrets.JAVDB_PASSWORD }}
+          UPCOMING_TARGET_LIMIT: ${{ github.event.inputs.limit || '20' }}
+        run: node scripts/follows/javdb-upcoming-sync.mjs

@@ -216,17 +216,31 @@ export const JAV_RANKING = {
 
 export const FOLLOW = {
   MAX_PER_USER: 100,
-  /** 每次定时任务最多检查几位（Workers 每次调用 50 次子请求上限，留足余量） */
+  /** 每轮（每 10 分钟）最多检查 20 位关注对象 */
   WATCH_BATCH: 20,
-  WATCH_CONCURRENCY: 4,
+  /** 抓取分批：5 个一批，批间等待 10 秒，避免一次性打满外部站 */
+  WATCH_GROUP_SIZE: 5,
+  WATCH_GROUP_DELAY_MS: 10_000,
   /** 同一位女优两次检查的最小间隔；连续失败按 2 的幂退避，最多 32 倍 */
   WATCH_MIN_INTERVAL_MS: 30 * 60 * 1000,
   WATCH_MAX_BACKOFF_EXP: 5,
   FEED_MAX_PAGE_SIZE: 50,
+  /**
+   * 即将发售（JavDB）：每 10 分钟一轮、每轮最多 20 个关注对象；
+   * 单个对象最快 30 分钟刷新一次，失败按 2 的幂退避。
+   * 脚本内部同样按 5 个一批、批间 10 秒执行。
+   */
+  UPCOMING_BATCH_DEFAULT: 20,
+  UPCOMING_BATCH_MAX: 20,
+  UPCOMING_MIN_INTERVAL_MS: 30 * 60 * 1000,
+  UPCOMING_MAX_BACKOFF_EXP: 5,
+  UPCOMING_MAX_WORKS: 20,
+  /** JavDB App API 能映射的实体类型；label/tag 暂无稳定接口，跳过 */
+  UPCOMING_ENTITY_TYPES: ['actress', 'director', 'studio', 'series'] as const,
 } as const;
 
 export const EMAIL = {
-  /** 每轮（每 30 分钟）最多处理几位用户的邮件：一封一次子请求；与关注检测（≤20）合计 ≤35，低于 50 上限 */
+  /** 每轮（每 10 分钟）最多处理几位用户的邮件：一封一次子请求；与关注检测（≤20）合计 ≤35，低于 50 上限 */
   DIGEST_BATCH_USERS: 15,
   /** 最早一条待发通知攒够这么久才发，让同一批新作合并成一封 */
   MIN_DELAY_MS: 10 * 60 * 1000,

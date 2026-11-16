@@ -63,7 +63,7 @@ npx wrangler secret put RANKINGS_IMPORT_SECRET
 | `MAILTRAP_API_TOKEN` | 否 | Mailtrap Email Sending API Token；配置后作为邮件服务商之一参与优先级排队 |
 | `MAILTRAP_API_URL` | 否 | Mailtrap 发送端点，默认 `https://send.api.mailtrap.io/api/send`；用 Sandbox 时改为 sandbox 地址 |
 | `BREVO_API_KEY` | 否 | Brevo Transactional Email API Key；配置后作为邮件服务商之一参与优先级排队 |
-| `RANKINGS_IMPORT_SECRET` | 否 | JavDB 榜单导入接口的共享密钥（`/api/internal/rankings/import`） |
+| `RANKINGS_IMPORT_SECRET` | 否 | 机器同步共享密钥：JavDB 榜单导入（`/api/internal/rankings/import`）与关注动态即将发售（`/api/internal/follows/*`） |
 | `TMDB_API_KEY` | 否 | TMDB 影视元数据增强；不配置时回退到搜索源聚合结果 |
 
 > 搜索源以 D1 `search_sources` 为准，不需要 DMM/FANZA 的 API Key。
@@ -114,7 +114,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 ```
 
 - 建库：`npx wrangler d1 create codeseek`
-- 全新库初始化见 [部署指南](./deploy.md)：依次执行 `database/01_schema.sql` 与 `database/02_data.sql`
+- 全新库初始化见 [部署指南](./deploy.md)：按文件名顺序执行 `database/01_core.sql` → `database/13_seed_sources_novel.sql`（全部可重复执行）
 - 本地开发使用 `--local`，生产使用 `--remote`，两者数据互不影响
 
 ---
@@ -211,7 +211,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 ## 九、运行时配置（system_config）
 
-管理后台 → 系统配置可修改以下键（`database/02_data.sql` 初始化）：
+管理后台 → 系统配置可修改以下键（`database/02_config.sql` 初始化）：
 
 | 键 | 默认 | 说明 |
 |----|------|------|
@@ -256,10 +256,12 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 新增一个搜索类别（以 `novel` 为例）：
 
-1. 在 `database/02_data.sql` 追加大类、分类、搜索源（使用 `INSERT OR IGNORE`）
+1. 在 `database/03_search_sources.sql` 追加大类/分类，在对应的 `database/09_seed_sources_*.sql` 追加搜索源（均使用 `INSERT OR IGNORE`）
 2. 在前端 `frontend/src/constants.ts` 的 `SEARCH_CATEGORIES` 中添加对应配置
 3. 在 `frontend/src/i18n/locales/{zh-CN,zh-TW,en}/*.ts` 补充三语文案
-4. 执行 `npx wrangler d1 execute codeseek --remote --file=database/07_data_search_sources.sql`
+4. 重新执行对应分类文件：
+   `npx wrangler d1 execute codeseek --remote --file=../database/03_search_sources.sql`
+   `npx wrangler d1 execute codeseek --remote --file=../database/09_seed_sources_jav.sql`
 
 ---
 

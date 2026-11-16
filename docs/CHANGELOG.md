@@ -1,8 +1,17 @@
 # Changelog
 
-> 注：历史条目中的 `database/NN_*.sql` 迁移文件已合并为 `database/01_schema.sql` 与 `database/02_data.sql`。
+> 注：历史条目中的 `database/NN_*.sql` 迁移文件已按业务类别拆分到 `database/01_core.sql` … `database/13_seed_sources_novel.sql`，所有文件均可重复执行。
 
 All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### 变更
+
+- **数据库脚本按类别拆分**：`database/` 由两个大文件拆为 13 个业务分类文件（core / config / search sources / community / security email / system / notifications follows / jav library + 5 个搜索源种子），全部使用 `IF NOT EXISTS` 与 `INSERT OR IGNORE`，可重复执行
+- **关注与邮件节奏**：Worker cron 由 `*/30` 改为 `*/10`，关注检测与邮件摘要每 10 分钟一轮；关注检测每轮最多 20 个对象，按 5 个一批、批间 10 秒抓取，关注检测与邮件改为串行执行
+- **即将发售同步**：GitHub Actions 改为每 10 分钟一轮、每轮最多 20 个关注对象，按 5 个一批、批间 10 秒执行；单个对象最快 30 分钟刷新一次，失败指数退避
+- **前端缓存与文案**：关注列表现有 10 分钟缓存与刷新间隔，相关通知/帮助文案同步更新
 
 ## [v1.8.0] - 2026-11-14
 

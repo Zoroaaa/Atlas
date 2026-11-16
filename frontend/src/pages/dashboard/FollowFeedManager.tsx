@@ -10,6 +10,7 @@ import {
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { FollowWorkShareButton } from '@/components/follow/FollowWorkShareButton';
 import { FollowFeedToolbar } from '@/components/follow/FollowFeedToolbar';
+import { ReleaseCountdownChip } from '@/components/follow/ReleaseCountdownChip';
 import type { FollowEntityType, FollowFeedTab } from '@/types';
 
 /** 控制台 · 关注动态：全部关注对象的作品流，可按对象筛选 + 关键词集合搜索，服务端分页 */
@@ -127,6 +128,10 @@ export const FollowFeedManager: React.FC = () => {
             />
           </Card>
 
+          {tab === 'upcoming' && !activeKeyword ? (
+            <p className="type-micro px-1 text-surface-400">{t('follow:upcomingSyncHint')}</p>
+          ) : null}
+
           {activeKeyword ? (
             searchLoading ? (
               <div className="flex items-center justify-center py-16"><Loading size="lg" /></div>
@@ -150,6 +155,7 @@ export const FollowFeedManager: React.FC = () => {
                       badges={
                         <>
                           <Chip tone="primary" truncate>{item.code}</Chip>
+                          <ReleaseCountdownChip releaseDate={item.releaseDate} />
                           {item.isUnread ? <Chip tone="accent" size="xs">{t('follow:newBadge')}</Chip> : null}
                         </>
                       }
@@ -193,6 +199,7 @@ export const FollowFeedManager: React.FC = () => {
                     badges={
                       <>
                         <Chip tone="primary" truncate>{item.code}</Chip>
+                        {tab === 'upcoming' ? <ReleaseCountdownChip releaseDate={item.releaseDate} /> : null}
                         {item.isUnread ? <Chip tone="accent" size="xs">{t('follow:newBadge')}</Chip> : null}
                       </>
                     }

@@ -8,12 +8,12 @@ import type { FollowEntityType, FollowFeedTab, FollowsData, FollowFeedData } fro
 
 export const FOLLOW_FEED_PAGE_SIZE = 10;
 
-// 后端关注检查每 30 分钟跑一轮，这之内直接读缓存；24 小时用于离线兜底
-const FOLLOW_STALE_TIME = 30 * 60 * 1000;
+// 后端关注检查每 10 分钟跑一轮，这之内直接读缓存；24 小时用于离线兜底
+const FOLLOW_STALE_TIME = 10 * 60 * 1000;
 const FOLLOW_CACHE_TTL = 24 * 60 * 60 * 1000;
 const FOLLOW_CACHE_PREFIX = 'follow:';
 
-/** 下一次刷新安排在缓存满 30 分钟时，而不是从挂载时刻重新计时 */
+/** 下一次刷新安排在缓存满 10 分钟时，而不是从挂载时刻重新计时 */
 function followRefreshInterval(query: { state: { dataUpdatedAt: number } }): number {
   const updatedAt = query.state.dataUpdatedAt;
   if (!updatedAt) return FOLLOW_STALE_TIME;

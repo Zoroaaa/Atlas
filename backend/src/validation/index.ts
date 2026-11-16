@@ -109,6 +109,26 @@ const backendOnlySchemas = {
     }),
   },
 
+  follows: {
+    // 即将发售同步：GitHub Actions 从 JavDB 拉取后回传
+    importUpcoming: z.object({
+      fetchedAt: z.number().int().optional(),
+      targets: z.array(z.object({
+        watchKey: z.string().min(1).max(200),
+        entityType: z.enum(['actress', 'director', 'studio', 'series', 'label', 'tag']).optional(),
+        ok: z.boolean(),
+        javdbEntityId: z.string().max(64).optional(),
+        error: z.string().max(300).optional(),
+        works: z.array(z.object({
+          code: z.string().min(1).max(40),
+          title: z.string().max(1000).optional(),
+          cover: z.string().max(500).optional(),
+          releaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        })).max(50).optional(),
+      })).min(1).max(20),
+    }),
+  },
+
   pagination: z.object({
     page: z.string().regex(/^\d+$/).optional(),
     pageSize: z.string().regex(/^\d+$/).optional(),
@@ -126,6 +146,7 @@ export const schemas = {
   system: { ...sharedSchemas.system, ...backendOnlySchemas.system },
   config: { ...sharedSchemas.config, ...backendOnlySchemas.config },
   rankings: backendOnlySchemas.rankings,
+  follows: backendOnlySchemas.follows,
   pagination: backendOnlySchemas.pagination,
 };
 
