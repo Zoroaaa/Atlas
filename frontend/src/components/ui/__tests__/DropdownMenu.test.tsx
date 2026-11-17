@@ -47,36 +47,39 @@ describe('userMenuItems', () => {
     vi.clearAllMocks();
   });
 
-  const ids = (isAdmin: boolean) =>
-    userMenuItems(t, navigate, logout, { isAdmin }).map((item) => item.id);
+  const ids = () =>
+    userMenuItems(t, navigate, logout, { isDark: false, onToggleTheme: vi.fn() }).map((item) => item.id);
 
-  it('桌面端下拉统一提供个人中心、社区、设置与退出登录', () => {
-    const menuIds = ids(false);
+  it('账户菜单只保留个人资料、设置、主题与退出登录', () => {
+    expect(ids()).toEqual(expect.arrayContaining(['profile', 'settings', 'theme', 'logout']));
+  });
 
-    expect(menuIds).toEqual(expect.arrayContaining(['dashboard', 'community', 'settings', 'logout']));
+  it('产品导航入口全部移出账户菜单', () => {
+    const menuIds = ids();
+
+    expect(menuIds).not.toContain('dashboard');
+    expect(menuIds).not.toContain('community');
+    expect(menuIds).not.toContain('admin-panel');
+    expect(menuIds).not.toContain('favorites');
+    expect(menuIds).not.toContain('history');
   });
 
   it('设置项进入独立设置页，而不是个人中心子路由', () => {
-    const settings = userMenuItems(t, navigate, logout, { isAdmin: false }).find((item) => item.id === 'settings');
+    const settings = userMenuItems(t, navigate, logout, { isDark: false, onToggleTheme: vi.fn() })
+      .find((item) => item.id === 'settings');
 
     settings?.onClick?.();
 
     expect(navigate).toHaveBeenCalledWith('/settings');
   });
 
-  it('不再包含收藏与搜索历史，并提供社区入口', () => {
-    const menuIds = ids(false);
+  it('主题项调用切换回调', () => {
+    const onToggleTheme = vi.fn();
+    const theme = userMenuItems(t, navigate, logout, { isDark: true, onToggleTheme })
+      .find((item) => item.id === 'theme');
 
-    expect(menuIds).not.toContain('favorites');
-    expect(menuIds).not.toContain('history');
-    expect(menuIds).toContain('community');
-  });
+    theme?.onClick?.();
 
-  it('非管理员菜单中完全没有管理员看板入口', () => {
-    expect(ids(false)).not.toContain('admin-panel');
-  });
-
-  it('管理员菜单中包含管理员看板入口', () => {
-    expect(ids(true)).toContain('admin-panel');
+    expect(onToggleTheme).toHaveBeenCalled();
   });
 });

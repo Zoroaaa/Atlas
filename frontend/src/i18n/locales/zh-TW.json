@@ -142,6 +142,29 @@
       "cancel": "取消",
       "confirm": "確認開啟"
     },
+    "workspace": {
+      "search": "Atlas 搜尋",
+      "community": "社群",
+      "dashboard": "個人中心",
+      "admin": "管理後台",
+      "switch": "切換工作區",
+      "backToSearch": "返回搜尋",
+      "collapse": "摺疊側欄",
+      "expand": "展開側欄",
+      "notifications": "通知",
+      "followFeed": "追蹤動態",
+      "follows": "我的追蹤",
+      "groups": {
+        "search": "搜尋",
+        "discover": "發現",
+        "mine": "個人中心",
+        "community": "社群",
+        "current": "目前工作區"
+      }
+    },
+    "brand": {
+      "home": "返回搜尋首頁"
+    },
     "mobileNav": {
       "ariaLabel": "主導覽",
       "home": "首頁",
@@ -187,6 +210,13 @@
     },
     "backHome": "返回首頁",
     "search": "搜尋",
+    "adminSections": {
+      "overview": "概覽",
+      "users": "使用者與權限",
+      "content": "內容與互動",
+      "data": "資料與榜單",
+      "system": "系統與日誌"
+    },
     "adminPanel": {
       "title": "管理看板",
       "groupHeading": "管理功能",
@@ -217,8 +247,14 @@
       "groups": {
         "personal": "個人",
         "resources": "資源管理",
+        "account": "帳戶",
         "settings": "設定",
         "admin": "管理員"
+      },
+      "sections": {
+        "overview": "概覽",
+        "library": "內容庫",
+        "messages": "訊息"
       },
       "items": {
         "overview": "概覽",
@@ -2051,10 +2087,18 @@
           "top250": "TOP250",
           "genres": "標籤",
           "actresses": "女優"
+        },
+        "descriptions": {
+          "recommend": "根據你的收藏與搜尋記錄生成",
+          "rankings": "JavDB 月榜與週榜，依熱度排序",
+          "top250": "歷史總榜，支援依年份篩選",
+          "genres": "依題材標籤瀏覽作品",
+          "actresses": "近期熱門女優排行"
         }
       },
       "viewMore": "更多",
-      "viewAll": "全部"
+      "viewAll": "全部",
+      "desktopHint": "從左側導覽或下方入口開啟完整列表"
     },
     "javSubmode": {
       "greeting": "嗨",

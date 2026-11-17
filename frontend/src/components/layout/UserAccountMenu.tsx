@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DropdownMenu, userMenuItems } from '@/components/ui';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useThemeStore } from '@/stores';
 
 export interface UserAccountMenuProps {
   isAuthenticated: boolean;
@@ -16,10 +16,11 @@ export interface UserAccountMenuProps {
   isAdmin: boolean;
 }
 
-export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ isAuthenticated, user, isAdmin }) => {
+export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ isAuthenticated, user }) => {
   const { t } = useTranslation(['nav']);
   const navigate = useNavigate();
   const { logout } = useAuthStore();
+  const { resolvedTheme, toggleTheme } = useThemeStore();
 
   const handleLogout = useCallback(() => {
     logout();
@@ -48,7 +49,10 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ isAuthenticate
       }
       items={
         isAuthenticated
-          ? userMenuItems(t, navigate, handleLogout, { isAdmin })
+          ? userMenuItems(t, navigate, handleLogout, {
+              isDark: resolvedTheme === 'dark',
+              onToggleTheme: toggleTheme,
+            })
           : [
               { id: 'login', label: t('nav:userMenu.login'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/login') },
               { id: 'register', label: t('nav:userMenu.register'), icon: <User className="w-4 h-4" />, onClick: () => navigate('/register') },

@@ -14,10 +14,13 @@ import {
   IconAction,
 } from '@/components/workbench';
 import { Tooltip } from '@/components/ui';
+import { pageActionClass } from './JavRankingsPanel';
 import type { GenreRecTag } from '@/types';
 
 interface JavGenrePanelProps {
   onCodeClick: (code: string) => void;
+  /** page：作为独立页面内容渲染，不显示折叠头与面板外壳 */
+  layout?: 'panel' | 'page';
 }
 
 function SkeletonCard() {
@@ -43,7 +46,7 @@ function TagSkeleton() {
   );
 }
 
-export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick }) => {
+export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick, layout = 'panel' }) => {
   const { t } = useTranslation(['jav']);
   const { isAuthenticated } = useAuthStore();
   const [expanded, setExpanded] = useState(true);
@@ -67,6 +70,119 @@ export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick }) => 
 
   const works = worksQuery.data;
   const noMore = Boolean(works) && works!.maxPage <= 1;
+
+  const content = (
+    <div className={clsx(layout === 'page' ? '' : 'px-4 pb-4 sm:px-5 sm:pb-5')}>
+      {tagsQuery.isLoading ? (
+        <TagSkeleton />
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('jav:genreRec.title')}>
+          {tags.map((tag) => {
+            const active = activeTag?.key === tag.key;
+            return (
+              <button
+                key={tag.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setActiveTag((prev) => (prev?.key === tag.key ? null : tag))}
+                className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              >
+                <Chip
+                  tone={active ? 'primary' : 'neutral'}
+                  size="sm"
+                  className={clsx(active && 'ring-1 ring-primary-500')}
+                >
+                  {tag.name}
+                  {tag.source === 'personal' ? (
+                    <span className={clsx('text-[9px]', active ? 'opacity-80' : 'opacity-60')}>
+                      {t('jav:genreRec.badgeFrequent')}
+                    </span>
+                  ) : null}
+                </Chip>
+              </button>
+            );
+          })}
+          <span className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleRefreshTags}
+              disabled={tagsQuery.isFetching}
+              className={pageActionClass}
+            >
+              {tagsQuery.isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {t('jav:genreRec.refreshTags')}
+            </button>
+          </span>
+        </div>
+      )}
+
+      {activeTag ? (
+        <div className="mt-3 border-t border-surface-100 pt-3 dark:border-surface-800/70">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <Chip tone="primary" size="sm" truncate>{activeTag.name}</Chip>
+              {noMore ? (
+                <span className="type-micro shrink-0 text-surface-400">{t('jav:genreRec.noMore')}</span>
+              ) : null}
+            </div>
+            <IconAction
+              icon={worksQuery.isFetching
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <RefreshCw className="h-3.5 w-3.5" />}
+              label={t('jav:genreRec.refreshWorks')}
+              onClick={worksQuery.refresh}
+              disabled={worksQuery.isFetching || noMore}
+            />
+          </div>
+
+          {worksQuery.isLoading ? (
+            <div className={clsx('grid gap-3', layout === 'page' ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4')}>
+              {Array.from({ length: layout === 'page' ? 10 : 8 }).map((_, index) => <SkeletonCard key={index} />)}
+            </div>
+          ) : worksQuery.isError ? (
+            <p className="type-meta py-4 text-center">
+              <button
+                type="button"
+                onClick={worksQuery.refresh}
+                className="text-primary-600 hover:underline dark:text-primary-300"
+              >
+                {t('jav:genreRec.retry')}
+              </button>
+            </p>
+          ) : (works?.items.length ?? 0) === 0 ? (
+            <p className="type-meta py-4 text-center">{t('jav:genreRec.empty')}</p>
+          ) : (
+            <div className={clsx('grid gap-3', layout === 'page' ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4')}>
+              {works!.items.map((item) => (
+                <MediaCard
+                  key={item.code}
+                  orientation="tile"
+                  coverAspect="auto"
+                  cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
+                  coverFallback={<Film className="h-6 w-6" />}
+                  title={item.title || item.code}
+                  badges={
+                    <>
+                      <Chip tone="neutral" size="xs">{item.code}</Chip>
+                      {item.isFavorite
+                        ? <Chip tone="success" size="xs">{t('jav:genreRec.badgeFavorited')}</Chip>
+                        : null}
+                    </>
+                  }
+                  meta={item.date ? <span className="truncate">{item.date}</span> : undefined}
+                  onSelect={() => onCodeClick(item.code)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (layout === 'page') {
+    return <div>{content}</div>;
+  }
 
   return (
     <PanelSection>
@@ -100,103 +216,7 @@ export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick }) => 
         }
       />
 
-      {expanded ? (
-        <div id="main-jav-genres" className="px-4 pb-4 sm:px-5 sm:pb-5">
-          {tagsQuery.isLoading ? (
-            <TagSkeleton />
-          ) : (
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('jav:genreRec.title')}>
-              {tags.map((tag) => {
-                const active = activeTag?.key === tag.key;
-                return (
-                  <button
-                    key={tag.key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setActiveTag((prev) => (prev?.key === tag.key ? null : tag))}
-                    className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-                  >
-                    <Chip
-                      tone={active ? 'primary' : 'neutral'}
-                      size="sm"
-                      className={clsx(active && 'ring-1 ring-primary-500')}
-                    >
-                      {tag.name}
-                      {tag.source === 'personal' ? (
-                        <span className={clsx('text-[9px]', active ? 'opacity-80' : 'opacity-60')}>
-                          {t('jav:genreRec.badgeFrequent')}
-                        </span>
-                      ) : null}
-                    </Chip>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {activeTag ? (
-            <div className="mt-3 border-t border-surface-100 pt-3 dark:border-surface-800/70">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Chip tone="primary" size="sm" truncate>{activeTag.name}</Chip>
-                  {noMore ? (
-                    <span className="type-micro shrink-0 text-surface-400">{t('jav:genreRec.noMore')}</span>
-                  ) : null}
-                </div>
-                <IconAction
-                  icon={worksQuery.isFetching
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <RefreshCw className="h-3.5 w-3.5" />}
-                  label={t('jav:genreRec.refreshWorks')}
-                  onClick={worksQuery.refresh}
-                  disabled={worksQuery.isFetching || noMore}
-                />
-              </div>
-
-              {worksQuery.isLoading ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {Array.from({ length: 8 }).map((_, index) => <SkeletonCard key={index} />)}
-                </div>
-              ) : worksQuery.isError ? (
-                <p className="type-meta py-4 text-center">
-                  <button
-                    type="button"
-                    onClick={worksQuery.refresh}
-                    className="text-primary-600 hover:underline dark:text-primary-300"
-                  >
-                    {t('jav:genreRec.retry')}
-                  </button>
-                </p>
-              ) : (works?.items.length ?? 0) === 0 ? (
-                <p className="type-meta py-4 text-center">{t('jav:genreRec.empty')}</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {works!.items.map((item) => (
-                    <MediaCard
-                      key={item.code}
-                      orientation="tile"
-                      coverAspect="auto"
-                      cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
-                      coverFallback={<Film className="h-6 w-6" />}
-                      title={item.title || item.code}
-                      badges={
-                        <>
-                          <Chip tone="neutral" size="xs">{item.code}</Chip>
-                          {item.isFavorite
-                            ? <Chip tone="success" size="xs">{t('jav:genreRec.badgeFavorited')}</Chip>
-                            : null}
-                        </>
-                      }
-                      meta={item.date ? <span className="truncate">{item.date}</span> : undefined}
-                      onSelect={() => onCodeClick(item.code)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {expanded ? <div id="main-jav-genres">{content}</div> : null}
     </PanelSection>
   );
 };

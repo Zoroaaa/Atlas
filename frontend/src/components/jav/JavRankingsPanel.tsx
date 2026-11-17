@@ -19,26 +19,30 @@ import { JAV_RANKINGS_PAGE_SIZE } from '@/types';
 
 interface JavRankingsPanelProps {
   onCodeClick: (code: string) => void;
+  /** page：作为独立页面内容渲染，不显示折叠头与面板外壳 */
+  layout?: 'panel' | 'page';
 }
 
 const RANK_COLORS = ['text-primary-500', 'text-surface-400', 'text-primary-700'];
+
+export const pageActionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-3 text-xs font-medium text-surface-600 transition-colors hover:bg-surface-50 disabled:opacity-50 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800';
 
 export const RankingRow: React.FC<{
   item: JavRankingEntry;
   onClick: (code: string) => void;
 }> = ({ item, onClick }) => {
   return (
-    <div className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
-      <div className="flex w-6 shrink-0 flex-col items-center">
-        <span className={clsx('text-[11px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
+    <div className="group flex w-full items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
+      <div className="flex w-7 shrink-0 flex-col items-center">
+        <span className={clsx('text-[13px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
           {item.rank}
         </span>
         {item.isNew ? (
-          <span className="text-[9px] font-bold leading-none text-amber-500">NEW</span>
+          <span className="text-[10px] font-bold leading-none text-amber-500">NEW</span>
         ) : item.change ? (
           <span
             className={clsx(
-              'text-[9px] font-semibold leading-none tabular-nums',
+              'text-[10px] font-semibold leading-none tabular-nums',
               item.change > 0 ? 'text-emerald-500' : 'text-red-500'
             )}
           >
@@ -46,8 +50,7 @@ export const RankingRow: React.FC<{
           </span>
         ) : null}
       </div>
-      {/* 封面：点击放大 */}
-      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
+      <div className="h-20 w-14 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
         {item.cover ? (
           <ProxyImage
             src={getProxyImageUrl(item.cover)}
@@ -61,34 +64,32 @@ export const RankingRow: React.FC<{
           </div>
         )}
       </div>
-      {/* 标题/番号：点击执行 */}
       <button
         type="button"
         onClick={() => onClick(item.code)}
         className="min-w-0 flex-1 text-left"
         title={item.title}
       >
-        <p className="line-clamp-2 text-[12px] font-medium leading-snug text-surface-800 dark:text-surface-200">{item.title}</p>
-        <p className="type-micro mt-0.5 truncate font-semibold text-surface-500">{item.code}</p>
+        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-surface-800 dark:text-surface-200">{item.title}</p>
+        <p className="type-micro mt-1 truncate font-semibold text-surface-500">{item.code}</p>
       </button>
     </div>
   );
 };
 
-export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick }) => {
+export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick, layout = 'panel' }) => {
   const { t } = useTranslation(['jav']);
   const { data, isLoading, error, refresh } = useJavRankings();
   const [expanded, setExpanded] = useState(true);
   const [period, setPeriod] = useState<JavRankingPeriod>('monthly');
   const [section, setSection] = useState<JavRankingSection>('censored');
-
   const [page, setPage] = useState(1);
 
+  const pageSize = layout === 'page' ? 15 : JAV_RANKINGS_PAGE_SIZE;
   const activeItems = data?.[period]?.[section] ?? [];
-  const totalPages = Math.max(1, Math.ceil(activeItems.length / JAV_RANKINGS_PAGE_SIZE));
-  const pageItems = activeItems.slice((page - 1) * JAV_RANKINGS_PAGE_SIZE, page * JAV_RANKINGS_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(activeItems.length / pageSize));
+  const pageItems = activeItems.slice((page - 1) * pageSize, page * pageSize);
 
-  // 切换周/月、有码/无码回到第一页；数据变少时避免页码越界
   useEffect(() => { setPage(1); }, [period, section]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const updatedAt = data?.[period]?.updatedAt ?? 0;
@@ -98,6 +99,84 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
     const date = new Date(value);
     return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
+
+  const filters = (
+    <div className={clsx('flex flex-wrap items-center gap-2', layout === 'page' ? 'pb-4' : 'px-4 pb-2 pt-1 sm:px-5')}>
+      <Segmented
+        value={period}
+        onChange={setPeriod}
+        ariaLabel={t('jav:rankings.periodMonthly')}
+        options={[
+          { value: 'monthly', label: t('jav:rankings.periodMonthly') },
+          { value: 'weekly', label: t('jav:rankings.periodWeekly') },
+        ]}
+      />
+      <Segmented
+        value={section}
+        onChange={setSection}
+        ariaLabel={t('jav:rankings.tabCensored')}
+        options={[
+          { value: 'censored', label: t('jav:rankings.tabCensored') },
+          { value: 'uncensored', label: t('jav:rankings.tabUncensored') },
+        ]}
+      />
+      <span className="type-micro text-surface-400">{t('jav:rankings.sourceLabel')} · {formatUpdatedAt(updatedAt)}</span>
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={isLoading}
+        className={clsx('ml-auto', pageActionClass)}
+      >
+        <RefreshCw className={clsx('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+        {t('jav:rankings.refresh')}
+      </button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {isLoading ? (
+        <div className="flex h-40 flex-col items-center justify-center gap-2 text-surface-400">
+          <Loader2 className="h-5 w-5 animate-spin text-primary-500" />
+          <p className="type-micro">{t('jav:rankings.loading')}</p>
+        </div>
+      ) : error ? (
+        <div className="flex h-40 flex-col items-center justify-center gap-2">
+          <AlertCircle className="h-5 w-5 text-error-400" />
+          <p className="type-micro text-error-500">{error}</p>
+          <button type="button" onClick={refresh} className="type-micro text-primary-500 underline">{t('jav:rankings.retry')}</button>
+        </div>
+      ) : activeItems.length === 0 ? (
+        <EmptyBlock
+          icon={<Search className="h-6 w-6" />}
+          title={period === 'weekly' ? t('jav:rankings.emptyWeekly') : t('jav:rankings.emptyMonthly')}
+          className="min-h-[160px] bg-transparent"
+        />
+      ) : (
+        <div className="space-y-0.5 px-2 sm:px-0">
+          {pageItems.map((item) => (
+            <RankingRow key={`${period}-${section}-${item.code}`} item={item} onClick={onCodeClick} />
+          ))}
+        </div>
+      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={setPage}
+        prevLabel={t('jav:actressResults.previousPage')}
+        nextLabel={t('jav:actressResults.nextPage')}
+      />
+    </>
+  );
+
+  if (layout === 'page') {
+    return (
+      <div>
+        {filters}
+        {body}
+      </div>
+    );
+  }
 
   return (
     <PanelSection>
@@ -124,60 +203,8 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick 
 
       {expanded ? (
         <div id="main-jav-rankings">
-          <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-1 sm:px-5">
-            <Segmented
-              value={period}
-              onChange={setPeriod}
-              ariaLabel={t('jav:rankings.periodMonthly')}
-              options={[
-                { value: 'monthly', label: t('jav:rankings.periodMonthly') },
-                { value: 'weekly', label: t('jav:rankings.periodWeekly') },
-              ]}
-            />
-            <Segmented
-              value={section}
-              onChange={setSection}
-              ariaLabel={t('jav:rankings.tabCensored')}
-              options={[
-                { value: 'censored', label: t('jav:rankings.tabCensored') },
-                { value: 'uncensored', label: t('jav:rankings.tabUncensored') },
-              ]}
-            />
-          </div>
-
-          <div className="px-2 pb-3 sm:px-3">
-            {isLoading ? (
-              <div className="flex h-40 flex-col items-center justify-center gap-2 text-surface-400">
-                <Loader2 className="h-5 w-5 animate-spin text-primary-500" />
-                <p className="type-micro">{t('jav:rankings.loading')}</p>
-              </div>
-            ) : error ? (
-              <div className="flex h-40 flex-col items-center justify-center gap-2">
-                <AlertCircle className="h-5 w-5 text-error-400" />
-                <p className="type-micro text-error-500">{error}</p>
-                <button type="button" onClick={refresh} className="type-micro text-primary-500 underline">{t('jav:rankings.retry')}</button>
-              </div>
-            ) : activeItems.length === 0 ? (
-              <EmptyBlock
-                icon={<Search className="h-6 w-6" />}
-                title={period === 'weekly' ? t('jav:rankings.emptyWeekly') : t('jav:rankings.emptyMonthly')}
-                className="min-h-[120px] bg-transparent"
-              />
-            ) : (
-              <div className="space-y-0.5">
-                {pageItems.map((item) => (
-                  <RankingRow key={`${period}-${section}-${item.code}`} item={item} onClick={onCodeClick} />
-                ))}
-              </div>
-            )}
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onChange={setPage}
-              prevLabel={t('jav:actressResults.previousPage')}
-              nextLabel={t('jav:actressResults.nextPage')}
-            />
-          </div>
+          {filters}
+          <div className="px-2 pb-3 sm:px-3">{body}</div>
         </div>
       ) : null}
     </PanelSection>

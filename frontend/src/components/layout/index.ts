@@ -1,4 +1,6 @@
 export { MainLayout } from './MainLayout';
+export { AppShell } from './AppShell';
+export { AccountLayout } from './AccountLayout';
 export { DashboardLayout } from './DashboardLayout';
 export { AdminPanelLayout } from './AdminPanelLayout';
 export { CommunityPanelLayout } from './CommunityPanelLayout';
@@ -8,3 +10,5 @@ export { MobileTabBar } from './MobileTabBar';
 export { UserAccountMenu } from './UserAccountMenu';
 export { MobileMenuPage, MobileSectionHeader } from './MobileSectionPage';
 export type { MobileMenuGroup, MobileMenuItem } from './MobileSectionPage';
+export { WORKSPACE_META, communityNavGroups, dashboardNavGroups, adminNavGroups } from './workspaceNav';
+export type { WorkspaceId, WorkspaceNavGroup, WorkspaceNavItem } from './workspaceNav';

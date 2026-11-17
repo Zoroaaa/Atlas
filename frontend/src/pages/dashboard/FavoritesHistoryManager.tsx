@@ -28,6 +28,11 @@ import { userApi } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SearchHistoryItem } from '@/types';
+import { LibraryDetailModal } from '@/components/search';
+import type { LibraryDetailTarget } from '@/components/search';
+import type { LibraryRecordType } from '@/services/api/library';
+import { TAB_IDS } from '@/types/source';
+import type { SearchTabType } from '@/types/source';
 
 const DASHBOARD_PAGE_SIZE = 20;
 
@@ -48,6 +53,13 @@ const getProxyImageUrl = (url: string): string => {
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
   const { t } = useTranslation(['dashboard']);
+  const navigate = useNavigate();
+  const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
+  const goSearch = (keyword: string, type?: LibraryRecordType) => {
+    const tab = type && TAB_IDS.includes(type as SearchTabType) ? type : 'jav';
+    navigate(`/main?tab=${tab}&q=${encodeURIComponent(keyword)}`);
+  };
+  const goActress = (name: string) => navigate(`/main?tab=jav&sub=actress&q=${encodeURIComponent(name)}`);
   const addFavoriteMutation = useAddFavorite();
   const removeFavoriteMutation = useRemoveFavorite();
   const updateStatusMutation = useUpdateFavoriteStatus();
@@ -315,7 +327,13 @@ export const FavoritesManager: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-1 pl-0">
-                  <p className="text-sm font-medium text-surface-900 dark:text-surface-100 break-words">{favorite.title}</p>
+                  <button
+                    type="button"
+                    onClick={() => setDetail({ code: favorite.code ?? undefined, url: favorite.url, title: favorite.title })}
+                    className="text-left text-sm font-medium text-surface-900 break-words hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-300"
+                  >
+                    {favorite.title}
+                  </button>
                   {favorite.subtitle && (
                     <p className="text-xs text-surface-500 truncate">{favorite.subtitle}</p>
                   )}
@@ -415,6 +433,13 @@ export const FavoritesManager: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <LibraryDetailModal
+        target={detail}
+        onClose={() => setDetail(null)}
+        onSearch={goSearch}
+        onActressClick={(name) => { setDetail(null); goActress(name); }}
+      />
     </div>
   );
 };
@@ -423,6 +448,12 @@ export const HistoryManager: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const { t } = useTranslation(['dashboard']);
+  const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
+  const goSearch = (keyword: string, type?: LibraryRecordType) => {
+    const tab = type && TAB_IDS.includes(type as SearchTabType) ? type : 'jav';
+    navigate(`/main?tab=${tab}&q=${encodeURIComponent(keyword)}`);
+  };
+  const goActress = (name: string) => navigate(`/main?tab=jav&sub=actress&q=${encodeURIComponent(name)}`);
   
   const clearHistoryMutation = useClearSearchHistory();
   const deleteItemMutation = useDeleteSearchHistoryItem();
@@ -749,9 +780,13 @@ export const HistoryManager: React.FC = () => {
                               {item.code}
                             </span>
                           )}
-                          <p className="font-medium text-surface-900 dark:text-surface-100">
+                          <button
+                            type="button"
+                            onClick={() => setDetail({ type: item.source, code: item.code, title: item.title || item.query })}
+                            className="text-left font-medium text-surface-900 hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-300"
+                          >
                             {item.title || item.query}
-                          </p>
+                          </button>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-surface-500 dark:text-surface-400 mt-1 flex-wrap">
                           <span>{formatDate(item.createdAt)}</span>
@@ -848,6 +883,13 @@ export const HistoryManager: React.FC = () => {
           description={t('dashboard:favoritesHistory.history.emptyDesc')}
         />
       )}
+
+      <LibraryDetailModal
+        target={detail}
+        onClose={() => setDetail(null)}
+        onSearch={goSearch}
+        onActressClick={(name) => { setDetail(null); goActress(name); }}
+      />
     </div>
   );
 };

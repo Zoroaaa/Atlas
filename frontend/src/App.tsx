@@ -7,6 +7,7 @@ import { apiClient } from '@/services/api';
 import { analyticsApi } from '@/services/api';
 import i18next from '@/i18n';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { AccountLayout } from '@/components/layout/AccountLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AdminPanelLayout } from '@/components/layout/AdminPanelLayout';
 import { CommunityPanelLayout } from '@/components/layout/CommunityPanelLayout';
@@ -215,8 +216,10 @@ const App: React.FC = () => {
           <Route path="/terms" element={withSuspense(<TermsPage />)} />
           <Route path="/privacy" element={withSuspense(<PrivacyPage />)} />
           <Route path="/help" element={withSuspense(<HelpCenterPage />)} />
+        </Route>
+        {/* 个人资料 / 系统设置：桌面纳入统一 AppShell，移动端保持独立页 */}
+        <Route element={<AccountLayout />}>
           <Route path="/me" element={<GuardRoute><MePage /></GuardRoute>} />
-          {/* 系统设置独立页：入口仅保留桌面头像下拉与手机端「我的」 */}
           <Route path="/settings" element={<GuardRoute>{withSuspense(<SettingsPage />)}</GuardRoute>} />
         </Route>
         <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
@@ -230,8 +233,13 @@ const App: React.FC = () => {
             <MainSearchPage />
           </GuardRoute>
         } />
-        {/* 移动端首页的完整列表落点：推荐 / 榜单 / TOP250 / 标签 / 女优 */}
+        {/* 发现：推荐 / 最近热播 / TOP250 / 标签 / 女优各一个页面 */}
         <Route path="/discover" element={
+          <GuardRoute>
+            <Navigate to="/discover/recommend" replace />
+          </GuardRoute>
+        } />
+        <Route path="/discover/:section" element={
           <GuardRoute>
             {withSuspense(<DiscoverPage />)}
           </GuardRoute>

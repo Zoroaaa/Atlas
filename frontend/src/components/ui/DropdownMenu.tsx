@@ -392,7 +392,6 @@ export default DropdownMenu;
 /* ── 预设菜单配置 ── */
 
 import {
-  LayoutDashboard,
   Heart,
   Settings,
   LogOut,
@@ -401,72 +400,60 @@ import {
   Globe,
   Share2,
   Tags,
+  User,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import type { NavigateFunction } from 'react-router-dom';
 import { type TFunction } from 'i18next';
 
 /**
  * 用户操作菜单
- * 管理员入口只在调用方判定为管理员时才注入，非管理员完全不会渲染该菜单项
+ * 只承载账户与偏好：个人资料、设置、主题、退出。
+ * 社区、个人中心、管理后台等产品导航统一交给左侧全局栏。
  */
 export const userMenuItems = (
   t: TFunction,
   navigate: NavigateFunction,
   logout: () => void,
-  options: { isAdmin?: boolean } = {}
-): MenuItem[] => {
-  const items: MenuItem[] = [
-    {
-      id: 'dashboard',
-      label: t('ui:menu.dashboard'),
-      icon: <LayoutDashboard className="w-4 h-4" />,
-      onClick: () => navigate('/dashboard'),
-    },
-    {
-      id: 'community',
-      label: t('nav:userMenu.community'),
-      icon: <Globe className="w-4 h-4" />,
-      onClick: () => navigate('/community'),
-    },
-  ];
-
-  if (options.isAdmin) {
-    items.push({
-      id: 'admin-panel',
-      label: t('nav:adminPanel.title'),
-      icon: <ShieldAlert className="w-4 h-4" />,
-      onClick: () => navigate('/admin-panel'),
-    });
-  }
-
-  items.push(
-    {
-      id: 'divider-1',
-      label: '',
-      divider: true,
-    },
-    {
-      id: 'settings',
-      label: t('ui:menu.settings'),
-      icon: <Settings className="w-4 h-4" />,
-      onClick: () => navigate('/settings'),
-    },
-    {
-      id: 'divider-2',
-      label: '',
-      divider: true,
-    },
-    {
-      id: 'logout',
-      label: t('ui:menu.logout'),
-      icon: <LogOut className="w-4 h-4" />,
-      danger: true,
-      onClick: logout,
-    }
-  );
-
-  return items;
-};
+  options: { isDark: boolean; onToggleTheme: () => void }
+): MenuItem[] => [
+  {
+    id: 'profile',
+    label: t('nav:userMenu.profile'),
+    icon: <User className="w-4 h-4" />,
+    onClick: () => navigate('/me'),
+  },
+  {
+    id: 'settings',
+    label: t('ui:menu.settings'),
+    icon: <Settings className="w-4 h-4" />,
+    onClick: () => navigate('/settings'),
+  },
+  {
+    id: 'divider-1',
+    label: '',
+    divider: true,
+  },
+  {
+    id: 'theme',
+    label: t('nav:theme.toggle'),
+    icon: options.isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
+    onClick: options.onToggleTheme,
+  },
+  {
+    id: 'divider-2',
+    label: '',
+    divider: true,
+  },
+  {
+    id: 'logout',
+    label: t('ui:menu.logout'),
+    icon: <LogOut className="w-4 h-4" />,
+    danger: true,
+    onClick: logout,
+  },
+];
 
 /**
  * 管理员菜单

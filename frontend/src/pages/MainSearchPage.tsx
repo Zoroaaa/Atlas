@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search } from 'lucide-react';
+import clsx from 'clsx';
+import { Search, Sparkles, Tags, Trophy, Users } from 'lucide-react';
 import { useAuthStore, useSourceStore, useProxyStore } from '@/stores';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SearchTabType, JavSubMode } from '@/types/source';
@@ -9,24 +10,16 @@ import {
   AnnouncementBar,
   SearchDock,
   SearchWorkspace,
-  SearchHistoryPanel,
-  FavoritesPanel,
-  LibraryDetailModal,
   SourceBoard,
-  QuickActionsPanel,
 } from '@/components/search';
-import type { LibraryDetailTarget } from '@/components/search';
-import type { LibraryRecordType } from '@/services/api/library';
-import { useFeatureFlags } from '@/contexts/ConfigContext';
-import { JavRankingsPanel, JavTop250Panel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
-import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
+import { AppShell } from '@/components/layout/AppShell';
+import { Panel, PanelSection, EmptyBlock } from '@/components/workbench';
 import { MobileIdleHome } from '@/components/home-mobile';
 import type { DiscoverSection } from '@/components/home-mobile';
 import { useIsDesktop } from '@/hooks';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useCacheSync } from '@/hooks/useCacheSync';
-import { FollowFeedPanel } from '@/components/follow/FollowFeedPanel';
 import { useFavoritesManager } from '@/hooks/useFavoritesManager';
 import { useSearchHistoryManager } from '@/hooks/useSearchHistoryManager';
 import { useJavSearchFlow } from '@/hooks/useJavSearchFlow';
@@ -44,7 +37,6 @@ export const MainSearchPage: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { activeTab, setActiveTab } = useSourceStore();
   const { isEnabled: isProxyEnabled, initializeProxy } = useProxyStore();
-  const { communityEnabled } = useFeatureFlags();
   const isDesktop = useIsDesktop();
   const pageRef = useRouteEnterAnimation<HTMLDivElement>();
 
@@ -101,20 +93,6 @@ export const MainSearchPage: React.FC = () => {
         ...((javEnrichedData.actressWorks || []).map((work) => work.code)),
       ]
     : [];
-
-  // ── UI-only state ──
-  const [showHistory, setShowHistory] = useState(true);
-  const [showFavorites, setShowFavorites] = useState(true);
-  // 历史/收藏点击后展示的本地库详情卡片
-  const [libraryDetail, setLibraryDetail] = useState<LibraryDetailTarget | null>(null);
-
-  // 本地库查不到时，用户主动「去搜索」：走 URL 深链，由上面的 effect 完成切 Tab + 搜索
-  const handleLibrarySearch = useCallback((keyword: string, type?: LibraryRecordType) => {
-    const tab = type && TAB_IDS.includes(type as SearchTabType) ? (type as SearchTabType) : activeTab;
-    const params: Record<string, string> = { tab, q: keyword };
-    if (tab === 'jav') params.sub = javSubMode;
-    navigate(`/main?${new URLSearchParams(params).toString()}`);
-  }, [activeTab, javSubMode, navigate]);
 
   // 搜索结束后刷新配额展示（isSearching 由 true 落回 false 视为一次搜索完成）
   const [quotaRefreshKey, setQuotaRefreshKey] = useState(0);
@@ -209,9 +187,9 @@ export const MainSearchPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFlow.resetResults]);
 
-  // 移动端完整列表下沉到 /discover，首页只保留入口与预览
+  // 完整列表统一放在独立页面，首页只保留入口
   const handleOpenDiscover = useCallback((section: DiscoverSection) => {
-    navigate(`/discover?section=${section}`);
+    navigate(`/discover/${section}`);
   }, [navigate]);
 
   // 记录进入源看板前的搜索 Tab，供"返回搜索"回退（深链默认 jav）
@@ -230,8 +208,11 @@ export const MainSearchPage: React.FC = () => {
     && (!isAuthenticated || historyManager.searchHistory.length === 0);
 
   return (
-    <div ref={pageRef} className="min-h-screen page-bg pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
-      <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
+    <AppShell onSearchTabChange={handleTabChange}>
+    <div ref={pageRef} className={clsx('page-bg', !isDesktop && 'min-h-screen pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0')}>
+      {!isDesktop ? (
+        <UnifiedNavBar activeTab={activeTab} onTabChange={handleTabChange} isAuthenticated={isAuthenticated} user={user} isAdmin={isAdmin} />
+      ) : null}
 
       <main className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <header className="mb-4 sm:mb-5">
@@ -287,98 +268,41 @@ export const MainSearchPage: React.FC = () => {
             />
           ) : (
             <div className="border-t border-surface-100 dark:border-surface-800/70">
-              {isDesktop ? (
-              <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-                <div className="min-w-0">
-                  {activeTab === 'jav' ? (
-                    <>
-                      <FollowFeedPanel show={isAuthenticated} onCodeClick={searchFlow.handleCodeClick} />
-                      <LazyMount minHeight={200}>
-                        <JavRecommendationsPanel variant="for-you" onCodeClick={searchFlow.handleCodeClick} />
-                      </LazyMount>
-                      <LazyMount minHeight={200}>
-                        <JavGenrePanel onCodeClick={searchFlow.handleCodeClick} />
-                      </LazyMount>
-                      <LazyMount minHeight={200}>
-                        <JavRankingsPanel onCodeClick={searchFlow.handleCodeClick} />
-                      </LazyMount>
-                      <LazyMount minHeight={200}>
-                        <JavTop250Panel onCodeClick={searchFlow.handleCodeClick} />
-                      </LazyMount>
-                    </>
-                  ) : null}
-                  {showIdleHint ? (
-                    <PanelSection className="p-4 sm:p-5">
-                      <EmptyBlock
-                        icon={<Search className="h-8 w-8" />}
-                        title={t(SEARCH_TABS[activeTab].placeholderKey)}
-                        hint={t(SEARCH_TABS[activeTab].descriptionKey)}
-                        className="bg-transparent"
-                      />
-                    </PanelSection>
-                  ) : null}
-                </div>
-
-                <PanelRail className="min-w-0">
-                  {activeTab === 'jav' ? (
-                    isAuthenticated ? (
-                      <LazyMount minHeight={0}>
-                        <ActressesPanel onActressClick={handleActressClick} />
-                      </LazyMount>
-                    ) : (
-                      <ActressesPanel onActressClick={handleActressClick} />
-                    )
-                  ) : null}
-                  {isAuthenticated ? (
-                    <SearchHistoryPanel
-                      history={historyManager.searchHistory}
-                      total={historyManager.historyTotal}
-                      page={historyManager.historyPageNo}
-                      totalPages={historyManager.historyTotalPages}
-                      onPageChange={historyManager.setHistoryPageNo}
-                      isLoading={historyManager.isLoadingHistory}
-                      show={showHistory}
-                      onToggle={() => setShowHistory((value) => !value)}
-                      onItemSelect={(item) => setLibraryDetail({
-                        type: item.source,
-                        code: item.code,
-                        title: item.title || item.query,
-                      })}
-                      onClear={historyManager.handleClearHistory}
-                      onDeleteSelected={historyManager.handleDeleteSelected}
-                    />
-                  ) : null}
-                  {isAuthenticated ? (
-                    <FavoritesPanel
-                      favorites={favoritesManager.favoritesPage}
-                      total={favoritesManager.favoritesTotal}
-                      page={favoritesManager.favoritesPageNo}
-                      totalPages={favoritesManager.favoritesTotalPages}
-                      onPageChange={favoritesManager.setFavoritesPageNo}
-                      isLoading={favoritesManager.isLoadingFavorites}
-                      show={showFavorites}
-                      isProxyEnabled={isProxyEnabled}
-                      onToggle={() => setShowFavorites((value) => !value)}
-                      onRemove={favoritesManager.handleRemoveFavorite}
-                      onItemSelect={(item) => setLibraryDetail({
-                        code: item.code,
-                        url: item.url,
-                        title: item.title,
-                      })}
-                      onExport={favoritesManager.handleExportFavorites}
-                      onUpdate={() => favoritesManager.refetchFavorites()}
-                    />
-                  ) : null}
-                  <QuickActionsPanel isAdmin={isAdmin} communityEnabled={communityEnabled} />
-                </PanelRail>
-              </div>
-              ) : activeTab === 'jav' ? (
-                <MobileIdleHome
-                  onCodeClick={searchFlow.handleCodeClick}
-                  onOpenDiscover={handleOpenDiscover}
-                  favoritesTotal={favoritesManager.favoritesTotal}
-                  historyTotal={historyManager.historyTotal}
-                />
+              {activeTab === 'jav' ? (
+                isDesktop ? (
+                  <div className="px-4 py-6 sm:px-5">
+                    <p className="type-meta mb-3">{t('home:mobileHome.desktopHint')}</p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                      {([
+                        ['recommend', Sparkles],
+                        ['rankings', Trophy],
+                        ['top250', Trophy],
+                        ['genres', Tags],
+                        ['actresses', Users],
+                      ] as const).map(([key, Icon]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handleOpenDiscover(key)}
+                          className="flex flex-col items-start gap-2 rounded-xl border border-surface-200/80 bg-white px-3 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary-300 dark:border-surface-800/80 dark:bg-surface-900/40 dark:hover:border-primary-700"
+                        >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                            {t(`home:mobileHome.discoverPage.sections.${key}`)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <MobileIdleHome
+                    onOpenDiscover={handleOpenDiscover}
+                    favoritesTotal={favoritesManager.favoritesTotal}
+                    historyTotal={historyManager.historyTotal}
+                  />
+                )
               ) : showIdleHint ? (
                 <PanelSection className="p-4 sm:p-5">
                   <EmptyBlock
@@ -395,16 +319,7 @@ export const MainSearchPage: React.FC = () => {
       </main>
 
       <FeedbackButton />
-
-      <LibraryDetailModal
-        target={libraryDetail}
-        onClose={() => setLibraryDetail(null)}
-        onSearch={handleLibrarySearch}
-        onActressClick={(name) => {
-          setLibraryDetail(null);
-          handleActressClick(name);
-        }}
-      />
     </div>
+    </AppShell>
   );
 };

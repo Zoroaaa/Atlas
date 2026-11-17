@@ -7,6 +7,7 @@ import { getProxyImageUrl } from '@/utils/imageProxy';
 import { PanelSection, PanelHeader, MediaCard, Chip, CountBadge, IconAction } from '@/components/workbench';
 import { Tooltip } from '@/components/ui';
 import { reasonText } from './recommendationReason';
+import { pageActionClass } from './JavRankingsPanel';
 import type { JavRecommendationSeed } from '@/types';
 
 interface JavRecommendationsPanelProps {
@@ -14,6 +15,8 @@ interface JavRecommendationsPanelProps {
   seed?: JavRecommendationSeed;
   excludeCodes?: string[];
   onCodeClick: (code: string) => void;
+  /** page：作为独立页面内容渲染，不显示折叠头与面板外壳 */
+  layout?: 'panel' | 'page';
 }
 
 function SkeletonCard() {
@@ -30,6 +33,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
   seed,
   excludeCodes = [],
   onCodeClick,
+  layout = 'panel',
 }) => {
   const { t } = useTranslation(['jav']);
   const [expanded, setExpanded] = useState(true);
@@ -52,6 +56,50 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
     : mode === 'related'
       ? t('jav:recommend.basisRelated')
       : t('jav:recommend.basis');
+
+  const grid = (
+    <div className={clsx('grid gap-3', layout === 'page' ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4')}>
+      {isLoading
+        ? Array.from({ length: layout === 'page' ? 10 : 8 }).map((_, index) => <SkeletonCard key={index} />)
+        : items.map((item) => (
+            <MediaCard
+              key={`${item.code}-${item.reason.type}`}
+              orientation="tile"
+              coverAspect="auto"
+              cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
+              coverFallback={<Film className="h-6 w-6" />}
+              title={item.title}
+              badges={
+                <>
+                  {item.rank ? <Chip tone="primary" size="xs">#{item.rank}</Chip> : null}
+                  <Chip tone="neutral" size="xs">{item.code}</Chip>
+                </>
+              }
+              meta={<span className="truncate">{reasonText(t, item)}</span>}
+              onSelect={() => onCodeClick(item.code)}
+            />
+          ))}
+    </div>
+  );
+
+  if (layout === 'page') {
+    return (
+      <div>
+        <div className="flex items-center justify-end pb-4">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={pageActionClass}
+          >
+            {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {t('jav:recommend.refresh')}
+          </button>
+        </div>
+        {grid}
+      </div>
+    );
+  }
 
   return (
     <PanelSection>
@@ -78,32 +126,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
 
       {expanded ? (
         <div id="main-jav-recommendations" className="px-4 pb-4 sm:px-5 sm:pb-5">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, index) => <SkeletonCard key={index} />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {items.map((item) => (
-                <MediaCard
-                  key={`${item.code}-${item.reason.type}`}
-                  orientation="tile"
-                  coverAspect="auto"
-                  cover={item.cover ? getProxyImageUrl(item.cover) : undefined}
-                  coverFallback={<Film className="h-6 w-6" />}
-                  title={item.title}
-                  badges={
-                    <>
-                      {item.rank ? <Chip tone="primary" size="xs">#{item.rank}</Chip> : null}
-                      <Chip tone="neutral" size="xs">{item.code}</Chip>
-                    </>
-                  }
-                  meta={<span className={clsx('truncate')}>{reasonText(t, item)}</span>}
-                  onSelect={() => onCodeClick(item.code)}
-                />
-              ))}
-            </div>
-          )}
+          {grid}
         </div>
       ) : null}
     </PanelSection>

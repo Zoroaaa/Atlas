@@ -1,66 +1,19 @@
+/**
+ * DashboardLayout - 个人中心
+ *
+ * 桌面端交给统一 AppShell（左侧全局栏 + 顶栏），本文件只保留移动端菜单页；
+ * 侧栏数据统一来自 workspaceNav，避免与全局导航各维护一份。
+ */
 import React from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { clsx } from 'clsx';
-import {
-  LayoutDashboard,
-  Database,
-  FolderTree,
-  Users,
-  Heart,
-  History,
-  Moon,
-  Sun,
-  LogOut,
-  Search,
-  Menu,
-  ChevronLeft,
-  BarChart2,
-  Shield,
-  Activity,
-  UserCheck,
-  Rss,
-  Bell,
-} from 'lucide-react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '@/stores';
-import { useFeatureFlags } from '@/contexts';
 import { useIsDesktop, useUnreadCount } from '@/hooks';
 import { useTranslation } from 'react-i18next';
 import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
+import { AppShell } from './AppShell';
 import { MobileMenuPage, MobileSectionHeader, type MobileMenuGroup } from './MobileSectionPage';
-import { UserAccountMenu } from './UserAccountMenu';
-
-interface NavItem {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  path: string;
-  badge?: number;
-  group?: string;
-  adminOnly?: boolean;
-}
-
-const navGroups = [
-  'nav:dashboard.groups.personal',
-  'nav:dashboard.groups.resources',
-  'nav:dashboard.groups.admin',
-];
-
-/** 个人中心导航：系统设置已拆为独立页面，不再出现在个人中心 */
-const dashboardNavItems: NavItem[] = [
-  { id: 'overview',   label: 'nav:dashboard.items.overview',    icon: <LayoutDashboard className="w-[18px] h-[18px]" />, path: '/dashboard',            group: 'nav:dashboard.groups.personal' },
-  { id: 'stats',      label: 'nav:dashboard.items.stats',      icon: <BarChart2 className="w-[18px] h-[18px]" />,       path: '/dashboard/stats',      group: 'nav:dashboard.groups.personal' },
-  { id: 'favorites',  label: 'nav:dashboard.items.favorites',  icon: <Heart className="w-[18px] h-[18px]" />,           path: '/dashboard/favorites',  group: 'nav:dashboard.groups.personal' },
-  { id: 'history',    label: 'nav:dashboard.items.history',    icon: <History className="w-[18px] h-[18px]" />,         path: '/dashboard/history',    group: 'nav:dashboard.groups.personal' },
-  { id: 'follows',    label: 'nav:dashboard.items.follows',    icon: <UserCheck className="w-[18px] h-[18px]" />,       path: '/dashboard/follows',    group: 'nav:dashboard.groups.personal' },
-  { id: 'followFeed', label: 'nav:dashboard.items.followFeed', icon: <Rss className="w-[18px] h-[18px]" />,             path: '/dashboard/follow-feed', group: 'nav:dashboard.groups.personal' },
-  { id: 'notifications', label: 'nav:dashboard.items.notifications', icon: <Bell className="w-[18px] h-[18px]" />,       path: '/dashboard/notifications', group: 'nav:dashboard.groups.personal' },
-  { id: 'activities', label: 'nav:dashboard.items.activities', icon: <Activity className="w-[18px] h-[18px]" />,        path: '/dashboard/activities', group: 'nav:dashboard.groups.personal' },
-  { id: 'sources',    label: 'nav:dashboard.items.sources',    icon: <Database className="w-[18px] h-[18px]" />,        path: '/dashboard/sources',    group: 'nav:dashboard.groups.resources' },
-  { id: 'categories', label: 'nav:dashboard.items.categories', icon: <FolderTree className="w-[18px] h-[18px]" />,      path: '/dashboard/categories', group: 'nav:dashboard.groups.admin', adminOnly: true },
-];
-
-const getDashboardNavItems = (isAdmin: boolean) =>
-  dashboardNavItems.filter((item) => !item.adminOnly || isAdmin);
+import { dashboardNavGroups, isNavItemActive } from './workspaceNav';
 
 /** 移动端菜单页里「概览」需要独立内容路由，避免点击后又回到菜单页 */
 const mobilePathOverrides: Record<string, string> = {
@@ -69,255 +22,77 @@ const mobilePathOverrides: Record<string, string> = {
 
 export const DashboardLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
-  const { user, logout } = useAuthStore();
-  const { resolvedTheme, toggleTheme, sidebarCollapsed, toggleSidebar } = useThemeStore();
-  const { communityEnabled } = useFeatureFlags();
+  const { user } = useAuthStore();
+  const { resolvedTheme, toggleTheme } = useThemeStore();
   const location = useLocation();
-  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const mainRef = useRouteEnterAnimation<HTMLElement>();
+  const { data: unreadNotifications = 0 } = useUnreadCount();
 
   const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
   const isMenuRoot = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
   // 从首页入口进入时回首页；从个人中心菜单页进入时仍回菜单页
   const originPath = (location.state as { from?: string } | null)?.from;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  const mobileGroups = dashboardNavGroups.filter((group) => group.id !== 'account');
 
-  const isActive = (path: string) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/overview');
-    }
-    return location.pathname.startsWith(path);
-  };
-
-  const filteredNavItems = getDashboardNavItems(isAdmin);
-  // 通知项显示未读数
-  const { data: unreadNotifications = 0 } = useUnreadCount();
-  const navItemsWithBadge = filteredNavItems.map((item) =>
-    item.id === 'notifications' && unreadNotifications > 0 ? { ...item, badge: unreadNotifications } : item
-  );
-  const filteredNavGroups = navGroups.filter((group) => navItemsWithBadge.some((item) => item.group === group));
+  const navItems = mobileGroups
+    .flatMap((group) => group.items)
+    .filter((item) => item.id !== 'categories' || isAdmin);
 
   const currentPageLabel =
-    filteredNavItems.find((item) => isActive(item.path))?.label ||
-    (location.pathname.startsWith('/dashboard/overview') ? 'nav:dashboard.items.overview' : 'nav:userMenu.dashboard');
+    navItems.find((item) => isNavItemActive(item.path, location.pathname))?.labelKey ||
+    'nav:userMenu.dashboard';
 
-  const mobileMenuGroups: MobileMenuGroup[] = filteredNavGroups.map((group) => ({
-    id: group,
-    title: t(group),
-    items: navItemsWithBadge
-      .filter((item) => item.group === group)
-      .map((item) => ({
-        id: item.id,
-        label: t(item.label),
-        icon: item.icon,
-        to: mobilePathOverrides[item.id] ?? item.path,
-        badge: item.badge,
-      })),
-  }));
+  const mobileMenuGroups: MobileMenuGroup[] = mobileGroups
+    .map((group) => ({
+      id: group.id,
+      title: group.labelKey ? t(group.labelKey) : undefined,
+      items: group.items
+        .filter((item) => item.id !== 'categories' || isAdmin)
+        .map((item) => ({
+          id: item.id,
+          label: t(item.labelKey),
+          icon: item.icon,
+          to: mobilePathOverrides[item.id] ?? item.path,
+          badge: item.id === 'notifications' && unreadNotifications > 0 ? unreadNotifications : undefined,
+        })),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  if (isDesktop) {
+    return (
+      <AppShell>
+        <div className="p-6 lg:p-8">
+          <Outlet />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b] flex">
-      {/* ── 桌面端侧边栏：移动端不再渲染抽屉 ── */}
-      {isDesktop && <aside className={clsx('dashboard-sidebar flex', sidebarCollapsed ? 'w-20' : 'w-64')}>
-        {/* Logo */}
-        <div
-          className={clsx(
-            'flex items-center h-16 px-4 border-b border-stone-200/70 dark:border-stone-800',
-            sidebarCollapsed ? 'justify-center' : 'justify-between'
-          )}
-        >
-          {!sidebarCollapsed ? (
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shadow-md">
-                <LayoutDashboard className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <span className="font-bold text-base gradient-text display-font">{t('nav:userMenu.dashboard')}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center shadow-md">
-              <LayoutDashboard className="w-4 h-4 text-white" />
-            </div>
-          )}
+    <div className="min-h-screen bg-stone-50 dark:bg-[#0a0a0b]">
+      <MobileSectionHeader
+        title={isMenuRoot ? t('nav:mobileNav.dashboard') : t(currentPageLabel)}
+        backTo={isMenuRoot ? undefined : (originPath ?? '/dashboard')}
+        actions={
           <button
-            onClick={toggleSidebar}
-            className={clsx(
-              'p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100',
-              'dark:hover:text-stone-300 dark:hover:bg-stone-800 transition-all',
-              sidebarCollapsed && 'mx-auto'
-            )}
+            onClick={toggleTheme}
+            className="p-2 rounded-xl text-stone-500 transition-colors hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
+            aria-label={t('nav:theme.toggle')}
           >
-            {sidebarCollapsed ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
-        </div>
+        }
+      />
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-2.5 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          {filteredNavGroups.map((group) => {
-            const groupItems = navItemsWithBadge.filter((item) => item.group === group);
-            if (groupItems.length === 0) return null;
-            return (
-              <div key={group} className="mb-5">
-                {!sidebarCollapsed && (
-                  <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-stone-400 dark:text-stone-600">
-                    {t(group)}
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {groupItems.map((item) => {
-                    const active = isActive(item.path);
-                    return (
-                      <li key={item.id}>
-                        <Link
-                          to={item.path}
-                          title={sidebarCollapsed ? t(item.label) : undefined}
-                          className={clsx('sidebar-nav-item group', active && 'active')}
-                        >
-                          <span className={clsx('flex-shrink-0', active ? 'text-amber-700 dark:text-amber-400' : 'text-stone-400')}>
-                            {item.icon}
-                          </span>
-                          {!sidebarCollapsed && (
-                            <>
-                              <span className="font-medium text-sm">{t(item.label)}</span>
-                              {item.badge && (
-                                <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </>
-                          )}
-                          {/* Tooltip for collapsed state */}
-                          {sidebarCollapsed && (
-                            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                              {t(item.label)}
-                            </div>
-                          )}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* User footer */}
-        <div className="p-3 border-t border-stone-200/70 dark:border-stone-800">
-          <div className={clsx('flex items-center gap-3', sidebarCollapsed ? 'justify-center' : '')}>
-            <div className="user-avatar flex-shrink-0 text-sm">
-              {user?.username?.charAt(0).toUpperCase()}
-            </div>
-            {!sidebarCollapsed && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate tracking-tight">
-                    {user?.username}
-                  </p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 truncate">
-                    {user?.roleDisplayName || user?.email}
-                  </p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-xl text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                  title={t('nav:userMenu.logout')}
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </aside>}
-
-      {/* ── Main Content ── */}
-      <div
-        className={clsx(
-          'flex-1 flex flex-col transition-all duration-300 min-w-0',
-          sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+      <main ref={mainRef} data-scroll-container className="dashboard-main pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
+        {isMenuRoot ? (
+          <MobileMenuPage title={t('nav:mobileNav.dashboard')} groups={mobileMenuGroups} showTitle={false} />
+        ) : (
+          <Outlet />
         )}
-      >
-        {/* 桌面端 Header */}
-        {isDesktop && <header className="dashboard-header">
-          <div className="flex items-center justify-between h-full px-4 sm:px-6">
-            <div className="flex items-center gap-3">
-              <h1 className="text-base sm:text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
-                {t(currentPageLabel)}
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                to="/main"
-                className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold rounded-xl text-white btn-gradient transition-all"
-              >
-                <Search className="w-4 h-4" />
-                {t('nav:backHome')}
-              </Link>
-              <Link
-                to="/dashboard"
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 transition-all"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden lg:inline">{t('nav:userMenu.dashboard')}</span>
-              </Link>
-              {communityEnabled && (
-                <Link
-                  to="/community"
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700"
-                >
-                  <Users className="w-4 h-4" />
-                  <span className="hidden lg:inline">{t('nav:userMenu.community')}</span>
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  to="/admin-panel"
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-xl text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-all border border-stone-200 dark:border-stone-700"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span className="hidden lg:inline">{t('nav:adminPanel.title')}</span>
-                </Link>
-              )}
-
-              <button onClick={toggleTheme} className="theme-toggle-btn">
-                {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <UserAccountMenu isAuthenticated={Boolean(user)} user={user} isAdmin={isAdmin} />
-            </div>
-          </div>
-        </header>}
-
-        {/* 手机端 Header：菜单页显示标题，内容页显示返回按钮 */}
-        {!isDesktop && <MobileSectionHeader
-          title={isMenuRoot ? t('nav:mobileNav.dashboard') : t(currentPageLabel)}
-          backTo={isMenuRoot ? undefined : (originPath ?? '/dashboard')}
-          actions={
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl text-stone-500 transition-colors hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"
-              aria-label={t('nav:theme.toggle')}
-            >
-              {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          }
-        />}
-
-        <main ref={mainRef} data-scroll-container className="dashboard-main pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-6">
-          {!isDesktop && isMenuRoot ? (
-            <MobileMenuPage title={t('nav:mobileNav.dashboard')} groups={mobileMenuGroups} showTitle={false} />
-          ) : (
-            <Outlet />
-          )}
-        </main>
-      </div>
+      </main>
     </div>
   );
 };

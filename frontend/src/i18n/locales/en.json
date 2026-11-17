@@ -142,6 +142,29 @@
       "cancel": "Cancel",
       "confirm": "Confirm Enable"
     },
+    "workspace": {
+      "search": "Atlas Search",
+      "community": "Community",
+      "dashboard": "Dashboard",
+      "admin": "Admin",
+      "switch": "Switch workspace",
+      "backToSearch": "Back to search",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar",
+      "notifications": "Notifications",
+      "followFeed": "Follow feed",
+      "follows": "Following",
+      "groups": {
+        "search": "Search",
+        "discover": "Discover",
+        "mine": "Dashboard",
+        "community": "Community",
+        "current": "Current workspace"
+      }
+    },
+    "brand": {
+      "home": "Back to search home"
+    },
     "mobileNav": {
       "ariaLabel": "Main navigation",
       "home": "Home",
@@ -187,6 +210,13 @@
     },
     "backHome": "Back to home",
     "search": "Search",
+    "adminSections": {
+      "overview": "Overview",
+      "users": "Users & access",
+      "content": "Content",
+      "data": "Data & rankings",
+      "system": "System & logs"
+    },
     "adminPanel": {
       "title": "Admin Panel",
       "groupHeading": "Admin",
@@ -217,8 +247,14 @@
       "groups": {
         "personal": "Personal",
         "resources": "Resources",
+        "account": "Account",
         "settings": "Settings",
         "admin": "Admin"
+      },
+      "sections": {
+        "overview": "Overview",
+        "library": "Library",
+        "messages": "Messages"
       },
       "items": {
         "overview": "Overview",
@@ -2051,10 +2087,18 @@
           "top250": "TOP250",
           "genres": "Tags",
           "actresses": "Actresses"
+        },
+        "descriptions": {
+          "recommend": "Generated from your favorites and searches",
+          "rankings": "JavDB weekly and monthly rankings by popularity",
+          "top250": "All-time ranking with year filters",
+          "genres": "Browse works by genre tags",
+          "actresses": "Popular actresses right now"
         }
       },
       "viewMore": "More",
-      "viewAll": "All"
+      "viewAll": "All",
+      "desktopHint": "Open the full list from the sidebar or the entries below"
     },
     "javSubmode": {
       "greeting": "Hi",
