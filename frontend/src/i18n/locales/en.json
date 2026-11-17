@@ -2024,6 +2024,38 @@
       "copyright": "© {{year}} Atlas · MIT License · v{{version}}",
       "disclaimer": "This site does not host resource files; content comes from third-party sites. For users aged 18 and over."
     },
+    "mobileHome": {
+      "entries": {
+        "follow": "Follow feed",
+        "followUnit": "unread",
+        "favorites": "Favorites",
+        "favoritesUnit": "saved",
+        "history": "History",
+        "historyUnit": "records"
+      },
+      "sections": {
+        "discover": "Discover"
+      },
+      "discoverItems": {
+        "genres": "Tags",
+        "top250": "TOP250",
+        "actresses": "Actresses",
+        "rankings": "All rankings"
+      },
+      "discoverPage": {
+        "title": "Discover",
+        "back": "Back",
+        "sections": {
+          "recommend": "Recommended",
+          "rankings": "Recently Hot",
+          "top250": "TOP250",
+          "genres": "Tags",
+          "actresses": "Actresses"
+        }
+      },
+      "viewMore": "More",
+      "viewAll": "All"
+    },
     "javSubmode": {
       "greeting": "Hi",
       "guest": "Guest",

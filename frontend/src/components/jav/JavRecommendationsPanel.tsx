@@ -2,37 +2,18 @@ import React, { useState } from 'react';
 import { Sparkles, RefreshCw, Loader2, ChevronDown, ChevronRight, Film } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { useJavRecommendations } from '@/hooks';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { PanelSection, PanelHeader, MediaCard, Chip, CountBadge, IconAction } from '@/components/workbench';
 import { Tooltip } from '@/components/ui';
-import type { JavRecommendationItem, JavRecommendationSeed } from '@/types';
+import { reasonText } from './recommendationReason';
+import type { JavRecommendationSeed } from '@/types';
 
 interface JavRecommendationsPanelProps {
   variant: 'related' | 'for-you';
   seed?: JavRecommendationSeed;
   excludeCodes?: string[];
   onCodeClick: (code: string) => void;
-}
-
-function reasonText(t: TFunction, item: JavRecommendationItem): string {
-  switch (item.reason.type) {
-    case 'ranking':
-      return item.reason.period === 'weekly'
-        ? t('jav:recommend.reasonRankingWeekly', { rank: item.rank ?? '' })
-        : t('jav:recommend.reasonRankingMonthly', { rank: item.rank ?? '' });
-    case 'actor':
-      return item.reason.value
-        ? t('jav:recommend.reasonActor', { value: item.reason.value })
-        : t('jav:recommend.reasonPopular');
-    case 'tag':
-      return t('jav:recommend.reasonTag', { value: item.reason.value ?? '' });
-    case 'publisher':
-      return t('jav:recommend.reasonPublisher', { value: item.reason.value ?? '' });
-    default:
-      return t('jav:recommend.reasonPopular');
-  }
 }
 
 function SkeletonCard() {

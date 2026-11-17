@@ -21,6 +21,9 @@ import { useFeatureFlags } from '@/contexts/ConfigContext';
 import { JavRankingsPanel, JavTop250Panel, ActressesPanel, JavRecommendationsPanel, JavGenrePanel } from '@/components/jav';
 import { UnifiedNavBar } from '@/components/layout';
 import { Panel, PanelSection, PanelRail, EmptyBlock, LazyMount } from '@/components/workbench';
+import { MobileIdleHome } from '@/components/home-mobile';
+import type { DiscoverSection } from '@/components/home-mobile';
+import { useIsDesktop } from '@/hooks';
 import { useSearchFlow } from '@/hooks/useSearchFlow';
 import { useCacheSync } from '@/hooks/useCacheSync';
 import { FollowFeedPanel } from '@/components/follow/FollowFeedPanel';
@@ -42,6 +45,7 @@ export const MainSearchPage: React.FC = () => {
   const { activeTab, setActiveTab } = useSourceStore();
   const { isEnabled: isProxyEnabled, initializeProxy } = useProxyStore();
   const { communityEnabled } = useFeatureFlags();
+  const isDesktop = useIsDesktop();
   const pageRef = useRouteEnterAnimation<HTMLDivElement>();
 
   const javFlow = useJavSearchFlow();
@@ -205,6 +209,11 @@ export const MainSearchPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFlow.resetResults]);
 
+  // 移动端完整列表下沉到 /discover，首页只保留入口与预览
+  const handleOpenDiscover = useCallback((section: DiscoverSection) => {
+    navigate(`/discover?section=${section}`);
+  }, [navigate]);
+
   // 记录进入源看板前的搜索 Tab，供"返回搜索"回退（深链默认 jav）
   const lastSearchTabRef = useRef<SearchTabType>('jav');
   useEffect(() => {
@@ -278,6 +287,7 @@ export const MainSearchPage: React.FC = () => {
             />
           ) : (
             <div className="border-t border-surface-100 dark:border-surface-800/70">
+              {isDesktop ? (
               <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
                 <div className="min-w-0">
                   {activeTab === 'jav' ? (
@@ -362,6 +372,23 @@ export const MainSearchPage: React.FC = () => {
                   <QuickActionsPanel isAdmin={isAdmin} communityEnabled={communityEnabled} />
                 </PanelRail>
               </div>
+              ) : activeTab === 'jav' ? (
+                <MobileIdleHome
+                  onCodeClick={searchFlow.handleCodeClick}
+                  onOpenDiscover={handleOpenDiscover}
+                  favoritesTotal={favoritesManager.favoritesTotal}
+                  historyTotal={historyManager.historyTotal}
+                />
+              ) : showIdleHint ? (
+                <PanelSection className="p-4 sm:p-5">
+                  <EmptyBlock
+                    icon={<Search className="h-8 w-8" />}
+                    title={t(SEARCH_TABS[activeTab].placeholderKey)}
+                    hint={t(SEARCH_TABS[activeTab].descriptionKey)}
+                    className="bg-transparent"
+                  />
+                </PanelSection>
+              ) : null}
             </div>
           )}
         </Panel>

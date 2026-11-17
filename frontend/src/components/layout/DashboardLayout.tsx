@@ -79,6 +79,8 @@ export const DashboardLayout: React.FC = () => {
 
   const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
   const isMenuRoot = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
+  // 从首页入口进入时回首页；从个人中心菜单页进入时仍回菜单页
+  const originPath = (location.state as { from?: string } | null)?.from;
 
   const handleLogout = () => {
     logout();
@@ -296,7 +298,7 @@ export const DashboardLayout: React.FC = () => {
         {/* 手机端 Header：菜单页显示标题，内容页显示返回按钮 */}
         {!isDesktop && <MobileSectionHeader
           title={isMenuRoot ? t('nav:mobileNav.dashboard') : t(currentPageLabel)}
-          backTo={isMenuRoot ? undefined : '/dashboard'}
+          backTo={isMenuRoot ? undefined : (originPath ?? '/dashboard')}
           actions={
             <button
               onClick={toggleTheme}

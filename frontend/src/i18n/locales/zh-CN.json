@@ -2024,6 +2024,38 @@
       "copyright": "© {{year}} Atlas · MIT License · v{{version}}",
       "disclaimer": "本站不托管资源文件；内容来自第三方站点。仅限 18 岁及以上用户访问。"
     },
+    "mobileHome": {
+      "entries": {
+        "follow": "关注更新",
+        "followUnit": "条未读",
+        "favorites": "我的收藏",
+        "favoritesUnit": "部作品",
+        "history": "搜索历史",
+        "historyUnit": "条记录"
+      },
+      "sections": {
+        "discover": "发现"
+      },
+      "discoverItems": {
+        "genres": "标签",
+        "top250": "TOP250",
+        "actresses": "女优",
+        "rankings": "全部榜单"
+      },
+      "discoverPage": {
+        "title": "发现",
+        "back": "返回",
+        "sections": {
+          "recommend": "推荐",
+          "rankings": "最近热播",
+          "top250": "TOP250",
+          "genres": "标签",
+          "actresses": "女优"
+        }
+      },
+      "viewMore": "更多",
+      "viewAll": "全部"
+    },
     "javSubmode": {
       "greeting": "嗨",
       "guest": "访客",

@@ -37,6 +37,7 @@ const AdminPanelOverview = lazy(() => import('@/pages/admin/AdminPanelOverview')
 const CommunityManager = lazy(() => import('@/pages/community/CommunityManager').then((m) => ({ default: m.CommunityManager })));
 const PostDetailPage = lazy(() => import('@/pages/community/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const DiscoverPage = lazy(() => import('@/pages/DiscoverPage').then((m) => ({ default: m.DiscoverPage })));
 
 const RouteLoading: React.FC = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -227,6 +228,12 @@ const App: React.FC = () => {
         <Route path="/main" element={
           <GuardRoute>
             <MainSearchPage />
+          </GuardRoute>
+        } />
+        {/* 移动端首页的完整列表落点：推荐 / 榜单 / TOP250 / 标签 / 女优 */}
+        <Route path="/discover" element={
+          <GuardRoute>
+            {withSuspense(<DiscoverPage />)}
           </GuardRoute>
         } />
         {/* 

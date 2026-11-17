@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas · 移动端首页改版 · 高保真稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     Atlas Mobile Home — high-fidelity prototype
+     Light home / Dark discover, 393 × 852
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  :root {
+    --gold-100: #f6e4b8;
+    --gold-300: #e8c97a;
+    --gold-500: #d4a853;
+    --gold-600: #f59e0b;
+    --rose: #e11d48;
+    --ink: #1c1917;
+    --canvas: #08080a;
+    --ease-spring: cubic-bezier(.34,1.56,.64,1);
+    --ease-smooth: cubic-bezier(.4,0,.2,1);
+  }
+
+  body {
+    font-family: "Plus Jakarta Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    background:
+      radial-gradient(60rem 40rem at 50% -10%, rgba(212,168,83,.16), transparent 60%),
+      radial-gradient(40rem 30rem at 90% 100%, rgba(225,29,72,.08), transparent 60%),
+      var(--canvas);
+    color: #e7e5e4;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 细网格 + 颗粒，给画布一点编辑感 */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(ellipse at 50% 25%, #000 0%, transparent 78%);
+    z-index: 0;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 1;
+    width: min(1180px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 64px 0 96px;
+  }
+
+  .icon {
+    width: 18px; height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+
+  /* ── 画布头部 ── */
+  .stage-head { max-width: 780px; }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Sora, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    color: var(--gold-500);
+  }
+  .eyebrow::before {
+    content: "";
+    width: 26px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-500));
+  }
+
+  .stage-title {
+    margin: 18px 0 0;
+    font-family: Sora, "PingFang SC", sans-serif;
+    font-size: clamp(34px, 4.6vw, 58px);
+    line-height: 1.06;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    color: #faf9f7;
+  }
+  .stage-title em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--gold-100), var(--gold-500) 45%, #b45309);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .stage-sub {
+    margin: 18px 0 0;
+    max-width: 620px;
+    font-size: 14.5px;
+    line-height: 1.8;
+    color: #a8a29e;
+  }
+  .stage-sub strong { color: #e7e5e4; font-weight: 600; }
+
+  .metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .metric {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid rgba(212,168,83,.22);
+    border-radius: 10px;
+    background: rgba(212,168,83,.055);
+    backdrop-filter: blur(8px);
+  }
+  .metric b {
+    font-family: Sora, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gold-300);
+    letter-spacing: -.01em;
+  }
+  .metric span { font-size: 11.5px; color: #a8a29e; }
+
+  /* ── 设备排布 ── */
+  .devices {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 104px;
+    margin-top: 64px;
+  }
+
+  .figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+  .figure-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: Sora, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #78716c;
+  }
+  .figure-tag i {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--gold-500);
+    box-shadow: 0 0 10px var(--gold-500);
+  }
+
+  /* 手机外壳 */
+  .phone {
+    position: relative;
+    width: 413px;
+    height: 872px;
+    padding: 10px;
+    border-radius: 58px;
+    background:
+      linear-gradient(150deg, #5c5a57 0%, #262422 18%, #171513 50%, #3b3835 86%, #6d6a66 100%);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.2) inset,
+      0 -1px 0 rgba(0,0,0,.6) inset,
+      0 50px 90px -30px rgba(0,0,0,.85),
+      0 20px 40px -20px rgba(0,0,0,.6);
+  }
+  .phone::before,
+  .phone::after {
+    content: "";
+    position: absolute;
+    width: 4px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #4a4744, #211f1d);
+  }
+  .phone::before { left: -4px; top: 168px; height: 62px; box-shadow: 0 84px 0 #2c2a27; }
+  .phone::after { right: -4px; top: 206px; height: 96px; }
+
+  .screen {
+    position: relative;
+    width: 393px;
+    height: 852px;
+    border-radius: 48px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+    transition: background .3s var(--ease-smooth);
+  }
+
+  .island {
+    position: absolute;
+    top: 11px; left: 50%;
+    transform: translateX(-50%);
+    width: 106px; height: 29px;
+    border-radius: 18px;
+    background: #000;
+    z-index: 30;
+  }
+  .island::after {
+    content: "";
+    position: absolute;
+    right: 13px; top: 10px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #1e2a38, #05070a 70%);
+    box-shadow: 0 0 0 1px rgba(80,110,150,.22);
+  }
+
+  /* 主题变量 */
+  .screen.light {
+    --bg: #f7f5f2;
+    --surface: #ffffff;
+    --surface-2: #fbfaf8;
+    --line: rgba(28,25,23,.075);
+    --line-strong: rgba(28,25,23,.12);
+    --text: #1c1917;
+    --text-2: #57534e;
+    --text-3: #a8a29e;
+    --chip: rgba(28,25,23,.055);
+    --tabbar: rgba(255,255,255,.82);
+    --shadow: 0 1px 2px rgba(28,25,23,.04), 0 8px 24px -16px rgba(28,25,23,.18);
+  }
+  .screen.dark {
+    --bg: #0a0a0b;
+    --surface: #121214;
+    --surface-2: #17171a;
+    --line: rgba(255,255,255,.07);
+    --line-strong: rgba(255,255,255,.12);
+    --text: #f5f5f4;
+    --text-2: #a8a29e;
+    --text-3: #78716c;
+    --chip: rgba(255,255,255,.07);
+    --tabbar: rgba(12,12,14,.82);
+    --shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px #000;
+  }
+
+  /* ── 状态栏 ── */
+  .statusbar {
+    flex: none;
+    height: 54px;
+    padding: 17px 26px 0 30px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    font-family: Sora, sans-serif;
+    color: var(--text);
+    position: relative;
+    z-index: 5;
+  }
+  .sb-time { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+  .sb-icons { display: flex; align-items: center; gap: 6px; }
+  .sb-icons svg { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+  .sb-battery { width: 25px; height: 12px; border: 1.4px solid currentColor; border-radius: 3.5px; position: relative; opacity: .9; }
+  .sb-battery::before {
+    content: "";
+    position: absolute; inset: 1.5px;
+    border-radius: 1.5px;
+    background: currentColor;
+    right: 5px;
+  }
+  .sb-battery::after {
+    content: "";
+    position: absolute; right: -3.5px; top: 3px;
+    width: 2px; height: 4px;
+    border-radius: 0 1px 1px 0;
+    background: currentColor;
+    opacity: .5;
+  }
+
+  /* ── 应用顶栏 ── */
+  .appbar {
+    flex: none;
+    height: 50px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    z-index: 5;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
+  .brand-mark {
+    width: 31px; height: 31px;
+    border-radius: 10px;
+    background: linear-gradient(150deg, var(--gold-100), var(--gold-500) 52%, #b45309);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 3px 10px -2px rgba(180,83,9,.5), 0 0 0 1px rgba(255,255,255,.18) inset;
+    position: relative;
+    overflow: hidden;
+  }
+  .brand-mark::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 30% 18%, rgba(255,255,255,.55), transparent 55%);
+  }
+  .brand-mark svg { width: 17px; height: 17px; stroke: #2a1c06; stroke-width: 2.1; position: relative; z-index: 1; }
+  .brand-name {
+    font-family: Sora, sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    color: var(--text);
+  }
+  .appbar-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-2);
+    display: grid;
+    place-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: background .18s, color .18s, transform .18s var(--ease-spring);
+  }
+  .icon-btn:hover { background: var(--chip); color: var(--text); }
+  .icon-btn:active { transform: scale(.92); }
+  .dot-badge {
+    position: absolute;
+    top: 7px; right: 7px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--rose);
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+  .avatar {
+    width: 29px; height: 29px;
+    margin-left: 2px;
+    border-radius: 9px;
+    background: linear-gradient(145deg, var(--gold-300), #b45309);
+    display: grid;
+    place-items: center;
+    font-family: Sora, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 2px 8px -2px rgba(180,83,9,.6);
+  }
+
+  /* ── 分类条 ── */
+  .catbar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: relative;
+    z-index: 5;
+  }
+  .catbar::-webkit-scrollbar { display: none; }
+  .cat {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 27px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--chip);
+    color: var(--text-2);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    cursor: pointer;
+    transition: all .18s var(--ease-smooth);
+  }
+  .cat .icon { width: 13px; height: 13px; }
+  .cat.active {
+    color: #fff;
+    background: linear-gradient(120deg, var(--gold-500), #f59e0b);
+    box-shadow: 0 4px 12px -6px rgba(245,158,11,.8), 0 0 0 1px rgba(255,255,255,.16) inset;
+  }
+
+  /* ── 可滚动内容 ── */
+  .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0 96px;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+  }
+  .body::-webkit-scrollbar { display: none; }
+
+  /* 公告 */
+  .announce {
+    margin: 2px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: linear-gradient(100deg, rgba(212,168,83,.13), rgba(212,168,83,.035));
+    border: 1px solid rgba(212,168,83,.2);
+    color: #92400e;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .dark .announce {
+    color: #fcd34d;
+    border-color: rgba(212,168,83,.22);
+    background: linear-gradient(100deg, rgba(212,168,83,.13), rgba(212,168,83,.03));
+  }
+  .announce .icon { width: 13px; height: 13px; color: var(--gold-600); }
+  .dark .announce .icon { color: var(--gold-300); }
+  .announce span { overflow: hidden; text-overflow: ellipsis; }
+
+  /* 搜索卡 */
+  .search-card {
+    margin: 0 16px;
+    padding: 11px;
+    border-radius: 17px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .search-card::before {
+    content: "";
+    position: absolute;
+    left: 26px; right: 26px; top: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,168,83,.75), transparent);
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 46px;
+    padding: 0 5px 0 12px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+  .search-box:focus-within {
+    border-color: rgba(212,168,83,.65);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(212,168,83,.13), 0 8px 26px -18px rgba(180,83,9,.55);
+  }
+  .search-box .icon { color: var(--text-3); width: 17px; height: 17px; }
+  .search-ph {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-3);
+    letter-spacing: .01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .search-go {
+    flex: none;
+    height: 34px;
+    padding: 0 15px;
+    border: 0;
+    border-radius: 9px;
+    background: linear-gradient(120deg, var(--gold-500), #f59e0b);
+    color: #fff;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    cursor: pointer;
+    box-shadow: 0 4px 14px -6px rgba(245,158,11,.9), 0 0 0 1px rgba(255,255,255,.18) inset;
+    transition: transform .16s var(--ease-spring), filter .2s;
+  }
+  .search-go:hover { filter: brightness(1.07); }
+  .search-go:active { transform: scale(.95); }
+
+  .submodes {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 3px 1px;
+  }
+  .submode {
+    height: 23px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .16s;
+  }
+  .submode:hover { color: var(--text-2); background: var(--chip); }
+  .submode.active {
+    color: #92400e;
+    background: rgba(212,168,83,.16);
+    box-shadow: 0 0 0 1px rgba(212,168,83,.26) inset;
+  }
+  .dark .submode.active { color: #fcd34d; }
+  .quota {
+    margin-left: auto;
+    font-family: Sora, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-3);
+    letter-spacing: .02em;
+    padding-right: 3px;
+  }
+  .quota b { color: var(--gold-600); font-weight: 700; }
+  .dark .quota b { color: var(--gold-300); }
+
+  /* 三个入口卡 */
+  .entries {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+    margin: 12px 16px 0;
+  }
+  .entry {
+    position: relative;
+    text-align: left;
+    padding: 11px 11px 12px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    overflow: hidden;
+    font-family: inherit;
+    transition: transform .2s var(--ease-spring), border-color .2s, box-shadow .2s;
+  }
+  .entry::after {
+    content: "";
+    position: absolute;
+    right: -26px; bottom: -34px;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212,168,83,.2), transparent 70%);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .entry:hover {
+    transform: translateY(-2px);
+    border-color: rgba(212,168,83,.38);
+    box-shadow: 0 14px 30px -20px rgba(28,25,23,.4), 0 0 0 1px rgba(212,168,83,.1) inset;
+  }
+  .entry:hover::after { opacity: 1; }
+  .entry:active { transform: scale(.975); }
+
+  .entry-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-3);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    white-space: nowrap;
+  }
+  .entry-top .icon { width: 13px; height: 13px; color: var(--gold-600); }
+  .dark .entry-top .icon { color: var(--gold-300); }
+  .entry-num {
+    margin-top: 9px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-family: Sora, sans-serif;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -.035em;
+    color: var(--text);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .entry-num small {
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--text-3);
+  }
+  .entry-badge {
+    position: absolute;
+    top: 9px; right: 9px;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: var(--rose);
+    color: #fff;
+    font-family: Sora, sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 2px 8px -2px rgba(225,29,72,.65);
+  }
+
+  /* 区块标题 */
+  .section {
+    margin-top: 20px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 10px;
+  }
+  .section-title {
+    font-family: Sora, "PingFang SC", sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--text);
+  }
+  .section-note {
+    font-family: Sora, sans-serif;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+  .section-more {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    border: 0;
+    background: transparent;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0 4px 8px;
+    transition: color .16s;
+  }
+  .section-more:hover { color: var(--gold-600); }
+  .dark .section-more:hover { color: var(--gold-300); }
+  .section-more .icon { width: 13px; height: 13px; }
+
+  /* 横滑 rail */
+  .rail {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail > * { scroll-snap-align: start; }
+
+  .card {
+    flex: 0 0 auto;
+    width: 166px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition: transform .2s var(--ease-spring);
+  }
+  .card:hover { transform: translateY(-3px); }
+  .card:active { transform: scale(.98); }
+
+  .cover {
+    position: relative;
+    aspect-ratio: 3 / 2;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1a1714;
+    box-shadow: 0 10px 22px -14px rgba(0,0,0,.6);
+    isolation: isolate;
+  }
+  .cover::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 100% at 18% 0%, rgba(255,214,150,.5), transparent 58%),
+      radial-gradient(80% 110% at 88% 96%, rgba(190,18,60,.42), transparent 58%),
+      linear-gradient(145deg, #2b2218, #141110 62%, #0d0b0b);
+  }
+  .cover::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: .2;
+    mix-blend-mode: overlay;
+    z-index: 2;
+  }
+  .cover.c2::before {
+    background:
+      radial-gradient(120% 100% at 22% 4%, rgba(150,205,255,.4), transparent 56%),
+      radial-gradient(80% 110% at 86% 92%, rgba(24,24,80,.55), transparent 60%),
+      linear-gradient(145deg, #16212b, #0f1418 62%, #090b0c);
+  }
+  .cover.c3::before {
+    background:
+      radial-gradient(110% 100% at 78% 0%, rgba(255,180,190,.45), transparent 58%),
+      radial-gradient(90% 110% at 12% 96%, rgba(120,24,60,.5), transparent 58%),
+      linear-gradient(145deg, #2c1a20, #170f13 60%, #0c090a);
+  }
+  .cover.c4::before {
+    background:
+      radial-gradient(110% 100% at 26% 0%, rgba(210,190,140,.42), transparent 58%),
+      radial-gradient(90% 110% at 90% 100%, rgba(70,70,40,.55), transparent 60%),
+      linear-gradient(145deg, #26241b, #141310 60%, #0a0a08);
+  }
+  .cover.c5::before {
+    background:
+      radial-gradient(110% 100% at 70% 2%, rgba(170,160,255,.38), transparent 58%),
+      radial-gradient(90% 110% at 14% 96%, rgba(80,30,120,.5), transparent 60%),
+      linear-gradient(145deg, #221c2e, #121014 60%, #0a090c);
+  }
+  .cover.c6::before {
+    background:
+      radial-gradient(110% 100% at 16% 0%, rgba(140,235,220,.34), transparent 58%),
+      radial-gradient(90% 110% at 88% 100%, rgba(12,80,90,.55), transparent 60%),
+      linear-gradient(145deg, #14262a, #0d1416 60%, #080b0c);
+  }
+
+  /* 封面上的一层取景框线，增加“剧照”感 */
+  .cover .frame {
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 7px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .cover .no {
+    position: absolute;
+    left: 9px; bottom: 7px;
+    z-index: 4;
+    font-family: Sora, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    color: rgba(255,255,255,.82);
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  .cover .tag {
+    position: absolute;
+    top: 8px; left: 8px;
+    z-index: 4;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(10,10,11,.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.14);
+    color: rgba(255,255,255,.9);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .cover .rank {
+    position: absolute;
+    left: 10px; bottom: -2px;
+    z-index: 4;
+    font-family: Sora, sans-serif;
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.06em;
+    color: rgba(255,255,255,.9);
+    text-shadow: 0 4px 20px rgba(0,0,0,.75);
+    font-variant-numeric: tabular-nums;
+  }
+  .cover .rank.top {
+    color: var(--gold-300);
+    text-shadow: 0 0 26px rgba(212,168,83,.5), 0 4px 20px rgba(0,0,0,.8);
+  }
+  .cover .new {
+    position: absolute;
+    top: 8px; right: 8px;
+    z-index: 4;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: linear-gradient(120deg, #f59e0b, #e11d48);
+    color: #fff;
+    font-family: Sora, sans-serif;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .card-title {
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.38;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 33px;
+  }
+  .card-meta {
+    margin-top: 3px;
+    font-size: 10px;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 发现入口 */
+  .discover-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 16px;
+  }
+  .discover-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 11px 10px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: transform .2s var(--ease-spring), border-color .2s, background .2s;
+  }
+  .discover-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(212,168,83,.4);
+    background: var(--surface-2);
+  }
+  .discover-item:active { transform: scale(.97); }
+  .discover-icon {
+    width: 27px; height: 27px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: rgba(212,168,83,.12);
+    color: var(--gold-600);
+  }
+  .dark .discover-icon { color: var(--gold-300); background: rgba(212,168,83,.1); }
+  .discover-icon .icon { width: 15px; height: 15px; }
+  .discover-item b {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+
+  /* ── 底部主导航 ── */
+  .tabbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 20;
+    padding-bottom: 20px;
+    background: var(--tabbar);
+    backdrop-filter: blur(22px) saturate(1.4);
+    border-top: 1px solid var(--line);
+  }
+  .tabbar-inner {
+    height: 56px;
+    display: flex;
+    align-items: stretch;
+    position: relative;
+  }
+  .tab-ind {
+    position: absolute;
+    top: 0;
+    width: 25%;
+    height: 2px;
+    padding: 0 22px;
+    transition: transform .34s var(--ease-spring);
+  }
+  .tab-ind::before {
+    content: "";
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold-500) 22%, var(--gold-600) 78%, transparent);
+    box-shadow: 0 0 12px rgba(245,158,11,.55);
+  }
+  .tab {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-3);
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: color .18s;
+  }
+  .tab .icon { width: 20px; height: 20px; stroke-width: 1.7; transition: transform .24s var(--ease-spring); }
+  .tab span { font-size: 9.5px; font-weight: 600; letter-spacing: .02em; }
+  .tab.active { color: var(--gold-600); }
+  .tab.active .icon { transform: translateY(-1px) scale(1.06); stroke-width: 2.1; }
+  .dark .tab.active { color: var(--gold-300); }
+  .home-indicator {
+    position: absolute;
+    left: 50%; bottom: 7px;
+    transform: translateX(-50%);
+    width: 128px; height: 4.5px;
+    border-radius: 4px;
+    background: var(--text);
+    opacity: .22;
+    z-index: 31;
+  }
+
+  /* ── 暗色发现页 ── */
+  .pagebar {
+    flex: none;
+    height: 52px;
+    padding: 0 12px 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    z-index: 5;
+  }
+  .pagebar h2 {
+    margin: 0;
+    font-family: Sora, "PingFang SC", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--text);
+  }
+  .pagebar .icon-btn:last-child { margin-left: auto; }
+
+  .segwrap {
+    flex: none;
+    padding: 0 16px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .segwrap::-webkit-scrollbar { display: none; }
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--chip);
+    border: 1px solid var(--line);
+  }
+  .seg button {
+    flex: none;
+    height: 27px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .18s var(--ease-smooth);
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.active {
+    background: linear-gradient(120deg, var(--gold-500), #f59e0b);
+    color: #fff;
+    box-shadow: 0 4px 12px -7px rgba(245,158,11,.9), 0 0 0 1px rgba(255,255,255,.14) inset;
+  }
+
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px 12px;
+  }
+  .filter {
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .16s;
+  }
+  .filter:hover { color: var(--text-2); border-color: var(--line-strong); }
+  .filter.active {
+    color: var(--gold-300);
+    border-color: rgba(212,168,83,.4);
+    background: rgba(212,168,83,.1);
+  }
+  .updated {
+    margin-left: auto;
+    font-family: Sora, sans-serif;
+    font-size: 9px;
+    letter-spacing: .03em;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+
+  .list {
+    margin: 0 16px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+    transition: background .16s;
+  }
+  .row:first-child { border-top: 0; }
+  .row:hover { background: var(--surface-2); }
+  .row:active { background: var(--chip); }
+
+  .row-rank {
+    flex: none;
+    width: 23px;
+    text-align: center;
+    font-family: Sora, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .row-rank.gold { color: var(--gold-500); }
+  .row-rank.silver { color: #c7c2bb; }
+  .dark .row-rank.silver { color: #a8a29e; }
+  .row-rank.bronze { color: #c08552; }
+
+  .row-cover {
+    flex: none;
+    width: 46px;
+    height: 31px;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    background: #1a1714;
+    box-shadow: 0 3px 8px -4px rgba(0,0,0,.6);
+  }
+  .row-cover::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 100% at 20% 0%, rgba(255,214,150,.42), transparent 60%),
+      linear-gradient(145deg, #2a2118, #100e0d);
+  }
+  .row-cover::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23m)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: .18;
+    mix-blend-mode: overlay;
+  }
+  .row-cover.c2::before {
+    background: radial-gradient(120% 100% at 24% 0%, rgba(150,205,255,.35), transparent 60%), linear-gradient(145deg, #18232b, #0c0f11);
+  }
+  .row-cover.c3::before {
+    background: radial-gradient(120% 100% at 76% 0%, rgba(255,175,185,.4), transparent 60%), linear-gradient(145deg, #2b1a20, #100b0d);
+  }
+  .row-cover.c4::before {
+    background: radial-gradient(120% 100% at 28% 0%, rgba(168,235,220,.3), transparent 60%), linear-gradient(145deg, #16262a, #0a0e0f);
+  }
+
+  .row-main { min-width: 0; flex: 1; }
+  .row-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-meta {
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: Sora, sans-serif;
+    font-size: 9px;
+    letter-spacing: .02em;
+    color: var(--text-3);
+  }
+  .row-code {
+    color: var(--gold-600);
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .dark .row-code { color: var(--gold-300); }
+  .row-heat {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: Sora, sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .row-heat .icon { width: 11px; height: 11px; color: var(--rose); }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 0 6px;
+    color: var(--text-3);
+    font-family: Sora, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .pager button {
+    width: 27px; height: 27px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .pager button:hover { border-color: rgba(212,168,83,.4); color: var(--gold-300); }
+  .pager .icon { width: 14px; height: 14px; }
+
+  /* 关联提示 */
+  .link-hint {
+    position: absolute;
+    left: 50%;
+    top: 356px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 78px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(212,168,83,.22);
+    background: rgba(12,12,14,.86);
+    backdrop-filter: blur(10px);
+    font-family: Sora, sans-serif;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    line-height: 1.5;
+    color: var(--gold-300);
+    text-align: center;
+    z-index: 3;
+  }
+  .link-hint .lh-arrow {
+    font-size: 22px;
+    line-height: .7;
+    color: var(--gold-500);
+    text-shadow: 0 0 14px rgba(212,168,83,.7);
+  }
+
+  /* 脉冲引导 */
+  @keyframes pulseTarget {
+    0% { box-shadow: 0 0 0 0 rgba(212,168,83,.55), 0 50px 90px -30px rgba(0,0,0,.85); }
+    70% { box-shadow: 0 0 0 14px rgba(212,168,83,0), 0 50px 90px -30px rgba(0,0,0,.85); }
+    100% { box-shadow: 0 0 0 0 rgba(212,168,83,0), 0 50px 90px -30px rgba(0,0,0,.85); }
+  }
+  .phone.pulse { animation: pulseTarget .9s ease-out 2; }
+
+  /* ── 底部说明 ── */
+  .notes {
+    margin-top: 92px;
+    border-top: 1px solid rgba(255,255,255,.07);
+    padding-top: 34px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+  }
+  .note h3 {
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: Sora, "PingFang SC", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: #e7e5e4;
+  }
+  .note h3 i {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-family: Sora, sans-serif;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+    color: var(--gold-300);
+    background: rgba(212,168,83,.12);
+    border: 1px solid rgba(212,168,83,.2);
+  }
+  .note p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: #78716c;
+  }
+  .note p + p { margin-top: 8px; }
+  .note strong { color: #d6d3d1; font-weight: 600; }
+
+  .footline {
+    margin-top: 44px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 22px;
+    font-family: Sora, sans-serif;
+    font-size: 9.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #57534e;
+  }
+  .footline span { display: inline-flex; align-items: center; gap: 7px; }
+  .footline span::before {
+    content: "";
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #57534e;
+  }
+
+  /* 入场动画 */
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(26px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .stage-head, .devices, .notes, .footline {
+    animation: riseIn .7s var(--ease-smooth) both;
+  }
+  .devices { animation-delay: .1s; }
+  .notes { animation-delay: .18s; }
+  .footline { animation-delay: .24s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  /* 窄屏：纵向堆叠 */
+  @media (max-width: 1000px) {
+    .stage { width: calc(100% - 32px); padding-top: 40px; }
+    .devices { flex-direction: column; gap: 52px; align-items: center; margin-top: 44px; }
+    .link-hint { display: none; }
+    .notes { grid-template-columns: 1fr; gap: 22px; margin-top: 60px; }
+  }
+  @media (max-width: 460px) {
+    .phone { width: 373px; height: 788px; padding: 9px; border-radius: 52px; }
+    .screen { width: 355px; height: 770px; border-radius: 43px; }
+    .island { width: 96px; height: 26px; top: 10px; }
+    .stage-title { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-rss" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-tags" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l9 9-6 6-9-9V7z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3"/><path d="M17 6h3v2a3 3 0 0 1-3 3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8a4 4 0 0 1 0 8"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1.2 3.4-1.6 4.8-1.6 7.6a3.2 3.2 0 0 0 6.4 0c0-1.1-.4-2.1-1.1-3-.1 1.3-.7 2-1.3 2.3.5-2.4-.8-5-2.4-6.9z"/><path d="M12 21a6 6 0 0 0 6-6c0-2.2-1-4.2-2.6-5.6"/><path d="M12 21a6 6 0 0 1-6-6c0-2.2 1-4.2 2.6-5.6"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7L12 3z"/><path d="m18.5 15 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></symbol>
+  </defs>
+</svg>
+
+<div class="stage">
+
+  <header class="stage-head">
+    <div class="eyebrow">Atlas · Mobile Information Architecture</div>
+    <h1 class="stage-title">移动端首页<br><em>从 7 屏到 1.5 屏</em></h1>
+    <p class="stage-sub">
+      首页只做<strong>搜索、入口与预览</strong>，完整列表下沉二级页。左机为亮色首页，右机为点击「更多」进入的发现页；桌面双栏保持不动。
+    </p>
+    <div class="metrics">
+      <div class="metric"><b>7 → 1.5</b><span>首页屏数</span></div>
+      <div class="metric"><b>3</b><span>高频入口</span></div>
+      <div class="metric"><b>2</b><span>横滑预览</span></div>
+      <div class="metric"><b>0</b><span>桌面改动</span></div>
+    </div>
+  </header>
+
+  <div class="devices">
+
+    <!-- ══════════ 亮色首页 ══════════ -->
+    <figure class="figure">
+      <div class="figure-tag"><i></i>首页 · Light · 393×852</div>
+
+      <div class="phone" id="device-light">
+        <div class="island"></div>
+        <div class="home-indicator"></div>
+
+        <div class="screen light">
+
+          <!-- 状态栏 -->
+          <div class="statusbar">
+            <span class="sb-time">9:41</span>
+            <span class="sb-icons">
+              <svg viewBox="0 0 24 24"><path d="M2 17h3v4H2zM7 13h3v8H7zM12 9h3v12h-3zM17 5h3v16h-3z"/></svg>
+              <svg viewBox="0 0 24 24"><path d="M12 19.5 3.8 11a11.6 11.6 0 0 1 16.4 0L12 19.5z"/></svg>
+              <span class="sb-battery"></span>
+            </span>
+          </div>
+
+          <!-- 顶栏 -->
+          <div class="appbar">
+            <div class="brand">
+              <div class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 6 20m6-16.5L18 20M8.2 14h7.6"/></svg>
+              </div>
+              <span class="brand-name">Atlas</span>
+            </div>
+            <div class="appbar-actions">
+              <button class="icon-btn" aria-label="通知">
+                <svg class="icon"><use href="#i-bell"/></svg>
+                <span class="dot-badge"></span>
+              </button>
+              <div class="avatar">阿</div>
+            </div>
+          </div>
+
+          <!-- 分类条 -->
+          <div class="catbar" role="tablist" aria-label="搜索分类">
+            <button class="cat active" role="tab" aria-selected="true">🎬 JAV</button>
+            <button class="cat" role="tab">🎌 动漫</button>
+            <button class="cat" role="tab">🎥 影视</button>
+            <button class="cat" role="tab">📖 漫画</button>
+            <button class="cat" role="tab">📚 小说</button>
+          </div>
+
+          <!-- 可滚动内容 -->
+          <div class="body" id="home-scroll">
+
+            <div class="announce">
+              <svg class="icon"><use href="#i-mega"/></svg>
+              <span>JavDB 月榜已更新，详情补全队列已开放</span>
+            </div>
+
+            <!-- 搜索 -->
+            <div class="search-card">
+              <div class="search-box">
+                <svg class="icon"><use href="#i-search"/></svg>
+                <span class="search-ph">输入番号、标题或女优名</span>
+                <button class="search-go">搜索</button>
+              </div>
+              <div class="submodes">
+                <button class="submode active">番号</button>
+                <button class="submode">标题</button>
+                <button class="submode">女优</button>
+                <span class="quota">今日 <b>18</b>/50</span>
+              </div>
+            </div>
+
+            <!-- 三个入口 -->
+            <div class="entries">
+              <button class="entry">
+                <span class="entry-badge">3</span>
+                <span class="entry-top"><svg class="icon"><use href="#i-rss"/></svg>关注更新</span>
+                <span class="entry-num">3<small>条未读</small></span>
+              </button>
+              <button class="entry">
+                <span class="entry-top"><svg class="icon"><use href="#i-heart"/></svg>我的收藏</span>
+                <span class="entry-num">46<small>部作品</small></span>
+              </button>
+              <button class="entry">
+                <span class="entry-top"><svg class="icon"><use href="#i-clock"/></svg>搜索历史</span>
+                <span class="entry-num">12<small>条记录</small></span>
+              </button>
+            </div>
+
+            <!-- 为你推荐 -->
+            <section class="section">
+              <div class="section-head">
+                <span class="section-title">为你推荐</span>
+                <span class="section-note">For You</span>
+                <button class="section-more" data-jump>更多<svg class="icon"><use href="#i-right"/></svg></button>
+              </div>
+              <div class="rail">
+                <button class="card">
+                  <div class="cover c1">
+                    <span class="frame"></span>
+                    <span class="tag">演员标签</span>
+                    <span class="no">SONE-520</span>
+                  </div>
+                  <div class="card-title">完全版 · 官方修复画质</div>
+                  <div class="card-meta">三上 · 2026-11-02</div>
+                </button>
+                <button class="card">
+                  <div class="cover c2">
+                    <span class="frame"></span>
+                    <span class="tag">月榜同款</span>
+                    <span class="no">SSIS-118</span>
+                  </div>
+                  <div class="card-title">特别篇 · 收录未公开片段</div>
+                  <div class="card-meta">桥本 · 2026-10-28</div>
+                </button>
+                <button class="card">
+                  <div class="cover c3">
+                    <span class="frame"></span>
+                    <span class="tag">高频标签</span>
+                    <span class="no">IPX-874</span>
+                  </div>
+                  <div class="card-title">高清重制 · 双碟收藏版</div>
+                  <div class="card-meta">相泽 · 2026-10-21</div>
+                </button>
+                <button class="card">
+                  <div class="cover c4">
+                    <span class="frame"></span>
+                    <span class="tag">同类推荐</span>
+                    <span class="no">MIDE-963</span>
+                  </div>
+                  <div class="card-title">精选合集 · 主题企划</div>
+                  <div class="card-meta">樱井 · 2026-10-12</div>
+                </button>
+                <button class="card">
+                  <div class="cover c5">
+                    <span class="frame"></span>
+                    <span class="tag">新片</span>
+                    <span class="no">JUQ-412</span>
+                  </div>
+                  <div class="card-title">导演剪辑 · 完整叙事线</div>
+                  <div class="card-meta">白石 · 2026-10-08</div>
+                </button>
+              </div>
+            </section>
+
+            <!-- 本月热榜 -->
+            <section class="section">
+              <div class="section-head">
+                <span class="section-title">本月热榜</span>
+                <span class="section-note">JavDB · 11-17</span>
+                <button class="section-more" data-jump>更多<svg class="icon"><use href="#i-right"/></svg></button>
+              </div>
+              <div class="rail">
+                <button class="card">
+                  <div class="cover c2">
+                    <span class="frame"></span>
+                    <span class="rank top">01</span>
+                    <span class="new">NEW</span>
+                    <span class="no">SONE-520</span>
+                  </div>
+                  <div class="card-title">连续三周占据月榜首位</div>
+                  <div class="card-meta">热度 98.4k</div>
+                </button>
+                <button class="card">
+                  <div class="cover c1">
+                    <span class="frame"></span>
+                    <span class="rank">02</span>
+                    <span class="no">SSIS-118</span>
+                  </div>
+                  <div class="card-title">本月新作 · 关注度快速上升</div>
+                  <div class="card-meta">热度 91.2k</div>
+                </button>
+                <button class="card">
+                  <div class="cover c6">
+                    <span class="frame"></span>
+                    <span class="rank">03</span>
+                    <span class="no">IPX-874</span>
+                  </div>
+                  <div class="card-title">高分口碑 · 收藏转化领先</div>
+                  <div class="card-meta">热度 88.7k</div>
+                </button>
+                <button class="card">
+                  <div class="cover c3">
+                    <span class="frame"></span>
+                    <span class="rank">04</span>
+                    <span class="no">MIDE-963</span>
+                  </div>
+                  <div class="card-title">系列新作 · 搜索量持续上涨</div>
+                  <div class="card-meta">热度 82.1k</div>
+                </button>
+              </div>
+            </section>
+
+            <!-- 发现入口 -->
+            <section class="section">
+              <div class="section-head">
+                <span class="section-title">发现</span>
+                <span class="section-note">Discover</span>
+                <button class="section-more" data-jump>全部<svg class="icon"><use href="#i-right"/></svg></button>
+              </div>
+              <div class="discover-grid">
+                <button class="discover-item">
+                  <span class="discover-icon"><svg class="icon"><use href="#i-tags"/></svg></span>
+                  <b>标签</b>
+                </button>
+                <button class="discover-item">
+                  <span class="discover-icon"><svg class="icon"><use href="#i-trophy"/></svg></span>
+                  <b>TOP250</b>
+                </button>
+                <button class="discover-item">
+                  <span class="discover-icon"><svg class="icon"><use href="#i-users"/></svg></span>
+                  <b>女优</b>
+                </button>
+                <button class="discover-item">
+                  <span class="discover-icon"><svg class="icon"><use href="#i-layers"/></svg></span>
+                  <b>全部榜单</b>
+                </button>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- 底部导航 -->
+          <nav class="tabbar" aria-label="底部导航">
+            <div class="tabbar-inner">
+              <div class="tab-ind" style="transform:translateX(0)"></div>
+              <button class="tab active">
+                <svg class="icon"><use href="#i-home"/></svg><span>首页</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-users"/></svg><span>社区</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-grid"/></svg><span>数据</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-user"/></svg><span>我的</span>
+              </button>
+            </div>
+          </nav>
+
+        </div>
+      </div>
+    </figure>
+
+    <!-- ══════════ 暗色发现页 ══════════ -->
+    <figure class="figure">
+      <div class="figure-tag"><i></i>发现页 · Dark · 由「更多」进入</div>
+
+      <div class="phone" id="device-dark">
+        <div class="island"></div>
+        <div class="home-indicator"></div>
+
+        <div class="screen dark">
+
+          <div class="statusbar">
+            <span class="sb-time">9:41</span>
+            <span class="sb-icons">
+              <svg viewBox="0 0 24 24"><path d="M2 17h3v4H2zM7 13h3v8H7zM12 9h3v12h-3zM17 5h3v16h-3z"/></svg>
+              <svg viewBox="0 0 24 24"><path d="M12 19.5 3.8 11a11.6 11.6 0 0 1 16.4 0L12 19.5z"/></svg>
+              <span class="sb-battery"></span>
+            </span>
+          </div>
+
+          <div class="pagebar">
+            <button class="icon-btn" aria-label="返回">
+              <svg class="icon"><use href="#i-left"/></svg>
+            </button>
+            <h2>发现</h2>
+            <button class="icon-btn" aria-label="搜索">
+              <svg class="icon"><use href="#i-search"/></svg>
+            </button>
+          </div>
+
+          <div class="segwrap">
+            <div class="seg" id="discover-seg">
+              <button data-title="推荐">推荐</button>
+              <button class="active" data-title="月榜">月榜</button>
+              <button data-title="TOP250">TOP250</button>
+              <button data-title="标签">标签</button>
+              <button data-title="女优">女优</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <button class="filter active">月榜</button>
+            <button class="filter">周榜</button>
+            <span style="width:1px;height:12px;background:var(--line-strong);margin:0 2px"></span>
+            <button class="filter active">有码</button>
+            <button class="filter">无码</button>
+            <span class="updated">11-17 08:30</span>
+          </div>
+
+          <div class="body" id="discover-scroll">
+            <div class="list">
+              <div class="row">
+                <span class="row-rank gold">1</span>
+                <span class="row-cover"></span>
+                <span class="row-main">
+                  <span class="row-title">连续三周占据月榜首位</span>
+                  <span class="row-meta"><span class="row-code">SONE-520</span><span>·</span><span>11-02</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>98.4k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank silver">2</span>
+                <span class="row-cover c2"></span>
+                <span class="row-main">
+                  <span class="row-title">本月新作 · 关注度快速上升</span>
+                  <span class="row-meta"><span class="row-code">SSIS-118</span><span>·</span><span>10-28</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>91.2k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank bronze">3</span>
+                <span class="row-cover c3"></span>
+                <span class="row-main">
+                  <span class="row-title">高分口碑 · 收藏转化领先</span>
+                  <span class="row-meta"><span class="row-code">IPX-874</span><span>·</span><span>10-21</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>88.7k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank">4</span>
+                <span class="row-cover c4"></span>
+                <span class="row-main">
+                  <span class="row-title">系列新作 · 搜索量持续上涨</span>
+                  <span class="row-meta"><span class="row-code">MIDE-963</span><span>·</span><span>10-12</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>82.1k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank">5</span>
+                <span class="row-cover"></span>
+                <span class="row-main">
+                  <span class="row-title">导演剪辑 · 完整叙事线</span>
+                  <span class="row-meta"><span class="row-code">JUQ-412</span><span>·</span><span>10-08</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>76.5k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank">6</span>
+                <span class="row-cover c2"></span>
+                <span class="row-main">
+                  <span class="row-title">双碟收藏版 · 附赠花絮</span>
+                  <span class="row-meta"><span class="row-code">STARS-882</span><span>·</span><span>09-30</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>71.9k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank">7</span>
+                <span class="row-cover c3"></span>
+                <span class="row-main">
+                  <span class="row-title">主题企划 · 高码率版本</span>
+                  <span class="row-meta"><span class="row-code">ABW-311</span><span>·</span><span>09-24</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>68.3k</span>
+              </div>
+              <div class="row">
+                <span class="row-rank">8</span>
+                <span class="row-cover c4"></span>
+                <span class="row-main">
+                  <span class="row-title">周年纪念 · 精选片段合集</span>
+                  <span class="row-meta"><span class="row-code">PRED-508</span><span>·</span><span>09-18</span></span>
+                </span>
+                <span class="row-heat"><svg class="icon"><use href="#i-flame"/></svg>64.7k</span>
+              </div>
+            </div>
+
+            <div class="pager">
+              <button aria-label="上一页"><svg class="icon"><use href="#i-left"/></svg></button>
+              <span>1 / 3</span>
+              <button aria-label="下一页"><svg class="icon"><use href="#i-right"/></svg></button>
+            </div>
+
+            <p style="margin:18px 24px 0;text-align:center;font-size:9.5px;line-height:1.7;color:var(--text-3);font-family:Sora,sans-serif;letter-spacing:.04em">
+              完整列表复用现有面板 · 分页 / 刷新 / 筛选原样保留
+            </p>
+          </div>
+
+          <nav class="tabbar" aria-label="底部导航">
+            <div class="tabbar-inner">
+              <div class="tab-ind" style="transform:translateX(0)"></div>
+              <button class="tab active">
+                <svg class="icon"><use href="#i-home"/></svg><span>首页</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-users"/></svg><span>社区</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-grid"/></svg><span>数据</span>
+              </button>
+              <button class="tab">
+                <svg class="icon"><use href="#i-user"/></svg><span>我的</span>
+              </button>
+            </div>
+          </nav>
+
+        </div>
+      </div>
+    </figure>
+
+    <div class="link-hint" aria-hidden="true"><span class="lh-arrow">›</span><span>更多<br>进入发现页</span></div>
+  </div>
+
+  <!-- 说明 -->
+  <section class="notes">
+    <article class="note">
+      <h3><i>01</i>首页只做入口与预览</h3>
+      <p>搜索框之后只保留 <strong>3 个高频入口</strong>和 <strong>2 条横滑预览</strong>，其余模块全部收进发现页，首页高度从约 5500px 降到约 1100px。</p>
+      <p>关注动态不丢：未读数直接显示在入口卡上，点一次即达。</p>
+    </article>
+    <article class="note">
+      <h3><i>02</i>点击行为完全不变</h3>
+      <p>横滑卡片点击仍调用现有 <strong>handleCodeClick</strong>，触发同一个番号搜索并写入历史；发现页直接复用现有面板，<strong>onCodeClick / onActressClick</strong> 原样传入。</p>
+      <p>唯一变化是入口层级：完整列表多一步「更多」。</p>
+    </article>
+    <article class="note">
+      <h3><i>03</i>桌面与平板横屏零改动</h3>
+      <p>≥1024px 继续沿用主栏 + 360px 侧栏，现有面板一个不删。改动只发生在 <strong>MainSearchPage 的 idle 分支</strong>，按断点拆成两套布局。</p>
+      <p>新增 /discover 路由支持 <strong>?section=</strong> 深链，返回键、刷新、分享链接均正常。</p>
+    </article>
+  </section>
+
+  <div class="footline">
+    <span>393 × 852 · iOS logical px</span>
+    <span>Light / Dark</span>
+    <span>Scrollable prototype</span>
+    <span>Sora · Plus Jakarta Sans</span>
+  </div>
+
+</div>
+
+<script>
+  // 「更多」→ 高亮右侧发现页，强化两台手机的流程关系
+  document.querySelectorAll('[data-jump]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById('device-dark');
+      var scroll = document.getElementById('discover-scroll');
+      target.classList.remove('pulse');
+      void target.offsetWidth;
+      target.classList.add('pulse');
+      if (scroll) scroll.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(function () { target.classList.remove('pulse'); }, 1900);
+    });
+  });
+
+  // 发现页分段切换：选中态 + 筛选行文案
+  var seg = document.getElementById('discover-seg');
+  var listTitle = document.querySelector('.list .row-title');
+  if (seg) {
+    seg.addEventListener('click', function (event) {
+      var btn = event.target.closest('button');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      if (listTitle) listTitle.textContent = btn.dataset.title + ' · 完整列表';
+    });
+  }
+
+  // 筛选 pill 单选（仅演示）
+  document.querySelectorAll('.filters .filter').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.classList.toggle('active');
+    });
+  });
+</script>
+</body>
+</html>

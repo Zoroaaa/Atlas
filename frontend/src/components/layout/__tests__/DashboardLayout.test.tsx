@@ -73,4 +73,20 @@ describe('个人中心移动端菜单页', () => {
 
     expect(screen.getByRole('link', { name: /我的收藏/ })).toBeInTheDocument();
   });
+
+  it('从首页入口进入内容页时，返回落点为首页', () => {
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/dashboard/favorites', state: { from: '/main' } }]}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route path="favorites" element={<div>收藏内容</div>} />
+          </Route>
+          <Route path="/main" element={<div>首页内容</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '返回' }));
+    expect(screen.getByText('首页内容')).toBeInTheDocument();
+  });
 });
