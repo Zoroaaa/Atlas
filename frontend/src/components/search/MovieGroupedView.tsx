@@ -11,6 +11,7 @@ import type {
   ResourceItem,
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
+import { getProxyImageUrl } from '@/utils';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ProxyImage } from '@/components/ui';
 import {
@@ -176,7 +177,7 @@ function GroupedMovieCard({
         cover={
           subject.poster ? (
             <ProxyImage
-              src={subject.poster}
+              src={getProxyImageUrl(subject.poster)}
               alt={subject.title}
               className="h-16 w-12 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
               loading="lazy"
@@ -392,7 +393,7 @@ export const MovieGroupedView: React.FC<MovieGroupedViewProps> = ({
               return (
                 <MediaCard
                   key={`${group.subject.mediaType}-${group.subject.id}`}
-                  cover={group.subject.poster || undefined}
+                  cover={group.subject.poster ? getProxyImageUrl(group.subject.poster) : undefined}
                   coverFallback={group.subject.mediaType === 'movie' ? <Film className="h-5 w-5" /> : <Tv2 className="h-5 w-5" />}
                   coverSize="sm"
                   href={externalUrl}

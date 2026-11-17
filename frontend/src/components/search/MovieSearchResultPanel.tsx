@@ -16,6 +16,7 @@ import { CopyButton } from '@/components/ui/CopyButton';
 import { ProxyImage } from '@/components/ui';
 import { ShareToCommunityButton } from '@/components/community';
 import { convertToProxyUrl } from '@/services/proxy';
+import { getProxyImageUrl } from '@/utils';
 import {
   PanelSection,
   PanelHeader,
@@ -304,7 +305,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     {results.map((item) => (
                       <div key={`${item.mediaType}-${item.id}`} className="w-[220px] shrink-0">
                         <MediaCard
-                          cover={item.poster || undefined}
+                          cover={item.poster ? getProxyImageUrl(item.poster) : undefined}
                           coverFallback={item.mediaType === 'movie' ? <Film className="h-5 w-5" /> : <Tv2 className="h-5 w-5" />}
                           coverSize="sm"
                           title={item.title}
@@ -391,7 +392,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
               <div className="flex flex-col gap-4 px-4 pb-4 sm:flex-row sm:px-5 sm:pb-5">
                 {selectedItem.backdrop || selectedItem.poster ? (
                   <ProxyImage
-                    src={selectedItem.backdrop ?? selectedItem.poster!}
+                    src={getProxyImageUrl((selectedItem.backdrop ?? selectedItem.poster)!)}
                     alt={selectedItem.title}
                     loading="lazy"
                     className="hidden h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:block"
