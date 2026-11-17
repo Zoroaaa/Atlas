@@ -3467,6 +3467,8 @@
       "reqTotalSearches": "累计搜索"
     },
     "libraryDetail": {
+      "noMagnetTitle": "本地库暂无磁力链接",
+      "noMagnetHint": "可以先从搜索页的源站查找资源",
       "title": "本地存档详情",
       "type": {
         "jav": "JAV",

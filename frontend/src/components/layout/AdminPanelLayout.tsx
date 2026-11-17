@@ -68,16 +68,16 @@ export const AdminPanelLayout: React.FC = () => {
         {isMenuRoot ? (
           <MobileMenuPage
             title={t('nav:adminPanel.title')}
-            groups={[{
-              id: 'admin',
-              title: t('nav:adminPanel.groupHeading'),
-              items: navItems.map((item) => ({
+            groups={adminNavGroups.map((group) => ({
+              id: group.id,
+              title: group.labelKey ? t(group.labelKey) : undefined,
+              items: group.items.map((item) => ({
                 id: item.id,
                 label: t(item.labelKey),
                 icon: item.icon,
                 to: mobilePathOverrides[item.id] ?? item.path,
               })),
-            }]}
+            }))}
             showTitle={false}
           />
         ) : (

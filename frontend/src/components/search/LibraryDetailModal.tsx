@@ -727,6 +727,29 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
       );
     }
 
+    if (record.recordType === 'jav' && magnetSources(record).length === 0) {
+      return (
+        <EmptyBlock
+          icon={<Search className="h-7 w-7" />}
+          title={t('search:libraryDetail.noMagnetTitle')}
+          hint={t('search:libraryDetail.noMagnetHint')}
+          action={
+            onSearch && keyword ? (
+              <button
+                type="button"
+                onClick={handleSearch}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-500 px-3 text-[11px] font-medium text-white transition-colors hover:bg-primary-600"
+              >
+                <Search className="h-3.5 w-3.5" />
+                {t('search:libraryDetail.searchAgain')}
+              </button>
+            ) : undefined
+          }
+          className="bg-transparent"
+        />
+      );
+    }
+
     switch (record.recordType) {
       case 'jav':
         return (

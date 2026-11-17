@@ -3467,6 +3467,8 @@
       "reqTotalSearches": "total searches"
     },
     "libraryDetail": {
+      "noMagnetTitle": "No magnet link in local library",
+      "noMagnetHint": "Search the source sites from the search page",
       "title": "Local Archive Detail",
       "type": {
         "jav": "JAV",

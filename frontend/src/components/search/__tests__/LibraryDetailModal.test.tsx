@@ -27,7 +27,7 @@ vi.mock('@/services/api', async (importOriginal) => {
             detailUrl: 'https://www.javbus.com/ABP-123',
             tagLinks: [{ kind: 'tag', name: '巨乳', path: '/genre/2a' }],
           },
-          sources: [],
+          sources: [{ sourceUrl: 'magnet:?xt=urn:btih:abcdef', sourceData: {} }],
           firstSeenAt: 0,
           lastUpdatedAt: 0,
         },

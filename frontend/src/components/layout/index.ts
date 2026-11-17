@@ -10,5 +10,5 @@ export { MobileTabBar } from './MobileTabBar';
 export { UserAccountMenu } from './UserAccountMenu';
 export { MobileMenuPage, MobileSectionHeader } from './MobileSectionPage';
 export type { MobileMenuGroup, MobileMenuItem } from './MobileSectionPage';
-export { WORKSPACE_META, communityNavGroups, dashboardNavGroups, adminNavGroups } from './workspaceNav';
+export { communityNavGroups, dashboardNavGroups, adminNavGroups } from './workspaceNav';
 export type { WorkspaceId, WorkspaceNavGroup, WorkspaceNavItem } from './workspaceNav';

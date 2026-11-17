@@ -773,6 +773,17 @@ export const HistoryManager: React.FC = () => {
                           className="h-4 w-4 rounded border-surface-300 dark:border-surface-600"
                         />
                       </label>
+                      {item.cover ? (
+                        <ProxyImage
+                          src={getProxyImageUrl(resolveUrl(item.cover, 'https://www.javbus.com'))}
+                          alt={item.title || item.query}
+                          className="h-20 w-14 shrink-0 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-20 w-14 shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-400 dark:bg-surface-800">
+                          <Search className="h-4 w-4" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {item.code && (
@@ -801,15 +812,6 @@ export const HistoryManager: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate('/main')}
-                          title={t('dashboard:favoritesHistory.history.reSearchTitle')}
-                          className="text-primary-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
-                        >
-                          <Search className="w-4 h-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { CheckCheck, Heart, RefreshCw, Rss } from 'lucide-react';
 import { Button, Card, EmptyState, Loading, Tabs } from '@/components/ui';
 import { Chip, CountBadge, MediaCard, Pagination } from '@/components/workbench';
+import { LibraryDetailModal } from '@/components/search';
+import type { LibraryDetailTarget } from '@/components/search';
 import {
   useFollows, useFollowFeed, useFollowFeedSearch, useFollowActions, FOLLOW_FEED_PAGE_SIZE,
 } from '@/hooks';
@@ -58,7 +60,9 @@ export const FollowFeedManager: React.FC = () => {
     if (entity && !follows.some((f) => f.key === entity)) setEntity('');
   }, [follows, entity]);
 
-  const openCode = (code: string) => navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+  const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
+  const openCode = (code: string) => setDetail({ code });
+  const goSearch = (keyword: string) => navigate(`/main?tab=jav&q=${encodeURIComponent(keyword)}&sub=code`);
 
   const typePrefix = (type: FollowEntityType) =>
     type === 'actress' ? '' : `${t(`follow:entityTypes.${type}`)} · `;
@@ -246,6 +250,11 @@ export const FollowFeedManager: React.FC = () => {
           )}
         </>
       )}
+      <LibraryDetailModal
+        target={detail}
+        onClose={() => setDetail(null)}
+        onSearch={goSearch}
+      />
     </div>
   );
 };

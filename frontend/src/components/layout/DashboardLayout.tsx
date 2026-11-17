@@ -34,7 +34,7 @@ export const DashboardLayout: React.FC = () => {
   // 从首页入口进入时回首页；从个人中心菜单页进入时仍回菜单页
   const originPath = (location.state as { from?: string } | null)?.from;
 
-  const mobileGroups = dashboardNavGroups.filter((group) => group.id !== 'account');
+  const mobileGroups = dashboardNavGroups;
 
   const navItems = mobileGroups
     .flatMap((group) => group.items)

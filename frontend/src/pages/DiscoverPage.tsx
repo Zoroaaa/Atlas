@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Sparkles, Tags, TrendingUp, Trophy, Users } from 'lucide-react';
@@ -7,6 +7,8 @@ import { useAuthStore } from '@/stores';
 import { useIsDesktop } from '@/hooks';
 import type { SearchTabType } from '@/types/source';
 import { UnifiedNavBar, AppShell } from '@/components/layout';
+import { LibraryDetailModal } from '@/components/search';
+import type { LibraryDetailTarget } from '@/components/search';
 import {
   ActressesPanel,
   JavGenrePanel,
@@ -41,9 +43,15 @@ export const DiscoverPage: React.FC = () => {
     navigate(`/main?tab=${tab}`);
   }, [navigate]);
 
-  const goSearch = useCallback((code: string) => {
-    navigate(`/main?tab=jav&q=${encodeURIComponent(code)}`);
+  const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
+
+  const goSearch = useCallback((keyword: string) => {
+    navigate(`/main?tab=jav&q=${encodeURIComponent(keyword)}`);
   }, [navigate]);
+
+  const openDetail = useCallback((code: string) => {
+    setDetail({ code });
+  }, []);
 
   const goActress = useCallback((name: string) => {
     navigate(`/main?tab=jav&sub=actress&q=${encodeURIComponent(name)}`);
@@ -118,14 +126,21 @@ export const DiscoverPage: React.FC = () => {
           </div>
 
           <div className="rounded-2xl border border-surface-200/70 bg-white p-5 shadow-sm dark:border-surface-800/70 dark:bg-[#111113] sm:p-6">
-            {section === 'recommend' ? <JavRecommendationsPanel variant="for-you" layout="page" onCodeClick={goSearch} /> : null}
-            {section === 'rankings' ? <JavRankingsPanel layout="page" onCodeClick={goSearch} /> : null}
-            {section === 'top250' ? <JavTop250Panel layout="page" onCodeClick={goSearch} /> : null}
-            {section === 'genres' ? <JavGenrePanel layout="page" onCodeClick={goSearch} /> : null}
+            {section === 'recommend' ? <JavRecommendationsPanel variant="for-you" layout="page" onCodeClick={openDetail} /> : null}
+            {section === 'rankings' ? <JavRankingsPanel layout="page" onCodeClick={openDetail} /> : null}
+            {section === 'top250' ? <JavTop250Panel layout="page" onCodeClick={openDetail} /> : null}
+            {section === 'genres' ? <JavGenrePanel layout="page" onCodeClick={openDetail} /> : null}
             {section === 'actresses' ? <ActressesPanel layout="page" onActressClick={goActress} /> : null}
           </div>
         </main>
       </div>
+
+      <LibraryDetailModal
+        target={detail}
+        onClose={() => setDetail(null)}
+        onSearch={goSearch}
+        onActressClick={(name) => { setDetail(null); goActress(name); }}
+      />
     </AppShell>
   );
 };
