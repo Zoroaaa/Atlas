@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, BookOpen, Building2, Calendar, Clock, ExternalLink,
-  FileDown, Film, Heart, Magnet, RefreshCw, Search, Star, Tag, Tv,
+  FileDown, Film, Heart, Loader2, Magnet, RefreshCw, Search, Star, Tag, Tv,
   User, Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,8 @@ import type { TFunction } from 'i18next';
 import { Modal, Loading, ProxyImage } from '@/components/ui';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { Chip, CountBadge, EmptyBlock, ResourceRow } from '@/components/workbench';
-import { libraryApi } from '@/services/api';
+import { libraryApi, apiClient } from '@/services/api';
+import { useToast } from '@/hooks/useNotification';
 import type { LibraryRecord, LibraryRecordSource, LibraryRecordType } from '@/services/api/library';
 import type { JavEntityKind, JavEntityLink, JavEntityTarget } from '@/types';
 import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
@@ -210,7 +211,9 @@ const JavBody: React.FC<{
   t: TFunction;
   onCodeClick?: (code: string) => void;
   onActressClick?: (name: string) => void;
-}> = ({ record, t, onCodeClick, onActressClick }) => {
+  onPullExternal?: () => void;
+  isPullingExternal?: boolean;
+}> = ({ record, t, onCodeClick, onActressClick, onPullExternal, isPullingExternal }) => {
   const extra = record.contentData;
   const detailUrl = str(extra.detailUrl);
   const magnets = magnetSources(record);
@@ -235,9 +238,23 @@ const JavBody: React.FC<{
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {record.code ? <Chip tone="accent">{record.code}</Chip> : null}
-            {record.rating ? <Chip tone="warning" size="xs">{record.rating}</Chip> : null}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {record.code ? <Chip tone="accent">{record.code}</Chip> : null}
+              {record.rating ? <Chip tone="warning" size="xs">{record.rating}</Chip> : null}
+            </div>
+            {onPullExternal ? (
+              <button
+                type="button"
+                onClick={onPullExternal}
+                disabled={isPullingExternal}
+                title={t('jav:detail.pullExternal')}
+                className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-surface-200 bg-white px-2 text-[10px] font-medium text-surface-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:opacity-60 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:border-primary-700 dark:hover:text-primary-300"
+              >
+                {isPullingExternal ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                <span className="whitespace-nowrap">{t('jav:detail.pullExternalShort')}</span>
+              </button>
+            ) : null}
           </div>
           <h3 className="text-[14px] font-semibold leading-snug text-surface-900 dark:text-surface-100">{record.title}</h3>
           <InfoRow icon={Calendar} label={t('jav:detail.releaseDate')} value={record.releaseDate} />
@@ -621,8 +638,10 @@ const NovelBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
 
 export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, onClose, onSearch, onActressClick }) => {
   const { t } = useTranslation(['search', 'jav']);
+  const toast = useToast();
   const [status, setStatus] = useState<Status>('idle');
   const [record, setRecord] = useState<LibraryRecord | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
   const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -650,6 +669,28 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
       setStatus('error');
     }
   }, [target]);
+
+  // 本地库命中后手动回源 JavBus：与搜索结果详情卡一致，refresh=1 会同步写回本地库
+  const pullExternal = useCallback(async () => {
+    const code = record?.code;
+    if (!code || isPulling) return;
+    setIsPulling(true);
+    try {
+      const res = await apiClient.get<{ success: boolean; message?: string }>(
+        `/jav/detail?code=${encodeURIComponent(code)}&refresh=1`
+      );
+      if (res.success) {
+        toast.success(t('jav:detail.pullExternalSuccess'));
+        await load();
+      } else {
+        toast.error(t('jav:detail.pullExternalFailed'));
+      }
+    } catch (err) {
+      toast.error(t('jav:detail.pullExternalFailed'), err instanceof Error ? err.message : undefined);
+    } finally {
+      setIsPulling(false);
+    }
+  }, [record?.code, isPulling, load, toast, t]);
 
   useEffect(() => {
     if (!target) {
@@ -734,16 +775,27 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
           title={t('search:libraryDetail.noMagnetTitle')}
           hint={t('search:libraryDetail.noMagnetHint')}
           action={
-            onSearch && keyword ? (
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={handleSearch}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-500 px-3 text-[11px] font-medium text-white transition-colors hover:bg-primary-600"
+                onClick={() => void pullExternal()}
+                disabled={isPulling}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-3 text-[11px] font-medium text-surface-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:opacity-60 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:border-primary-700 dark:hover:text-primary-300"
               >
-                <Search className="h-3.5 w-3.5" />
-                {t('search:libraryDetail.searchAgain')}
+                {isPulling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                {t('jav:detail.pullExternal')}
               </button>
-            ) : undefined
+              {onSearch && keyword ? (
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-500 px-3 text-[11px] font-medium text-white transition-colors hover:bg-primary-600"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  {t('search:libraryDetail.searchAgain')}
+                </button>
+              ) : null}
+            </div>
           }
           className="bg-transparent"
         />
@@ -757,6 +809,8 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
             record={record}
             t={t}
             onActressClick={onActressClick}
+            onPullExternal={record.code ? pullExternal : undefined}
+            isPullingExternal={isPulling}
             onCodeClick={onSearch
               ? (code) => {
                   onSearch(code, 'jav');
