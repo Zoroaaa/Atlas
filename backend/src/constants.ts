@@ -135,6 +135,10 @@ export const DB_CONFIG_KEYS = {
   COMMUNITY_ENABLED: 'community_enabled',
   /** JAV 详情批量补全：关闭后每分钟 cron 跳过推进（不删任务、不影响其他定时任务） */
   JAV_DETAIL_JOB_ENABLED: 'jav_detail_job_enabled',
+  /** 封面回填：关闭后分钟 cron 跳过推进；懒加载缓存不受影响 */
+  COVER_BACKFILL_ENABLED: 'cover_backfill_enabled',
+  /** 封面回填每批条数（1-100） */
+  COVER_BACKFILL_BATCH_SIZE: 'cover_backfill_batch_size',
 
   // 安全限制 — 安全策略需要动态调整
   MAX_LOGIN_ATTEMPTS: 'max_login_attempts',

@@ -20,6 +20,7 @@ import type {
   RankingArchiveSnapshot,
   RankingArchiveMeta,
   RankingArchiveQuery,
+  CoverStats,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -923,6 +924,26 @@ export const dataStorageApi = {
     const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
       '/admin/data-storage/detail-jobs/resume',
       {}
+    );
+    return response.data;
+  },
+
+  /** 封面覆盖率、回填开关与最近失败 */
+  getCoverStats: async (): Promise<CoverStats> => {
+    const response = await apiClient.get<{ success: boolean; data: CoverStats }>(
+      '/admin/data-storage/covers/stats'
+    );
+    return response.data;
+  },
+
+  /** 更新封面回填开关 / 每分钟批次大小，返回最新统计 */
+  updateCoverBackfill: async (params: {
+    enabled?: boolean;
+    batchSize?: number;
+  }): Promise<CoverStats> => {
+    const response = await apiClient.put<{ success: boolean; data: CoverStats }>(
+      '/admin/data-storage/covers/settings',
+      params
     );
     return response.data;
   },

@@ -86,3 +86,39 @@ export interface DataRecordsResponse {
   totalPages: number;
   missingFields?: import('@codeseek/shared').JavDetailFieldName[];
 }
+
+// 封面管理（R2 回填）
+export type CoverNamespace = 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'person' | 'misc';
+
+export interface CoverTypeStats {
+  type: string;
+  total: number;
+  ready: number;
+  missing: number;
+  failed: number;
+  pending: number;
+}
+
+export interface CoverFailureItem {
+  url: string;
+  namespace: CoverNamespace;
+  status: 'missing' | 'failed';
+  lastError: string | null;
+  attempts: number;
+  nextRetryAt: number;
+}
+
+export interface CoverStats {
+  totalWithCover: number;
+  ready: number;
+  missing: number;
+  failed: number;
+  pending: number;
+  readyBytes: number;
+  byType: CoverTypeStats[];
+  recentFailures: CoverFailureItem[];
+  enabled: boolean;
+  batchSize: number;
+  r2Ready: boolean;
+  publicBase: string | null;
+}

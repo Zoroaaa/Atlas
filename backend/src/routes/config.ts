@@ -51,6 +51,8 @@ const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string
   'site_description': { value: '搜索全网资源，一步直达', description: '网站描述', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'enable_registration': { value: '1', description: '是否开放注册', configType: 'boolean', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'community_enabled': { value: '1', description: '启用搜索源共享社区功能', configType: 'boolean', configGroup: 'features', isPublic: 1, isSensitive: 0 },
+  'cover_backfill_enabled': { value: '0', description: '是否推进本地库封面回填到 R2', configType: 'boolean', configGroup: 'features', isPublic: 0, isSensitive: 0 },
+  'cover_backfill_batch_size': { value: '20', description: '封面回填每分钟处理条数', configType: 'integer', configGroup: 'features', isPublic: 0, isSensitive: 0, validationRules: '{"min": 1, "max": 100}' },
   'max_login_attempts': { value: '5', description: '最大登录尝试次数', configType: 'integer', configGroup: 'security', isPublic: 0, isSensitive: 0, validationRules: '{"min": 3, "max": 10}' },
   'lockout_duration_ms': { value: '900000', description: '账户锁定时长（毫秒，默认15分钟）', configType: 'integer', configGroup: 'security', isPublic: 0, isSensitive: 0, validationRules: '{"min": 60000, "max": 3600000}' },
   'max_verification_attempts': { value: '5', description: '最大验证尝试次数', configType: 'integer', configGroup: 'security', isPublic: 0, isSensitive: 0, validationRules: '{"min": 1, "max": 10}' },

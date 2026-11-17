@@ -110,6 +110,18 @@ const backendOnlySchemas = {
     }),
   },
 
+  dataStorage: {
+    // 封面回填开关与批次大小：仅管理端调用
+    updateCoverBackfill: z
+      .object({
+        enabled: z.boolean().optional(),
+        batchSize: z.number().int().min(1).max(100).optional(),
+      })
+      .refine((value) => value.enabled !== undefined || value.batchSize !== undefined, {
+        message: '至少提供 enabled 或 batchSize',
+      }),
+  },
+
   follows: {
     // 即将发售同步：GitHub Actions 从 JavDB 拉取后回传
     importUpcoming: z.object({
@@ -147,6 +159,7 @@ export const schemas = {
   system: { ...sharedSchemas.system, ...backendOnlySchemas.system },
   config: { ...sharedSchemas.config, ...backendOnlySchemas.config },
   rankings: backendOnlySchemas.rankings,
+  dataStorage: backendOnlySchemas.dataStorage,
   follows: backendOnlySchemas.follows,
   pagination: backendOnlySchemas.pagination,
 };

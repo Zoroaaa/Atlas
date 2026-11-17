@@ -36,6 +36,7 @@ import {
   listRankingSnapshots,
   parseArchivePagination,
 } from '@/services/ranking-archive';
+import { getCoverStats, setCoverBackfillSettings } from '@/services/cover-backfill';
 
 /** 看板统计的缓存 TTL（缓存 key 由请求 origin 推导，见 /stats 处理函数） */
 const STATS_CACHE_TTL_SECONDS = 300;
@@ -769,7 +770,34 @@ dataStorageRoutes.post('/detail-jobs/resume', async (c) => {
 });
 
 // ============================================================
-// 10. 榜单归档（周榜 / 月榜 / 年度榜 / TOP250 历史名次）
+// 10. 封面管理：覆盖率统计 + 回填开关
+// ============================================================
+
+dataStorageRoutes.get('/covers/stats', async (c) => {
+  try {
+    return c.json(success(await getCoverStats(c.env)));
+  } catch (err) {
+    console.error('[data-storage] cover stats error:', err);
+    return c.json(error('SERVER_ERROR', '获取封面统计失败'), 500);
+  }
+});
+
+dataStorageRoutes.put('/covers/settings', validateBody(schemas.dataStorage.updateCoverBackfill), async (c) => {
+  try {
+    const body = c.get('validatedBody') as z.infer<typeof schemas.dataStorage.updateCoverBackfill>;
+    await setCoverBackfillSettings(c.env.DB, {
+      enabled: body.enabled,
+      batchSize: body.batchSize,
+    });
+    return c.json(success(await getCoverStats(c.env), '封面回填设置已更新'));
+  } catch (err) {
+    console.error('[data-storage] cover settings error:', err);
+    return c.json(error('SERVER_ERROR', '更新封面回填设置失败'), 500);
+  }
+});
+
+// ============================================================
+// 11. 榜单归档（周榜 / 月榜 / 年度榜 / TOP250 历史名次）
 // ============================================================
 
 dataStorageRoutes.get('/rankings/meta', async (c) => {

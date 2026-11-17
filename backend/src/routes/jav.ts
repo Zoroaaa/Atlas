@@ -47,57 +47,19 @@ import {
   rankingCacheKeyUrl,
   top250CacheKeyUrl,
 } from '@/services/ranking-cache';
+import { coverObjectRef, isAllowedCoverHost } from '@/services/media-key';
+import {
+  MAX_COVER_BYTES,
+  buildCoverFetchHeaders,
+  coverPublicUrl,
+  detectImageMime,
+  putCoverObject,
+} from '@/services/media-store';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
 // 图片代理（无需认证）
 // GET /api/jav/proxy-image?url=<encoded_url>
-const ALLOWED_IMAGE_HOSTS = [
-  'www.javbus.com',
-  'javbus.com',
-  'pics.javbus.com',
-  'img.javbus.com',
-  // JavDB 榜单封面 CDN（P3 导入的 cover_url）
-  'tp.spfcas.com',
-  // JavDB App API 作品封面（即将发售同步）
-  'javdb.com',
-  'www.javdb.com',
-  'lain.bgm.tv',
-  'image.tmdb.org',
-  'uploads.mangadex.org',
-  // 小说封面：Anna's Archive 多域名故障转移
-  'zh.annas-archive.gl',
-  'zh.annas-archive.pk',
-  'zh.annas-archive.gd',
-  'annas-archive.gl',
-  'annas-archive.pk',
-  'annas-archive.gd',
-  // 小说封面：Anna's Archive 封面 CDN（z-lib 域名变体）
-  'covers.z-lib.sk',
-  'covers.z-lib.to',
-  'covers.z-lib.se',
-  'covers.z-lib.org',
-  'covers1.z-lib.sk',
-  // 小说封面：奇书网（历史社区帖封面仍可能引用；源站已下线，仅保留代理兼容）
-  'www.xqishuta.org',
-  // 历史遗留：v1.4.0 女优资料曾用 minnano-av.com，社区历史帖封面仍引用其图片 URL
-  'www.minnano-av.com',
-];
-
-/** 部分 CDN 返回 application/octet-stream，按文件头识别图片类型，避免 nosniff 导致 <img> 拒绝渲染 */
-function detectImageMime(data: ArrayBuffer): string | null {
-  const bytes = new Uint8Array(data.slice(0, 12));
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
-  if (bytes.length >= 3 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
-  if (
-    bytes.length >= 12
-    && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
-    && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-  ) return 'image/webp';
-  if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d) return 'image/bmp';
-  return null;
-}
 
 function isPrivateIP(hostname: string): boolean {
   const privatePatterns = [
@@ -144,45 +106,50 @@ javRoutes.get('/proxy-image', async (c) => {
   }
 
   // JavDB 封面 CDN 使用 c0/c1/... 子域，按受控后缀放行
-  const allowedHost = ALLOWED_IMAGE_HOSTS.includes(parsed.hostname)
-    || parsed.hostname === 'jdbstatic.com'
-    || parsed.hostname.endsWith('.jdbstatic.com')
-    || parsed.hostname === 'javdb.com'
-    || parsed.hostname.endsWith('.javdb.com');
-  if (!allowedHost) {
+  if (!isAllowedCoverHost(parsed.hostname)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN_HOST', message: `不允许的域名: ${parsed.hostname}` } }, 403);
   }
 
-  // 根据目标域名动态设置 Referer
-  const refererMap: Record<string, string> = {
-    'lain.bgm.tv': 'https://bgm.tv/',
-    'www.javbus.com': 'https://www.javbus.com/',
-    'javbus.com': 'https://www.javbus.com/',
-    'pics.javbus.com': 'https://www.javbus.com/',
-    'img.javbus.com': 'https://www.javbus.com/',
-    'tp.spfcas.com': 'https://javdb.com/',
-    'www.xqishuta.org': 'https://www.xqishuta.org/',
-    'www.minnano-av.com': 'https://www.minnano-av.com/',
-  };
-  const referer = parsed.hostname.endsWith('jdbstatic.com') || parsed.hostname.endsWith('javdb.com')
-    ? 'https://javdb.com/'
-    : refererMap[parsed.hostname] || `https://${parsed.hostname}/`;
-  const imageFetchHeaders: Record<string, string> = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Referer': referer,
-    'Sec-Fetch-Dest': 'image',
-    'Sec-Fetch-Mode': 'no-cors',
-    'Sec-Fetch-Site': 'same-origin',
-  };
+  // R2 命中：生产环境 302 到 CDN，本地开发/未配置公网域名时直接从 R2 读字节。
+  // key 是 URL 的纯函数，这里不查 D1。
+  const objectRef = await coverObjectRef(targetUrl);
+  if (objectRef && c.env.MEDIA) {
+    const publicUrl = coverPublicUrl(c.env, objectRef.objectKey);
+    if (publicUrl) {
+      const head = await c.env.MEDIA.head(objectRef.objectKey);
+      if (head) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: publicUrl,
+            'Cache-Control': 'public, max-age=86400',
+            'Cross-Origin-Resource-Policy': 'cross-origin',
+          },
+        });
+      }
+    } else {
+      const cached = await c.env.MEDIA.get(objectRef.objectKey);
+      if (cached) {
+        return new Response(cached.body, {
+          headers: {
+            'Content-Type': cached.httpMetadata?.contentType || 'application/octet-stream',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Cross-Origin-Resource-Policy': 'cross-origin',
+          },
+        });
+      }
+    }
+  }
+
+  const imageFetchHeaders = buildCoverFetchHeaders(new URL(objectRef?.normalizedUrl ?? targetUrl));
+  const fetchUrl = objectRef?.normalizedUrl ?? targetUrl;
 
   // 1x1 透明 GIF（错误时返回，避免 <img> 标签触发 ORB）
   const fallbackGif = new Uint8Array([71,73,70,56,57,97,1,0,1,0,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,68,1,0,59]);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const resp = await fetch(targetUrl, {
+      const resp = await fetch(fetchUrl, {
         headers: imageFetchHeaders,
         signal: AbortSignal.timeout(10000),
         redirect: 'follow',
@@ -220,6 +187,18 @@ javRoutes.get('/proxy-image', async (c) => {
               'Cross-Origin-Resource-Policy': 'cross-origin',
             },
           });
+        }
+      }
+
+      // 异步写入 R2，不阻塞本次响应；写入失败不影响出图，下次访问会重试
+      if (objectRef && c.env.MEDIA && data.byteLength <= MAX_COVER_BYTES) {
+        const put = putCoverObject(c.env, objectRef.objectKey, data, contentType, new URL(fetchUrl).hostname)
+          .catch((err) => console.error('Cover R2 put failed:', fetchUrl, err));
+        try {
+          c.executionCtx.waitUntil(put);
+        } catch {
+          // 非 Worker 运行时（测试）没有 executionCtx，直接丢弃本次写入
+          void put;
         }
       }
 

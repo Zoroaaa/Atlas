@@ -306,7 +306,7 @@ const App: React.FC = () => {
           <Route path="cleanup" element={withSuspense(<AdminManager />)} />
           <Route path="feedback" element={withSuspense(<AdminManager />)} />
           <Route path="announcements" element={withSuspense(<AdminManager />)} />
-          <Route path="data-storage" element={withSuspense(<AdminManager />)} />
+          <Route path="data-storage/*" element={withSuspense(<AdminManager />)} />
           <Route path="rankings-archive" element={withSuspense(<AdminManager />)} />
           <Route path="aliases" element={withSuspense(<AdminManager />)} />
         </Route>

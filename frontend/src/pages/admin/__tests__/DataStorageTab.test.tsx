@@ -39,7 +39,7 @@ vi.mock('@/hooks/useNotification', () => ({
   useToast: () => mocks.toast,
 }));
 
-import { DataStorageTab } from '../DataStorageTab';
+import { RecordsPage } from '../data-storage/RecordsPage';
 
 const record: DataRecord = {
   id: 'rec-1',
@@ -118,14 +118,11 @@ beforeEach(() => {
 });
 
 async function openRecordsView() {
-  render(<DataStorageTab />);
-  // 测试语言可能被语言 store 覆盖为英文，按中英文双写匹配
-  const recordsTab = await screen.findByRole('button', { name: /Browse|数据浏览/ });
-  fireEvent.click(recordsTab);
+  render(<RecordsPage />);
   await screen.findByText(record.title);
 }
 
-describe('DataStorageTab 单条补全与重试筛选', () => {
+describe('数据浏览 · 单条补全与重试筛选', () => {
   it('缺磁力与「不再重试」可叠加，并按组合条件请求列表', async () => {
     await openRecordsView();
 

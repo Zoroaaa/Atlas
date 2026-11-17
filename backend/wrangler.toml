@@ -25,6 +25,10 @@ APP_VERSION = "1.9.0"
 # 必须与真实访问域一致，否则邮件里的链接指向错误页面
 SITE_URL = "https://atlas.wort.uk"
 
+# R2 封面公网域名 — 先在 R2 面板创建 atlas-media bucket 并绑定该自定义域，
+# 未配置时代理会从 R2 直出字节（功能不受影响，但没有 CDN 加速）
+MEDIA_PUBLIC_BASE = "https://img.atlas.wort.uk"
+
 # 前端域名 — OAuth 回调后跳转目标
 FRONTEND_URL = "https://atlas.wort.uk"
 
@@ -73,6 +77,15 @@ ENABLE_ALIAS_AI = "0"
 binding = "DB"
 database_name = "codeseek"
 database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
+
+# R2 封面缓存
+# 部署前必须先在账号内创建 bucket：wrangler r2 bucket create atlas-media
+# 否则 wrangler deploy 会直接失败。本地 wrangler dev 使用本地模拟器，不要求远端 bucket 存在。
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "atlas-media"
+# wrangler dev --remote 时才需要
+# preview_bucket_name = "atlas-media-preview"
 
 # Cloudflare Email Service（Workers Paid 的 Email Sending）
 # 发送域名需先在 Cloudflare 面板 Compute → Email Service → Email Sending 完成 onboard。

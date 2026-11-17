@@ -28,6 +28,8 @@ export interface EmailBinding {
 export interface Env {
   // 基础设施绑定
   DB: D1Database;
+  /** R2 封面缓存；未创建 bucket / 未绑定时为 undefined，代理自动退回直连上游 */
+  MEDIA?: R2Bucket;
   /** Cloudflare Email Service（Workers Paid；wrangler.toml 的 send_email 绑定） */
   EMAIL?: EmailBinding;
   /** Workers AI（可选：仅在启用别名候选生成时需要） */
@@ -45,9 +47,13 @@ export interface Env {
 
   // 部署级 vars（对应 wrangler.toml [vars]）
   APP_VERSION?: string;
+  /** 运行环境标记：本地 .dev.vars 设为 development，用于禁用 R2 公网跳转 */
+  APP_ENV?: string;
   SITE_URL?: string;
   FRONTEND_URL?: string;
   BACKEND_URL?: string;
+  /** R2 封面公网域名（如 https://img.atlas.wort.uk）；未配置时代理从 R2 直出字节 */
+  MEDIA_PUBLIC_BASE?: string;
   DEFAULT_FROM_EMAIL?: string;
   DEFAULT_FROM_NAME?: string;
   JWT_EXPIRY_DAYS?: string;

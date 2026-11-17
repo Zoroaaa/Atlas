@@ -8,11 +8,14 @@ import {
   Compass,
   Database,
   FileText,
+  FolderOpen,
   FolderTree,
   Heart,
   History,
+  Image as ImageIcon,
   Languages,
   LayoutDashboard,
+  ListChecks,
   Mail,
   Megaphone,
   MessageSquarePlus,
@@ -142,9 +145,18 @@ export const adminNavGroups: WorkspaceNavGroup[] = [
       { id: 'analytics', labelKey: 'nav:adminPanel.items.analytics', icon: <BarChart2 className="h-[17px] w-[17px]" />, path: '/admin-panel/analytics' },
       { id: 'trends', labelKey: 'nav:adminPanel.items.trends', icon: <TrendingUp className="h-[17px] w-[17px]" />, path: '/admin-panel/trends' },
       { id: 'activity-ranking', labelKey: 'nav:adminPanel.items.activityRanking', icon: <Trophy className="h-[17px] w-[17px]" />, path: '/admin-panel/activity-ranking' },
-      { id: 'data-storage', labelKey: 'nav:adminPanel.items.dataStorage', icon: <Database className="h-[17px] w-[17px]" />, path: '/admin-panel/data-storage' },
       { id: 'rankings-archive', labelKey: 'nav:adminPanel.items.rankingsArchive', icon: <Trophy className="h-[17px] w-[17px]" />, path: '/admin-panel/rankings-archive' },
       { id: 'cleanup', labelKey: 'nav:adminPanel.items.cleanup', icon: <Trash2 className="h-[17px] w-[17px]" />, path: '/admin-panel/cleanup' },
+    ],
+  },
+  {
+    id: 'storage',
+    labelKey: 'nav:adminSections.storage',
+    items: [
+      { id: 'storage-overview', labelKey: 'nav:adminPanel.items.dataStorageOverview', icon: <Database className="h-[17px] w-[17px]" />, path: '/admin-panel/data-storage' },
+      { id: 'storage-detail', labelKey: 'nav:adminPanel.items.dataStorageDetail', icon: <ListChecks className="h-[17px] w-[17px]" />, path: '/admin-panel/data-storage/detail' },
+      { id: 'storage-covers', labelKey: 'nav:adminPanel.items.dataStorageCovers', icon: <ImageIcon className="h-[17px] w-[17px]" />, path: '/admin-panel/data-storage/covers' },
+      { id: 'storage-records', labelKey: 'nav:adminPanel.items.dataStorageRecords', icon: <FolderOpen className="h-[17px] w-[17px]" />, path: '/admin-panel/data-storage/records' },
     ],
   },
   {
@@ -164,6 +176,8 @@ export const isNavItemActive = (path: string, pathname: string): boolean => {
   if (path === '/main') return pathname === '/main';
   if (path === '/community') return pathname === '/community' || pathname.startsWith('/community/browse');
   if (path === '/admin-panel') return pathname === '/admin-panel' || pathname.startsWith('/admin-panel/overview');
+  // 数据存储的统计概览是索引页，不能被 /data-storage/detail 等子页抢占
+  if (path === '/admin-panel/data-storage') return pathname.replace(/\/+$/, '') === path;
   if (path === '/dashboard') return pathname === '/dashboard' || pathname.startsWith('/dashboard/overview');
   return pathname === path || pathname.startsWith(`${path}/`);
 };
