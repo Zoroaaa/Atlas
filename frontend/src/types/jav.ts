@@ -85,13 +85,13 @@ export const JAV_TOP250_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
 export const JAV_TOP250_YEAR_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
 
 export const JAV_RANKINGS_PAGE_SIZE = 10;
-export const JAV_ACTRESSES_DISPLAY = 18;
+export const JAV_ACTRESSES_DISPLAY = 36;
 
 export const JAV_CACHE_KEY = 'jav_rankings_cache_v5';
 // 「最近热播」每天凌晨同步一次，缓存与同步周期一致（24 小时）；用户点刷新会强制重取
 export const JAV_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v5';
+export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v6';
 export const ACTRESSES_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 // ── 推荐标签 ───────────────────────────────────────────────────────────

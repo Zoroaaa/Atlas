@@ -203,7 +203,7 @@ export const JAV_RANKING = {
   // 导入成功后由导入接口主动失效，避免「刚同步仍看到旧榜」。
   CACHE_TTL_SECONDS: 24 * 60 * 60,
   MIN_IMPORT_ITEMS: 5,
-  ACTRESS_LIMIT: 18,
+  ACTRESS_LIMIT: 36,
   ACTRESS_CACHE_TTL_SECONDS: 6 * 60 * 60,
   // 热门女优 = 四个榜单上榜作品数 × 5 + 被关注人数 × 2。
   // 关注功能刚上线、关注数还少，所以上榜作品数权重更大；关注多起来后可调高 FOLLOW 权重
@@ -334,7 +334,7 @@ export const GENRE_DICT = {
 } as const;
 
 export const GENRE_REC = {
-  MAX_TAGS: 10,
+  MAX_TAGS: 20,
   /** 收藏与历史都有信号时的权重；占比口径，避免记录量级差异导致单向主导 */
   FAVORITE_WEIGHT: 0.7,
   HISTORY_WEIGHT: 0.3,
@@ -346,7 +346,7 @@ export const GENRE_REC = {
 
 export const GENRE_WORKS = {
   /** 每次返回的作品数 */
-  PAGE_SIZE: 12,
+  PAGE_SIZE: 24,
   /** 分页硬上限（站点总页数不可知，用上限兜底） */
   MAX_PAGE: 30,
   /** 扩张探测步长：每次向后推 8 页 */
@@ -371,8 +371,8 @@ export const RECOMMEND = {
   NEW_USER_MAX_HISTORY: 3,
   POPULARITY_WINDOW_DAYS: 30,
   RELATED_LIMIT: 8,
-  FOR_YOU_LIMIT: 12,
-  HOT_LIMIT: 12,
+  FOR_YOU_LIMIT: 24,
+  HOT_LIMIT: 24,
   CANDIDATE_LIMIT: 400,
   PROFILE_CACHE_TTL: 5 * 60,
   SIGNALS_CACHE_TTL: 60 * 60,

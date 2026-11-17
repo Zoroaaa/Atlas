@@ -201,7 +201,7 @@ export async function getGenreRecommendations(
   userId: string,
   refresh = false
 ): Promise<GenreRecommendationResult> {
-  const cacheKey = `genre-rec-v1/${userId}`;
+  const cacheKey = `genre-rec-v2/${userId}`;
   if (!refresh) {
     const cached = await getCachedJson<GenreRecommendationResult>(cacheKey);
     if (cached) return cached;

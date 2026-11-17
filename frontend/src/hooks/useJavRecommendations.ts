@@ -33,7 +33,7 @@ export function useJavRecommendations({
 }: UseJavRecommendationsOptions) {
   const { isAuthenticated, user } = useAuthStore();
   const isForYou = variant === 'for-you';
-  const forYouCacheKey = `jav-rec:for-you:${user?.id}`;
+  const forYouCacheKey = `jav-rec:for-you:v2:${user?.id}`;
   const seedValid = hasValidSeed(seed);
   const queryEnabled = isAuthenticated && enabled && (variant === 'for-you' || seedValid);
 

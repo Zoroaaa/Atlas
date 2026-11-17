@@ -165,7 +165,7 @@ function randomPage(maxPage: number, prevPage?: number): number {
   return page;
 }
 
-/** 从整页结果中随机抽 12 条（不足 12 条则全给） */
+/** 从整页结果中随机抽取展示数量（不足则全给） */
 function sampleItems(items: JavItem[], size: number): JavItem[] {
   if (items.length <= size) return [...items];
   const pool = [...items];

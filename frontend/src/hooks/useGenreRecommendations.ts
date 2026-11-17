@@ -22,7 +22,7 @@ function readValidCache(cacheKey: string) {
  */
 export function useGenreRecommendations() {
   const { isAuthenticated, user } = useAuthStore();
-  const cacheKey = `genre-rec:tags:${user?.id ?? ''}`;
+  const cacheKey = `genre-rec:tags:v2:${user?.id ?? ''}`;
   const forceRefreshRef = useRef(false);
 
   const query = useQuery<GenreRecommendationResult>({

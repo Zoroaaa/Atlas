@@ -137,7 +137,7 @@ export const JavGenrePanel: React.FC<JavGenrePanelProps> = ({ onCodeClick, layou
 
           {worksQuery.isLoading ? (
             <div className={clsx('grid gap-3', layout === 'page' ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4')}>
-              {Array.from({ length: layout === 'page' ? 10 : 8 }).map((_, index) => <SkeletonCard key={index} />)}
+              {Array.from({ length: layout === 'page' ? 20 : 8 }).map((_, index) => <SkeletonCard key={index} />)}
             </div>
           ) : worksQuery.isError ? (
             <p className="type-meta py-4 text-center">

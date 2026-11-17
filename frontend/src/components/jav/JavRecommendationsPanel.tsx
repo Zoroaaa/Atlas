@@ -60,7 +60,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
   const grid = (
     <div className={clsx('grid gap-3', layout === 'page' ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4')}>
       {isLoading
-        ? Array.from({ length: layout === 'page' ? 10 : 8 }).map((_, index) => <SkeletonCard key={index} />)
+        ? Array.from({ length: layout === 'page' ? 20 : 8 }).map((_, index) => <SkeletonCard key={index} />)
         : items.map((item) => (
             <MediaCard
               key={`${item.code}-${item.reason.type}`}

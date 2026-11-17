@@ -29,7 +29,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick, 
       <p className="type-micro">{t('jav:actresses.loadingActresses')}</p>
     </div>
   ) : (
-    <div className={clsx('divide-y divide-surface-100 dark:divide-surface-800/70', layout === 'page' && 'sm:grid sm:grid-cols-2 sm:gap-x-6 sm:divide-y-0 lg:grid-cols-3')}>
+    <div className={clsx('divide-y divide-surface-100 dark:divide-surface-800/70', layout === 'page' && 'sm:grid sm:grid-cols-2 sm:gap-x-6 sm:divide-y-0 lg:grid-cols-4')}>
       {items.map((actress, index) => (
         <div key={actress.name} className={clsx('flex items-center gap-2.5 py-2.5', layout === 'page' && 'border-b border-surface-100 dark:border-surface-800/70')}>
           <button
