@@ -319,7 +319,8 @@ export async function hasJavMagnets(db: D1Database, recordId: string): Promise<b
 /**
  * 成功拿到详情后统一落完整度：
  * - 四个字段齐全 → complete + detail_completed=1
- * - 缺字段 → partial，attempts+1，30 天后再试；累计 3 次后不再重试
+ * - 缺磁力（含同时缺其它字段）→ partial，attempts+1，30 天后再试；累计 3 次后不再重试
+ * - 仅缺导演 / 制作商 / 发行商 → partial，但属于「只能手动补」，不写重试时间、不计次
  * - 磁力接口暂时失败 → error（不消耗 attempts，10 分钟后重试）
  */
 export async function applyJavDetailSuccess(
@@ -382,6 +383,29 @@ export async function applyJavDetailSuccess(
     await saveJavDetailMeta(db, recordId, meta);
     await db
       .prepare('UPDATE data_records SET detail_completed = 1 WHERE id = ?')
+      .bind(recordId)
+      .run();
+    return meta;
+  }
+
+  // 只有缺磁力的记录会进入每小时自动补全（候选集见 ranking-enrichment）。
+  // 仅缺导演 / 制作商 / 发行商属于「只能手动补」的范围：不写 30 天重试时间、
+  // 不消耗自动重试次数，否则管理页会显示「等待重试」，但自动任务永远不会选中。
+  if ((mask & DETAIL_FIELD_BITS.magnets) === 0) {
+    const meta: JavDetailMeta = {
+      status: 'partial',
+      missingMask: mask,
+      missingFields: missingFieldsFromMask(mask),
+      attempts: previous.attempts,
+      transientFailures: previous.transientFailures,
+      nextRetryAt: 0,
+      retryExhausted: previous.retryExhausted,
+      lastError: null,
+      fetchedAt: Date.now(),
+    };
+    await saveJavDetailMeta(db, recordId, meta);
+    await db
+      .prepare('UPDATE data_records SET detail_completed = 0 WHERE id = ?')
       .bind(recordId)
       .run();
     return meta;

@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS "detail_fetch_jobs" (
   skipped           INTEGER NOT NULL DEFAULT 0,
   last_error        TEXT,
   created_by        TEXT,
-  -- 只补哪一类缺失：magnets | director | maker | publisher；NULL 表示不限
+  -- 只补哪一类：director | maker | publisher | magnets | transient | absent | pending；NULL 表示不限
   filter_missing    TEXT,
   created_at        INTEGER NOT NULL,
   updated_at        INTEGER NOT NULL,
