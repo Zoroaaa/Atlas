@@ -13,6 +13,13 @@ export type DataSourceType = 'detail' | 'magnet' | 'stream' | 'info';
 export type JavDetailFieldName = 'director' | 'maker' | 'publisher' | 'magnets';
 export type JavDetailStatus = 'pending' | 'complete' | 'partial' | 'absent' | 'error';
 
+/**
+ * JAV 详情批量任务的筛选范围：
+ * - 字段名：缺这一类的记录（不含自动重试中的暂时失败 / 源站缺失）
+ * - transient：暂时失败；absent：源站缺失；pending：待补全（从未抓过详情）
+ */
+export type JavDetailJobFilter = JavDetailFieldName | 'transient' | 'absent' | 'pending';
+
 // ==================== 核心实体类型 ====================
 
 /** 数据来源链接（多源合并子表） */
@@ -105,8 +112,8 @@ export interface JavDetailJob {
   skipped: number;
   last_error: string | null;
   created_by: string | null;
-  /** 只补哪一类缺失（筛选条件，不影响抓取内容）；null 表示不限 */
-  filter_missing: JavDetailFieldName | null;
+  /** 只补哪一类（筛选条件，不影响抓取内容）；null 表示不限 */
+  filter_missing: JavDetailJobFilter | null;
   created_at: number;
   updated_at: number;
   finished_at: number | null;

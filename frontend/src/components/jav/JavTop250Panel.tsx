@@ -20,7 +20,8 @@ interface JavTop250PanelProps {
   onCodeClick: (code: string) => void;
 }
 
-const SECTION_KEYS: JavTop250Section[] = ['all', 'censored', 'uncensored', 'western', 'fc2'];
+// 欧美榜暂不考虑：先隐藏入口，恢复时取消注释（同步脚本与 workflow 也需一并恢复）
+const SECTION_KEYS: JavTop250Section[] = ['all', 'censored', 'uncensored' /* , 'western' */, 'fc2'];
 
 export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick }) => {
   const { t } = useTranslation(['jav']);

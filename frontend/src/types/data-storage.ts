@@ -13,6 +13,7 @@ export type {
   DataRecordsQuery,
   JavDetailFieldName,
   JavDetailStatus,
+  JavDetailJobFilter,
   JavDetailStats,
   JavDetailJob,
   JavDetailFailure,

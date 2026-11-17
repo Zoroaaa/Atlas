@@ -31,14 +31,19 @@ const RECORD_GAP_MS = 4000;
 /**
  * 手动批次可选的筛选：只决定筛哪些记录，抓取内容不受影响。
  *
- * transient 是特殊值：选中「暂时失败」的记录（status = error），
- * 启动任务时会先把它们的退避时间清零，以便立即重试。
+ * 字段值（director/maker/publisher/magnets）只选「缺这一类」且不在自动重试中的记录；
+ * 特殊值按状态选记录，启动任务时先清零对应的重试门槛，以便立即重试：
+ *   - transient：「暂时失败」（status = error），清零退避时间；
+ *   - absent：「源站缺失」（status = absent），清零 30 天间隔与失败次数；
+ *   - pending：「待补全」（从未抓过详情），无需清零。
  */
-export type JavDetailMissingFilter = 'director' | 'maker' | 'publisher' | 'magnets' | 'transient';
+export type JavDetailMissingFilter =
+  | 'director' | 'maker' | 'publisher' | 'magnets'
+  | 'transient' | 'absent' | 'pending';
 
 export function isJavDetailMissingFilter(value: unknown): value is JavDetailMissingFilter {
   return value === 'director' || value === 'maker' || value === 'publisher'
-    || value === 'magnets' || value === 'transient';
+    || value === 'magnets' || value === 'transient' || value === 'absent' || value === 'pending';
 }
 
 /** 从库中读出的筛选条件：不认识的值一律当作「不限」，不让脏数据卡死任务 */
@@ -47,24 +52,37 @@ function normalizeFilter(value: unknown): JavDetailMissingFilter | null {
 }
 
 /**
- * 字段筛选谓词：只选「缺这一类」的记录。
+ * 筛选谓词：只选「缺这一类」或指定状态的可处理记录。
  *
- * 从未抓过详情（没有 meta 行）的记录四个字段全都缺，四个筛选都应当命中；
+ * 从未抓过详情（没有 meta 行）的记录四个字段全都缺，四个字段筛选都应当命中；
  * 命中之后仍然抓取完整详情页，不是只补这一个字段。
  *
+ * 字段筛选排除「暂时失败」与「源站缺失」：这两类由每小时任务按退避 / 30 天间隔
+ * 自动重试（可能刚试过），手动「补这一类」再选中它们属于无效重复；
+ * 需要立即重试时走 transient / absent 专用入口。
+ *
  * missing_mask = 0 且状态未完成，代表「缺哪些字段无法判定」（例如磁力接口暂时失败，
- * 不能断言源站没有磁力）。这种记录必须至少被某一类筛选选中，否则哪个按钮都补不到它。
+ * 不能断言源站没有磁力）。这种记录必须至少被某一类字段筛选选中，否则哪个按钮都补不到它。
  */
 function filterPredicate(filter: JavDetailMissingFilter | null): string {
   if (!filter) return '';
   if (filter === 'transient') {
     return `AND COALESCE(m.status, 'pending') = 'error'`;
   }
+  if (filter === 'absent') {
+    return `AND COALESCE(m.status, 'pending') = 'absent'`;
+  }
+  if (filter === 'pending') {
+    return `AND COALESCE(m.status, 'pending') = 'pending'`;
+  }
   const bit = DETAIL_FIELD_BITS[filter];
   return `AND (
-      m.record_id IS NULL
-      OR (COALESCE(m.missing_mask, 0) & ${bit}) <> 0
-      OR COALESCE(m.missing_mask, 0) = 0
+      (
+        m.record_id IS NULL
+        OR (COALESCE(m.missing_mask, 0) & ${bit}) <> 0
+        OR COALESCE(m.missing_mask, 0) = 0
+      )
+      AND COALESCE(m.status, 'pending') NOT IN ('error', 'absent')
     )`;
 }
 
@@ -342,10 +360,25 @@ export async function startJavDetailJob(
   // 筛选条件必须落库：任务由每分钟 cron 分多次推进，只在启动请求里带一次，
   // 后续 tick 无从得知「这次只补哪一类」，筛选形同虚设。
   const filter = normalizeFilter(options.missing);
-  // 「重试暂时失败」是用户主动点击：清掉退避时间，让它们立刻进入候选集
+  // 「重试暂时失败」是用户主动点击：清掉退避时间，让它们立刻进入候选集。
+  // retry_exhausted 也要清零，否则此前已耗尽的记录即使退避清零也仍被排除。
   if (filter === 'transient') {
     await db
-      .prepare(`UPDATE jav_detail_meta SET next_retry_at = 0 WHERE status = 'error'`)
+      .prepare(
+        `UPDATE jav_detail_meta
+         SET next_retry_at = 0, retry_exhausted = 0
+         WHERE status = 'error'`
+      )
+      .run();
+  }
+  // 「重试源站缺失」同理：源站可能已经补档，清零 30 天间隔与失败次数后立即重试
+  if (filter === 'absent') {
+    await db
+      .prepare(
+        `UPDATE jav_detail_meta
+         SET next_retry_at = 0, attempts = 0, retry_exhausted = 0
+         WHERE status = 'absent'`
+      )
       .run();
   }
   const total = await countPending(db, false, filter);

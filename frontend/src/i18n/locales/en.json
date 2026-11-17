@@ -1688,7 +1688,7 @@
       },
       "batch": {
         "title": "JAV detail batch backfill",
-        "desc": "Backfills director, maker, publisher and magnets at 5 records per minute. Task state is persisted and resumes after refresh or restart. The four entries below each select only records missing that field; the fetch still writes the full detail. Everything is controlled here: Pause keeps progress and stops the minute cron; Resume continues the same task; Stop ends the task.",
+        "desc": "Backfills director, maker, publisher and magnets at 5 records per minute. Task state is persisted and resumes after refresh or restart. The four Fill this entries select only records missing that field and not already in automatic retry; the Pending / Temporarily failed / Not on source entries target those states directly. The fetch still writes the full detail. Everything is controlled here: Pause keeps progress and stops the minute cron; Resume continues the same task; Stop ends the task.",
         "fillThis": "Fill this",
         "fillThisHint": "Only selects records missing this field; the fetch still fills the full detail",
         "runningHint": "A task is running; stop it or wait for it to finish",
@@ -1717,13 +1717,25 @@
         "nextRetry": "Retry {{time}}",
         "startedToast": "Batch task started",
         "startFailed": "Failed to start batch task",
-        "retryTransientBtn": "Retry temporarily failed",
+        "startScope": "Start",
+        "scopeCount": "{{count}} now",
+        "scope": {
+          "pending": "Pending",
+          "transient": "Temporarily failed",
+          "absent": "Not on source"
+        },
+        "scopeHint": {
+          "pending": "Only records that have never been fetched",
+          "transient": "Clear backoff, then retry failed fetches immediately",
+          "absent": "Clear the 30-day interval and attempt count, then retry source-missing records immediately"
+        },
         "retryTransientStarted": "Temporary-failure retry started; backoff cleared",
+        "retryAbsentStarted": "Source-missing retry started; attempt count cleared",
         "explainTitle": "How re-fill works: auto vs manual, what a fill writes, failure backoff",
         "explainAuto": "Automatic (up to 20 records/hour), driven by the hourly :05 ranking enrichment job; the every-30-minute job only handles follow checks and email. It processes records never fetched, missing magnets, failed fetches awaiting retry, and records temporarily absent on the source. Records that only miss director / maker / publisher are no longer auto-filled.",
-        "explainManual": "Manual (the four Fill this buttons in this panel): selects only records missing the chosen field, but the fetch still fills the full detail, never just one field. Every partial record (detail fetched but fields still missing) is treated as fill-now, bypassing the 30-day interval and the 3-attempt cap, so records missing director / maker / publisher or with exhausted magnet retries are never stuck; records the source confirms missing still wait for their interval.",
+        "explainManual": "Manual (this panel): the four Fill this buttons select only records missing the chosen field that are not already in automatic retry, so records the hourly job just tried are not requested twice. Partial records (detail fetched but fields still missing) bypass the 30-day interval and the 3-attempt cap, so records missing director / maker / publisher or with exhausted magnet retries are never stuck. Use the Pending / Temporarily failed / Not on source entries to retry automatic-scope records now: temporary failures clear backoff first, source-missing records clear both the 30-day interval and attempt count, then all reuse the same batch mechanism.",
         "explainWrite": "One fill fetches the full detail page and writes title, cover, actresses, duration, release date, publisher, tags, and all magnets of the code (magnets go to the sources table; existing rows are not duplicated). It never fills just one field.",
-        "explainBackoff": "Failure backoff: timeouts, network or parse errors and magnet API outages do not count as attempts and back off exponentially from 10 minutes up to 6 hours. A code the source confirms missing counts as +1 attempt, retried after 30 days, and stops auto-retry after 3. A fetched detail that still misses fields is marked partial and retried every 30 days. Retries scheduled for the same day are capped at 60; the rest roll to the next day. Filter by Temporarily failed and use Retry temporarily failed to clear backoff and retry immediately.",
+        "explainBackoff": "Failure backoff: timeouts, network or parse errors and magnet API outages do not count as attempts and back off exponentially from 10 minutes up to 6 hours. A code the source confirms missing counts as +1 attempt, retried after 30 days, and stops auto-retry after 3. A fetched detail that still misses fields is marked partial and retried every 30 days. Retries scheduled for the same day are capped at 60; the rest roll to the next day. To retry immediately, the Temporarily failed entry clears backoff and the Not on source entry clears interval and attempts, then both reuse the same batch mechanism.",
         "stopFailed": "Failed to stop batch task",
         "pausedToast": "Paused, progress kept",
         "resumedToast": "Resumed; task advances with the minute cron",

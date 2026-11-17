@@ -15,7 +15,7 @@ import type {
   DataRecordsQuery,
   DataRecordStatus,
   JavDetailJobView,
-  JavDetailFieldName,
+  JavDetailJobFilter,
   RankingArchiveEntry,
   RankingArchiveSnapshot,
   RankingArchiveMeta,
@@ -893,8 +893,8 @@ export const dataStorageApi = {
 
   startDetailJob: async (params: {
     batchSize?: number;
-    /** 只补哪一类缺失；transient 表示重试暂时失败的记录；不传表示不限 */
-    missing?: JavDetailFieldName | 'transient';
+    /** 筛选范围：字段名 / transient（暂时失败）/ absent（源站缺失）/ pending（待补全） */
+    missing?: JavDetailJobFilter;
   } = {}): Promise<JavDetailJobView> => {
     const response = await apiClient.post<{ success: boolean; data: JavDetailJobView }>(
       '/admin/data-storage/detail-jobs',

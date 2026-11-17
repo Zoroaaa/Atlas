@@ -2,8 +2,9 @@
  * JavDB TOP250 抓取 + 导入（App API，需登录）
  *
  * 通道：
- *   - 总榜：全部 / 有码 / 无码 / 欧美 / FC2，每月各跑一次（按日期错开）
+ *   - 总榜：全部 / 有码 / 无码 / FC2，每月各跑一次（按日期错开）
  *   - 年度榜：2008–2026，每两个月各跑一次（奇数月按日期错开）
+ *   - 欧美榜暂不考虑：相关代码已注释，恢复时一并取消注释
  *
  * 默认由 GitHub Actions 每天 19:30 UTC 触发，脚本自行判断「今天该跑哪个通道」；
  * 也可以在 workflow_dispatch 指定 TOP250_LIST / TOP250_YEAR 手动补跑。
@@ -18,7 +19,7 @@
  *   JAVDB_USERNAME / JAVDB_PASSWORD
  *   ATLAS_RANKING_IMPORT_URL   完整导入地址（与周/月榜共用）
  *   RANKINGS_IMPORT_SECRET
- *   可选 TOP250_LIST=all|censored|uncensored|western|fc2|year
+ *   可选 TOP250_LIST=all|censored|uncensored|fc2|year
  *   可选 TOP250_YEAR=2008..2026
  *   可选 TOP250_PAGES=1..13（本地调试限制页数）
  */
@@ -45,7 +46,8 @@ const AUTH_MAX_RETRIES = 2;
 
 const YEAR_START = 2008;
 const YEAR_END = 2026;
-const ZONES = { censored: '0', uncensored: '1', western: '2', fc2: '3' };
+// 欧美榜暂不考虑：western 通道暂停
+const ZONES = { censored: '0', uncensored: '1' /* , western: '2' */, fc2: '3' };
 
 const USERNAME = process.env.JAVDB_USERNAME || '';
 const PASSWORD = process.env.JAVDB_PASSWORD || '';
@@ -195,8 +197,8 @@ function shanghaiDate(offsetDays = 0) {
 
 /**
  * 今天该跑哪个通道。
- * 每月 1–5 日：全部 / 有码 / 无码 / 欧美 / FC2（一天一个，错开跑）。
- * 奇数月 6–24 日：年度榜 2008–2026（一天一个，两个月一轮）。
+ * 每月 1–4 日：全部 / 有码 / 无码 / FC2（一天一个，错开跑；欧美榜暂不考虑）。
+ * 奇数月 5–23 日：年度榜 2008–2026（一天一个，两个月一轮）。
  */
 function dueChannels() {
   const overrideList = (process.env.TOP250_LIST || '').trim();
@@ -211,13 +213,13 @@ function dueChannels() {
       return [{ list: 'year', year }];
     }
     if (!(overrideList in ZONES) && overrideList !== 'all') {
-      throw new Error(`TOP250_LIST must be all|censored|uncensored|western|fc2|year`);
+      throw new Error(`TOP250_LIST must be all|censored|uncensored|fc2|year`);
     }
     return [{ list: overrideList }];
   }
 
   const { month, day } = shanghaiDate();
-  const monthly = ['all', 'censored', 'uncensored', 'western', 'fc2'];
+  const monthly = ['all', 'censored', 'uncensored' /* 'western'（暂不考虑） */, 'fc2'];
   if (day >= 1 && day <= monthly.length) {
     return [{ list: monthly[day - 1] }];
   }

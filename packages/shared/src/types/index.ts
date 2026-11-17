@@ -29,7 +29,7 @@ export type { ApiError, ApiSuccess, ApiResponse,
 export type { DataRecordType, DataRecordStatus, DataSourceType,
   DataRecordSource, DataRecord, DataRecordDetail,
   DataStorageStats, DataStorageTrends, DataRecordsQuery,
-  JavDetailFieldName, JavDetailStatus, JavDetailStats,
+  JavDetailFieldName, JavDetailStatus, JavDetailStats, JavDetailJobFilter,
   JavDetailJob, JavDetailFailure, JavDetailJobView } from './data-storage';
 
 // ── 由 zod schema 推导的请求契约类型 ──

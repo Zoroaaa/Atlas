@@ -708,9 +708,12 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
     Math.max(1, Number(body.batchSize) || JAV_DETAIL_DEFAULT_BATCH_SIZE)
   );
 
-  // 筛选只决定选哪些记录，抓取内容不变；不传表示不限字段
+  // 筛选只决定选哪些记录，抓取内容不变；不传表示不限
   if (body.missing != null && !isJavDetailMissingFilter(body.missing)) {
-    return c.json(error('INVALID_PARAM', 'missing 仅支持 director / maker / publisher / magnets / transient'), 400);
+    return c.json(
+      error('INVALID_PARAM', 'missing 仅支持 director / maker / publisher / magnets / transient / absent / pending'),
+      400
+    );
   }
   const missing = isJavDetailMissingFilter(body.missing) ? body.missing : null;
 
@@ -726,7 +729,7 @@ dataStorageRoutes.post('/detail-jobs', async (c) => {
       missing,
     });
     return c.json(
-      success(view, view.job?.status === 'running' ? '批量任务已启动' : '没有待补全的记录')
+      success(view, view.job?.status === 'running' ? '批量任务已启动' : '没有符合条件的记录')
     );
   } catch (err) {
     console.error('[data-storage] start detail job error:', err);

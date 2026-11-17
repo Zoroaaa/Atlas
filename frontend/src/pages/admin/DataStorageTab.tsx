@@ -44,6 +44,7 @@ import type {
   JavDetailFailure,
   JavDetailFieldName,
   JavDetailJob,
+  JavDetailJobFilter,
   JavDetailJobView,
   JavDetailStats,
   JavDetailStatus,
@@ -71,6 +72,20 @@ const TYPE_FILTERS: Array<{ key: '' | DataRecordType; label: string }> = [
 ];
 
 const DETAIL_FIELD_KEYS: JavDetailFieldName[] = ['director', 'maker', 'publisher', 'magnets'];
+
+/** 批量任务的筛选范围：四个字段 + 三个状态入口 */
+const JOB_FILTERS: JavDetailJobFilter[] = [...DETAIL_FIELD_KEYS, 'pending', 'transient', 'absent'];
+
+/** 状态范围入口：与字段入口分开展示 */
+const SCOPE_FILTERS: Array<Exclude<JavDetailJobFilter, JavDetailFieldName>> = ['pending', 'transient', 'absent'];
+
+function isJobFilter(value: unknown): value is JavDetailJobFilter {
+  return typeof value === 'string' && (JOB_FILTERS as string[]).includes(value);
+}
+
+function isFieldFilter(filter: JavDetailJobFilter): filter is JavDetailFieldName {
+  return (DETAIL_FIELD_KEYS as string[]).includes(filter);
+}
 
 const DETAIL_STATUS_STYLE: Record<JavDetailStatus, string> = {
   complete: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -193,9 +208,7 @@ function normalizeJob(value: unknown): JavDetailJob | null {
     last_error: typeof raw.last_error === 'string' ? raw.last_error : null,
     created_by: typeof raw.created_by === 'string' ? raw.created_by : null,
     // 旧后端不返回该字段，按「不限」处理
-    filter_missing: DETAIL_FIELD_KEYS.includes(raw.filter_missing as JavDetailFieldName)
-      ? (raw.filter_missing as JavDetailFieldName)
-      : null,
+    filter_missing: isJobFilter(raw.filter_missing) ? raw.filter_missing : null,
     created_at: toNumber(raw.created_at),
     updated_at: toNumber(raw.updated_at),
     finished_at: raw.finished_at == null ? null : toNumber(raw.finished_at),
@@ -295,8 +308,7 @@ export const DataStorageTab: React.FC = () => {
   const [detailAction, setDetailAction] = useState<'reset' | 'fetch' | null>(null);
   const [genreSyncing, setGenreSyncing] = useState(false);
   const [jobView, setJobView] = useState<JavDetailJobView | null>(null);
-  const [jobStartingField, setJobStartingField] = useState<JavDetailFieldName | null>(null);
-  const [retryingTransient, setRetryingTransient] = useState(false);
+  const [jobStartingFilter, setJobStartingFilter] = useState<JavDetailJobFilter | null>(null);
   const [jobStopping, setJobStopping] = useState(false);
   const [jobPausing, setJobPausing] = useState(false);
 
@@ -380,41 +392,32 @@ export const DataStorageTab: React.FC = () => {
     };
   }, [loadStats, loadRecords]);
 
-  // 手动重试「暂时失败」：后端先把退避时间清零，再由同一个批次任务立即推进
-  const handleRetryTransient = async () => {
-    setRetryingTransient(true);
-    try {
-      const patch = normalizeJobView(
-        await dataStorageApi.startDetailJob({ missing: 'transient' })
-      );
-      if (!patch) throw new Error('empty response');
-      jobStatusRef.current = patch.job;
-      setJobView((prev) => mergeJobView(prev, patch));
-      toast.success(t('admin:dataStorage.batch.retryTransientStarted'));
-    } catch {
-      toast.error(t('admin:dataStorage.batch.startFailed'));
-    } finally {
-      setRetryingTransient(false);
-    }
-  };
-
-  // 四个入口各自启动：筛选只决定选哪些记录，抓取仍然是完整详情
-  const handleStartJob = async (missing: JavDetailFieldName) => {
-    setJobStartingField(missing);
+  // 各入口共用：筛选只决定选哪些记录，抓取仍然是完整详情。
+  // 暂时失败 / 源站缺失两个范围由后端先清零退避/次数，再进入同一批次机制。
+  const handleStartJob = async (filter: JavDetailJobFilter) => {
+    setJobStartingFilter(filter);
     try {
       const patch = normalizeJobView(
         // 不传 batchSize：由后端默认值统一控制每分钟条数
-        await dataStorageApi.startDetailJob({ missing })
+        await dataStorageApi.startDetailJob({ missing: filter })
       );
       // 启动接口只返回 progress 字段，缺 stats/recentFailures 时沿用已有数据
       if (!patch) throw new Error('empty response');
       jobStatusRef.current = patch.job;
       setJobView((prev) => mergeJobView(prev, patch));
-      toast.success(t('admin:dataStorage.batch.startedToast'));
+      toast.success(
+        t(
+          filter === 'transient'
+            ? 'admin:dataStorage.batch.retryTransientStarted'
+            : filter === 'absent'
+              ? 'admin:dataStorage.batch.retryAbsentStarted'
+              : 'admin:dataStorage.batch.startedToast'
+        )
+      );
     } catch {
       toast.error(t('admin:dataStorage.batch.startFailed'));
     } finally {
-      setJobStartingField(null);
+      setJobStartingFilter(null);
     }
   };
 
@@ -656,7 +659,7 @@ export const DataStorageTab: React.FC = () => {
             {/* JAV 详情完整度 + 手动批量补全 */}
             <DetailJobPanel
               view={jobView}
-              startingField={jobStartingField}
+              startingFilter={jobStartingFilter}
               stopping={jobStopping}
               pausing={jobPausing}
               onStart={handleStartJob}
@@ -873,17 +876,6 @@ export const DataStorageTab: React.FC = () => {
                 className="px-2.5 py-1 rounded-lg text-xs text-surface-500 hover:text-rose-500"
               >
                 {t('admin:dataStorage.filter.all')}
-              </button>
-            )}
-            {detailFilter === 'error' && (
-              <button
-                type="button"
-                onClick={() => void handleRetryTransient()}
-                disabled={retryingTransient || jobView?.job?.status === 'running'}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500 text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RefreshCw className={clsx('h-3 w-3', retryingTransient && 'animate-spin')} />
-                {t('admin:dataStorage.batch.retryTransientBtn')}
               </button>
             )}
           </div>
@@ -1160,14 +1152,14 @@ export const DataStorageTab: React.FC = () => {
 
 const DetailJobPanel: React.FC<{
   view: JavDetailJobView | null;
-  /** 正在启动的字段入口；null 表示没有启动请求在途 */
-  startingField: JavDetailFieldName | null;
+  /** 正在启动的入口；null 表示没有启动请求在途 */
+  startingFilter: JavDetailJobFilter | null;
   stopping: boolean;
   pausing: boolean;
-  onStart: (missing: JavDetailFieldName) => void;
+  onStart: (filter: JavDetailJobFilter) => void;
   onStop: () => void;
   onPause: (paused: boolean) => void;
-}> = ({ view, startingField, stopping, pausing, onStart, onStop, onPause }) => {
+}> = ({ view, startingFilter, stopping, pausing, onStart, onStop, onPause }) => {
   const { t } = useTranslation(['admin']);
   const job = view?.job ?? null;
   const stats = view?.stats;
@@ -1175,9 +1167,14 @@ const DetailJobPanel: React.FC<{
   const failures = toArray<JavDetailFailure>(view?.recentFailures);
   const enabled = view?.enabled !== false;
   const running = job?.status === 'running';
-  const starting = startingField !== null;
+  const starting = startingFilter !== null;
   // 本次任务只补哪一类（任务行自带筛选条件；null 表示不限）
   const jobFilter = job?.filter_missing ?? null;
+  const jobFilterLabel = jobFilter
+    ? isFieldFilter(jobFilter)
+      ? t(`admin:dataStorage.detailField.${jobFilter}`)
+      : t(`admin:dataStorage.batch.scope.${jobFilter}`)
+    : '';
   // 三态互斥，同一个词只表达一个概念：
   //   运行中  = 任务在跑且开关开启
   //   已暂停  = 任务在跑但开关关闭（进度保留，继续后接着跑）
@@ -1248,7 +1245,7 @@ const DetailJobPanel: React.FC<{
       {/* 四个入口：每类缺失各自启动。筛选只决定选哪些记录，抓到后仍然写完整详情 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
         {DETAIL_FIELD_KEYS.map((field) => {
-          const isStarting = startingField === field;
+          const isStarting = startingFilter === field;
           return (
             <div
               key={field}
@@ -1286,6 +1283,58 @@ const DetailJobPanel: React.FC<{
                   {isStarting
                     ? t('admin:dataStorage.batch.starting')
                     : t('admin:dataStorage.batch.fillThis')}
+                </span>
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 状态范围入口：字段入口排除自动重试中的记录，这两类与待补全在这里单独启动 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {SCOPE_FILTERS.map((filter) => {
+          const isStarting = startingFilter === filter;
+          const count =
+            filter === 'pending'
+              ? stats?.pending
+              : filter === 'transient'
+                ? stats?.error
+                : stats?.absent;
+          return (
+            <div
+              key={filter}
+              className="rounded-lg border border-surface-200 dark:border-surface-700 p-2.5 flex items-center justify-between gap-2"
+            >
+              <div className="min-w-0">
+                <div className="text-xs font-medium text-surface-700 dark:text-surface-200">
+                  {t(`admin:dataStorage.batch.scope.${filter}`)}
+                </div>
+                <div className="text-[10px] text-surface-400">
+                  {t('admin:dataStorage.batch.scopeCount', { count: toNumber(count) })}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onStart(filter)}
+                disabled={starting || stopping || running || !enabled}
+                title={
+                  !enabled
+                    ? t('admin:dataStorage.batch.disabledHint')
+                    : running
+                      ? t('admin:dataStorage.batch.runningHint')
+                      : t(`admin:dataStorage.batch.scopeHint.${filter}`)
+                }
+              >
+                {isStarting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                <span className="ml-1">
+                  {isStarting
+                    ? t('admin:dataStorage.batch.starting')
+                    : t('admin:dataStorage.batch.startScope')}
                 </span>
               </Button>
             </div>
@@ -1343,9 +1392,7 @@ const DetailJobPanel: React.FC<{
         </div>
         {jobFilter && (
           <div className="text-[11px] text-surface-500">
-            {t('admin:dataStorage.batch.runningScope', {
-              field: t(`admin:dataStorage.detailField.${jobFilter}`),
-            })}
+            {t('admin:dataStorage.batch.runningScope', { field: jobFilterLabel })}
           </div>
         )}
         <div className="h-2 rounded-full bg-surface-200 dark:bg-surface-700 overflow-hidden">
