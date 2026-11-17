@@ -1,6 +1,6 @@
 -- Atlas 数据库 · JAV 榜单归档
 -- 依赖：08_jav_library.sql
--- 本文件可重复执行：建表/索引使用 IF NOT EXISTS，历史回填使用 INSERT OR IGNORE + 确定性主键。
+-- 本文件可重复执行：建表/索引使用 IF NOT EXISTS，历史回填使用 INSERT OR IGNORE。
 --
 -- 设计说明：
 --   data_record_sources 里的 ranking 行只用于「当前榜单」读取，无法高效按
@@ -8,9 +8,15 @@
 --     jav_ranking_snapshots  一个榜单通道的一次快照
 --     jav_ranking_entries    该快照里的名次明细（保留标题/封面/评分当时值）
 --   TOP250 与年度榜只写归档表，不写 data_record_sources，避免拖慢现有榜单读取。
+--
+-- 历史回填说明：
+--   data_record_sources 按 (record_id, source_name, source_url) upsert，只保留每部作品
+--   最后一次出现的 fetchedAt。按 fetchedAt 分组回填得到的是「最后出现日期」队列，
+--   不是完整的历史榜单，但可作为缺失历史的近似补档。
+--   只回填今天以前的数据：当天的真实导入快照已由导入服务写入，避免同日重复。
 
 CREATE TABLE IF NOT EXISTS jav_ranking_snapshots (
-    snapshot_key TEXT PRIMARY KEY,               -- source_name + ':' + snapshot_at
+    snapshot_key TEXT PRIMARY KEY,               -- source_name + ':' + 周期 + ':' + 抓取日
     source_name  TEXT NOT NULL,                  -- 如 JavDB:有码周榜 / JavDB:TOP250全部
     list_type    TEXT NOT NULL,                  -- weekly | monthly | top250 | yearly
     section      TEXT NOT NULL,                  -- censored | uncensored | western | fc2 | all
@@ -57,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_jav_ranking_entries_code
 CREATE INDEX IF NOT EXISTS idx_jav_ranking_entries_time
     ON jav_ranking_entries(snapshot_at DESC);
 
--- ── 历史回填：周榜/月榜（data_record_sources.source_data 为 JSON） ──
+-- ── 历史回填：周榜/月榜（按作品最后出现的 fetchedAt 分组，只补今天以前） ──
 INSERT OR IGNORE INTO jav_ranking_snapshots
     (snapshot_key, source_name, list_type, section, year, snapshot_at, item_count, created_at)
 SELECT
@@ -77,6 +83,8 @@ FROM data_record_sources rs
 WHERE rs.source_type = 'ranking'
   AND json_valid(rs.source_data)
   AND json_extract(rs.source_data, '$.period') IN ('weekly', 'monthly')
+  AND CAST(COALESCE(json_extract(rs.source_data, '$.fetchedAt'), rs.created_at) AS INTEGER)
+      < CAST(strftime('%s', date('now', '+8 hours'), '-8 hours') AS INTEGER) * 1000
 GROUP BY 1, 2, 3, 4, 5, 6;
 
 INSERT OR IGNORE INTO jav_ranking_entries
@@ -110,7 +118,9 @@ WHERE rs.source_type = 'ranking'
   AND d.code IS NOT NULL
   AND json_valid(rs.source_data)
   AND json_extract(rs.source_data, '$.period') IN ('weekly', 'monthly')
-  AND CAST(json_extract(rs.source_data, '$.rank') AS INTEGER) > 0;
+  AND CAST(json_extract(rs.source_data, '$.rank') AS INTEGER) > 0
+  AND CAST(COALESCE(json_extract(rs.source_data, '$.fetchedAt'), rs.created_at) AS INTEGER)
+      < CAST(strftime('%s', date('now', '+8 hours'), '-8 hours') AS INTEGER) * 1000;
 
 -- ── 历史上「只有列表级信息」的 JAV 记录补缺失字段标记 ──
 -- 这些记录大多来自榜单/关注/标签/实体浏览，天然没有磁力、导演、制作商、发行商。

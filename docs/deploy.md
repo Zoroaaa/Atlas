@@ -353,10 +353,11 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 - `javdb-ranking-probe.yml` 不读这两个 secret。
 
 TOP250 使用 `.github/workflows/javdb-top250-sync.yml`（每天 19:30 UTC，东八区次日 03:30）：
-- 每月 1–5 日分别同步「全部 / 有码 / 无码 / 欧美 / FC2」总榜；
-- 奇数月 6–24 日分别同步 2008–2026 年度榜（两个月一轮）；
+- 每月 1–4 日分别同步「全部 / 有码 / 无码 / FC2」总榜（欧美暂不考虑）；
+- 奇数月 5–23 日分别同步 2008–2026 年度榜（两个月一轮）；
 - 每个榜单 13 页，按 4 页一批、批间 20 秒执行；手动运行可指定 `list` / `year` / `pages`；
-- 需要先执行 `database/14_jav_ranking_archive.sql`，榜单归档与 TOP250 读取依赖新表。
+- 需要先执行 `database/14_jav_ranking_archive.sql`，榜单归档与 TOP250 读取依赖新表；
+- 需要补历史快照时重新执行 `database/14_jav_ranking_archive.sql`：按作品最后出现日期回填今天以前的周榜/月榜历史，可重复执行。
 
 ### 3. 即将发售同步 workflow
 

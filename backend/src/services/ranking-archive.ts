@@ -1,8 +1,9 @@
 /**
  * 榜单归档查询
  *
- * jav_ranking_snapshots / jav_ranking_entries 由榜单导入服务写入，
- * 历史周榜/月榜由 14_jav_ranking_archive.sql 回填。
+ * jav_ranking_snapshots / jav_ranking_entries 由榜单导入服务写入：
+ * 四种榜单统一按天保留，同一天重跑覆盖当天；缺失的周榜/月榜历史
+ * 可由 14_jav_ranking_archive.sql 按作品最后出现日期补档。
  * 这里同时服务：
  *   - 前台 TOP250 面板（只读最新一期）；
  *   - 管理端「榜单归档」页面（按周期/分类/年份/快照/关键词筛选历史）。

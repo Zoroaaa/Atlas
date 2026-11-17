@@ -5,9 +5,8 @@
  *   1. 把周榜/月榜/TOP250 作品作为占位记录扩充进 data_records（只新增，已存在则完全跳过）；
  *   2. 周榜/月榜把名次写入 data_record_sources（现有「最近热播」面板读取）；
  *   3. 所有榜单把每次导入写成 jav_ranking_snapshots + jav_ranking_entries 归档，
- *      供管理端查看历史名次。同一通道同一周期只保留一期快照：
- *      周榜按 ISO 周、月榜/TOP250 按月、年度榜按年，重跑会替换当期快照，
- *      不会因为手动补跑产生多份重复快照；
+ *      供管理端查看历史名次。四种榜单统一按「周期 + 东八区抓取日」每天保留一期，
+ *      同一天重跑只覆盖当天快照；
  *   4. 为新入库的占位记录补 jav_detail_meta（标记详情不完整、缺哪些字段）。
  *
  * 更新策略（2026-11 起）：JavDB 只负责「库里没有时创建」。
@@ -124,40 +123,35 @@ function chunk<T>(list: T[], size: number): T[][] {
 const CST_OFFSET_MS = 8 * 3600_000;
 
 /**
- * 快照周期键：同一周期内重跑时覆盖同一期快照。
- * - weekly：ISO 周（东八区自然周）
- * - monthly / top250：自然月
- * - yearly：年份
+ * 快照键：四种榜单统一按「周期 + 东八区抓取日」，每天保留一期。
+ * - weekly：ISO 周 + 抓取日
+ * - monthly / top250：自然月 + 抓取日
+ * - yearly：年份 + 抓取日
  */
 export function cycleKeyOf(period: RankingImportPeriod, ts: number, year?: number): string {
-  if (period === 'yearly' && Number.isInteger(year)) return `year:${Number(year)}`;
   const cst = new Date(ts + CST_OFFSET_MS);
+  const yearValue = cst.getUTCFullYear();
+  const month = String(cst.getUTCMonth() + 1).padStart(2, '0');
+  const dayKey = `${yearValue}-${month}-${String(cst.getUTCDate()).padStart(2, '0')}`;
+  if (period === 'yearly' && Number.isInteger(year)) return `year:${Number(year)}:${dayKey}`;
+
   if (period === 'weekly') {
     const day = cst.getUTCDay() || 7;
-    const thursday = new Date(
-      Date.UTC(cst.getUTCFullYear(), cst.getUTCMonth(), cst.getUTCDate() + 4 - day)
-    );
+    const thursday = new Date(Date.UTC(yearValue, cst.getUTCMonth(), cst.getUTCDate() + 4 - day));
     const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
     const week = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-    return `week:${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+    return `week:${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}:${dayKey}`;
   }
-  return `month:${cst.getUTCFullYear()}-${String(cst.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `month:${yearValue}-${month}:${dayKey}`;
 }
 
-/** 当前周期起点（东八区自然周/月/年），用于清理同一周期内旧的抓取快照 */
-export function cycleStartMs(period: RankingImportPeriod, ts: number, year?: number): number {
-  if (period === 'yearly' && Number.isInteger(year)) {
-    return Date.UTC(Number(year), 0, 1) - CST_OFFSET_MS;
-  }
+/**
+ * 快照去重窗口起点：东八区当天 0 点。
+ * 所有榜单同一通道同一天重跑只覆盖当天快照，前几天的历史保留。
+ */
+export function snapshotWindowStartMs(ts: number): number {
   const cst = new Date(ts + CST_OFFSET_MS);
-  if (period === 'weekly') {
-    const day = cst.getUTCDay() || 7;
-    return (
-      Date.UTC(cst.getUTCFullYear(), cst.getUTCMonth(), cst.getUTCDate() - (day - 1)) -
-      CST_OFFSET_MS
-    );
-  }
-  return Date.UTC(cst.getUTCFullYear(), cst.getUTCMonth(), 1) - CST_OFFSET_MS;
+  return Date.UTC(cst.getUTCFullYear(), cst.getUTCMonth(), cst.getUTCDate()) - CST_OFFSET_MS;
 }
 
 /** 按 key 分块查询已有记录，避免单条 SQL 绑定变量超过 D1 上限 */
@@ -332,11 +326,11 @@ export async function importRankingSnapshot(
   await runBatches(db, sourceStatements);
 
   // ── 归档：snapshot + entries（所有榜单通道） ──
-  // 同一通道同一周期只保留一期：重跑（例如首次抓取不全后补跑）直接替换当期快照。
+  // 所有榜单按天保留，同一天重跑替换当天快照。
   const snapshotKey = `${channel.name}:${cycleKeyOf(payload.period, fetchedAt, payload.year)}`;
-  const cycleStart = cycleStartMs(payload.period, fetchedAt, payload.year);
+  const replaceWindowStart = snapshotWindowStartMs(fetchedAt);
 
-  // 先清掉当期旧条目，再写入本次完整结果，避免掉榜作品残留
+  // 先清掉当天旧条目，再写入本次完整结果，避免掉榜作品残留
   await db
     .prepare('DELETE FROM jav_ranking_entries WHERE snapshot_key = ?')
     .bind(snapshotKey)
@@ -401,8 +395,7 @@ export async function importRankingSnapshot(
   }
   await runBatches(db, archiveStatements);
 
-  // 清理同一周期内沿用旧 fetchedAt 键的历史快照（例如修复前抓取不全的那一期），
-  // 保证归档里一个通道一个周期只有一期，重跑不会产生重复快照。
+  // 清理当天沿用旧键的历史快照：只清当天（不碰前几天的历史），重跑不会产生重复快照。
   const staleWhere =
     `source_name = ? AND list_type = ? AND section = ? AND COALESCE(year, 0) = ? ` +
     `AND snapshot_key <> ? AND snapshot_at >= ?`;
@@ -412,7 +405,7 @@ export async function importRankingSnapshot(
     payload.section,
     payload.year ?? 0,
     snapshotKey,
-    cycleStart,
+    replaceWindowStart,
   ];
   await db.batch([
     db
