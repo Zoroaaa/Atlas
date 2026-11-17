@@ -29,35 +29,59 @@ export const DETAIL_MAX_ATTEMPTS = 3;
 export const TRANSIENT_BASE_DELAY_MS = 10 * 60 * 1000; // 10 分钟
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** 单日最多安排的 30 天重试条数，超过则顺延到后一天 */
+/** 东八区偏移：分桶必须与页面展示的本地日期一致 */
+const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
+/** 单个自然日最多安排的 30 天重试条数，超过则顺延到后一天 */
 export const DETAIL_RETRY_DAILY_CAP = 60;
-const MAX_RETRY_DEFER_DAYS = 60;
+/** 单次查询覆盖的天数：一次取整段占用，避免逐日 COUNT */
+const SCAN_CHUNK_DAYS = 90;
+/** 顺延兜底上限（60 条/天 × 10 年），正常量级不会触达 */
+const MAX_DEFER_DAYS = 3650;
 
 /**
- * 计算 30 天重试时间，并对同日重试做错峰。
+ * 计算 30 天重试时间，并按「东八区自然日」对同日重试做错峰。
  *
- * 全量扫描后会有大量记录落在同一个 30 天后的日期。目标日已排满
- * DETAIL_RETRY_DAILY_CAP 条时自动顺延一天，避免一次性涌入自动重试队列。
+ * 同一自然日最多安排 DETAIL_RETRY_DAILY_CAP 条，排满后继续向后找第一个未满的
+ * 自然日，不会在顺延上限用尽后把剩余记录全堆到同一天。
+ * 分桶按东八区而不是 UTC：页面按本地日期展示，用 UTC 日会让同一个本地日
+ * 由两个 UTC 桶拼成，看上去超过每日上限。
  */
 export async function nextStaggeredRetryAt(db: D1Database, now = Date.now()): Promise<number> {
   const base = now + DETAIL_RETRY_DELAY_MS;
-  const baseDay = Math.floor(base / DAY_MS) * DAY_MS;
-  const offsetInDay = base - baseDay;
+  const localBase = base + CST_OFFSET_MS;
+  const localDayStart = Math.floor(localBase / DAY_MS) * DAY_MS;
+  const offsetInDay = localBase - localDayStart;
+  // 东八区 0 点对应的 UTC 时间戳
+  const firstDayStart = localDayStart - CST_OFFSET_MS;
 
-  for (let offset = 0; offset < MAX_RETRY_DEFER_DAYS; offset++) {
-    const dayStart = baseDay + offset * DAY_MS;
-    const row = await db
+  for (let chunkStart = 0; chunkStart < MAX_DEFER_DAYS; chunkStart += SCAN_CHUNK_DAYS) {
+    const rangeDays = Math.min(SCAN_CHUNK_DAYS, MAX_DEFER_DAYS - chunkStart);
+    const rangeStart = firstDayStart + chunkStart * DAY_MS;
+    const rangeEnd = rangeStart + rangeDays * DAY_MS;
+
+    const rows = await db
       .prepare(
-        `SELECT COUNT(*) AS n FROM jav_detail_meta
-         WHERE next_retry_at >= ? AND next_retry_at < ?`
+        `SELECT CAST((next_retry_at - ?) / ? AS INTEGER) AS day_index, COUNT(*) AS n
+         FROM jav_detail_meta
+         WHERE next_retry_at >= ? AND next_retry_at < ?
+         GROUP BY day_index`
       )
-      .bind(dayStart, dayStart + DAY_MS)
-      .first<{ n: number }>();
-    if ((row?.n ?? 0) < DETAIL_RETRY_DAILY_CAP) {
-      return dayStart + offsetInDay;
+      .bind(rangeStart, DAY_MS, rangeStart, rangeEnd)
+      .all<{ day_index: number; n: number }>();
+
+    const used = new Map<number, number>();
+    for (const row of rows.results || []) {
+      used.set(Number(row.day_index), Number(row.n));
+    }
+    for (let offset = 0; offset < rangeDays; offset++) {
+      if ((used.get(offset) ?? 0) < DETAIL_RETRY_DAILY_CAP) {
+        return rangeStart + offset * DAY_MS + offsetInDay;
+      }
     }
   }
-  return base + MAX_RETRY_DEFER_DAYS * DAY_MS;
+
+  // 兜底：10 年内每天排满的情况实际不存在，仍顺序给到下一个自然日而不是堆回同一天
+  return firstDayStart + MAX_DEFER_DAYS * DAY_MS + offsetInDay;
 }
 
 export interface JavDetailMeta {
