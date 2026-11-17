@@ -166,7 +166,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
           <div className="flex items-start gap-3">
             {bgm.cover && (
-              <ProxyImage src={normalizeImageUrl(bgm.cover)} alt={bgm.nameCN || bgm.name} className="w-16 h-22 rounded-lg object-cover shrink-0" />
+              <ProxyImage src={normalizeImageUrl(bgm.cover)} alt={bgm.nameCN || bgm.name} className="w-16 h-22 rounded-lg object-contain shrink-0" />
             )}
             <div className="flex-1 min-w-0 space-y-1">
               <h4 className="font-semibold text-stone-900 dark:text-stone-100">{bgm.nameCN || bgm.name}</h4>
@@ -241,7 +241,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
           <div className="flex items-start gap-3">
             {movie.poster && (
-              <ProxyImage src={normalizeImageUrl(movie.poster)} alt={movie.title} className="w-20 h-28 rounded-lg object-cover shrink-0" />
+              <ProxyImage src={normalizeImageUrl(movie.poster)} alt={movie.title} className="w-20 h-28 rounded-lg object-contain shrink-0" />
             )}
             <div className="flex-1 min-w-0 space-y-1">
               <h4 className="font-semibold text-stone-900 dark:text-stone-100">{movie.title}</h4>
@@ -319,7 +319,7 @@ const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         {mangaList.slice(0, 12).map((manga: any, idx: number) => (
           <div key={manga.id || idx} className="flex gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
             {manga.cover && (
-              <ProxyImage src={normalizeImageUrl(manga.cover)} alt={manga.title} className="w-12 h-16 rounded-md object-cover shrink-0" />
+              <ProxyImage src={normalizeImageUrl(manga.cover)} alt={manga.title} className="w-12 h-16 rounded-md object-contain shrink-0" />
             )}
             <div className="flex-1 min-w-0 space-y-1">
               <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 line-clamp-2">{manga.title}</h4>
@@ -355,7 +355,7 @@ const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
       {novels.slice(0, 10).map((novel: any, idx: number) => (
         <div key={novel.id || idx} className="flex gap-3 p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
           {novel.cover && (
-            <ProxyImage src={normalizeImageUrl(novel.cover)} alt={novel.title} className="w-12 h-16 rounded-md object-cover shrink-0" />
+            <ProxyImage src={normalizeImageUrl(novel.cover)} alt={novel.title} className="w-12 h-16 rounded-md object-contain shrink-0" />
           )}
           <div className="flex-1 min-w-0 space-y-1">
             <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 line-clamp-1">{novel.title}</h4>

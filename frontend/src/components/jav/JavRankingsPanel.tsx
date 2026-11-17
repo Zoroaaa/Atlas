@@ -30,10 +30,26 @@ export const pageActionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg 
 export const RankingRow: React.FC<{
   item: JavRankingEntry;
   onClick: (code: string) => void;
-}> = ({ item, onClick }) => {
+  /** stacked：移动端改为纵向卡片（封面、番号、标题各自独占一行），PC 端布局不变 */
+  mobileLayout?: 'row' | 'stacked';
+}> = ({ item, onClick, mobileLayout = 'row' }) => {
+  const stacked = mobileLayout === 'stacked';
+
   return (
-    <div className="group flex w-full items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50">
-      <div className="flex w-7 shrink-0 flex-col items-center">
+    <div
+      className={clsx(
+        'group flex w-full rounded-lg px-1.5 py-2.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50',
+        stacked
+          ? 'flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3 sm:px-2'
+          : 'items-center gap-2.5 sm:gap-3 sm:px-2'
+      )}
+    >
+      <div
+        className={clsx(
+          'flex w-7 shrink-0 flex-col items-center',
+          stacked && 'max-sm:order-2 max-sm:w-auto max-sm:flex-row max-sm:items-center max-sm:gap-1.5'
+        )}
+      >
         <span className={clsx('text-[13px] font-bold tabular-nums', RANK_COLORS[item.rank - 1] ?? 'text-surface-400')}>
           {item.rank}
         </span>
@@ -50,13 +66,20 @@ export const RankingRow: React.FC<{
           </span>
         ) : null}
       </div>
-      <div className="h-20 w-14 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
+      <div
+        className={clsx(
+          'shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800',
+          stacked
+            ? 'aspect-[3/2] w-full max-sm:order-1 sm:h-24 sm:w-36'
+            : 'h-20 w-28 sm:h-24 sm:w-36'
+        )}
+      >
         {item.cover ? (
           <ProxyImage
             src={getProxyImageUrl(item.cover)}
             alt={item.code}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-surface-400">
@@ -67,11 +90,14 @@ export const RankingRow: React.FC<{
       <button
         type="button"
         onClick={() => onClick(item.code)}
-        className="min-w-0 flex-1 text-left"
+        className={clsx(
+          'min-w-0 flex-1 text-left',
+          stacked && 'max-sm:flex max-sm:w-full max-sm:flex-none max-sm:flex-col'
+        )}
         title={item.title}
       >
-        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-surface-800 dark:text-surface-200">{item.title}</p>
-        <p className="type-micro mt-1 truncate font-semibold text-surface-500">{item.code}</p>
+        <p className={clsx('line-clamp-2 text-[13px] font-medium leading-snug text-surface-800 dark:text-surface-200', stacked && 'max-sm:order-2 max-sm:mt-1')}>{item.title}</p>
+        <p className={clsx('type-micro mt-1 truncate font-semibold text-surface-500', stacked && 'max-sm:order-1 max-sm:mt-0')}>{item.code}</p>
       </button>
     </div>
   );
@@ -86,6 +112,8 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
   const [page, setPage] = useState(1);
 
   const pageSize = layout === 'page' ? 15 : JAV_RANKINGS_PAGE_SIZE;
+  // 页面布局下移动端抵消外层卡片内边距，让榜单行贴近屏幕边缘，减少左右大片留白
+  const listClassName = layout === 'page' ? '-mx-5 space-y-0.5 sm:mx-0' : 'space-y-0.5 px-2 sm:px-0';
   const activeItems = data?.[period]?.[section] ?? [];
   const totalPages = Math.max(1, Math.ceil(activeItems.length / pageSize));
   const pageItems = activeItems.slice((page - 1) * pageSize, page * pageSize);
@@ -153,7 +181,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
           className="min-h-[160px] bg-transparent"
         />
       ) : (
-        <div className="space-y-0.5 px-2 sm:px-0">
+        <div className={listClassName}>
           {pageItems.map((item) => (
             <RankingRow key={`${period}-${section}-${item.code}`} item={item} onClick={onCodeClick} />
           ))}

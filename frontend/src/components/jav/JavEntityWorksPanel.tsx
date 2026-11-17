@@ -188,7 +188,7 @@ export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
                     <ProxyImage
                       src={getProxyImageUrl(item.cover)}
                       alt={item.code}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-surface-400">

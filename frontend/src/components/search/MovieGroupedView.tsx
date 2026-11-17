@@ -179,7 +179,7 @@ function GroupedMovieCard({
             <ProxyImage
               src={getProxyImageUrl(subject.poster)}
               alt={subject.title}
-              className="h-16 w-12 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+              className="h-16 w-12 rounded-[10px] bg-surface-100 object-contain dark:bg-surface-800"
               loading="lazy"
             />
           ) : (

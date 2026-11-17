@@ -17,6 +17,9 @@ import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
 import { JavActressList, JavTagButton, JAV_ENTITY_LINK_CLASS } from '@/components/jav/JavDetailShared';
 import { normalizeImageUrl } from '@/utils/imageProxy';
 
+/** 本地存档详情封面：始终按原图比例展示（object-contain），移动端铺满整行，PC 端限宽，高度随图片比例自适应 */
+const DETAIL_COVER_CLASS = 'w-full shrink-0 self-start rounded-[10px] bg-surface-100 object-contain dark:bg-surface-800 sm:w-[240px]';
+
 /**
  * 搜索历史 / 收藏点击后的详情卡片。
  *
@@ -234,7 +237,7 @@ const JavBody: React.FC<{
           <ProxyImage
             src={normalizeImageUrl(resolveUrl(record.cover, detailUrl))}
             alt={record.code || record.title}
-            className="h-auto w-[120px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+            className={DETAIL_COVER_CLASS}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -383,7 +386,7 @@ const AnimeBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
           <ProxyImage
             src={normalizeImageUrl(record.cover)}
             alt={record.title}
-            className="h-auto w-[120px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+            className={DETAIL_COVER_CLASS}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -474,7 +477,7 @@ const MovieBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
           <ProxyImage
             src={normalizeImageUrl(poster)}
             alt={record.title}
-            className="h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+            className={DETAIL_COVER_CLASS}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -548,7 +551,7 @@ const MangaBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
           <ProxyImage
             src={normalizeImageUrl(record.cover)}
             alt={record.title}
-            className="h-auto w-[120px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+            className={DETAIL_COVER_CLASS}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">
@@ -597,7 +600,7 @@ const NovelBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
           <ProxyImage
             src={normalizeImageUrl(record.cover)}
             alt={record.title}
-            className="h-auto w-[96px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+            className={DETAIL_COVER_CLASS}
           />
         ) : null}
         <div className="min-w-0 flex-1 space-y-1.5">

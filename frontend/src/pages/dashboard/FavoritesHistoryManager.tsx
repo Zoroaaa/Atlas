@@ -284,7 +284,7 @@ export const FavoritesManager: React.FC = () => {
                     <ProxyImage
                       src={getProxyImageUrl(resolveUrl(favorite.cover, favorite.url))}
                       alt={favorite.title}
-                      className="w-28 h-20 sm:w-36 sm:h-24 object-cover rounded-md flex-shrink-0"
+                      className="w-28 h-20 sm:w-36 sm:h-24 object-contain rounded-md flex-shrink-0"
                     />
                   ) : favorite.icon ? (
                     <img src={favorite.icon} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain flex-shrink-0" loading="lazy" />
@@ -763,7 +763,7 @@ export const HistoryManager: React.FC = () => {
                     key={item.id}
                     className="flex flex-col gap-3 p-4 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
                       {/* 16px 复选框外面套 44px 命中区，触屏可点 */}
                       <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
                         <input
@@ -777,29 +777,45 @@ export const HistoryManager: React.FC = () => {
                         <ProxyImage
                           src={getProxyImageUrl(resolveUrl(item.cover, 'https://www.javbus.com'))}
                           alt={item.title || item.query}
-                          className="h-20 w-14 shrink-0 rounded-md object-cover"
+                          className="h-20 w-28 shrink-0 rounded-md object-contain sm:h-24 sm:w-36"
                         />
                       ) : (
-                        <div className="flex h-20 w-14 shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-400 dark:bg-surface-800">
+                        <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-md bg-surface-100 text-surface-400 sm:h-24 sm:w-36 dark:bg-surface-800">
                           <Search className="h-4 w-4" />
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="ml-auto flex items-center gap-2 shrink-0 sm:order-last sm:ml-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {/* 移动端整行独占：封面单独一行，标题换行独立展示 */}
+                      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           {item.code && (
-                            <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0 max-w-[12rem] truncate" title={item.code}>
+                            <span className="hidden text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0 max-w-[12rem] truncate sm:block" title={item.code}>
                               {item.code}
                             </span>
                           )}
                           <button
                             type="button"
                             onClick={() => setDetail({ type: item.source, code: item.code, title: item.title || item.query })}
-                            className="text-left font-medium text-surface-900 hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-300"
+                            className="block w-full text-left font-medium text-surface-900 hover:text-primary-600 dark:text-surface-100 dark:hover:text-primary-300 sm:inline sm:w-auto"
                           >
                             {item.title || item.query}
                           </button>
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-surface-500 dark:text-surface-400 mt-1 flex-wrap">
+                        <div className="flex items-center gap-x-3 gap-y-1 text-sm text-surface-500 dark:text-surface-400 mt-1 flex-wrap">
+                          {item.code && (
+                            <span className="text-xs font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1.5 py-0.5 rounded flex-shrink-0 max-w-[12rem] truncate sm:hidden" title={item.code}>
+                              {item.code}
+                            </span>
+                          )}
                           <span>{formatDate(item.createdAt)}</span>
                           {item.resultsCount !== undefined && (
                             <span className="px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded">
@@ -811,20 +827,10 @@ export const HistoryManager: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-error-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
                     </div>
 
                     {(item.subtitle || item.actors || item.duration || item.releaseDate || item.publisher || item.tags) && (
-                      <div className="space-y-1.5 pl-10">
+                      <div className="space-y-1.5 pl-0 sm:pl-10">
                         {item.subtitle && (
                           <p className="text-xs text-surface-500 truncate">{item.subtitle}</p>
                         )}

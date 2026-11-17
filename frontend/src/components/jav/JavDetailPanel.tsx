@@ -525,7 +525,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
                   setCoverLandscape(img.naturalWidth > img.naturalHeight);
                 }}
                 className={clsx(
-                  'h-auto shrink-0 rounded-[10px] bg-surface-100 dark:bg-surface-800',
+                  'h-auto shrink-0 self-start object-contain rounded-[10px] bg-surface-100 dark:bg-surface-800',
                   coverLandscape ? 'w-full max-w-2xl' : 'w-[96px] sm:w-[136px]'
                 )}
               />

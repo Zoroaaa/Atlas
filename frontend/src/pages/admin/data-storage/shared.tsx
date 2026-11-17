@@ -334,7 +334,7 @@ export const RecordCard: React.FC<{
             src={getProxyImageUrl(record.cover)}
             alt={record.title}
             loading="lazy"
-            className="h-[5.5rem] w-16 object-cover rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
+            className="h-[5.5rem] w-16 object-contain rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
           />
         ) : (
           <div className="w-16 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0" style={{ height: '5.5rem' }}>

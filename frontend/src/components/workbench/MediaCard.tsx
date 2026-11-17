@@ -65,7 +65,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       loading="lazy"
       className={clsx(
         'w-full rounded-[10px]',
-        isAuto ? 'h-auto' : 'h-full object-cover',
+        isAuto ? 'h-auto' : 'h-full object-contain',
         isRow ? 'bg-surface-200 dark:bg-surface-700' : ''
       )}
     />

@@ -79,15 +79,15 @@ export const RecordDetailModal: React.FC<RecordDetailModalProps> = ({
       ) : detail ? (
         <div className="space-y-5">
           {/* 头部：封面 + 基础信息 */}
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             {detail.cover ? (
               <ProxyImage
                 src={getProxyImageUrl(detail.cover)}
                 alt={detail.title}
-                className="w-24 h-32 object-cover rounded-lg bg-surface-100 dark:bg-surface-700 shrink-0"
+                className="w-full shrink-0 self-start object-contain rounded-lg bg-surface-100 dark:bg-surface-700 sm:w-48"
               />
             ) : (
-              <div className="w-24 h-32 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0">
+              <div className="flex aspect-video w-full shrink-0 self-start items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700 sm:w-48">
                 <Film className="w-8 h-8 text-surface-300 dark:text-surface-600" />
               </div>
             )}

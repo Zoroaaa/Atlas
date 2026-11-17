@@ -59,7 +59,7 @@ function ActressCard({ item, isAuthenticated, isProxyEnabled, onLoginRequired }:
         <ProxyImage
           src={imgSrc}
           alt={item.name}
-          className="h-20 w-16 shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800"
+          className="h-20 w-16 shrink-0 rounded-[10px] bg-surface-100 object-contain dark:bg-surface-800"
         />
       ) : null}
 

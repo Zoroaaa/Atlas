@@ -134,7 +134,7 @@ export const ShareToCommunityModal: React.FC<ShareToCommunityModalProps> = ({
                 <ProxyImage
                   src={normalizeImageUrl(initialData.coverImage)}
                   alt={initialData.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

@@ -185,7 +185,7 @@ export const SearchHistoryPanel: React.FC<SearchHistoryPanelProps> = ({
                               <ProxyImage
                                 src={getProxyImageUrl(resolveCoverUrl(item.cover))}
                                 alt={item.title || item.query}
-                                className="h-14 w-10 shrink-0 rounded-md bg-surface-100 object-cover"
+                                className="h-14 w-10 shrink-0 rounded-md bg-surface-100 object-contain"
                               />
                             ) : (
                               <Search className="h-3.5 w-3.5 shrink-0 text-surface-400" />

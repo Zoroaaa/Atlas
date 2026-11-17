@@ -34,6 +34,8 @@ export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick, lay
   const { data, isLoading, error, refresh } = useJavTop250(section, year);
 
   const pageSize = layout === 'page' ? 20 : JAV_TOP250_PAGE_SIZE;
+  // 页面布局下移动端抵消外层卡片内边距，让榜单行贴近屏幕边缘，减少左右大片留白
+  const listClassName = layout === 'page' ? '-mx-5 space-y-0.5 sm:mx-0' : 'space-y-0.5 px-2 sm:px-0';
   const items = data?.items ?? [];
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const pageItems = items.slice((page - 1) * pageSize, page * pageSize);
@@ -115,9 +117,9 @@ export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick, lay
           className="min-h-[160px] bg-transparent"
         />
       ) : (
-        <div className="space-y-0.5 px-2 sm:px-0">
+        <div className={listClassName}>
           {pageItems.map((item) => (
-            <RankingRow key={`${section}-${year ?? 'all'}-${item.code}`} item={item} onClick={onCodeClick} />
+            <RankingRow key={`${section}-${year ?? 'all'}-${item.code}`} item={item} onClick={onCodeClick} mobileLayout="stacked" />
           ))}
         </div>
       )}

@@ -395,7 +395,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
                     src={getProxyImageUrl((selectedItem.backdrop ?? selectedItem.poster)!)}
                     alt={selectedItem.title}
                     loading="lazy"
-                    className="hidden h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-cover dark:bg-surface-800 sm:block"
+                    className="hidden h-24 w-[168px] shrink-0 rounded-[10px] bg-surface-100 object-contain dark:bg-surface-800 sm:block"
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">

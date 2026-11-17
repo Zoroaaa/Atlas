@@ -125,7 +125,7 @@ export const FavoritesPanel: React.FC<FavoritesPanelProps> = ({
                       <ProxyImage
                         src={cover}
                         alt={item.title}
-                        className="h-[76px] w-14 shrink-0 rounded-md bg-surface-100 object-cover"
+                        className="h-[76px] w-14 shrink-0 rounded-md bg-surface-100 object-contain"
                       />
                     ) : item.icon ? (
                       <img src={item.icon} alt="" className="h-10 w-10 shrink-0 rounded-lg object-contain" loading="lazy" />
