@@ -1,6 +1,6 @@
 # 客户端打包与签名
 
-> 适用版本：v1.8.0+
+> 适用版本：v1.9.0+
 > 覆盖 Windows（Electron）与 Android（Capacitor）两个客户端壳：版本号来源、签名配置、发版流程与已知限制。
 
 ---
@@ -34,7 +34,7 @@
 | Windows | `desktop/package.json` 必须与根一致；`npm run dist` 先执行 `check-version`，不一致直接失败 |
 | Android | CI 读取根版本注入 `versionName`；`versionCode = 主 * 10000 + 次 * 100 + 修订` |
 
-当前 `1.8.0` 对应 `versionCode 10800`。`versionCode` 必须单调递增，不能回退，否则无法覆盖安装。
+当前 `1.9.0` 对应 `versionCode 10900`。`versionCode` 必须单调递增，不能回退，否则无法覆盖安装。
 
 注入逻辑在 `mobile/scripts/prepare-android.mjs`，在 `npx cap add android` 之后执行，重复运行不会重复插入签名配置。
 

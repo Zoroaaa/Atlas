@@ -32,7 +32,7 @@ systemRoutes.get('/public-config', async (c) => {
     ]);
 
     return c.json(success({
-      appVersion: c.env.APP_VERSION || '1.8.0',
+      appVersion: c.env.APP_VERSION || '1.9.0',
       siteName,
       siteDescription,
       allowRegistration: enableRegistration,

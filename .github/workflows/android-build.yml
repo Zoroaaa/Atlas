@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: '目标 Release 标签（如 v1.8.0）；留空则只构建不上传'
+        description: '目标 Release 标签（如 v1.9.0）；留空则只构建不上传'
         required: false
         type: string
       upload:

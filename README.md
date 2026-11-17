@@ -7,7 +7,7 @@
 **An open-source search engine that aggregates content across categories — JAV, anime, movies, comics, and novels, all in one place.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
+[![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)](https://github.com/Zoroaaa/Atlas)
 [![Cloudflare](https://img.shields.io/badge/Powered%20by-Cloudflare-orange.svg)](https://www.cloudflare.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript-green.svg)](/)
 [![Backend](https://img.shields.io/badge/Backend-Hono%20%2B%20TypeScript-blue.svg)](/)
@@ -22,7 +22,7 @@
 ## Table of Contents
 
 - [Quick Access](#-quick-access)
-- [v1.8.0 Highlights](#v180-highlights)
+- [v1.9.0 Highlights](#v190-highlights)
 - [Project Documentation](#-project-documentation)
 - [Project Features](#-project-features)
 - [Technology Stack Overview](#️-technology-stack-overview)
@@ -43,14 +43,14 @@
 
 </div>
 
-## v1.8.0 Highlights
+## v1.9.0 Highlights
 
-- **Multilingual query resolution**: Chinese, Japanese, English and romanized titles resolve to the same work through a shared alias table; each source is queried in its own indexing language, and the admin console gains alias ingestion and review.
-- **Follow any entity**: Directors, studios, publishers, series and tags can be followed alongside actresses; the follow feed filters by target and searches across everything you follow by keyword.
-- **Entity browsing from JAV details**: Click a director, studio, publisher, series or tag on a detail card to browse their works, and the returned list is written back to the local library.
-- **Local library detail cards**: Any history or favorite entry opens its local detail card, and every cover across the site zooms on click or keyboard.
-- **Admin data operations**: The data storage console filters transient failures, retries or completes single records, resets source-missing counters, and caps the 30-day retry queue per day.
-- **Faster, steadier data**: Cached panel polling, single-pass statistics, snapshot caches and new indexes cut D1 reads sharply; rankings import, magnet detection and the four media search paths were reworked.
+- **Streamlined mobile home**: search, account entries and discover entries only; full lists move to dedicated pages, cutting the home from about 7 screens to 1.5.
+- **Global desktop sidebar**: search, discover, dashboard, community and admin share one accordion sidebar with a single expanded group; the avatar menu keeps only account and preference actions.
+- **Discover pages**: recommended, recently hot, TOP250, tags and actresses each get a dedicated page with a shared header, white card and labelled actions.
+- **Library-first media clicks**: clicking a work on discover or the follow feed checks the local library first; magnets open the detail, otherwise users get search or JavBus refresh actions.
+- **History aligned with favorites**: covers, local detail cards and no redundant per-row search button.
+- **Rankings and retry governance**: TOP250 and ranking archives retain daily snapshots; 30-day retries spread across Asia/Shanghai calendar days.
 
 ## Project Documentation
 
@@ -62,7 +62,7 @@ The project uses a modular documentation system, where each specialized document
 |----------|------|------|
 | **Configuration Documentation** | Frontend configuration, backend configuration, environment variables, proxy services, database configuration, role permission configuration | [docs/config.md](docs/config.md) |
 | **Deployment Guide** | Environment requirements, local development, backend deployment, frontend deployment, database configuration, FAQ | [docs/deploy.md](docs/deploy.md) |
-| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment), **v1.8.0 (multilingual query aliases + entity follows + local library detail cards + D1 read reduction)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Version Changelog** | Complete version change records: v1.0.0 (first public release), v1.1.0 (anime & movie search + architecture upgrade), v1.2.0 (comic search + architecture optimization), v1.3.0 (novel search + aggregation view + observability), v1.4.0 (JAV actress search + data storage management + community improvements), v1.5.0 (unified workbench + trilingual i18n + rankings & recommendations), v1.6.0 (help center + unified notification inbox + email delivery), v1.7.0 (library-first JAV search + tag recommendations + PWA/mobile + single-Worker deployment), v1.8.0 (multilingual query aliases + entity follows + local library detail cards + D1 read reduction), **v1.9.0 (streamlined mobile home + global desktop sidebar + discover pages + library-first clicks)** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | **GitHub Push Guide** | Git operation process, submission specifications, branch management, GitHub Actions automatic deployment configuration | [docs/github_push.md](docs/github_push.md) |
 | **Client Packaging & Signing** | Windows/Android client shells, version numbering rules, Android/Windows signing keys, release flow | [docs/app-packaging.md](docs/app-packaging.md) |
 
@@ -398,7 +398,7 @@ npm run deploy --workspace=backend
 
 [See Detailed Deployment Guide](docs/deploy.md)
 [See Configuration Instructions](docs/config.md)
-[See v1.8.0 Changelog](docs/CHANGELOG.md)
+[See v1.9.0 Changelog](docs/CHANGELOG.md)
 
 ## Performance Optimization
 
