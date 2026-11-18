@@ -358,8 +358,9 @@ export async function listRankingEntries(
 ): Promise<{ items: RankingArchiveEntry[]; total: number }> {
   const { where, params } = buildFilters(input);
   const search = (input.search || '').trim();
+  // 无其它筛选时 where 为空，搜索条件必须自带 WHERE，否则会拼出「... JOIN ... AND ...」的非法 SQL
   const searchWhere = search
-    ? `AND (e.code LIKE ? OR COALESCE(d.title, e.title) LIKE ?)`
+    ? `${where ? 'AND' : 'WHERE'} (e.code LIKE ? OR COALESCE(d.title, e.title) LIKE ?)`
     : '';
   const searchParams = search ? [`%${search}%`, `%${search}%`] : [];
 
