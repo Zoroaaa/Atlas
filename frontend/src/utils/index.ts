@@ -12,4 +12,6 @@ export {
 
 export { getProxyImageUrl } from './imageProxy';
 
+export { decodeJwtPayload, type JwtPayload } from './jwt';
+
 export { camelizeKeys, type CamelCaseKeys } from '@codeseek/shared/utils';

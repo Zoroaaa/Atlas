@@ -1,7 +1,8 @@
 /**
  * 邮箱验证服务：验证码生成/校验、邮箱更改请求与验证邮件的编排。
  *
- * 约束：校验只比对 code_hash，但明文验证码同样落库（email_verifications.verification_code）；
+ * 约束：明文验证码只存在内存与邮件正文里，库中仅存 code_hash；
+ * email_verifications.verification_code 是历史 NOT NULL 列，新记录写空串占位。
  * 重发与发送频率统一由 email-sender 限流。
  */
 import { Env } from '@/types';
@@ -287,7 +288,8 @@ export class EmailVerificationService {
         userId,
         email,
         emailHash,
-        verificationCode,
+        // 历史列仍为 NOT NULL：写空串占位，校验只看 code_hash
+        '',
         codeHash,
         verificationType,
         'pending',
@@ -320,7 +322,8 @@ export class EmailVerificationService {
     const latest = await this.env.DB.prepare(
       `SELECT id, attempt_count, max_attempts, expires_at
        FROM email_verifications
-       WHERE email_hash = ? AND verification_type = ? AND status = 'pending'${userFilter}
+       WHERE email_hash = ? AND verification_type = ?
+         AND status = 'pending' AND used_at IS NULL${userFilter}
        ORDER BY created_at DESC LIMIT 1`
     )
       .bind(emailHash, verificationType, ...userBinds)
@@ -345,7 +348,8 @@ export class EmailVerificationService {
       .first<{ id: string; metadata: string }>();
 
     if (!matched) {
-      await this.recordFailedAttempt(emailHash, inputCode, verificationType);
+      // 只累加当前这条验证码的失败次数，避免同邮箱历史 pending 记录被一起惩罚
+      await this.recordFailedAttempt(latest.id);
       throw new Error('验证码无效或已过期');
     }
 
@@ -364,17 +368,13 @@ export class EmailVerificationService {
     };
   }
 
-  private async recordFailedAttempt(
-    emailHash: string,
-    _inputCode: string,
-    verificationType: string
-  ): Promise<void> {
+  private async recordFailedAttempt(verificationId: string): Promise<void> {
     await this.env.DB.prepare(
-      `UPDATE email_verifications 
+      `UPDATE email_verifications
        SET attempt_count = attempt_count + 1, last_attempt_at = ?
-       WHERE email_hash = ? AND verification_type = ? AND status = 'pending'`
+       WHERE id = ? AND status = 'pending'`
     )
-      .bind(Date.now(), emailHash, verificationType)
+      .bind(Date.now(), verificationId)
       .run();
   }
 
@@ -398,7 +398,8 @@ export class EmailVerificationService {
     const latest = await this.env.DB.prepare(
       `SELECT id, attempt_count, max_attempts, expires_at
        FROM email_verifications
-       WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}
+       WHERE email = ? AND verification_type = ?
+         AND status = 'pending' AND used_at IS NULL${userFilter}
        ORDER BY created_at DESC LIMIT 1`
     )
       .bind(params.email, params.type, ...userBinds)
@@ -411,43 +412,40 @@ export class EmailVerificationService {
     const maxAttempts = latest.max_attempts || 3;
 
     if (latest.expires_at <= now) {
-      await this.expirePendingVerifications(params.email, params.type, params.userId);
+      await this.expireVerificationById(latest.id);
       return { success: false, reason: 'expired' };
     }
 
     if ((latest.attempt_count || 0) >= maxAttempts) {
-      await this.expirePendingVerifications(params.email, params.type, params.userId);
+      await this.expireVerificationById(latest.id);
       return { success: false, reason: 'max_attempts' };
     }
 
     const matched = await this.env.DB.prepare(
       `SELECT id FROM email_verifications
-       WHERE email_hash = ? AND code_hash = ? AND verification_type = ?
-       AND status = 'pending' AND expires_at > ?${userFilter}
-       ORDER BY created_at DESC LIMIT 1`
+       WHERE id = ? AND code_hash = ?
+         AND status = 'pending' AND used_at IS NULL AND expires_at > ?`
     )
-      .bind(await hashToken(params.email), await hashToken(params.code), params.type, now, ...userBinds)
+      .bind(latest.id, await hashToken(params.code), now)
       .first<{ id: string }>();
 
     if (!matched) {
-      await this.env.DB.prepare(
+      // 只对当前这条验证码累加尝试次数：旧实现按 email 批量 +1，
+      // 会让同邮箱其他 pending 记录被连带锁定。
+      const updated = await this.env.DB.prepare(
         `UPDATE email_verifications
          SET attempt_count = attempt_count + 1, last_attempt_at = ?
-         WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
+         WHERE id = ? AND status = 'pending'`
       )
-        .bind(now, params.email, params.type, ...userBinds)
+        .bind(now, latest.id)
         .run();
 
-      const after = await this.env.DB.prepare(
-        `SELECT MAX(attempt_count) AS max_count
-         FROM email_verifications
-         WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
-      )
-        .bind(params.email, params.type, ...userBinds)
-        .first<{ max_count: number | null }>();
+      if ((updated.meta?.changes ?? 0) === 0) {
+        return { success: false, reason: 'invalid' };
+      }
 
-      if ((after?.max_count || 0) >= maxAttempts) {
-        await this.expirePendingVerifications(params.email, params.type, params.userId);
+      if ((latest.attempt_count || 0) + 1 >= maxAttempts) {
+        await this.expireVerificationById(latest.id);
         return { success: false, reason: 'max_attempts' };
       }
 
@@ -463,20 +461,14 @@ export class EmailVerificationService {
     return { success: true, verificationId: matched.id };
   }
 
-  /** 将待用验证码置为过期（超过尝试次数或已过期时） */
-  private async expirePendingVerifications(
-    email: string,
-    type: VerificationType,
-    userId?: string | null
-  ): Promise<void> {
-    const userFilter = userId ? ' AND user_id = ?' : '';
-    const binds: string[] = userId ? [userId] : [];
+  /** 将单条待用验证码置为过期（超过尝试次数或已过期时） */
+  private async expireVerificationById(verificationId: string): Promise<void> {
     await this.env.DB.prepare(
       `UPDATE email_verifications
        SET status = 'expired'
-       WHERE email = ? AND verification_type = ? AND status = 'pending'${userFilter}`
+       WHERE id = ? AND status = 'pending'`
     )
-      .bind(email, type, ...binds)
+      .bind(verificationId)
       .run();
   }
 

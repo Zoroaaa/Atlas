@@ -486,6 +486,17 @@ export interface ConfigGroup {
   updated_at: number;
 }
 
+/** OAuth 一次性登录票据（只存 code 摘要，明文 code 仅在 302 Location 中出现一次） */
+export interface OAuthLoginCode {
+  code_hash: string;
+  user_id: string;
+  provider: string;
+  expires_at: number;
+  created_at: number;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
 /** JWT 载荷；iat/exp 单位为秒（jose 约定），与库里其他毫秒时间戳不同 */
 export interface JwtPayload {
   userId: string;

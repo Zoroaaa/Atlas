@@ -81,6 +81,11 @@ export const cancelEmailChangeRequestSchema = z.object({
   requestId: z.string().min(1, '请求ID不能为空'),
 });
 
+/** OAuth 回调一次性票据兑换：code 为 64 位 hex，必须原样回传 */
+export const exchangeOAuthCodeSchema = z.object({
+  code: z.string().regex(/^[a-f0-9]{64}$/i, '登录凭证无效'),
+});
+
 export type LoginRequest = z.infer<typeof loginSchema>;
 export type RegisterRequest = z.infer<typeof registerSchema>;
 export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
@@ -93,3 +98,4 @@ export type EmailChangeRequest = z.infer<typeof requestEmailChangeSchema>;
 export type VerifyEmailChangeCodeRequest = z.infer<typeof verifyEmailChangeCodeSchema>;
 export type SendEmailChangeCodeRequest = z.infer<typeof sendEmailChangeCodeSchema>;
 export type CancelEmailChangeRequest = z.infer<typeof cancelEmailChangeRequestSchema>;
+export type ExchangeOAuthCodeRequest = z.infer<typeof exchangeOAuthCodeSchema>;

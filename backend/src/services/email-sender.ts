@@ -3,7 +3,7 @@
  *
  * 通道按管理端优先级依次尝试，跳过停用/未配置/超日限额的服务商；各服务商使用独立子域发件地址。
  */
-import { generateId, hashToken } from '@/utils';
+import { generateId, hashToken, checkRateLimitD1 } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from './config';
 import type { Env } from '@/types';
@@ -297,20 +297,41 @@ function startOfDayCst(now = Date.now()): number {
   return Math.floor((now + offset) / CONFIG.Stats.DAY_IN_MS) * CONFIG.Stats.DAY_IN_MS - offset;
 }
 
-/** 统计某服务商今天已成功发送的邮件数 */
-async function countProviderSentToday(env: Env, provider: EmailProvider): Promise<number> {
+/** 当日配额键：按服务商 + 中国时区日期分桶，跨实例共享 */
+function dailyQuotaKey(provider: EmailProvider, now = Date.now()): string {
+  return `email:daily:${provider}:${Math.floor((now + 8 * 60 * 60 * 1000) / CONFIG.Stats.DAY_IN_MS)}`;
+}
+
+/** 距当日 24:00（CST）的毫秒数，作为配额窗口长度 */
+function msUntilEndOfDayCst(now = Date.now()): number {
+  return Math.max(1, startOfDayCst() + CONFIG.Stats.DAY_IN_MS - now);
+}
+
+/**
+ * 原子占用一个当日配额。
+ * 用 rate_limits 计数而不是「查日志再发送」：并发下日志还没写入，多个请求会同时通过。
+ * 失败时释放（DECR），避免把失败尝试算进限额。
+ */
+async function reserveDailyQuota(env: Env, setting: EmailProviderSetting): Promise<boolean> {
+  if (setting.dailyLimit <= 0) return true;
+  const result = await checkRateLimitD1(
+    env.DB,
+    dailyQuotaKey(setting.provider),
+    msUntilEndOfDayCst(),
+    setting.dailyLimit,
+  );
+  return result.allowed;
+}
+
+async function releaseDailyQuota(env: Env, provider: EmailProvider): Promise<void> {
   try {
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) as count FROM email_send_logs
-       WHERE provider = ? AND send_status = 'sent' AND created_at >= ?`
+    await env.DB.prepare(
+      'UPDATE rate_limits SET count = MAX(0, count - 1) WHERE id = ?'
     )
-      .bind(provider, startOfDayCst())
-      .first<{ count: number }>();
-    return row?.count ?? 0;
+      .bind(dailyQuotaKey(provider))
+      .run();
   } catch (err) {
-    // 限额统计失败不阻断发信
-    console.warn('[email] provider daily usage read failed:', err);
-    return 0;
+    console.warn('[email] provider daily quota release failed:', err);
   }
 }
 
@@ -343,12 +364,9 @@ export async function sendEmail(env: Env, email: OutgoingEmail): Promise<SendRes
       attempts.push(`${setting.provider}: 未配置`);
       continue;
     }
-    if (setting.dailyLimit > 0) {
-      const used = await countProviderSentToday(env, setting.provider);
-      if (used >= setting.dailyLimit) {
-        attempts.push(`${setting.provider}: 今日已达限额 ${setting.dailyLimit}`);
-        continue;
-      }
+    if (!await reserveDailyQuota(env, setting)) {
+      attempts.push(`${setting.provider}: 今日已达限额 ${setting.dailyLimit}`);
+      continue;
     }
 
     const result = await dispatchToProvider(env, setting.provider, email);
@@ -358,6 +376,8 @@ export async function sendEmail(env: Env, email: OutgoingEmail): Promise<SendRes
       }
       return result;
     }
+    // 本次未发出，归还刚占用的配额，避免失败重试把当日额度耗光
+    await releaseDailyQuota(env, setting.provider);
     attempts.push(`${setting.provider}: ${result.error}`);
   }
 

@@ -7,6 +7,7 @@
 
 import { getHtml, normalizeJavbusUrl, parseActressList, parseGrid, type JavItem } from '@/services/jav-utils';
 import { normalizeActressKeyword } from '@/services/actress-name-map';
+import { mapWithConcurrency } from '@/utils';
 
 const JAVBUS_BASE = 'https://www.javbus.com';
 
@@ -116,6 +117,10 @@ function parseStarProfile(
 /** 最多抓取的女优资料页数量：列表页可能命中大量同名条目，只取前 N 个。 */
 const MAX_DETAIL_FETCH = 10;
 
+/** 资料页并发与基础间隔：JavBus 对突发请求敏感，10 个页面不能一次性并发打出去 */
+const DETAIL_FETCH_CONCURRENCY = 3;
+const DETAIL_FETCH_GAP_MS = 120;
+
 /**
  * 搜索女优：/searchstar/ 取列表 → 并发抓前 N 个 star 页资料块
  *
@@ -140,16 +145,21 @@ export async function fetchActresses(
   const list = parseActressList(html, MAX_DETAIL_FETCH);
   if (list.length === 0) return []; // 真实未匹配
 
-  const results = await Promise.allSettled(
-    list.map(entry => {
-      const detailUrl = `${JAVBUS_BASE}/star/${entry.key}`;
-      return getHtml(detailUrl, 10000).then(h => parseStarProfile(h, entry, detailUrl));
-    })
-  );
+  const fetched = await mapWithConcurrency(list, DETAIL_FETCH_CONCURRENCY, async (entry, index) => {
+    const detailUrl = `${JAVBUS_BASE}/star/${entry.key}`;
+    // 按序错开首次请求；并发度已由 mapWithConcurrency 限制
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, DETAIL_FETCH_GAP_MS));
+    try {
+      const html = await getHtml(detailUrl, 10000);
+      return parseStarProfile(html, entry, detailUrl);
+    } catch {
+      return null;
+    }
+  });
 
-  return results.map((r, i) => {
-    if (r.status === 'fulfilled' && r.value) return r.value;
-    // 资料页抓取失败，退化为列表项（只有 name + 头像 + 链接）
+  // 资料页抓取失败，退化为列表项（只有 name + 头像 + 链接），不影响整次搜索
+  return fetched.map((profile, i) => {
+    if (profile) return profile;
     const entry = list[i];
     const detailUrl = `${JAVBUS_BASE}/star/${entry.key}`;
     return { id: entry.key, name: entry.name, cover: entry.cover, detailUrl };

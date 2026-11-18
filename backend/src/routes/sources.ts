@@ -7,13 +7,35 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, SearchSource, SearchSourceCategory, MajorCategory, UserSearchSourceConfig } from '@/types';
-import { success, error, generateId } from '@/utils';
+import { success, error, generateId, escapeLikePattern } from '@/utils';
 import { cached, invalidateCache } from '@/utils/cache';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { VALIDATION_RULES } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 
 const R = VALIDATION_RULES;
+
+// ── 导出单元格转义 ─────────────────────────────────────
+
+/** Excel 会执行以这些字符开头的单元格，导出前必须前置单引号阻断公式 */
+const CSV_FORMULA_PREFIX = /^[=+\-@\t\r]/;
+
+/** CSV 单元格：先阻断公式注入，再按 RFC 4180 转义引号 */
+function csvCell(value: unknown): string {
+  let text = String(value ?? '');
+  if (CSV_FORMULA_PREFIX.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+/** OPML 属性值：名称/URL 来自用户输入，必须转义 XML 实体 */
+function xmlAttr(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
 export const sourceRoutes = new Hono<{ Bindings: Env }>();
 
@@ -165,8 +187,13 @@ sourceRoutes.get('/popular', async (c) => {
   const user = c.get('user');
   
   try {
-    const limit = parseInt(c.req.query('limit') || String(R.PAGINATION.DEFAULT_PAGE_SIZE), 10);
-    
+    // limit 必须收敛：直接进 SQL 的 LIMIT 不设上限时可被放大成全表扫描
+    const rawLimit = parseInt(c.req.query('limit') || String(R.PAGINATION.DEFAULT_PAGE_SIZE), 10);
+    const limit = Math.min(
+      Math.max(1, Number.isFinite(rawLimit) ? rawLimit : R.PAGINATION.DEFAULT_PAGE_SIZE),
+      R.PAGINATION.MAX_PAGE_SIZE
+    );
+
     const sources = await c.env.DB.prepare(`
       SELECT * FROM search_sources 
       WHERE is_active = 1 AND searchable = 1 AND (is_system = 1 OR created_by = ?)
@@ -193,13 +220,14 @@ sourceRoutes.get('/search', async (c) => {
 
   try {
     // 名称模糊搜索固定上限 20 条：LIKE 无法走索引，避免返回量放大成额外开销
+    const pattern = `%${escapeLikePattern(keyword)}%`;
     const sources = await c.env.DB.prepare(`
       SELECT * FROM search_sources 
       WHERE is_active = 1 AND searchable = 1 AND (is_system = 1 OR created_by = ?)
-      AND (name LIKE ? OR description LIKE ? OR subtitle LIKE ?)
+      AND (name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR subtitle LIKE ? ESCAPE '\\')
       ORDER BY search_priority DESC, usage_count DESC
       LIMIT 20
-    `).bind(user.userId, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`).all<SearchSource>();
+    `).bind(user.userId, pattern, pattern, pattern).all<SearchSource>();
 
     return c.json(success({
       sources: sources.results || [],
@@ -353,7 +381,7 @@ sourceRoutes.get('/export', async (c) => {
         s.searchable ? '是' : '否'
       ]);
 
-      const csv = [headers.join(','), ...rows.map(r => r.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))].join('\n');
+      const csv = [headers.map(csvCell).join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n');
 
       return new Response(csv, {
         headers: {
@@ -371,7 +399,7 @@ sourceRoutes.get('/export', async (c) => {
     <dateCreated>${new Date().toISOString()}</dateCreated>
   </head>
   <body>
-${sourcesList.map(s => `    <outline type="link" text="${s.name}" htmlUrl="${s.url_template}" description="${s.subtitle || ''}" category="${s.category_name || ''}"/>`).join('\n')}
+${sourcesList.map(s => `    <outline type="link" text="${xmlAttr(s.name)}" htmlUrl="${xmlAttr(s.url_template)}" description="${xmlAttr(s.subtitle)}" category="${xmlAttr(s.category_name)}"/>`).join('\n')}
   </body>
 </opml>`;
 
@@ -526,8 +554,9 @@ sourceRoutes.get('/catalog', async (c) => {
     const params: (string | number)[] = [user.userId, user.userId];
 
     if (keyword) {
-      conditions.push('(s.name LIKE ? OR s.subtitle LIKE ? OR s.description LIKE ?)');
-      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+      const pattern = `%${escapeLikePattern(keyword)}%`;
+      conditions.push("(s.name LIKE ? ESCAPE '\\' OR s.subtitle LIKE ? ESCAPE '\\' OR s.description LIKE ? ESCAPE '\\')");
+      params.push(pattern, pattern, pattern);
     }
     if (majorCategoryId) {
       conditions.push('c.major_category_id = ?');
@@ -1341,10 +1370,8 @@ sourceRoutes.delete('/:id', async (c) => {
       'UPDATE search_sources SET is_active = 0, updated_at = ? WHERE id = ?'
     ).bind(Date.now(), sourceId).run();
 
-    await c.env.DB.prepare(
-      'DELETE FROM user_search_source_configs WHERE source_id = ?'
-    ).bind(sourceId).run();
-
+    // 保留用户配置：列表查询都带 ss.is_active = 1，停用源的配置不会展示；
+    // 直接物理删除会让「源恢复启用」时用户的自定义名称/备注全部丢失。
     return c.json(success(null, '搜索源已删除'));
   } catch (err) {
     console.error('Delete source error:', err);

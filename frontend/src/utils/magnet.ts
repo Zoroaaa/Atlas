@@ -83,7 +83,8 @@ export async function downloadTorrentFile(
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const resp = await fetch(backendUrl, { credentials: 'include', headers });
+    // 与 apiClient 保持一致：鉴权走 Authorization 头，不携带跨域 Cookie
+    const resp = await fetch(backendUrl, { credentials: 'omit', headers });
     if (resp.ok) {
       const blob = await resp.blob();
       triggerDownload(blob, name + '.torrent');

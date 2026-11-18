@@ -5,7 +5,7 @@
  */
 import { Hono, Context, Next } from 'hono';
 import { Env, JwtPayload } from '@/types';
-import { success, error, verifyToken, generateId, logUserAction } from '@/utils';
+import { success, error, verifyToken, generateId, logUserAction, escapeLikePattern } from '@/utils';
 import { feedbackSchema } from '@/utils/validators';
 import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
@@ -103,8 +103,9 @@ feedbackRoutes.get('/my', async (c) => {
   const user = c.get('user') as JwtPayload | undefined;
   if (!user) return c.json(error('AUTH_ERROR', '请先登录'), 401);
 
-  const page = parseInt(c.req.query('page') || '1');
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || '10'), 50);
+  // page 必须 ≥1：负数会生成负 OFFSET，SQLite 直接报错
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10), 50);
 
   try {
     const countResult = await c.env.DB.prepare(
@@ -133,26 +134,39 @@ feedbackRoutes.get('/my', async (c) => {
 });
 
 // ── 管理员专用路由：权限在每次请求时实时校验 ─────────────
-const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload | null> => {
+type AdminAuthResult =
+  | { ok: true; user: JwtPayload }
+  | { ok: false; status: 401 | 403; message: string };
+
+/**
+ * 区分「未登录」与「已登录但无权限」：前端据此决定跳登录还是提示权限不足。
+ * token 里的角色可能已被降级，因此必须实时查库确认。
+ */
+const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<AdminAuthResult> => {
   const authHeader = c.req.header('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { ok: false, status: 401, message: '请先登录' };
+  }
   const token = authHeader.slice(7);
   const payload = await verifyToken(token, c.env.JWT_SECRET);
-  if (!payload) return null;
+  if (!payload) {
+    return { ok: false, status: 401, message: '登录状态已失效，请重新登录' };
+  }
 
-  // token 里的角色可能已被降级，这里实时查库确认管理员权限
   const isAdmin = await checkIsAdmin(c);
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    return { ok: false, status: 403, message: '需要管理员权限' };
+  }
 
-  return payload;
+  return { ok: true, user: payload };
 };
 
 // GET /api/feedback/admin/list  — 管理员获取反馈列表
 feedbackRoutes.get('/admin/list', async (c) => {
-  const adminUser = await getAdminUser(c);
-  if (!adminUser) return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
+  const auth = await getAdminUser(c);
+  if (!auth.ok) return c.json(error('AUTH_ERROR', auth.message), auth.status);
 
-  const page = parseInt(c.req.query('page') || '1');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const pageSize = Math.min(parseInt(c.req.query('pageSize') || '20'), 100);
   const status = c.req.query('status');
   const type = c.req.query('type');
@@ -167,8 +181,9 @@ feedbackRoutes.get('/admin/list', async (c) => {
     if (type) { where += ' AND f.type = ?'; params.push(type); }
     if (priority) { where += ' AND f.priority = ?'; params.push(priority); }
     if (search) {
-      where += ' AND (f.title LIKE ? OR f.content LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      const pattern = `%${escapeLikePattern(search)}%`;
+      where += " AND (f.title LIKE ? ESCAPE '\\' OR f.content LIKE ? ESCAPE '\\')";
+      params.push(pattern, pattern);
     }
 
     const countResult = await c.env.DB.prepare(
@@ -201,8 +216,8 @@ feedbackRoutes.get('/admin/list', async (c) => {
 
 // GET /api/feedback/admin/stats  — 管理员获取反馈统计
 feedbackRoutes.get('/admin/stats', async (c) => {
-  const adminUser = await getAdminUser(c);
-  if (!adminUser) return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
+  const auth = await getAdminUser(c);
+  if (!auth.ok) return c.json(error('AUTH_ERROR', auth.message), auth.status);
 
   try {
     const stats = await c.env.DB.prepare(`
@@ -228,8 +243,8 @@ feedbackRoutes.get('/admin/stats', async (c) => {
 
 // GET /api/feedback/admin/:id  — 管理员获取反馈详情
 feedbackRoutes.get('/admin/:id', async (c) => {
-  const adminUser = await getAdminUser(c);
-  if (!adminUser) return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
+  const auth = await getAdminUser(c);
+  if (!auth.ok) return c.json(error('AUTH_ERROR', auth.message), auth.status);
 
   const feedbackId = c.req.param('id');
 
@@ -253,8 +268,9 @@ feedbackRoutes.get('/admin/:id', async (c) => {
 
 // PUT /api/feedback/admin/:id  — 管理员处理反馈（支持回复并发送邮件）
 feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c) => {
-  const adminUser = await getAdminUser(c);
-  if (!adminUser) return c.json(error('AUTH_ERROR', '需要管理员权限'), 403);
+  const auth = await getAdminUser(c);
+  if (!auth.ok) return c.json(error('AUTH_ERROR', auth.message), auth.status);
+  const adminUser = auth.user;
 
   const feedbackId = c.req.param('id');
   const body = c.get('validatedBody') as z.infer<typeof schemas.feedback.update>;

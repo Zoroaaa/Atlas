@@ -9,10 +9,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, followsInternalRoutes, emailUnsubscribeRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, oauthExchangeRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, followsInternalRoutes, emailUnsubscribeRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
+import { generateErrorFingerprint } from '@/utils/fingerprint';
 // 注册搜索 Provider
 import { providerRegistry } from '@/services/search-provider';
 import { animeProvider } from '@/providers/anime-provider';
@@ -28,6 +29,7 @@ import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
 import { runDataRetention } from '@/services/data-retention';
 import { withCronLock } from '@/services/cron-lock';
+import { deleteExpiredOAuthLoginCodes } from '@/repositories/oauth-login-repository';
 import { dispatchFollowUpcomingSync } from '@/services/follow-upcoming-dispatch';
 
 /** 30 分钟一轮的任务：租约 25 分钟，超过即认为上一轮已异常终止 */
@@ -87,7 +89,7 @@ app.use('*', secureHeaders({
 app.get('/api', (c) => {
   return c.json({
     name: 'CodeSeek API',
-    version: c.env.APP_VERSION || '1.9.0',
+    version: c.env.APP_VERSION || CONFIG.APP_VERSION,
     status: 'running',
   });
 });
@@ -97,6 +99,7 @@ app.get('/api', (c) => {
 app.route('/api/auth', authRoutes);
 app.route('/api/auth', githubOAuthRoutes);
 app.route('/api/auth', googleOAuthRoutes);
+app.route('/api/auth', oauthExchangeRoutes);
 app.route('/api/user', userRoutes);
 app.route('/api/search', searchRoutes);
 app.route('/api/search-sources', sourceRoutes);
@@ -136,16 +139,9 @@ app.onError((err, c) => {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || null;
     const userAgent = c.req.header('User-Agent') || null;
 
-    // 生成与前端一致的错误指纹：取 message 前 200 字 + 堆栈前 5 行，
-    // 既能把同类错误聚到一起，又避免长堆栈导致同一条错误每次指纹都不同
+    // 与前端上报共用同一指纹实现，保证前后端错误聚合口径一致
     const errorType = err instanceof Error ? err.name : 'ServerError';
-    const stackLines = (stack || '').split('\n').slice(0, 5).join('|').replace(/\s+/g, ' ').trim();
-    const raw = `${errorType}::${message.slice(0, 200)}::${stackLines}::${url || ''}`;
-    let hash = 5381;
-    for (let i = 0; i < raw.length; i++) {
-      hash = ((hash << 5) + hash + raw.charCodeAt(i)) | 0;
-    }
-    const fingerprint = `fp_${(hash >>> 0).toString(36)}`;
+    const fingerprint = generateErrorFingerprint(errorType, message, stack, url);
 
     const errorId = crypto.randomUUID();
     const now = Date.now();
@@ -249,6 +245,14 @@ export default {
           .bind(Date.now() - 7 * 24 * 60 * 60 * 1000)
           .run()
       );
+      // 源状态探测缓存只用于「最近 24h 历史」，保留 7 天足够，避免无界增长
+      ctx.waitUntil(
+        env.DB.prepare('DELETE FROM source_status_cache WHERE created_at < ?')
+          .bind(Date.now() - 7 * 24 * 60 * 60 * 1000)
+          .run()
+      );
+      // 过期未兑换的 OAuth 票据（正常 5 分钟过期，异常中断时靠这里兜底）
+      ctx.waitUntil(deleteExpiredOAuthLoginCodes(env.DB, Date.now()));
       ctx.waitUntil(
         withCronLock(env.DB, 'data.retention', HOURLY_LOCK_TTL_MS, () => runDataRetention(env.DB))
           .then((r) => {

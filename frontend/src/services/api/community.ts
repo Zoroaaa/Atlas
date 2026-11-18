@@ -11,7 +11,6 @@ import type {
   CommunityPost,
   CommunityComment,
   CreateTagRequest,
-  UpdateTagRequest,
   CreatePostRequest,
   UpdatePostRequest,
   CreateCommentRequest,
@@ -41,9 +40,7 @@ export const communityApi = {
     return apiClient.post('/community/tags', payload);
   },
 
-  updateTag: async (id: string, data: UpdateTagRequest): Promise<{ message: string }> => {
-    return apiClient.put(`/community/tags/${id}`, data);
-  },
+  // 更新标签由管理端直接调用后端接口；前端没有入口，不在这里保留无校验的重复实现
 
   deleteTag: async (id: string): Promise<{ message: string }> => {
     return apiClient.delete(`/community/tags/${id}`);

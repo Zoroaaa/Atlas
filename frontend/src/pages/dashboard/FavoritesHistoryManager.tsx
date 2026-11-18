@@ -134,21 +134,26 @@ export const FavoritesManager: React.FC = () => {
   };
 
   const handleExport = async () => {
-    // 导出需要全部数据：点击时才拉取全量
-    const all = await userApi.getFavorites();
-    if (!all.success || !all.data) {
+    try {
+      // 导出需要全部数据：点击时才拉取全量
+      const all = await userApi.getFavorites();
+      if (!all.success || !all.data) {
+        toast.error(t('dashboard:favoritesHistory.favorites.exportFailedTitle', { defaultValue: '导出失败' }));
+        return;
+      }
+      const data = JSON.stringify(all.data.favorites, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `favorites-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('dashboard:favoritesHistory.favorites.exportSuccess'));
+    } catch (error) {
+      console.error('导出收藏失败:', error);
       toast.error(t('dashboard:favoritesHistory.favorites.exportFailedTitle', { defaultValue: '导出失败' }));
-      return;
     }
-    const data = JSON.stringify(all.data.favorites, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `favorites-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(t('dashboard:favoritesHistory.favorites.exportSuccess'));
   };
 
   const handleImport = async () => {
@@ -354,7 +359,7 @@ export const FavoritesManager: React.FC = () => {
                     {favorite.duration && (
                       <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                         <Clock className="w-3 h-3" />
-                        {t('dashboard:favoritesHistory.favorites.durationMin', { count: favorite.duration })}
+                        {t('dashboard:favoritesHistory.favorites.durationMin', { value: favorite.duration })}
                       </span>
                     )}
                     {favorite.releaseDate && (
@@ -455,7 +460,7 @@ export const FavoritesManager: React.FC = () => {
 export const HistoryManager: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
-  const { t } = useTranslation(['dashboard']);
+  const { t, i18n } = useTranslation(['dashboard']);
   const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
   const goSearch = (keyword: string, type?: LibraryRecordType) => {
     const tab = type && TAB_IDS.includes(type as SearchTabType) ? type : 'jav';
@@ -551,7 +556,7 @@ export const HistoryManager: React.FC = () => {
     if (diff < 3600000) return t('dashboard:favoritesHistory.history.timeAgoMinutesAgo', { count: Math.floor(diff / 60000) });
     if (diff < 86400000) return t('dashboard:favoritesHistory.history.timeAgoHoursAgo', { count: Math.floor(diff / 3600000) });
     
-    return date.toLocaleDateString('zh-CN', {
+    return date.toLocaleDateString(i18n.language, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -576,25 +581,30 @@ export const HistoryManager: React.FC = () => {
   const topKeywords = stats?.topKeywords ?? [];
 
   const handleExportHistory = async () => {
-    // 导出需要全部记录：点击时才拉取
-    const all = await userApi.getSearchHistory(1000);
-    if (!all.success || !all.data) {
+    try {
+      // 导出需要全部记录：点击时才拉取
+      const all = await userApi.getSearchHistory(1000);
+      if (!all.success || !all.data) {
+        toast.error(t('dashboard:favoritesHistory.history.exportFailedTitle', { defaultValue: '导出失败' }));
+        return;
+      }
+      const data = JSON.stringify({
+        searchHistory: all.data.history,
+        stats: { total: totalRecords, uniqueKeywords, activeDays },
+        exportTime: new Date().toISOString(),
+      }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `search-history-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('dashboard:favoritesHistory.history.exportSuccess'));
+    } catch (error) {
+      console.error('导出搜索历史失败:', error);
       toast.error(t('dashboard:favoritesHistory.history.exportFailedTitle', { defaultValue: '导出失败' }));
-      return;
     }
-    const data = JSON.stringify({
-      searchHistory: all.data.history,
-      stats: { total: totalRecords, uniqueKeywords, activeDays },
-      exportTime: new Date().toISOString(),
-    }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `search-history-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(t('dashboard:favoritesHistory.history.exportSuccess'));
   };
 
   if (isLoading) {
@@ -686,7 +696,7 @@ export const HistoryManager: React.FC = () => {
               return (
                 <button
                   key={keyword}
-                  onClick={() => navigate('/main')}
+                  onClick={() => goSearch(keyword)}
                   className="px-2.5 py-1 rounded-full bg-surface-100 dark:bg-surface-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 border border-surface-200 dark:border-surface-700 hover:border-primary-300 dark:hover:border-primary-700 transition-all"
                   style={{ fontSize: size }}
                   title={t('dashboard:favoritesHistory.history.searchCountTitle', { count })}
@@ -758,7 +768,7 @@ export const HistoryManager: React.FC = () => {
             <div key={date}>
               <h3 className="text-sm font-medium text-surface-500 dark:text-surface-400 mb-3 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                {new Date(date).toLocaleDateString('zh-CN', { 
+                {new Date(date).toLocaleDateString(i18n.language, { 
                   weekday: 'long', 
                   year: 'numeric', 
                   month: 'long', 
@@ -852,7 +862,7 @@ export const HistoryManager: React.FC = () => {
                           {item.duration && (
                             <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <Clock className="w-2.5 h-2.5" />
-                              {t('dashboard:favoritesHistory.history.durationMin', { count: item.duration })}
+                              {t('dashboard:favoritesHistory.history.durationMin', { value: item.duration })}
                             </span>
                           )}
                           {item.releaseDate && (

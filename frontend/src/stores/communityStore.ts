@@ -60,8 +60,9 @@ interface CommunityState {
 
   // Actions - 评论操作
   fetchComments: (postId: string) => Promise<void>;
-  addComment: (data: CreateCommentRequest) => Promise<void>;
-  deleteComment: (id: string) => Promise<void>;
+  /** 返回是否写入成功；调用方据此统一提示失败，而不是由 store 吞掉异常 */
+  addComment: (data: CreateCommentRequest) => Promise<boolean>;
+  deleteComment: (id: string) => Promise<boolean>;
 
   // Actions - 标签操作
   fetchTags: () => Promise<void>;
@@ -79,6 +80,9 @@ interface CommunityState {
   // Actions - 重置
   reset: () => void;
 }
+
+/** 收藏请求序号：只允许每个帖子的最后一次请求回滚乐观状态 */
+const favoriteRequestSeq = new Map<string, number>();
 
 const initialState = {
   posts: [],
@@ -267,6 +271,10 @@ export const useCommunityStore = create<CommunityState>()(
 
         if (!post) return;
 
+        // 连续点击时旧请求可能后返回：用序号保证只有最后一次请求能回滚状态
+        const requestSeq = (favoriteRequestSeq.get(postId) ?? 0) + 1;
+        favoriteRequestSeq.set(postId, requestSeq);
+
         // 乐观更新：立即更新 UI
         const newFavoritedState = !post.isFavorited;
         const newFavoriteCount = newFavoritedState
@@ -288,8 +296,8 @@ export const useCommunityStore = create<CommunityState>()(
         try {
           const result = await communityApi.toggleFavorite(postId);
 
-          // 如果服务端返回失败，回滚状态
-          if (result.favorited !== newFavoritedState) {
+          // 如果服务端返回失败，回滚状态；旧请求不得覆盖新状态
+          if (result.favorited !== newFavoritedState && favoriteRequestSeq.get(postId) === requestSeq) {
             set((state) => ({
               posts: state.posts.map((p) =>
                 p.id === postId
@@ -312,6 +320,7 @@ export const useCommunityStore = create<CommunityState>()(
           }
         } catch (error) {
           console.error('收藏操作失败:', error);
+          if (favoriteRequestSeq.get(postId) !== requestSeq) return;
           // 回滚状态
           set((state) => ({
             posts: state.posts.map((p) =>
@@ -371,8 +380,10 @@ export const useCommunityStore = create<CommunityState>()(
                   }
                 : state.currentPost,
           }));
+          return true;
         } catch (error) {
           console.error('添加评论失败:', error);
+          return false;
         }
       },
 
@@ -396,8 +407,10 @@ export const useCommunityStore = create<CommunityState>()(
                   }
                 : state.currentPost,
           }));
+          return true;
         } catch (error) {
           console.error('删除评论失败:', error);
+          return false;
         }
       },
 

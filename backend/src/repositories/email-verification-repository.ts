@@ -9,21 +9,24 @@ import type { EmailVerification, EmailChangeRequest } from '@/types';
 // ── email_verifications ─────────────────────────────────────────────
 
 /**
- * 按邮箱 + 验证码 + 类型查询有效验证码（取最新一条）
+ * 按邮箱 + 验证码哈希 + 类型查询有效验证码（取最新一条）。
+ * 调用方负责把明文验证码哈希后传入，明文不参与查询也不落库。
  * @param userId 传入时额外按归属用户过滤（如账户删除场景）
  */
 export async function findVerificationByCode(
   db: D1Database,
-  opts: { email: string; code: string; type: string; now: number; userId?: string | null }
+  opts: { email: string; codeHash: string; type: string; now: number; userId?: string | null }
 ): Promise<EmailVerification | null> {
-  // 取最新一条：同一邮箱可能残留旧验证码，按 created_at 倒序只认最近一条
+  // 取最新一条：同一邮箱可能残留旧验证码，按 created_at 倒序只认最近一条。
+  // 必须限定 pending 且未使用：否则已消费但尚未过期的验证码可以再次通过校验。
   const userClause = opts.userId ? ' AND user_id = ?' : '';
-  const params: (string | number)[] = [opts.email, opts.code, opts.type, opts.now];
+  const params: (string | number)[] = [opts.email, opts.codeHash, opts.type, opts.now];
   if (opts.userId) params.push(opts.userId);
   return db
     .prepare(
       `SELECT * FROM email_verifications
-       WHERE email = ? AND verification_code = ? AND verification_type = ? AND expires_at > ?${userClause}
+       WHERE email = ? AND code_hash = ? AND verification_type = ?
+         AND status = 'pending' AND used_at IS NULL AND expires_at > ?${userClause}
        ORDER BY created_at DESC LIMIT 1`
     )
     .bind(...params)

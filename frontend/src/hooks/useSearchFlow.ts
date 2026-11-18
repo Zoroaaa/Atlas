@@ -86,9 +86,7 @@ export function useSearchFlow({
         );
 
         if (targetHistory) {
-          updatedHistoryCodesRef.current.add(code);
-
-          await userApi.updateSearchHistory(targetHistory.id, {
+          const updateResult = await userApi.updateSearchHistory(targetHistory.id, {
             title: javEnrichedDetail!.title,
             code: javEnrichedDetail!.code,
             actors: javEnrichedDetail!.actresses?.join(', '),
@@ -98,6 +96,10 @@ export function useSearchFlow({
             publisher: javEnrichedDetail!.publisher || javEnrichedDetail!.maker,
             keyword: javEnrichedDetail!.code,
           });
+
+          // 只有写成功才标记已处理：失败时下次仍会重试，而不是整会话静默跳过
+          if (!updateResult.success) return;
+          updatedHistoryCodesRef.current.add(code);
 
           if (cancelled) return;
           queryClient.invalidateQueries({ queryKey: searchHistoryKeys.all });
@@ -120,6 +122,8 @@ export function useSearchFlow({
       return;
     }
     const requestId = ++searchRequestIdRef.current;
+    // 新一轮搜索重置「已补写历史」集合，避免上一次失败后整会话不再重试
+    if (page === 1) updatedHistoryCodesRef.current.clear();
     // 番号模式不做前端硬拦截：识别不了的输入交给后端按标题/多源搜索回退
     setHasSearched(true);
     // 关闭搜索建议

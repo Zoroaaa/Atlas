@@ -17,6 +17,7 @@ import {
   verifyEmailChangeCodeSchema,
   sendEmailChangeCodeSchema,
   cancelEmailChangeRequestSchema,
+  exchangeOAuthCodeSchema,
 } from './auth';
 import {
   updateSettingsSchema,
@@ -84,6 +85,7 @@ export const schemas = {
     verifyEmailChangeCode: verifyEmailChangeCodeSchema,
     sendEmailChangeCode: sendEmailChangeCodeSchema,
     cancelEmailChangeRequest: cancelEmailChangeRequestSchema,
+    exchangeOAuthCode: exchangeOAuthCodeSchema,
   },
 
   user: {

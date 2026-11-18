@@ -381,38 +381,18 @@ function animeResourcesToSources(
   const animetosho = (result.animetosho as Array<{ title: string; magnet: string; size?: string; date?: string; seeders?: number; leechers?: number }> | undefined) || [];
   const dmhy = (result.dmhy as Array<{ title: string; magnet: string; size?: string; pubDate?: string; group?: string; detailUrl?: string }> | undefined) || [];
 
-  // 优先用归组数据：取首条作品关联的磁力
-  if (grouped?.groups?.length) {
-    const firstGroup = grouped.groups.find((g) => g.subject.id === firstBgmId);
-    if (firstGroup?.resources?.length) {
-      return mediaResourcesToSources(firstGroup.resources, 30);
-    }
+  // 只写入「当前作品」的归组资源。不能拿全部磁力兜底：
+  // 那会把 other 作品的种子挂到首条作品上，详情页出现不相关内容（与影视侧策略一致）。
+  const firstGroup = grouped?.groups?.find((g) => g.subject.id === firstBgmId);
+  if (firstGroup?.resources?.length) {
+    return mediaResourcesToSources(firstGroup.resources, 30);
   }
 
-  // fallback：合并所有磁力源前 20 条（去重 magnet）
-  const merged: MediaResourceLike[] = [
-    ...nyaa.slice(0, 10).map((n) => ({ ...n, sourceLabel: 'Nyaa' })),
-    ...mikan.slice(0, 5).map((m) => ({
-      title: m.title,
-      magnet: m.magnet,
-      size: m.size,
-      date: m.pubDate,
-      group: m.group,
-      sourceLabel: 'Mikan',
-    })),
-    ...animetosho.slice(0, 5).map((a) => ({ ...a, sourceLabel: 'AnimeTosho' })),
-    ...dmhy.slice(0, 5).map((d) => ({
-      title: d.title,
-      magnet: d.magnet,
-      size: d.size,
-      date: d.pubDate,
-      group: d.group,
-      detailUrl: d.detailUrl,
-      sourceLabel: 'DMHY',
-    })),
-  ];
-
-  return mediaResourcesToSources(merged, 20);
+  const dropped = nyaa.length + mikan.length + animetosho.length + dmhy.length;
+  if (dropped > 0) {
+    console.warn(`[data-storage] anime 资源无法归属到 bgm:${firstBgmId}，丢弃 ${dropped} 条磁力`);
+  }
+  return [];
 }
 
 // ── 影视资源 → 来源条目 ─────────────────────────────────────────────

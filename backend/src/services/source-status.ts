@@ -300,8 +300,8 @@ export const analyzePageContent = (
   };
 };
 
-/** 把社区标签标记为活跃；注意这里只置 tag_active，不累计使用次数。 */
-export const updateTagUsageCount = async (env: Env, tagIds: string[]): Promise<void> => {
+/** 把社区标签标记为活跃（只置 tag_active，不累计使用次数）。 */
+export const markTagsActive = async (env: Env, tagIds: string[]): Promise<void> => {
   if (!Array.isArray(tagIds) || tagIds.length === 0) {
     return;
   }
@@ -344,13 +344,14 @@ export const getCachedSourceStatus = async (
   }
 };
 
-/** 缓存是否仍在有效期内；默认 5 分钟。 */
+/** 缓存是否仍在有效期内；优先读入库时写入的 expires_at，缺失时回退 created_at + maxAge。 */
 export const isCacheValid = (cached: CachedSourceStatus | null, maxAge = 300000): boolean => {
   if (!cached) return false;
+  if (cached.expires_at) return Date.now() < cached.expires_at;
   return Date.now() - cached.created_at < maxAge;
 };
 
-/** 写入一条探测结果缓存，固定 5 分钟后过期。 */
+/** 写入一条探测结果缓存：同一「源 + 关键词」只保留一条，固定 5 分钟后过期。 */
 export const saveSingleStatusToCache = async (
   env: Env,
   sourceId: string,
@@ -359,6 +360,14 @@ export const saveSingleStatusToCache = async (
   result: SourceStatusResult
 ): Promise<void> => {
   try {
+    // 表上没有 (source_id, keyword_hash) 唯一约束，先删旧行再插入，
+    // 避免每次探测都新增一行导致无界增长；跨实例并发最多产生一条重复，由定时清理兜底。
+    await env.DB.prepare(
+      'DELETE FROM source_status_cache WHERE source_id = ? AND keyword_hash = ?'
+    )
+      .bind(sourceId, keywordHash)
+      .run();
+
     const cacheId = generateId();
     await env.DB.prepare(
       `INSERT INTO source_status_cache (

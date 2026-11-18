@@ -9,6 +9,7 @@ import { Chrome } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
 import { useNotification } from '@/hooks';
+import { authApi } from '@/services/api';
 
 const ERROR_MESSAGE_KEYS: Record<string, string> = {
   google_not_configured: 'auth:callback.google.notConfigured',
@@ -37,8 +38,7 @@ export const GoogleCallbackPage: React.FC = () => {
     if (!hasHydrated) return;
     processed.current = true;
 
-    const token = searchParams.get('token');
-    const userRaw = searchParams.get('user');
+    const code = searchParams.get('code');
     const errorCode = searchParams.get('error');
 
     if (errorCode) {
@@ -48,23 +48,39 @@ export const GoogleCallbackPage: React.FC = () => {
       return;
     }
 
-    if (!token || !userRaw) {
+    if (!code) {
       notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.missingParams'));
       navigate('/login', { replace: true });
       return;
     }
 
-    try {
-      const user = JSON.parse(decodeURIComponent(userRaw));
-      setToken(token);
-      persistToken(token);
-      setUser(user);
-      notification.success(t('auth:callback.loginSuccessTitle'), t('auth:callback.welcomeBack', { username: user.username }));
-      navigate('/main', { replace: true });
-    } catch {
-      notification.error(t('auth:callback.loginFailedTitle'), t('auth:callback.parseFailed'));
-      navigate('/login', { replace: true });
-    }
+    void (async () => {
+      try {
+        // 回调只带一次性 code；token 通过 POST 兑换，不再出现在 URL 里
+        const response = await authApi.exchangeOAuthCode(code);
+        if (!response.success || !response.data) {
+          notification.error(
+            t('auth:callback.loginFailedTitle'),
+            response.message || t('auth:callback.serverError'),
+          );
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        const { user, token } = response.data;
+        setToken(token);
+        persistToken(token);
+        setUser(user);
+        notification.success(t('auth:callback.loginSuccessTitle'), t('auth:callback.welcomeBack', { username: user.username }));
+        navigate('/main', { replace: true });
+      } catch (error) {
+        notification.error(
+          t('auth:callback.loginFailedTitle'),
+          error instanceof Error ? error.message : t('auth:callback.serverError'),
+        );
+        navigate('/login', { replace: true });
+      }
+    })();
   }, [hasHydrated, navigate, notification, persistToken, searchParams, setToken, setUser, t]);
 
   return (

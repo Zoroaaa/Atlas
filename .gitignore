@@ -47,6 +47,11 @@ codeseek-v1.0/
 .trae/
 .workbuddy/
 
+# Local artifacts（调试截图 / 冒烟临时文件 / Trae HTML 分享缓存）
+.screenshots/
+.tmp/
+.trae-html-share-packages/
+
 # Frontend specific
 frontend/dist/
 frontend/node_modules/

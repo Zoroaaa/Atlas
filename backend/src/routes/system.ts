@@ -7,10 +7,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
-import { success, error, generateId, getClientIP, hashToken, verifyToken } from '@/utils';
+import { success, error, generateId, getClientIP, hashToken, verifyToken, generateErrorFingerprint } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { ConfigService, fetchLatestAndroidRelease } from '@/services';
-import { DB_CONFIG_KEYS } from '@/constants';
+import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 
 export const systemRoutes = new Hono<{ Bindings: Env }>();
@@ -32,7 +32,7 @@ systemRoutes.get('/public-config', async (c) => {
     ]);
 
     return c.json(success({
-      appVersion: c.env.APP_VERSION || '1.9.0',
+      appVersion: c.env.APP_VERSION || CONFIG.APP_VERSION,
       siteName,
       siteDescription,
       allowRegistration: enableRegistration,
@@ -86,34 +86,12 @@ systemRoutes.get('/health', async (c) => {
   return c.json(success({
     status: 'ok',
     timestamp: Date.now(),
-    version: c.env.APP_VERSION || '1.6.0',
+    version: c.env.APP_VERSION || CONFIG.APP_VERSION,
   }));
 });
 
 // ── 前端错误上报 ───────────────────────────────────────
 // 允许匿名（用户可能崩溃在登录前），因此必须注册在 authMiddleware 之前，并单独做 IP 限流
-function generateErrorFingerprint(
-  errorType: string,
-  message: string,
-  stack: string | null,
-  url: string | null,
-): string {
-  // 取堆栈前 5 行 + message 前缀生成指纹，聚合"同一处代码抛出的同类错误"
-  const stackLines = (stack || '')
-    .split('\n')
-    .slice(0, 5)
-    .join('|')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const raw = `${errorType}::${message.slice(0, 200)}::${stackLines}::${url || ''}`;
-  // 简单 hash（djb2），不需要加密强度
-  let hash = 5381;
-  for (let i = 0; i < raw.length; i++) {
-    hash = ((hash << 5) + hash + raw.charCodeAt(i)) | 0;
-  }
-  return `fp_${(hash >>> 0).toString(36)}`;
-}
-
 systemRoutes.post('/errors', validateBody(schemas.system.reportError), async (c) => {
   try {
     const body = c.get('validatedBody') as z.infer<typeof schemas.system.reportError>;
@@ -262,6 +240,10 @@ async function saveStatusCache(
     const cacheId = generateId();
     const now = Date.now();
     const keywordHash = await hashToken('health');
+    // 同一「源 + health」只保留最新一条，避免每次健康检查都新增行
+    await db.prepare(
+      'DELETE FROM source_status_cache WHERE source_id = ? AND keyword_hash = ?'
+    ).bind(sourceId, keywordHash).run();
     await db.prepare(`
       INSERT INTO source_status_cache
         (id, source_id, keyword, keyword_hash, status, available, content_match,

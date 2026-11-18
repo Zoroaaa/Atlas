@@ -569,7 +569,13 @@ authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAc
       return c.json(error('AUTH_ERROR', '用户不存在'), 404);
     }
 
-    const verification = await findVerificationByCode(c.env.DB, { email: user.email, code: verificationCode, type: 'account_delete', now: Date.now(), userId: user.id });
+    const verification = await findVerificationByCode(c.env.DB, {
+      email: user.email,
+      codeHash: await hashToken(verificationCode),
+      type: 'account_delete',
+      now: Date.now(),
+      userId: user.id,
+    });
 
     if (!verification) {
       return c.json(error('VALIDATION_ERROR', '验证码无效或已过期'), 400);

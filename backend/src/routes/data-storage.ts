@@ -7,7 +7,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env } from '@/types';
-import { success, error, checkRateLimitD1 } from '@/utils';
+import { success, error, checkRateLimitD1, escapeLikePattern } from '@/utils';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { CONFIG } from '@/constants';
 import { validateBody, schemas } from '@/validation';
@@ -298,8 +298,8 @@ dataStorageRoutes.get('/records', async (c) => {
       params.push(status);
     }
     if (search) {
-      where.push('(d.title LIKE ? OR d.code LIKE ?)');
-      const term = `%${search}%`;
+      where.push("(d.title LIKE ? ESCAPE '\\' OR d.code LIKE ? ESCAPE '\\')");
+      const term = `%${escapeLikePattern(search)}%`;
       params.push(term, term);
     }
     if (detail === 'complete') {

@@ -35,6 +35,7 @@ import {
   findPostOwnerId,
   findPostNotificationTarget,
   postExists,
+  activePostExists,
   deletePost,
   updatePostStatus,
   findPostLike,
@@ -731,10 +732,10 @@ communityRoutes.post('/posts/:id/like', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const exists = await postExists(c.env.DB, postId);
+    const exists = await activePostExists(c.env.DB, postId);
 
     if (!exists) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+      return c.json(error('NOT_FOUND', '帖子不存在或已下架'), 404);
     }
 
     const existing = await findPostLike(c.env.DB, { postId, userId: user.userId, likeType: 'like' });
@@ -775,10 +776,10 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
   const postId = c.req.param('id');
 
   try {
-    const exists = await postExists(c.env.DB, postId);
+    const exists = await activePostExists(c.env.DB, postId);
 
     if (!exists) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+      return c.json(error('NOT_FOUND', '帖子不存在或已下架'), 404);
     }
 
     // 收藏与点赞共用 post_likes 表，靠 like_type 区分
@@ -818,10 +819,10 @@ communityRoutes.get('/posts/:id/comments', async (c) => {
   const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query('pageSize') || '20')));
 
   try {
-    const postExistsFlag = await postExists(c.env.DB, postId);
+    const postExistsFlag = await activePostExists(c.env.DB, postId);
 
     if (!postExistsFlag) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+      return c.json(error('NOT_FOUND', '帖子不存在或已下架'), 404);
     }
 
     const total = await countPostComments(c.env.DB, postId);
@@ -870,10 +871,10 @@ communityRoutes.post('/comments', validateBody(schemas.community.createComment),
   }
 
   try {
-    const postExistsFlag = await postExists(c.env.DB, postId);
+    const postExistsFlag = await activePostExists(c.env.DB, postId);
 
     if (!postExistsFlag) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+      return c.json(error('NOT_FOUND', '帖子不存在或已下架'), 404);
     }
 
     const id = generateId();
@@ -953,10 +954,10 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
   }
 
   try {
-    const postExistsFlag = await postExists(c.env.DB, postId);
+    const postExistsFlag = await activePostExists(c.env.DB, postId);
 
     if (!postExistsFlag) {
-      return c.json(error('NOT_FOUND', '帖子不存在'), 404);
+      return c.json(error('NOT_FOUND', '帖子不存在或已下架'), 404);
     }
 
     // 去重只针对 pending 状态的举报，已处理过的帖子允许再次举报

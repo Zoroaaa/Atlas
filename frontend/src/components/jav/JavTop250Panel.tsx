@@ -27,7 +27,7 @@ interface JavTop250PanelProps {
 }
 
 // 欧美榜暂不考虑：先隐藏入口，恢复时取消注释（同步脚本与 workflow 也需一并恢复）
-const SECTION_KEYS: JavTop250Section[] = ['all', 'censored', 'uncensored' /* , 'western' */, 'fc2'];
+const SECTION_KEYS: JavTop250Section[] = ['all', 'censored', 'uncensored', 'fc2'];
 
 /** JAV TOP250：分区/年份筛选、刷新与分页 */
 export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick, layout = 'panel' }) => {

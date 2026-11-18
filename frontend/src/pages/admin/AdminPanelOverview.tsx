@@ -92,11 +92,11 @@ interface StatCardProps {
   icon: React.ReactNode;
   trend?: number;
   trendLabel?: string;
-  color: 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'teal';
+  color: 'brand' | 'green' | 'red' | 'purple' | 'orange' | 'teal';
 }
 
 const colorClasses = {
-  blue: 'from-[#d4a853] to-[#f59e0b]',
+  brand: 'from-[#d4a853] to-[#f59e0b]',
   green: 'from-green-500 to-green-600',
   red: 'from-red-500 to-red-600',
   purple: 'from-rose-500 to-rose-600',
@@ -227,7 +227,7 @@ export const AdminPanelOverview: React.FC = () => {
           title={t('admin:overview.stat.totalUsers')}          value={data.users.total}
           subtitle={t('admin:overview.stat.activeUsers', { count: data.users.active })}
           icon={<Users className="w-6 h-6 text-white" />}
-          color="blue"
+          color="brand"
         />
         <StatCard
           title={t('admin:overview.stat.newToday')}
@@ -265,7 +265,7 @@ export const AdminPanelOverview: React.FC = () => {
           value={data.searches.today}
           subtitle={t('admin:overview.stat.searchesTodaySub')}
           icon={<Search className="w-6 h-6 text-white" />}
-          color="blue"
+          color="brand"
         />
         <StatCard
           title={t('admin:overview.stat.sources')}

@@ -325,8 +325,9 @@ configRoutes.get('/logs', async (c) => {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
-  const page = parseInt(c.req.query('page') || '1');
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || '50'), 200);
+  // page 必须 ≥1：负数 OFFSET 会让 SQLite 直接报错
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || '50', 10) || 50), 200);
   const configKey = c.req.query('key');
   const changeType = c.req.query('type');
 
@@ -464,8 +465,8 @@ configRoutes.get('/email/logs', async (c) => {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
-  const page = parseInt(c.req.query('page') || '1');
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || '50'), 200);
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || '50', 10) || 50), 200);
   const emailType = c.req.query('type');
   const status = c.req.query('status');
   const provider = c.req.query('provider');
@@ -519,8 +520,8 @@ configRoutes.get('/email/queue', async (c) => {
     return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
   }
 
-  const page = Math.max(parseInt(c.req.query('page') || '1'), 1);
-  const pageSize = Math.min(parseInt(c.req.query('pageSize') || '50'), 200);
+  const page = Math.max(parseInt(c.req.query('page') || '1', 10) || 1, 1);
+  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || '50', 10) || 50), 200);
   const status = c.req.query('status');
   const type = c.req.query('type');
 

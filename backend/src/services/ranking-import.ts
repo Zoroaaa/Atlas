@@ -90,14 +90,18 @@ function resolveChannel(payload: RankingImportPayload): { name: string; url: str
   };
 }
 
+/** 执行分批语句并返回实际影响行数之和（用于统计真实新增，而不是按入参预估） */
 async function runBatches(
   db: D1Database,
   statements: D1PreparedStatement[],
   size = 50
-): Promise<void> {
+): Promise<number> {
+  let changes = 0;
   for (let i = 0; i < statements.length; i += size) {
-    await db.batch(statements.slice(i, i + size));
+    const results = await db.batch(statements.slice(i, i + size));
+    changes += results.reduce((sum, result) => sum + (result.meta?.changes ?? 0), 0);
   }
+  return changes;
 }
 
 function chunk<T>(list: T[], size: number): T[][] {
@@ -264,14 +268,13 @@ export async function importRankingSnapshot(
           now
         )
     );
-  await runBatches(db, insertStatements);
+  // 用实际 changes 统计新增：并发导入或 ON CONFLICT DO NOTHING 命中时不会高报
+  const createdCount = await runBatches(db, insertStatements);
 
   // 新增后再统一取一次记录 ID，供写入来源与归档（命中旧写法也在其中）
   const recordIdByKey = await loadRecordIdsByKey(db, lookupKeys);
   const recordIdOf = (code: string): string | undefined =>
     keysOf(code).map((key) => recordIdByKey.get(key)).find((id): id is string => Boolean(id));
-
-  const createdCount = Math.max(0, items.length - existingCount);
 
   // ── 来源记录 ──────────────────────────────────────────────────
   // 周榜/月榜用 source_type='ranking'（现有「最近热播」面板读取）；

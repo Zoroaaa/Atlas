@@ -45,6 +45,19 @@ export const authApi = {
     void openOAuthUrl(buildOAuthUrl('/auth/google'));
   },
 
+  /** OAuth 回调的一次性 code 兑换：token 只在响应体里出现，不再经过 URL */
+  exchangeOAuthCode: async (code: string): Promise<AuthResponse> => {
+    const { exchangeOAuthCodeSchema } = await import('@codeseek/shared/schemas/auth');
+    const payload = await parseRequest<{ code: string }>(exchangeOAuthCodeSchema, { code });
+    const response = await apiClient.post<AuthResponse>('/auth/oauth/exchange', payload);
+    if (response.success && response.data?.token) {
+      const store = useAuthStore.getState();
+      store.setToken(response.data.token);
+      store.persistToken(response.data.token);
+    }
+    return response;
+  },
+
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const { loginSchema } = await import('@codeseek/shared/schemas/auth');
     const payload = await parseRequest<LoginRequest>(loginSchema, data);

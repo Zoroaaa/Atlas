@@ -36,7 +36,7 @@ export function normalizeTitle(title: string): string {
   // 编码与封装格式（x264 / hevc / av1 / mp4 / mkv 等）
   s = s.replace(/\b[xh]\.?26[45]\b/gi, ' ');
   s = s.replace(/\bhevc\b/gi, ' ');
-  s = s.replace(/\bav1?\b/gi, ' ');
+  s = s.replace(/\bav1\b/gi, ' ');
   s = s.replace(/\b(mp4|mkv|webm|avi|mov|flv)\b/gi, ' ');
 
   // 版本号与发行标记（v2 / batch / web-dl / remux 等）

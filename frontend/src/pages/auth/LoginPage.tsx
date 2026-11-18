@@ -160,11 +160,8 @@ export const LoginPage: React.FC = () => {
               fullWidth
             />
 
-            <div className="flex items-center justify-between text-xs sm:text-sm">
-              <label className="flex items-center gap-2 text-stone-600 dark:text-stone-400 cursor-pointer select-none py-2 -my-2">
-                <input type="checkbox" className="w-4 h-4 rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-500 flex-shrink-0" />
-                <span>{t('auth:login.rememberMe')}</span>
-              </label>
+            {/* 会话有效期由后端 JWT_EXPIRY_DAYS 统一控制，没有「记住我」的独立分支 */}
+            <div className="flex items-center justify-end text-xs sm:text-sm">
               <Link to="/forgot-password" className="text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 transition-colors font-medium">
                 {t('auth:login.forgotPassword')}
               </Link>

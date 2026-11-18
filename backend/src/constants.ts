@@ -10,6 +10,9 @@ import { VALIDATION_PATTERNS } from '@codeseek/shared';
 /** 代码级固定配置集合 */
 export const CONFIG = {
 
+  // ── 应用版本（APP_VERSION 环境变量未设置时的唯一兜底） ──
+  APP_VERSION: '1.9.0',
+
   // ── 默认域名（环境变量未设置时的兜底，正式部署以 wrangler.toml 为准） ──
   DEFAULT_URLS: {
     FRONTEND: 'https://atlas.wort.uk',

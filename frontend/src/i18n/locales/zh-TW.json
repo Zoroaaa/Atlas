@@ -343,7 +343,9 @@
       "open": "開啟",
       "check": "健康檢查",
       "enable": "啟用",
-      "disable": "禁用"
+      "disable": "禁用",
+      "failedTitle": "操作失敗",
+      "failedMessage": "請檢查網路後重試"
     },
     "batch": {
       "selected": "已選 {{count}} 個",
@@ -2621,7 +2623,9 @@
       "reasonPopular": "近期熱門",
       "reasonRankingWeekly": "週榜 #{{rank}}",
       "reasonRankingMonthly": "月榜 #{{rank}}",
-      "refresh": "重新整理推薦"
+      "refresh": "重新整理推薦",
+      "loadFailed": "推薦載入失敗",
+      "retry": "重試"
     },
     "genreRec": {
       "title": "推薦標籤",
@@ -3070,7 +3074,7 @@
         "cancelSelection": "取消選擇",
         "wantToWatch": "想看",
         "watched": "已看過",
-        "durationMin": "{{count}}分鐘",
+        "durationMin": "{{value}}分鐘",
         "emptyTitle": "暫無收藏",
         "emptyDesc": "搜尋時點擊收藏按鈕即可新增收藏",
         "importModalTitle": "匯入收藏",
@@ -3123,7 +3127,7 @@
         "cancelSelection": "取消選擇",
         "resultsCount": "{{count}}條",
         "reSearchTitle": "重新搜尋此關鍵字",
-        "durationMin": "{{count}}分鐘",
+        "durationMin": "{{value}}分鐘",
         "emptyTitle": "暫無搜尋記錄",
         "emptyDesc": "開始搜尋後，記錄將顯示在這裡"
       }

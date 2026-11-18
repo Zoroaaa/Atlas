@@ -29,10 +29,10 @@ export const MainLayout: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
-            {/* 点 Logo 走整页刷新，保持当前路径而不是回到首页 */}
+            {/* 点 Logo 走整页刷新：保留 pathname + search，避免 /main?tab=jav 刷新后丢分类 */}
             <div className="flex items-center gap-8">
               <a
-                href={window.location.pathname}
+                href={`${window.location.pathname}${window.location.search}`}
                 className="flex items-center gap-2.5 group cursor-pointer"
                 title={t('nav:main.refreshPage')}
               >

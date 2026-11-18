@@ -19,6 +19,7 @@ const SKIP_REFRESH_ENDPOINTS = [
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-code',
+  '/auth/oauth/exchange',
 ];
 
 const shouldRefresh = (endpoint: string): boolean =>

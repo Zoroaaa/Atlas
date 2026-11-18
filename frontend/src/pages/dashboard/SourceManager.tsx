@@ -198,9 +198,10 @@ export const SourceManager: React.FC = () => {
       
       queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
-      notification.source.batchEnabled(allSources.length);
+      if (enable) notification.source.batchEnabled(allSources.length);
+      else notification.source.batchDisabled(allSources.length);
     } catch (_error) {
-      notification.source.createFailed();
+      notification.source.updateFailed();
     }
   };
 
@@ -220,9 +221,10 @@ export const SourceManager: React.FC = () => {
       
       queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
-      notification.source.batchEnabled(cat.sources.length);
+      if (enable) notification.source.batchEnabled(cat.sources.length);
+      else notification.source.batchDisabled(cat.sources.length);
     } catch (_error) {
-      notification.source.createFailed();
+      notification.source.updateFailed();
     }
   };
 
@@ -230,9 +232,11 @@ export const SourceManager: React.FC = () => {
     try {
       await sourceApi.updateUserSourceConfig(sourceId, { isEnabled });
       queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
-      notification.source.enabled(isEnabled ? t('dashboard:sources.sourceFallback') : undefined);
+      const name = sources.find(source => source.id === sourceId)?.name || t('dashboard:sources.sourceFallback');
+      if (isEnabled) notification.source.enabled(name);
+      else notification.source.disabled(name);
     } catch (_error) {
-      notification.source.createFailed();
+      notification.source.updateFailed();
     }
   };
 
@@ -249,9 +253,10 @@ export const SourceManager: React.FC = () => {
       
       queryClient.invalidateQueries({ queryKey: sourcesKeys.userConfig });
       
-      notification.source.batchEnabled(sources.length);
+      if (enable) notification.source.batchEnabled(sources.length);
+      else notification.source.batchDisabled(sources.length);
     } catch (_error) {
-      notification.source.createFailed();
+      notification.source.updateFailed();
     }
   };
 

@@ -46,7 +46,23 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
   const { data, isLoading, isFetching, isError, refetch, queryEnabled } = useJavRecommendations({ variant, seed, excludeCodes });
 
   if (!queryEnabled) return null;
-  if (isError) return null;
+
+  // 失败时展示轻量错误态 + 重试，而不是静默消失：用户至少知道推荐没加载出来
+  if (isError) {
+    return (
+      <div className={clsx('flex items-center gap-2 text-surface-500', layout === 'page' ? 'py-6' : 'px-4 py-3')}>
+        <span className="type-micro">{t('jav:recommend.loadFailed')}</span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="type-micro font-medium text-primary-600 underline-offset-2 hover:underline disabled:opacity-60 dark:text-primary-400"
+        >
+          {t('jav:recommend.retry')}
+        </button>
+      </div>
+    );
+  }
 
   const items = data?.items ?? [];
   if (!isLoading && items.length === 0) return null;

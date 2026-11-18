@@ -60,15 +60,16 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
 
     setSubmitting(true);
     try {
-      await addComment({
+      const ok = await addComment({
         postId,
         content: commentText.trim(),
       });
+      if (!ok) {
+        toast.error(t('communityPages:comments.publishFailed'));
+        return;
+      }
       setCommentText('');
       toast.success(t('communityPages:comments.published'));
-    } catch (error) {
-      console.error('发表评论失败:', error);
-      toast.error(t('communityPages:comments.publishFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -76,13 +77,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
 
   const handleDelete = async (commentId: string) => {
     if (!confirm(t('communityPages:comments.deleteConfirm'))) return;
-    try {
-      await deleteComment(commentId);
-      toast.success(t('communityPages:comments.deleted'));
-    } catch (error) {
-      console.error('删除评论失败:', error);
+    const ok = await deleteComment(commentId);
+    if (!ok) {
       toast.error(t('communityPages:comments.deleteFailed'));
+      return;
     }
+    toast.success(t('communityPages:comments.deleted'));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

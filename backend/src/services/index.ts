@@ -17,7 +17,7 @@ export type {
 export {
   checkSingleSourceStatus,
   analyzePageContent,
-  updateTagUsageCount,
+  markTagsActive,
   getCachedSourceStatus,
   isCacheValid,
   saveSingleStatusToCache,

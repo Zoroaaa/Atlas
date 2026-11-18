@@ -48,9 +48,12 @@ export async function findActiveUserByEmail(db: D1Database, email: string): Prom
   return db.prepare('SELECT * FROM users WHERE email = ? AND is_active = 1').bind(email).first<User>();
 }
 
+/** 用户基础字段子集；查询只 SELECT 三列，返回类型不能声明为完整 User */
+export type UserBasic = Pick<User, 'id' | 'username' | 'email'>;
+
 /** 查询用户基础字段（id / username / email） */
-export async function findUserBasicById(db: D1Database, id: string): Promise<User | null> {
-  return db.prepare('SELECT id, username, email FROM users WHERE id = ?').bind(id).first<User>();
+export async function findUserBasicById(db: D1Database, id: string): Promise<UserBasic | null> {
+  return db.prepare('SELECT id, username, email FROM users WHERE id = ?').bind(id).first<UserBasic>();
 }
 
 /** 查询用户名（用于验证码邮件展示） */
@@ -208,7 +211,8 @@ export async function resetPasswordAndRevokeSessions(
 
 /** 删除账户：级联清理该用户的全部关联数据 */
 export async function deleteAccountCascade(db: D1Database, userId: string): Promise<void> {
-  // 逐表显式删除，不依赖外键级联；新增归属用户的表时需确认已有外键或在此补充
+  // 逐表显式删除，不依赖 D1 是否开启 foreign_keys；审计类表（SET NULL）保留记录。
+  // 顺序要求：先删「引用用户帖子」的互动数据，再删帖子本身，最后删用户自己的互动。
   await db.batch([
     db.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM email_change_requests WHERE user_id = ?').bind(userId),
@@ -217,6 +221,25 @@ export async function deleteAccountCascade(db: D1Database, userId: string): Prom
     db.prepare('DELETE FROM user_favorites WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM user_search_history WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM user_search_source_configs WHERE user_id = ?').bind(userId),
+
+    db.prepare('DELETE FROM community_comments WHERE post_id IN (SELECT id FROM community_posts WHERE user_id = ?)').bind(userId),
+    db.prepare('DELETE FROM community_likes WHERE post_id IN (SELECT id FROM community_posts WHERE user_id = ?)').bind(userId),
+    db.prepare('DELETE FROM community_post_views WHERE post_id IN (SELECT id FROM community_posts WHERE user_id = ?)').bind(userId),
+    db.prepare('DELETE FROM community_reports WHERE post_id IN (SELECT id FROM community_posts WHERE user_id = ?)').bind(userId),
+    db.prepare('DELETE FROM community_posts WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM community_comments WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM community_likes WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM community_post_views WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM community_reports WHERE reporter_user_id = ?').bind(userId),
+
+    db.prepare('DELETE FROM notifications WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM notification_preferences WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM notification_settings WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM user_announcement_reads WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM user_follows WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM email_queue WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM email_log WHERE user_id = ?').bind(userId),
+
     db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
   ]);
 }

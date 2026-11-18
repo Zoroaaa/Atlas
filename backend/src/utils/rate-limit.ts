@@ -34,32 +34,31 @@ export async function checkRateLimitD1(
   const resetAt = now + windowMs;
 
   try {
-    const existing = await db
-      .prepare('SELECT count, reset_at FROM rate_limits WHERE id = ?')
-      .bind(identifier)
-      .first<{ count: number; reset_at: number }>();
+    // 单条 UPSERT 同时完成「建窗口 / 递增 / 限额判断」：
+    // 旧实现先 SELECT 再 UPDATE，并发请求会同时读到未超限而一起放行。
+    const result = await db
+      .prepare(
+        `INSERT INTO rate_limits (id, count, reset_at, created_at)
+         VALUES (?, 1, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           count = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.count + 1 END,
+           reset_at = CASE WHEN rate_limits.reset_at <= ? THEN ? ELSE rate_limits.reset_at END
+         WHERE rate_limits.reset_at <= ? OR rate_limits.count < ?`,
+      )
+      .bind(identifier, resetAt, now, now, now, resetAt, now, maxRequests)
+      .run();
 
-    if (!existing || now > existing.reset_at) {
-      await db
-        .prepare(
-          'INSERT OR REPLACE INTO rate_limits (id, count, reset_at, created_at) VALUES (?, 1, ?, ?)',
-        )
-        .bind(identifier, resetAt, now)
-        .run();
-      return { allowed: true };
-    }
-
-    if (existing.count >= maxRequests) {
+    // changes = 0 表示 UPSERT 的 WHERE 未命中：窗口内已达上限且尚未重置
+    if ((result.meta?.changes ?? 0) === 0) {
+      const row = await db
+        .prepare('SELECT reset_at FROM rate_limits WHERE id = ?')
+        .bind(identifier)
+        .first<{ reset_at: number }>();
       return {
         allowed: false,
-        retryAfter: Math.ceil((existing.reset_at - now) / 1000),
+        retryAfter: Math.max(1, Math.ceil(((row?.reset_at ?? resetAt) - now) / 1000)),
       };
     }
-
-    await db
-      .prepare('UPDATE rate_limits SET count = count + 1 WHERE id = ?')
-      .bind(identifier)
-      .run();
 
     return { allowed: true };
   } catch (error) {
@@ -105,17 +104,33 @@ export async function checkMultiLevelRateLimit(
       }
     }
 
-    // 全部通过后再统一落库：新窗口建记录，其余层递增
-    const writes = limits.map((limit, i) => {
-      const row = existing.get(levelKeys[i]);
-      if (!row || row.reset_at <= now) {
-        return db
-          .prepare('INSERT OR REPLACE INTO rate_limits (id, count, reset_at, created_at) VALUES (?, 1, ?, ?)')
-          .bind(levelKeys[i], now + limit.windowMs, now);
+    // 每一层都走带条件的原子 UPSERT：并发下同一层最多放行 maxRequests 次。
+    // 先做的整组读只用于「已超限时不消耗任何一层」；真正的限流由下面 WHERE 保证。
+    const writes = limits.map((limit, i) =>
+      db
+        .prepare(
+          `INSERT INTO rate_limits (id, count, reset_at, created_at)
+           VALUES (?, 1, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             count = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.count + 1 END,
+             reset_at = CASE WHEN rate_limits.reset_at <= ? THEN ? ELSE rate_limits.reset_at END
+           WHERE rate_limits.reset_at <= ? OR rate_limits.count < ?`,
+        )
+        .bind(levelKeys[i], now + limit.windowMs, now, now, now, now + limit.windowMs, now, limit.maxRequests)
+    );
+    const batchResults = await db.batch(writes);
+
+    for (let i = 0; i < batchResults.length; i++) {
+      if ((batchResults[i].meta?.changes ?? 0) === 0) {
+        const row = existing.get(levelKeys[i]);
+        return {
+          allowed: false,
+          retryAfter: Math.max(1, Math.ceil(((row?.reset_at ?? now + limits[i].windowMs) - now) / 1000)),
+          level: i,
+          message: `${limits[i].label}请求次数已达上限，请稍后再试`,
+        };
       }
-      return db.prepare('UPDATE rate_limits SET count = count + 1 WHERE id = ?').bind(levelKeys[i]);
-    });
-    await db.batch(writes);
+    }
 
     return { allowed: true };
   } catch (error) {

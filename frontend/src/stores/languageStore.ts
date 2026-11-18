@@ -36,8 +36,11 @@ const syncI18n = (lang: Language): void => {
 export const useLanguageStore = create<LanguageState>()(
   persist(
     (set) => ({
-      // 首次访问（本地没有保存过）用浏览器语言；已保存的值会在 rehydrate 时覆盖这里
-      language: detectBrowserLanguage(),
+      // 已有 i18next 语言（显式初始化/测试固定语言）时优先沿用，
+      // 否则按浏览器语言探测；已保存的值仍会在 rehydrate 时覆盖这里
+      language: isSupportedLanguage(i18next.language)
+        ? (i18next.language as Language)
+        : detectBrowserLanguage(),
 
       setLanguage: (lang) => {
         syncI18n(lang);
@@ -49,6 +52,9 @@ export const useLanguageStore = create<LanguageState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ language: state.language }),
       onRehydrateStorage: () => (state) => {
+        // 没有持久化记录时保持当前 i18n 语言（首次访问由初始 state 决定），
+        // 否则会把测试/服务端显式设置的语言又改回浏览器探测值
+        if (!localStorage.getItem(LANGUAGE_STORAGE_KEY)) return;
         if (state && isSupportedLanguage(state.language)) {
           syncI18n(state.language);
         }

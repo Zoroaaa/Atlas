@@ -47,12 +47,12 @@ export async function getUserStats(
     .prepare(
       `SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive,
-        SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END) as verified,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_today,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_week,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_month
+        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
+        COALESCE(SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END), 0) as inactive,
+        COALESCE(SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END), 0) as verified,
+        COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as new_today,
+        COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as new_week,
+        COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as new_month
       FROM users`
     )
     .bind(opts.oneDayAgo, opts.oneWeekAgo, opts.oneMonthAgo)
@@ -517,9 +517,9 @@ export async function getSystemUserStats(db: D1Database, weekAgo: number): Promi
     .prepare(
       `SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END) as verified,
-        SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END) as new_this_week
+        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
+        COALESCE(SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END), 0) as verified,
+        COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as new_this_week
       FROM users`
     )
     .bind(weekAgo)
@@ -554,9 +554,9 @@ export async function getSourceStats(db: D1Database): Promise<SourceStatsRow | n
     .prepare(
       `SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END) as searchable,
-        SUM(usage_count) as total_usage
+        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
+        COALESCE(SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END), 0) as searchable,
+        COALESCE(SUM(usage_count), 0) as total_usage
       FROM search_sources`
     )
     .first<SourceStatsRow>();
@@ -1551,7 +1551,7 @@ export async function listDailySystemErrors(db: D1Database, startTime: number): 
 
 /** 错误记录行 */
 export interface SystemErrorRow {
-  id: number;
+  id: string;
   source: string;
   error_type: string;
   message: string;
@@ -1564,7 +1564,8 @@ export interface SystemErrorRow {
   ip_address: string | null;
   user_agent: string | null;
   fingerprint: string;
-  created_at: string;
+  /** D1 中为 INTEGER 毫秒时间戳 */
+  created_at: number;
 }
 
 /** 错误列表过滤条件 */

@@ -8,7 +8,7 @@ import {
   Magnet, Film, Calendar, Clock, User, Building2,
   Tag, Star, ExternalLink, Copy, Check, Loader2,
   AlertCircle, Search, ChevronDown, ChevronUp, X,
-  Shield, Play, FileDown, Heart, RefreshCw, ExternalLink as ExternalLinkIcon,
+  Shield, Play, FileDown, Heart, RefreshCw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JavDetail, JavEntityLink, JavEntityTarget, MagnetItem } from '@/types';
@@ -310,7 +310,7 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
                 onClick={() => handleOpenWebtor(playModal.magnet)}
                 className="flex-1 px-4 py-2.5 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
-                <ExternalLinkIcon className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4" />
                 {t('jav:detail.goToWebtor')}
               </button>
             </div>

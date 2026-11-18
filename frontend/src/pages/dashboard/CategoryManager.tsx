@@ -279,10 +279,16 @@ export const CategoryManager: React.FC = () => {
     return categories.filter(c => c.majorCategoryId === majorCategoryId);
   };
 
-  const filteredMajorCategories = majorCategories.filter(mc => 
-    mc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mc.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 搜索覆盖大类与子分类：只匹配大类会漏掉「子分类名命中但大类名不命中」的结果
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const matchesQuery = (value?: string) => Boolean(normalizedQuery) && (value || '').toLowerCase().includes(normalizedQuery);
+  const filteredMajorCategories = normalizedQuery
+    ? majorCategories.filter(mc =>
+        matchesQuery(mc.name) ||
+        matchesQuery(mc.description) ||
+        categories.some(c => c.majorCategoryId === mc.id && (matchesQuery(c.name) || matchesQuery(c.description)))
+      )
+    : majorCategories;
 
   if (isLoading) {
     return (
@@ -581,8 +587,6 @@ export const CategoryManager: React.FC = () => {
         title={categoryModal.mode === 'edit' ? t('dashboard:categories.categoryModalEdit') : t('dashboard:categories.categoryModalCreate')}
         size="md"
       >
-        {(() => {
-          return (
         <div className="space-y-4">
           <Input
             label={t('dashboard:categories.categoryFormNameLabel')}
@@ -675,8 +679,6 @@ export const CategoryManager: React.FC = () => {
             </Button>
           </div>
         </div>
-          );
-        })()}
       </Modal>
     </div>
   );

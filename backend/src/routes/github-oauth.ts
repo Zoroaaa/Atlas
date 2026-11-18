@@ -10,8 +10,6 @@ import {
   error,
   generateId,
   hashPassword,
-  hashToken,
-  generateToken,
   getClientIP,
   logUserAction,
   recordSecurityEvent,
@@ -21,6 +19,7 @@ import {
 } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from '@/services';
+import { issueOAuthLoginCode } from '@/services/oauth-login';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 
 export const githubOAuthRoutes = new Hono<{ Bindings: Env }>();
@@ -224,9 +223,6 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     }
 
     const now = Date.now();
-    // 新用户在建号 batch 中直接拿到 token；已有用户走下面统一签发
-    let token: string | null = null;
-    let isNewUser = false;
 
     if (!user) {
       // 注册风控：OAuth 自动注册与邮箱注册共用同一 IP 配额（IPv6 按 /64 聚合）。
@@ -258,51 +254,28 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
       const userId = generateId();
       // OAuth 用户不需要密码，存储随机不可逆哈希占位
       const randomPasswordHash = await hashPassword(generateId() + generateId());
-      const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
-      const newUserToken = await generateToken(userId, username, c.env.JWT_SECRET, expiryDays, 'user');
-      const newUserTokenHash = await hashToken(newUserToken);
-      const newUserSessionId = generateId();
-      const newUserSessionExpiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
 
-      // 建号与建会话必须同时成功，避免会话写入失败后留下孤儿用户
-      await c.env.DB.batch([
-        c.env.DB.prepare(`
-          INSERT INTO users
-            (id, username, email, password_hash, github_id, github_username,
-             created_at, updated_at, settings, is_active, last_login, login_count, email_verified)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          userId,
-          username,
-          email,
-          randomPasswordHash,
-          githubId,
-          ghUser.login,
-          now,
-          now,
-          JSON.stringify({}),
-          1,
-          now,
-          1,
-          1 // GitHub 账号视为邮箱已验证
-        ),
-        c.env.DB.prepare(`
-          INSERT INTO user_sessions
-            (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          newUserSessionId,
-          userId,
-          newUserTokenHash,
-          newUserSessionExpiresAt,
-          now,
-          now,
-          clientIP,
-          userAgent
-        ),
-      ]);
-      token = newUserToken;
-      isNewUser = true;
+      // 只建用户；会话在 code 兑换时创建（URL 中不再出现长期 token）
+      await c.env.DB.prepare(`
+        INSERT INTO users
+          (id, username, email, password_hash, github_id, github_username,
+           created_at, updated_at, settings, is_active, last_login, login_count, email_verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        userId,
+        username,
+        email,
+        randomPasswordHash,
+        githubId,
+        ghUser.login,
+        now,
+        now,
+        JSON.stringify({}),
+        1,
+        now,
+        1,
+        1 // GitHub 账号视为邮箱已验证
+      ).run();
 
       await logUserAction(
         c.env,
@@ -331,54 +304,14 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
       return c.redirect(`${loginErrorBase}?error=account_disabled`, 302);
     }
 
-    const userRole = user.role_name || 'user';
-
-    // 已有用户：登录记录与会话写入同一个 batch
-    if (!token) {
-      const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
-      const existingToken = await generateToken(user.id, user.username, c.env.JWT_SECRET, expiryDays, userRole);
-      const tokenHash = await hashToken(existingToken);
-      const sessionId = generateId();
-      const expiresAt = now + expiryDays * 24 * 60 * 60 * 1000;
-
-      await c.env.DB.batch([
-        c.env.DB.prepare(
-          'UPDATE users SET last_login = ?, login_count = login_count + 1, updated_at = ? WHERE id = ?'
-        ).bind(now, now, user.id),
-        c.env.DB.prepare(`
-          INSERT INTO user_sessions
-            (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(sessionId, user.id, tokenHash, expiresAt, now, now, clientIP, userAgent),
-      ]);
-      token = existingToken;
-    }
-
-    await logUserAction(c.env, user.id, 'login', { method: 'github', ip: clientIP }, c);
-    await recordSecurityEvent(c.env.DB, {
+    // 回调只发一次性 code；JWT 在 /auth/oauth/exchange 兑换后签发，
+    // 避免长期 token 进入浏览器历史、访问日志与 Referer。
+    const loginCode = await issueOAuthLoginCode(c.env, {
       userId: user.id,
-      eventType: 'login',
-      eventStatus: 'success',
+      provider: 'github',
       ipAddress: clientIP,
       userAgent,
     });
-
-    // token 与用户信息通过 URL query 传给前端回调页
-    const userData = encodeURIComponent(
-      JSON.stringify({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        settings: (() => { try { return JSON.parse(user.settings || '{}'); } catch { return {}; } })(),
-        isActive: true,
-        emailVerified: true,
-        createdAt: user.created_at,
-        lastLogin: now,
-        loginCount: isNewUser ? user.login_count : user.login_count + 1,
-        role: userRole,
-        roleDisplayName: user.role_display_name || '普通用户',
-      })
-    );
 
     // state 一次性使用，回调结束即清除，避免被重放
     c.header(
@@ -386,10 +319,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
       'gh_oauth_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/'
     );
 
-    return c.redirect(
-      `${callbackBase}?token=${encodeURIComponent(token)}&user=${userData}`,
-      302
-    );
+    return c.redirect(`${callbackBase}?code=${encodeURIComponent(loginCode)}`, 302);
   } catch (err) {
     console.error('GitHub OAuth callback error:', err);
     return c.redirect(`${loginErrorBase}?error=github_server_error`, 302);

@@ -6,6 +6,7 @@
 
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
+import { decodeJwtPayload } from '@/utils/jwt';
 import { getApiBaseUrl } from '@/constants';
 import type {
   MajorCategory,
@@ -387,13 +388,12 @@ export const sourceApi = {
     }
     
     // 用户配置接口按 userId 寻址，这里从 JWT payload 直接取；解析失败视为本地 token 损坏
-    let userId = '';
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      userId = payload.userId;
-    } catch {
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+      console.error('[source] JWT payload 解析失败，无法读取用户源配置');
       return { success: false, data: [] };
     }
+    const userId = payload.userId;
     
     const response = await apiClient.get<{ success: boolean; data: { sources: Array<{
       id: string;
@@ -521,7 +521,8 @@ export const sourceApi = {
     return { success: false, data: { items: [], total: 0, page: 1, pageSize: 0, hasMore: false } };
   },
 
-  getSourceById: async (id: string): Promise<{ success: boolean; data: SourceDetailPayload }> => {
+  // 失败时返回 data: null，由调用方展示错误态；不能伪造 enabled: true 让 UI 误判
+  getSourceById: async (id: string): Promise<{ success: boolean; data: SourceDetailPayload | null }> => {
     const response = await apiClient.get<{
       success: boolean;
       data: {
@@ -570,16 +571,7 @@ export const sourceApi = {
         },
       };
     }
-    return {
-      success: false,
-      data: {
-        source: {} as SourceDetailPayload['source'],
-        categoryPath: [],
-        enabled: true,
-        userConfig: null,
-        status: null,
-      },
-    };
+    return { success: false, data: null };
   },
 
   getSourceStats: async (): Promise<{ 
@@ -621,12 +613,12 @@ export const sourceApi = {
   }> => {
     const token = apiClient.getToken();
     if (!token) return { success: false, data: [] };
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return apiClient.get(`/search-sources/export-user-configs/${payload.userId}`);
-    } catch {
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+      console.error('[source] JWT payload 解析失败，无法导出用户源配置');
       return { success: false, data: [] };
     }
+    return apiClient.get(`/search-sources/export-user-configs/${payload.userId}`);
   },
 
   checkSourceStatus: async (sourceId: string, keyword = 'test'): Promise<{ 

@@ -343,7 +343,9 @@
       "open": "Open",
       "check": "Health Check",
       "enable": "Enable",
-      "disable": "Disable"
+      "disable": "Disable",
+      "failedTitle": "Action failed",
+      "failedMessage": "Check your connection and try again"
     },
     "batch": {
       "selected": "{{count}} selected",
@@ -2621,7 +2623,9 @@
       "reasonPopular": "Trending recently",
       "reasonRankingWeekly": "Weekly #{{rank}}",
       "reasonRankingMonthly": "Monthly #{{rank}}",
-      "refresh": "Refresh recommendations"
+      "refresh": "Refresh recommendations",
+      "loadFailed": "Failed to load recommendations",
+      "retry": "Retry"
     },
     "genreRec": {
       "title": "Recommended tags",
@@ -3070,7 +3074,7 @@
         "cancelSelection": "Clear selection",
         "wantToWatch": "Want to watch",
         "watched": "Watched",
-        "durationMin": "{{count}} min",
+        "durationMin": "{{value}} min",
         "emptyTitle": "No favorites yet",
         "emptyDesc": "Click the favorite button while searching to add",
         "importModalTitle": "Import Favorites",
@@ -3123,7 +3127,7 @@
         "cancelSelection": "Clear selection",
         "resultsCount": "{{count}} results",
         "reSearchTitle": "Re-search this keyword",
-        "durationMin": "{{count}} min",
+        "durationMin": "{{value}} min",
         "emptyTitle": "No search history",
         "emptyDesc": "History will appear here after you start searching"
       }

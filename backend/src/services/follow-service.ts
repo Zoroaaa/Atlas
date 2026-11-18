@@ -232,7 +232,7 @@ async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]
        JOIN users u ON u.id = f.user_id
        LEFT JOIN notification_preferences p
          ON p.user_id = f.user_id AND p.type = 'follow.new_work'
-       WHERE f.watch_key = ? AND f.notify_in_app = 1
+       WHERE f.watch_key = ? AND f.notify_email = 1
          AND p.email = 1 AND u.email IS NOT NULL AND u.email_verified = 1`
     )
     .bind(title, body, payload, dedupKey, now, watch.key)

@@ -343,7 +343,9 @@
       "open": "打开",
       "check": "健康检查",
       "enable": "启用",
-      "disable": "禁用"
+      "disable": "禁用",
+      "failedTitle": "操作失败",
+      "failedMessage": "请检查网络后重试"
     },
     "batch": {
       "selected": "已选 {{count}} 个",
@@ -2621,7 +2623,9 @@
       "reasonPopular": "近期热门",
       "reasonRankingWeekly": "周榜 #{{rank}}",
       "reasonRankingMonthly": "月榜 #{{rank}}",
-      "refresh": "刷新推荐"
+      "refresh": "刷新推荐",
+      "loadFailed": "推荐加载失败",
+      "retry": "重试"
     },
     "genreRec": {
       "title": "推荐标签",
@@ -3070,7 +3074,7 @@
         "cancelSelection": "取消选择",
         "wantToWatch": "想看",
         "watched": "已看过",
-        "durationMin": "{{count}}分钟",
+        "durationMin": "{{value}}分钟",
         "emptyTitle": "暂无收藏",
         "emptyDesc": "搜索时点击收藏按钮即可添加收藏",
         "importModalTitle": "导入收藏",
@@ -3123,7 +3127,7 @@
         "cancelSelection": "取消选择",
         "resultsCount": "{{count}}条",
         "reSearchTitle": "重新搜索此关键词",
-        "durationMin": "{{count}}分钟",
+        "durationMin": "{{value}}分钟",
         "emptyTitle": "暂无搜索历史",
         "emptyDesc": "开始搜索后，历史记录将显示在这里"
       }

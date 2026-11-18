@@ -125,7 +125,8 @@ class ProxyService {
     };
   }
 
-  shouldProxy(url: string): boolean {
+  /** 仅校验 URL 是否合法；不代表该 URL 需要走代理（代理开关与域名命中不在此判断） */
+  isValidUrl(url: string): boolean {
     if (!url) return false;
 
     try {

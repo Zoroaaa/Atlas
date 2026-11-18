@@ -249,12 +249,6 @@ adminRoutes.get('/users/:id', async (c) => {
 
     const recentActions = await listUserRecentActions(c.env.DB, userId);
 
-    const loginCount = recentActions.filter((a) => {
-      const result = adminActionSchema.safeParse(a);
-      const action = result.success ? result.data : a as { action: string };
-      return action.action === 'login';
-    }).length || 0;
-
     return c.json(success({
       user: {
         id: user.id,
@@ -273,7 +267,8 @@ adminRoutes.get('/users/:id', async (c) => {
         favoritesCount: favoritesCount,
         historyCount: historyCount,
         activeSessions: sessions.length,
-        totalLoginCount: loginCount,
+        // 累计登录次数读 users.login_count；recentActions 只有最近 20 条，不能用来统计
+        totalLoginCount: user.login_count,
         totalSearchCount: historyCount,
       },
       recentSessions: sessions,

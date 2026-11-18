@@ -361,12 +361,16 @@ export class SearchSourcesService {
     }
   }
 
-  /** 更新分类；只允许创建者操作，is_system 仅影响能否删除。 */
+  /**
+   * 更新分类：普通分类只允许创建者；系统分类默认也要求创建者，
+   * 管理员需显式传 allowSystem=true（系统种子 created_by 可能为空，不能靠归属判断）。
+   */
   async updateSourceCategory(
     env: Env,
     categoryId: string,
     updateData: UpdateSourceCategoryData,
-    userId: string
+    userId: string,
+    options: { allowSystem?: boolean } = {}
   ): Promise<{ category: SourceCategory }> {
     try {
       const category = (await env.DB.prepare(
@@ -385,11 +389,11 @@ export class SearchSourcesService {
         throw new Error('搜索源分类不存在');
       }
 
-      if (category.is_system && category.created_by !== userId) {
-        throw new Error('无权限修改系统分类');
-      }
-
-      if (!category.is_system && category.created_by !== userId) {
+      if (category.is_system) {
+        if (!options.allowSystem && category.created_by !== userId) {
+          throw new Error('无权限修改系统分类');
+        }
+      } else if (category.created_by !== userId) {
         throw new Error('无权限修改此分类');
       }
 
@@ -548,7 +552,7 @@ export class SearchSourcesService {
         FROM search_sources ss
         LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
         LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
-        LEFT JOIN user_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
+        LEFT JOIN user_search_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
         WHERE ss.is_active = 1
       `;
       const params: (string | number | boolean)[] = [userId];
@@ -694,12 +698,16 @@ export class SearchSourcesService {
     }
   }
 
-  /** 更新搜索源；同时改 URL 模板并标记可搜索时，模板必须保留 {keyword} 占位符。 */
+  /**
+   * 更新搜索源；同时改 URL 模板并标记可搜索时，模板必须保留 {keyword} 占位符。
+   * 系统源默认只允许创建者，管理员需显式传 allowSystem=true。
+   */
   async updateSearchSource(
     env: Env,
     sourceId: string,
     updateData: UpdateSearchSourceData,
-    userId: string
+    userId: string,
+    options: { allowSystem?: boolean } = {}
   ): Promise<{ source: SearchSource }> {
     try {
       const source = (await env.DB.prepare(
@@ -718,11 +726,11 @@ export class SearchSourcesService {
         throw new Error('搜索源不存在');
       }
 
-      if (source.is_system && source.created_by !== userId) {
-        throw new Error('无权限修改系统搜索源');
-      }
-
-      if (!source.is_system && source.created_by !== userId) {
+      if (source.is_system) {
+        if (!options.allowSystem && source.created_by !== userId) {
+          throw new Error('无权限修改系统搜索源');
+        }
+      } else if (source.created_by !== userId) {
         throw new Error('无权限修改此搜索源');
       }
 
@@ -770,6 +778,8 @@ export class SearchSourcesService {
         .bind(...updateValues)
         .run();
 
+      // 必须 JOIN 当前用户的配置：否则 userEnabled/userNotes 退化为默认值，
+      // 前端会把用户已禁用的源显示成启用。
       const updatedSource = await env.DB.prepare(
         `SELECT 
           ss.*,
@@ -777,13 +787,20 @@ export class SearchSourcesService {
           sc.icon as category_icon,
           sc.major_category_id,
           mc.name as major_category_name,
-          mc.icon as major_category_icon
+          mc.icon as major_category_icon,
+          usc.is_enabled as user_enabled,
+          usc.custom_priority,
+          usc.custom_name,
+          usc.custom_subtitle,
+          usc.custom_icon,
+          usc.notes as user_notes
         FROM search_sources ss
         LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
         LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
+        LEFT JOIN user_search_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
         WHERE ss.id = ?`
       )
-        .bind(sourceId)
+        .bind(userId, sourceId)
         .first();
 
       if (!updatedSource) {
@@ -799,7 +816,7 @@ export class SearchSourcesService {
     }
   }
 
-  /** 软删除搜索源，同时物理删除所有用户的个性化配置。 */
+  /** 软删除搜索源；用户个性化配置保留，源恢复启用后仍可复用。 */
   async deleteSearchSource(
     env: Env,
     sourceId: string,
@@ -838,14 +855,8 @@ export class SearchSourcesService {
         .bind(Date.now(), sourceId)
         .run();
 
-      // 源本身软删除，但用户配置直接物理删除：残留配置会继续被列表 JOIN 出来。
-      await env.DB.prepare(
-        `DELETE FROM user_source_configs 
-         WHERE source_id = ?`
-      )
-        .bind(sourceId)
-        .run();
-
+      // 不删除用户配置：所有列表查询都带 ss.is_active = 1，停用源的配置不会展示；
+      // 物理删除会让源恢复后用户自定义名称/备注全部丢失。
       return {
         message: '搜索源删除成功',
         deletedSource: {
@@ -872,7 +883,7 @@ export class SearchSourcesService {
           ss.is_system,
           sc.name as category_name,
           mc.name as major_category_name
-        FROM user_source_configs usc
+        FROM user_search_source_configs usc
         LEFT JOIN search_sources ss ON usc.source_id = ss.id
         LEFT JOIN search_source_categories sc ON ss.category_id = sc.id
         LEFT JOIN search_major_categories mc ON sc.major_category_id = mc.id
@@ -930,14 +941,14 @@ export class SearchSourcesService {
       const now = Date.now();
 
       await env.DB.prepare(
-        `INSERT OR REPLACE INTO user_source_configs (
+        `INSERT OR REPLACE INTO user_search_source_configs (
           id, user_id, source_id, is_enabled, custom_priority,
           custom_name, custom_subtitle, custom_icon, notes,
           created_at, updated_at
         ) VALUES (
-          COALESCE((SELECT id FROM user_source_configs WHERE user_id = ? AND source_id = ?), ?),
+          COALESCE((SELECT id FROM user_search_source_configs WHERE user_id = ? AND source_id = ?), ?),
           ?, ?, ?, ?, ?, ?, ?, ?,
-          COALESCE((SELECT created_at FROM user_source_configs WHERE user_id = ? AND source_id = ?), ?),
+          COALESCE((SELECT created_at FROM user_search_source_configs WHERE user_id = ? AND source_id = ?), ?),
           ?
         )`
       )
@@ -989,7 +1000,7 @@ export class SearchSourcesService {
     const now = Date.now();
 
     await env.DB.prepare(
-      `INSERT OR IGNORE INTO user_source_configs (
+      `INSERT OR IGNORE INTO user_search_source_configs (
         id, user_id, source_id, is_enabled, custom_priority,
         custom_name, custom_subtitle, custom_icon, notes,
         created_at, updated_at
@@ -1018,7 +1029,16 @@ export class SearchSourcesService {
     configs: UpdateUserSourceConfigData[]
   ): Promise<{ message: string; updatedCount: number }> {
     try {
-      const sourceIds = configs.map((c) => c.sourceId);
+      // 入参先去重：重复 sourceId 会让 IN 结果数小于入参长度，误报「部分搜索源不存在」
+      // 空集合直接短路，避免生成 `IN ()` 非法 SQL。
+      const uniqueConfigs = Array.from(
+        new Map(configs.map((config) => [config.sourceId, config])).values()
+      );
+      if (uniqueConfigs.length === 0) {
+        return { message: '批量更新用户搜索源配置成功', updatedCount: 0 };
+      }
+
+      const sourceIds = uniqueConfigs.map((c) => c.sourceId);
       const validSources = await env.DB.prepare(
         `SELECT id FROM search_sources 
          WHERE id IN (${sourceIds.map(() => '?').join(',')}) AND is_active = 1`
@@ -1031,20 +1051,20 @@ export class SearchSourcesService {
       }
 
       const stmt = env.DB.prepare(
-        `INSERT OR REPLACE INTO user_source_configs (
+        `INSERT OR REPLACE INTO user_search_source_configs (
           id, user_id, source_id, is_enabled, custom_priority,
           custom_name, custom_subtitle, custom_icon, notes,
           created_at, updated_at
         ) VALUES (
-          COALESCE((SELECT id FROM user_source_configs WHERE user_id = ? AND source_id = ?), ?),
+          COALESCE((SELECT id FROM user_search_source_configs WHERE user_id = ? AND source_id = ?), ?),
           ?, ?, ?, ?, ?, ?, ?, ?,
-          COALESCE((SELECT created_at FROM user_source_configs WHERE user_id = ? AND source_id = ?), ?),
+          COALESCE((SELECT created_at FROM user_search_source_configs WHERE user_id = ? AND source_id = ?), ?),
           ?
         )`
       );
 
       const now = Date.now();
-      const promises = configs.map((config) => {
+      const promises = uniqueConfigs.map((config) => {
         const configId = generateId();
         return stmt
           .bind(
@@ -1071,7 +1091,7 @@ export class SearchSourcesService {
 
       return {
         message: '批量更新用户搜索源配置成功',
-        updatedCount: configs.length,
+        updatedCount: uniqueConfigs.length,
       };
     } catch (error) {
       console.error('批量更新用户搜索源配置失败:', error);
@@ -1106,10 +1126,18 @@ export class SearchSourcesService {
         env.DB.prepare(`SELECT COUNT(*) as count FROM search_major_categories WHERE is_active = 1`).first(),
         env.DB.prepare(`SELECT COUNT(*) as count FROM search_source_categories WHERE is_active = 1`).first(),
         env.DB.prepare(`SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1`).first(),
+        // 与 enabledOnly 同一口径：用户显式启用 + 未配置但默认启用的系统可搜源
         env.DB.prepare(
-          `SELECT COUNT(*) as count FROM user_source_configs WHERE user_id = ? AND is_enabled = 1`
+          `SELECT COUNT(*) as count
+           FROM search_sources ss
+           LEFT JOIN user_search_source_configs usc
+             ON ss.id = usc.source_id AND usc.user_id = ?
+           WHERE ss.is_active = 1
+             AND (ss.is_system = 1 OR ss.created_by = ?)
+             AND (usc.is_enabled = 1
+                  OR (usc.is_enabled IS NULL AND ss.is_system = 1 AND ss.searchable = 1))`
         )
-          .bind(userId)
+          .bind(userId, userId)
           .first(),
       ]);
 
@@ -1120,11 +1148,14 @@ export class SearchSourcesService {
           mc.icon,
           COUNT(DISTINCT sc.id) as categories_count,
           COUNT(DISTINCT ss.id) as sources_count,
-          COUNT(DISTINCT CASE WHEN usc.is_enabled = 1 THEN usc.id END) as enabled_sources_count
+          COUNT(DISTINCT CASE
+            WHEN usc.is_enabled = 1 THEN ss.id
+            WHEN usc.is_enabled IS NULL AND ss.is_system = 1 AND ss.searchable = 1 THEN ss.id
+          END) as enabled_sources_count
         FROM search_major_categories mc
         LEFT JOIN search_source_categories sc ON mc.id = sc.major_category_id AND sc.is_active = 1
         LEFT JOIN search_sources ss ON sc.id = ss.category_id AND ss.is_active = 1
-        LEFT JOIN user_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
+        LEFT JOIN user_search_source_configs usc ON ss.id = usc.source_id AND usc.user_id = ?
         WHERE mc.is_active = 1
         GROUP BY mc.id
         ORDER BY mc.display_order ASC`

@@ -175,7 +175,8 @@ javRoutes.get('/proxy-image', async (c) => {
           status: 302,
           headers: {
             Location: publicUrl,
-            'Cache-Control': 'public, max-age=86400',
+            // 1 小时：对象被回收/替换后，边缘不会持续 24 小时跳到失效地址
+            'Cache-Control': 'public, max-age=3600',
             'Cross-Origin-Resource-Policy': 'cross-origin',
           },
         });

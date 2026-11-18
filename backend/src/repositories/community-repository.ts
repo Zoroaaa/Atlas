@@ -5,6 +5,7 @@
  * 用户社区统计在读取时从源表聚合；多语句原子操作统一走 db.batch，拆开会丢失原子性。
  */
 import { cached, invalidateCache } from '@/utils/cache';
+import { escapeLikePattern } from '@/utils/sql';
 
 /** 帖子行（community_posts 查询结果；联表查询时可附带作者 username） */
 export type CommunityPostRow = Record<string, unknown> & { userName?: string | null };
@@ -215,8 +216,8 @@ export async function listPosts(
   }
 
   if (opts.search) {
-    whereClauses.push('(p.title LIKE ? OR p.caption LIKE ?)');
-    const searchTerm = `%${opts.search}%`;
+    whereClauses.push("(p.title LIKE ? ESCAPE '\\' OR p.caption LIKE ? ESCAPE '\\')");
+    const searchTerm = `%${escapeLikePattern(opts.search)}%`;
     params.push(searchTerm, searchTerm);
   }
 
@@ -224,8 +225,8 @@ export async function listPosts(
     const tagList = opts.tags.split(',').filter(t => t.trim());
     if (tagList.length > 0) {
       // tags 存 JSON 数组字符串：带引号匹配完整标签，避免 "jav" 命中 "javbus" 这类子串
-      whereClauses.push(`(${tagList.map(() => 'p.tags LIKE ?').join(' OR ')})`);
-      tagList.forEach(tag => params.push(`%"${tag.trim()}"%`));
+      whereClauses.push(`(${tagList.map(() => "p.tags LIKE ? ESCAPE '\\'").join(' OR ')})`);
+      tagList.forEach(tag => params.push(`%"${escapeLikePattern(tag.trim())}"%`));
     }
   }
 
@@ -410,6 +411,18 @@ export async function findPostNotificationTarget(
 /** 帖子是否存在 */
 export async function postExists(db: D1Database, id: string): Promise<boolean> {
   const row = await db.prepare('SELECT id FROM community_posts WHERE id = ?').bind(id).first();
+  return !!row;
+}
+
+/**
+ * 帖子是否存在且对普通用户可见。
+ * 互动与评论必须用它：只判断存在会让 hidden 帖子继续被点赞、收藏、评论。
+ */
+export async function activePostExists(db: D1Database, id: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT id FROM community_posts WHERE id = ? AND status = 'active'")
+    .bind(id)
+    .first();
   return !!row;
 }
 

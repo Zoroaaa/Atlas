@@ -4,6 +4,7 @@ import i18next from '@/i18n';
 import { useAuthStore, useThemeStore, useUIStore } from '@/stores';
 import { closeOAuthBrowser, hapticTap, hideSplashScreen, isNativeApp, syncStatusBar } from '@/utils/nativeShell';
 import { parseOAuthDeepLink } from '@/utils/oauthDeepLink';
+import { authApi } from '@/services/api';
 import { handleBackPress } from '@/utils/backStack';
 
 /**
@@ -39,7 +40,8 @@ export const NativeShell: React.FC = () => {
 
       void closeOAuthBrowser();
 
-      if (payload.error || !payload.token || !payload.user) {
+      const code = payload.code;
+      if (payload.error || !code) {
         useUIStore.getState().addToast({
           type: 'error',
           title: i18next.t('auth:callback.loginFailedTitle'),
@@ -52,15 +54,41 @@ export const NativeShell: React.FC = () => {
         return;
       }
 
-      setToken(payload.token);
-      void persistToken(payload.token);
-      setUser(payload.user);
-      useUIStore.getState().addToast({
-        type: 'success',
-        title: i18next.t('auth:callback.loginSuccessTitle'),
-        message: i18next.t('auth:callback.welcomeBack', { username: payload.user.username }),
-      });
-      navigate('/main', { replace: true });
+      void (async () => {
+        try {
+          // 深链只带一次性 code，token 通过 POST 兑换，避免放进自定义 scheme URL
+          const response = await authApi.exchangeOAuthCode(code);
+          if (!response.success || !response.data) {
+            useUIStore.getState().addToast({
+              type: 'error',
+              title: i18next.t('auth:callback.loginFailedTitle'),
+              message: response.message || i18next.t('auth:callback.serverError'),
+              duration: 4000,
+            });
+            navigate('/login', { replace: true });
+            return;
+          }
+
+          const { token, user } = response.data;
+          setToken(token);
+          void persistToken(token);
+          setUser(user);
+          useUIStore.getState().addToast({
+            type: 'success',
+            title: i18next.t('auth:callback.loginSuccessTitle'),
+            message: i18next.t('auth:callback.welcomeBack', { username: user.username }),
+          });
+          navigate('/main', { replace: true });
+        } catch (error) {
+          useUIStore.getState().addToast({
+            type: 'error',
+            title: i18next.t('auth:callback.loginFailedTitle'),
+            message: error instanceof Error ? error.message : i18next.t('auth:callback.serverError'),
+            duration: 4000,
+          });
+          navigate('/login', { replace: true });
+        }
+      })();
     };
 
     void (async () => {

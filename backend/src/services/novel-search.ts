@@ -9,6 +9,7 @@
 import { fetchWithRetry } from '@/utils/fetch';
 import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
 import { decodeGbk, encodeGbkQuery } from '@/utils/gbk';
+import { mapWithConcurrency } from '@/utils';
 
 // ── 常量 ─────────────────────────────────────────────────
 
@@ -139,24 +140,6 @@ async function fetchHtml(url: string, headers: Record<string, string>): Promise<
   }
 }
 
-/** 有限并发 map：保持结果顺序，单条失败不应拖垮整批 */
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await fn(items[index]);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
 interface NovelSourceResult {
   items: NovelItem[];
   error: string | null;
@@ -256,6 +239,16 @@ function parseZxcsDetailPage(
   };
 }
 
+/**
+ * 判断搜索页是否存在下一页链接。
+ * 不能用「本页条数是否满额」猜：末页恰好满额时会多显示一次「加载更多」。
+ */
+function hasZxcsNextPage(html: string, page: number): boolean {
+  const next = page + 1;
+  // 链接形如 href="https://zxcs.zip/search?q=...&amp;page=2"
+  return new RegExp(`href="[^"]*page=${next}(?:["&]|&amp;)`).test(html);
+}
+
 /** 知轩藏书搜索：站点按 &page=N 分页，每页最多抓 NOVEL_PAGE_SIZE 本详情 */
 async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSourceResult> {
   try {
@@ -269,7 +262,7 @@ async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSour
     const all = parseZxcsSearchResults(searchHtml);
     if (!all.length) return { items: [], error: null, hasMore: false };
     const slice = all.slice(0, NOVEL_PAGE_SIZE);
-    const hasMore = all.length >= NOVEL_PAGE_SIZE;
+    const hasMore = hasZxcsNextPage(searchHtml, page);
 
     // 3. 有限并发抓详情页；单本失败只丢该本
     const items = await mapWithConcurrency(slice, DETAIL_CONCURRENCY, async (entry) => {

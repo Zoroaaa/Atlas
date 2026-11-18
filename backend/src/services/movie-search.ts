@@ -341,10 +341,10 @@ export async function searchMovie(
     // 只要有一个关键词请求成功，TPB 源就是可用的。
     // 部分标题变体失败不应让已返回的资源上方出现「TPB 请求失败」。
     if (tpbFulfilled > 0) tpbError = null;
-    // 按 btih 去重：magnet 前缀固定 20 字符，其后 40 位即 infoHash
+    // 按 btih 去重：复用统一提取逻辑，避免 magnet 前缀长度变化或短链时截断错位
     const seenHashes = new Set<string>();
     allTpbResults = allTpbResults.filter(r => {
-      const hash = r.magnet?.slice(20, 60) || '';
+      const hash = extractHash(r.magnet || '');
       if (!hash || seenHashes.has(hash)) return false;
       seenHashes.add(hash); return true;
     }).slice(0, 40);

@@ -319,16 +319,7 @@ export const userApi = {
     return { success: false };
   },
 
-  updateSourceConfig: async (sourceId: string, config: {
-    isEnabled?: boolean;
-    customPriority?: number;
-    customName?: string;
-    customSubtitle?: string;
-    customIcon?: string;
-    notes?: string;
-  }): Promise<{ success: boolean; message: string }> => {
-    return apiClient.put(`/user/source-configs/${sourceId}`, config);
-  },
+  // 源配置更新统一走 sourceApi.updateUserSourceConfig（带 shared zod 校验），此处不保留重复实现
 
   getActivities: async (params: {
     limit?: number;

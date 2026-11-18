@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { sourceApi } from '@/services/api';
+import { useNotification } from '@/hooks/useNotification';
 import type {
   Category,
   MajorCategory,
@@ -76,6 +77,12 @@ export interface SourceBoardProps {
 export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   const { t } = useTranslation(['sourceBoard', 'tabs']);
   const navigate = useNavigate();
+  const notification = useNotification();
+
+  // 所有写操作共用同一失败提示：避免各 handler 只写 finally 导致 Promise rejection 静默丢失
+  const notifyActionFailed = useCallback(() => {
+    notification.error(t('sourceBoard:actions.failedTitle'), t('sourceBoard:actions.failedMessage'));
+  }, [notification, t]);
 
   const [stats, setStats] = useState<SourceBoardStats | null>(null);
   const [majorCategories, setMajorCategories] = useState<MajorCategory[]>([]);
@@ -121,19 +128,28 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   const requestIdRef = useRef(0);
 
   const loadStats = useCallback(async () => {
-    const response = await sourceApi.getSourceStats();
-    if (response.success && response.data) setStats(response.data);
+    try {
+      const response = await sourceApi.getSourceStats();
+      if (response.success && response.data) setStats(response.data);
+    } catch (err) {
+      // 统计只是辅助信息：失败不阻塞源列表，也不弹 toast
+      console.error('加载源统计失败:', err);
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [majorRes] = await Promise.all([
-        sourceApi.getMajorCategories(),
-        loadStats(),
-      ]);
-      if (cancelled) return;
-      if (majorRes.success) setMajorCategories(majorRes.data);
+      try {
+        const [majorRes] = await Promise.all([
+          sourceApi.getMajorCategories(),
+          loadStats(),
+        ]);
+        if (cancelled) return;
+        if (majorRes.success) setMajorCategories(majorRes.data);
+      } catch (err) {
+        console.error('加载源大类失败:', err);
+      }
     })();
     return () => {
       cancelled = true;
@@ -143,9 +159,13 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const response = await sourceApi.getCategories(majorCategoryId || undefined);
-      if (cancelled) return;
-      if (response.success) setCategories(response.data);
+      try {
+        const response = await sourceApi.getCategories(majorCategoryId || undefined);
+        if (cancelled) return;
+        if (response.success) setCategories(response.data);
+      } catch (err) {
+        console.error('加载源分类失败:', err);
+      }
     })();
     return () => {
       cancelled = true;
@@ -243,12 +263,19 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
     setCustomSaved(false);
     try {
       const response = await sourceApi.getSourceById(id);
-      if (response.success) {
+      if (response.success && response.data) {
         setDetail(response.data);
         setDraftName(response.data.userConfig?.customName || '');
         setDraftSubtitle(response.data.userConfig?.customSubtitle || '');
         setDraftNotes(response.data.userConfig?.notes || '');
+      } else {
+        setDetailId(null);
+        notifyActionFailed();
       }
+    } catch (err) {
+      console.error('加载源详情失败:', err);
+      setDetailId(null);
+      notifyActionFailed();
     } finally {
       setDetailLoading(false);
     }
@@ -256,10 +283,12 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
       // 可用率取最近 24 小时、最多 50 次的检查记录，避免陈旧的探测结果长期拉低展示
       const history = await sourceApi.getSourceStatusHistory(id, 50, 24);
       if (history.success && history.data) setAvailability(history.data.summary);
+    } catch (err) {
+      console.error('加载源可用率失败:', err);
     } finally {
       setAvailabilityLoading(false);
     }
-  }, []);
+  }, [notifyActionFailed]);
 
   const handleDetailCheck = useCallback(async () => {
     if (!detailId) return;
@@ -267,10 +296,14 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
     try {
       const response = await sourceApi.checkSourceStatus(detailId);
       if (response.success && response.data) setDetailCheck(response.data);
+      else notifyActionFailed();
+    } catch (err) {
+      console.error('源可用性检测失败:', err);
+      notifyActionFailed();
     } finally {
       setDetailChecking(false);
     }
-  }, [detailId]);
+  }, [detailId, notifyActionFailed]);
 
   const handleInlineCheck = useCallback(async (id: string) => {
     setCheckingIds((prev) => new Set(prev).add(id));
@@ -278,7 +311,12 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
       const response = await sourceApi.checkSourceStatus(id);
       if (response.success && response.data) {
         setCheckMap((prev) => ({ ...prev, [id]: response.data }));
+      } else {
+        notifyActionFailed();
       }
+    } catch (err) {
+      console.error('源可用性检测失败:', err);
+      notifyActionFailed();
     } finally {
       setCheckingIds((prev) => {
         const next = new Set(prev);
@@ -286,7 +324,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
         return next;
       });
     }
-  }, []);
+  }, [notifyActionFailed]);
 
   const handleToggle = useCallback(
     async (id: string, enabled: boolean) => {
@@ -320,7 +358,12 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
               : prev
           );
           void loadStats();
+        } else {
+          notifyActionFailed();
         }
+      } catch (err) {
+        console.error('切换源启用状态失败:', err);
+        notifyActionFailed();
       } finally {
         setTogglingIds((prev) => {
           const next = new Set(prev);
@@ -329,7 +372,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
         });
       }
     },
-    [loadStats]
+    [loadStats, notifyActionFailed]
   );
 
   const toggleSelected = useCallback((id: string) => {
@@ -365,12 +408,17 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
           );
           setSelectedIds(new Set());
           void loadStats();
+        } else {
+          notifyActionFailed();
         }
+      } catch (err) {
+        console.error('批量切换源状态失败:', err);
+        notifyActionFailed();
       } finally {
         setBatchToggling(false);
       }
     },
-    [selectedIds, loadStats]
+    [selectedIds, loadStats, notifyActionFailed]
   );
 
   const handleSaveCustom = useCallback(async () => {
@@ -407,11 +455,16 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
           )
         );
         setCustomSaved(true);
+      } else {
+        notifyActionFailed();
       }
+    } catch (err) {
+      console.error('保存源自定义信息失败:', err);
+      notifyActionFailed();
     } finally {
       setSavingCustom(false);
     }
-  }, [detail, draftName, draftSubtitle, draftNotes]);
+  }, [detail, draftName, draftSubtitle, draftNotes, notifyActionFailed]);
 
   const resetFilters = () => {
     setKeywordInput('');

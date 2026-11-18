@@ -595,8 +595,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
       setReportModalOpen(false);
       setReportReason('');
       setReportDetails('');
-    } catch (error: any) {
-      const message = error?.message || '举报失败，请重试';
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : t('communityPages:postDetail.report.failed');
       toast.error(message);
     } finally {
       setReportSubmitting(false);
@@ -632,7 +634,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
             {t('communityPages:postDetail.back')}
           </Button>
         )}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ backgroundColor: typeConfig.color.includes('bg-') ? undefined : undefined }}>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full">
           <TypeIcon className={clsx('w-4 h-4', typeConfig.color.split(' ')[0])} />
           <span className={clsx('text-sm font-medium', typeConfig.color.split(' ')[0])}>{t(typeConfig.labelKey)}</span>
         </div>
@@ -716,14 +718,14 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
                 className="flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
               >
                 <Share2 className="w-4 h-4" />
-                分享
+                {t('communityPages:postDetail.share')}
               </button>
               <button
                 onClick={() => setReportModalOpen(true)}
                 className="flex flex-none items-center gap-1.5 whitespace-nowrap px-2.5 sm:px-3 py-1.5 rounded-lg text-sm text-stone-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
               >
                 <Flag className="w-4 h-4" />
-                举报
+                {t('communityPages:postDetail.report.title')}
               </button>
             </div>
           </div>
@@ -818,7 +820,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               }}
               disabled={reportSubmitting}
             >
-              取消
+              {t('communityPages:postDetail.report.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -826,7 +828,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
               isLoading={reportSubmitting}
               disabled={!reportReason.trim()}
             >
-              提交举报
+              {t('communityPages:postDetail.report.submit')}
             </Button>
           </div>
         </div>
