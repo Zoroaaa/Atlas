@@ -22,7 +22,7 @@ import { mangaProvider } from '@/providers/manga-provider';
 import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
 import { runJavDetailJobBatch } from '@/services/jav-detail-job';
-import { runCoverBackfillBatch } from '@/services/cover-backfill';
+import { gcOrphanCoverAssets, runCoverBackfillBatch } from '@/services/cover-backfill';
 import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
@@ -261,6 +261,18 @@ export default {
           .then((r) => { if (r && r.updated > 0) console.log(`[genre-dict] updated=${r.updated}`); })
           .catch((err) => console.error('[genre-dict] cron failed:', err))
       );
+      // 孤儿封面回收：每天 03:05 UTC 跑一次，单次限量 100，避免拖慢小时任务
+      if (new Date(event.scheduledTime).getUTCHours() === 3) {
+        ctx.waitUntil(
+          withCronLock(env.DB, 'cover.gc', HOURLY_LOCK_TTL_MS, () => gcOrphanCoverAssets(env, 100))
+            .then((r) => {
+              if (r && (r.assets > 0 || r.tombstones > 0)) {
+                console.log(`[cover-gc] assets=${r.assets} tombstones=${r.tombstones}`);
+              }
+            })
+            .catch((err) => console.error('[cover-gc] cron failed:', err))
+        );
+      }
     }
   },
 };

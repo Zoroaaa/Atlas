@@ -20,6 +20,7 @@ import {
   Pause,
   Play,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { dataStorageApi } from '@/services/api';
@@ -121,6 +122,20 @@ export const CoversPage: React.FC = () => {
     }
   };
 
+  const handleRequeue = async () => {
+    if (!window.confirm(t('admin:dataStorage.cover.requeueConfirm'))) return;
+    setSaving(true);
+    try {
+      const next = await dataStorageApi.requeueCoverFailures();
+      setStats(next);
+      toast.success(t('admin:dataStorage.cover.requeueSuccess'));
+    } catch {
+      toast.error(t('admin:dataStorage.cover.requeueFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading && !stats) {
     return <div className="text-center py-16 text-surface-500">{t('admin:dataStorage.loading')}</div>;
   }
@@ -156,7 +171,7 @@ export const CoversPage: React.FC = () => {
         <StatCard icon={Database} label={t('admin:dataStorage.cover.statTotal')} value={total} color="blue" subLabel={t('admin:dataStorage.cover.statTotalSub')} />
         <StatCard icon={CheckCircle2} label={t('admin:dataStorage.cover.statReady')} value={stats.ready} color="green" subLabel={`${coverage}%`} />
         <StatCard icon={Cloud} label={t('admin:dataStorage.cover.statPending')} value={stats.pending} color="purple" subLabel={t('admin:dataStorage.cover.statPendingSub')} />
-        <StatCard icon={AlertTriangle} label={t('admin:dataStorage.cover.statProblem')} value={problem} color="orange" subLabel={t('admin:dataStorage.cover.statProblemSub')} />
+        <StatCard icon={AlertTriangle} label={t('admin:dataStorage.cover.statProblem')} value={problem} color="orange" subLabel={t('admin:dataStorage.cover.statProblemSub', { count: stats.retryExhausted ?? 0 })} />
         <StatCard icon={HardDrive} label={t('admin:dataStorage.cover.statBytes')} value={formatBytes(stats.readyBytes)} color="teal" />
       </StatsGrid>
 
@@ -240,6 +255,19 @@ export const CoversPage: React.FC = () => {
               disabled={saving || batchSize === stats.batchSize}
             >
               {t('admin:dataStorage.cover.saveBatch')}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-surface-400 leading-relaxed">{t('admin:dataStorage.cover.requeueHint')}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRequeue}
+              disabled={saving || problem === 0}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="ml-1">{t('admin:dataStorage.cover.requeueFailures')}</span>
             </Button>
           </div>
 

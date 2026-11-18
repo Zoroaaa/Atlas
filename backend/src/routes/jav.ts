@@ -47,13 +47,17 @@ import {
   rankingCacheKeyUrl,
   top250CacheKeyUrl,
 } from '@/services/ranking-cache';
-import { coverObjectRef, isAllowedCoverHost } from '@/services/media-key';
+import { coverObjectRef, isAllowedCoverHost, normalizeCoverUrl } from '@/services/media-key';
 import {
   MAX_COVER_BYTES,
   buildCoverFetchHeaders,
+  clearCoverTombstone,
   coverPublicUrl,
   detectImageMime,
+  hasFreshCoverTombstone,
   putCoverObject,
+  putCoverTombstone,
+  readBodyWithLimit,
 } from '@/services/media-store';
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
@@ -76,6 +80,37 @@ function isPrivateIP(hostname: string): boolean {
   return privatePatterns.some(pattern => pattern.test(hostname));
 }
 
+/** 1x1 透明 GIF（错误时返回，避免 <img> 标签触发 ORB） */
+const FALLBACK_GIF = new Uint8Array([71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 0, 0, 0, 44, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 68, 1, 0, 59]);
+
+function fallbackImage(maxAgeSeconds = 0): Response {
+  return new Response(FALLBACK_GIF, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/gif',
+      'Cache-Control': maxAgeSeconds > 0 ? `public, max-age=${maxAgeSeconds}` : 'no-store',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+    },
+  });
+}
+
+// 单 IP 每分钟回源上限（isolate 内近似值，硬限流交给 Cloudflare WAF/限流规则）
+const UPSTREAM_FETCH_LIMIT = 300;
+const upstreamFetchWindows = new Map<string, { count: number; resetAt: number }>();
+
+function allowUpstreamFetch(ip: string): boolean {
+  const now = Date.now();
+  const row = upstreamFetchWindows.get(ip);
+  if (!row || row.resetAt <= now) {
+    if (upstreamFetchWindows.size > 5000) upstreamFetchWindows.clear();
+    upstreamFetchWindows.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (row.count >= UPSTREAM_FETCH_LIMIT) return false;
+  row.count += 1;
+  return true;
+}
+
 javRoutes.get('/proxy-image', async (c) => {
   const rawUrl = c.req.query('url');
   if (!rawUrl) {
@@ -86,39 +121,58 @@ javRoutes.get('/proxy-image', async (c) => {
   try {
     targetUrl = decodeURIComponent(rawUrl);
   } catch {
-    return c.json({ success: false, error: { code: 'INVALID_URL', message: '无效的URL编码' } }, 400);
+    return fallbackImage();
+  }
+
+  // 历史数据可能存的是旧代理地址：先解包再校验内层 host。
+  // 回填链路（coverObjectRef）也是先归一化，两条链路必须一致，否则旧数据必 403。
+  const normalizedUrl = normalizeCoverUrl(targetUrl);
+  if (!normalizedUrl) {
+    console.warn('Proxy image invalid url:', targetUrl);
+    return fallbackImage();
   }
 
   let parsed: URL;
   try {
-    parsed = new URL(targetUrl);
+    parsed = new URL(normalizedUrl);
   } catch {
-    return c.json({ success: false, error: { code: 'INVALID_URL', message: '无效的URL格式' } }, 400);
+    return fallbackImage();
   }
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return c.json({ success: false, error: { code: 'INVALID_PROTOCOL', message: '只支持http/https协议' } }, 400);
+    return fallbackImage();
   }
 
   if (isPrivateIP(parsed.hostname)) {
     console.warn('SSRF attempt blocked:', parsed.hostname);
-    return c.json({ success: false, error: { code: 'FORBIDDEN', message: '不允许访问内网地址' } }, 403);
+    return fallbackImage();
   }
 
   // JavDB 封面 CDN 使用 c0/c1/... 子域，按受控后缀放行
   if (!isAllowedCoverHost(parsed.hostname)) {
-    return c.json({ success: false, error: { code: 'FORBIDDEN_HOST', message: `不允许的域名: ${parsed.hostname}` } }, 403);
+    console.warn('Proxy image forbidden host:', parsed.hostname);
+    return fallbackImage();
+  }
+
+  const objectRef = await coverObjectRef(normalizedUrl);
+  if (!objectRef) return fallbackImage();
+
+  // 边缘缓存：只缓存 302，避免每次请求都做 R2 head；GIF 与直出字节交给浏览器缓存
+  const edgeCache = typeof caches === 'undefined' ? null : caches.default;
+  const cacheKey = edgeCache ? new Request(c.req.url, { method: 'GET' }) : null;
+  if (edgeCache && cacheKey) {
+    const cached = await edgeCache.match(cacheKey);
+    if (cached) return cached;
   }
 
   // R2 命中：生产环境 302 到 CDN，本地开发/未配置公网域名时直接从 R2 读字节。
   // key 是 URL 的纯函数，这里不查 D1。
-  const objectRef = await coverObjectRef(targetUrl);
-  if (objectRef && c.env.MEDIA) {
+  if (c.env.MEDIA) {
     const publicUrl = coverPublicUrl(c.env, objectRef.objectKey);
     if (publicUrl) {
       const head = await c.env.MEDIA.head(objectRef.objectKey);
       if (head) {
-        return new Response(null, {
+        const redirect = new Response(null, {
           status: 302,
           headers: {
             Location: publicUrl,
@@ -126,6 +180,14 @@ javRoutes.get('/proxy-image', async (c) => {
             'Cross-Origin-Resource-Policy': 'cross-origin',
           },
         });
+        if (edgeCache && cacheKey) {
+          try {
+            c.executionCtx.waitUntil(edgeCache.put(cacheKey, redirect.clone()));
+          } catch {
+            // 测试/非 Worker 运行时没有 executionCtx
+          }
+        }
+        return redirect;
       }
     } else {
       const cached = await c.env.MEDIA.get(objectRef.objectKey);
@@ -139,13 +201,21 @@ javRoutes.get('/proxy-image', async (c) => {
         });
       }
     }
+
+    // 已知失败墓碑：短时间内不再回源，避免坏图在每次渲染都触发上游请求
+    if (await hasFreshCoverTombstone(c.env, objectRef.hash)) {
+      return fallbackImage(300);
+    }
   }
 
-  const imageFetchHeaders = buildCoverFetchHeaders(new URL(objectRef?.normalizedUrl ?? targetUrl));
-  const fetchUrl = objectRef?.normalizedUrl ?? targetUrl;
+  // 只限制真正回源的请求；R2/墓碑命中不计数
+  if (!allowUpstreamFetch(c.req.header('cf-connecting-ip') || 'unknown')) {
+    console.warn('Proxy image rate limited:', parsed.hostname);
+    return fallbackImage(30);
+  }
 
-  // 1x1 透明 GIF（错误时返回，避免 <img> 标签触发 ORB）
-  const fallbackGif = new Uint8Array([71,73,70,56,57,97,1,0,1,0,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,68,1,0,59]);
+  const imageFetchHeaders = buildCoverFetchHeaders(new URL(objectRef.normalizedUrl));
+  const fetchUrl = objectRef.normalizedUrl;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -161,38 +231,33 @@ javRoutes.get('/proxy-image', async (c) => {
       }
 
       if (!resp.ok) {
-        console.error('Image fetch failed:', targetUrl, resp.status);
-        return new Response(fallbackGif, {
-          status: 200,
-          headers: {
-            'Content-Type': 'image/gif',
-            'Cache-Control': 'no-store',
-            'Cross-Origin-Resource-Policy': 'cross-origin',
-          },
-        });
+        console.error('Image fetch failed:', fetchUrl, resp.status);
+        await putCoverTombstone(c.env, objectRef.hash, `HTTP_${resp.status}`).catch(() => undefined);
+        return fallbackImage(300);
       }
 
-      const data = await resp.arrayBuffer();
+      const data = await readBodyWithLimit(resp, MAX_COVER_BYTES);
+      if (!data) {
+        console.error('Image too large:', fetchUrl);
+        await putCoverTombstone(c.env, objectRef.hash, 'TOO_LARGE').catch(() => undefined);
+        return fallbackImage(300);
+      }
+
       const upstreamType = resp.headers.get('content-type')?.split(';')[0].trim() || '';
       let contentType = upstreamType;
       if (!contentType.startsWith('image/')) {
         contentType = detectImageMime(data) || '';
         if (!contentType) {
-          console.error('Image returned non-image content:', targetUrl, upstreamType);
-          return new Response(fallbackGif, {
-            status: 200,
-            headers: {
-              'Content-Type': 'image/gif',
-              'Cache-Control': 'no-store',
-              'Cross-Origin-Resource-Policy': 'cross-origin',
-            },
-          });
+          console.error('Image returned non-image content:', fetchUrl, upstreamType);
+          await putCoverTombstone(c.env, objectRef.hash, `NOT_IMAGE: ${upstreamType || 'unknown'}`).catch(() => undefined);
+          return fallbackImage(300);
         }
       }
 
       // 异步写入 R2，不阻塞本次响应；写入失败不影响出图，下次访问会重试
-      if (objectRef && c.env.MEDIA && data.byteLength <= MAX_COVER_BYTES) {
+      if (c.env.MEDIA) {
         const put = putCoverObject(c.env, objectRef.objectKey, data, contentType, new URL(fetchUrl).hostname)
+          .then(() => clearCoverTombstone(c.env, objectRef.hash))
           .catch((err) => console.error('Cover R2 put failed:', fetchUrl, err));
         try {
           c.executionCtx.waitUntil(put);
@@ -217,26 +282,14 @@ javRoutes.get('/proxy-image', async (c) => {
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
       }
-      console.error('Proxy image error:', targetUrl, err);
-      return new Response(fallbackGif, {
-        status: 200,
-        headers: {
-          'Content-Type': 'image/gif',
-          'Cache-Control': 'no-store',
-          'Cross-Origin-Resource-Policy': 'cross-origin',
-        },
-      });
+      console.error('Proxy image error:', fetchUrl, err);
+      await putCoverTombstone(c.env, objectRef.hash, `NETWORK: ${(err as Error).message || 'fetch failed'}`)
+        .catch(() => undefined);
+      return fallbackImage(300);
     }
   }
 
-  return new Response(fallbackGif, {
-    status: 200,
-    headers: {
-      'Content-Type': 'image/gif',
-      'Cache-Control': 'no-store',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-    },
-  });
+  return fallbackImage(300);
 });
 
 javRoutes.use('*', authMiddleware);

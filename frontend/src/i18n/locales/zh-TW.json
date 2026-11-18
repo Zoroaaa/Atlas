@@ -1804,7 +1804,7 @@
         "statPending": "待回填",
         "statPendingSub": "可由後台批次補齊",
         "statProblem": "失敗 / 源站缺失",
-        "statProblemSub": "按退避重試",
+        "statProblemSub": "按退避重試，已停止 {{count}} 個",
         "statBytes": "R2 佔用",
         "coverageTitle": "回填覆蓋率",
         "readyCount": "已快取 {{count}}",
@@ -1836,7 +1836,12 @@
         "enabledToast": "封面回填已開啟",
         "disabledToast": "封面回填已暫停",
         "batchSavedToast": "批次大小已儲存",
-        "saveFailed": "儲存封面回填設定失敗"
+        "saveFailed": "儲存封面回填設定失敗",
+        "requeueFailures": "重新入隊失敗項",
+        "requeueHint": "把失敗/缺失封面的重試次數與退避清零，白名單調整或源站恢復後使用。",
+        "requeueConfirm": "確定把所有失敗封面重新入隊？會立刻開始重新抓取。",
+        "requeueSuccess": "已重新入隊失敗封面",
+        "requeueFailed": "重新入隊失敗封面失敗"
       }
     },
     "trends": {

@@ -105,6 +105,7 @@ export interface CoverFailureItem {
   status: 'missing' | 'failed';
   lastError: string | null;
   attempts: number;
+  retryExhausted: boolean;
   nextRetryAt: number;
 }
 
@@ -115,6 +116,8 @@ export interface CoverStats {
   failed: number;
   pending: number;
   readyBytes: number;
+  /** 已耗尽重试的失败封面数（asset 维度） */
+  retryExhausted: number;
   byType: CoverTypeStats[];
   recentFailures: CoverFailureItem[];
   enabled: boolean;

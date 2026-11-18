@@ -36,7 +36,7 @@ import {
   listRankingSnapshots,
   parseArchivePagination,
 } from '@/services/ranking-archive';
-import { getCoverStats, setCoverBackfillSettings } from '@/services/cover-backfill';
+import { getCoverStats, requeueCoverFailures, setCoverBackfillSettings } from '@/services/cover-backfill';
 
 /** 看板统计的缓存 TTL（缓存 key 由请求 origin 推导，见 /stats 处理函数） */
 const STATS_CACHE_TTL_SECONDS = 300;
@@ -793,6 +793,16 @@ dataStorageRoutes.put('/covers/settings', validateBody(schemas.dataStorage.updat
   } catch (err) {
     console.error('[data-storage] cover settings error:', err);
     return c.json(error('SERVER_ERROR', '更新封面回填设置失败'), 500);
+  }
+});
+
+dataStorageRoutes.post('/covers/requeue', async (c) => {
+  try {
+    const result = await requeueCoverFailures(c.env.DB);
+    return c.json(success(await getCoverStats(c.env), `已重新入队 ${result.requeued} 个失败封面`));
+  } catch (err) {
+    console.error('[data-storage] cover requeue error:', err);
+    return c.json(error('SERVER_ERROR', '重新入队失败封面失败'), 500);
   }
 });
 

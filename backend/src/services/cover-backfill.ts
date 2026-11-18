@@ -19,12 +19,18 @@ import {
 import {
   MAX_COVER_BYTES,
   buildCoverFetchHeaders,
+  clearCoverTombstone,
   detectImageMime,
   putCoverObject,
+  putCoverTombstone,
+  readBodyWithLimit,
 } from './media-store';
 
 const LOCK_KEY = 'cover-backfill';
-const LOCK_TTL_MS = 55_000;
+/** 单条最坏耗时（10s 超时 + 限速/写入）；锁租约按批次推算，避免跑一半就过期 */
+const PER_RECORD_LOCK_MS = 12_000;
+const MIN_LOCK_TTL_MS = 55_000;
+const MAX_LOCK_TTL_MS = 20 * 60_000;
 const MAX_ATTEMPTS = 5;
 const MISSING_RETRY_MS = 30 * 24 * 60 * 60 * 1000;
 /** 第 1/2/3/4 次失败后的等待时间；第 5 次直接耗尽 */
@@ -59,6 +65,7 @@ export interface CoverFailureItem {
   status: 'missing' | 'failed';
   lastError: string | null;
   attempts: number;
+  retryExhausted: boolean;
   nextRetryAt: number;
 }
 
@@ -69,6 +76,8 @@ export interface CoverStats {
   failed: number;
   pending: number;
   readyBytes: number;
+  /** 已耗尽重试的失败封面数（asset 维度，不是记录数） */
+  retryExhausted: number;
   byType: CoverTypeStats[];
   recentFailures: CoverFailureItem[];
   enabled: boolean;
@@ -86,7 +95,6 @@ interface PendingRecord {
 interface RetryAsset {
   url_hash: string;
   url: string;
-  object_key: string;
   attempts: number;
 }
 
@@ -210,9 +218,10 @@ async function selectRetryAssets(
   limit: number,
   now: number,
 ): Promise<RetryAsset[]> {
+  if (limit <= 0) return [];
   const { results } = await db
     .prepare(
-      `SELECT url_hash, url, object_key, attempts
+      `SELECT url_hash, url, attempts
        FROM cover_assets
        WHERE status IN ('failed', 'missing')
          AND retry_exhausted = 0
@@ -225,17 +234,17 @@ async function selectRetryAssets(
   return results || [];
 }
 
-function assetKeyForRetry(asset: RetryAsset): CoverObjectRef | null {
-  if (!asset.url || !asset.object_key) return null;
-  const match = asset.object_key.split('/');
-  const hash = match[match.length - 1] || asset.url_hash;
-  const namespace = (match[3] || 'misc') as CoverNamespace;
-  return {
-    normalizedUrl: asset.url,
-    hash,
-    namespace,
-    objectKey: asset.object_key,
-  };
+/** 待迁移 / 重试的批次配额拆分：给重试固定预留 20%，避免迁移期间失败项永远排不上 */
+export function resolveBatchQuota(batchSize: number): { pendingLimit: number; retryReserve: number } {
+  const size = Math.max(1, Math.round(batchSize));
+  const retryReserve = size <= 1 ? 0 : Math.max(1, Math.ceil(size * 0.2));
+  return { pendingLimit: Math.max(1, size - retryReserve), retryReserve };
+}
+
+/** 锁租约按批次最坏耗时推算，限制在 [55s, 20min] */
+export function resolveLockTtl(batchSize: number): number {
+  const size = Math.max(1, Math.round(batchSize));
+  return Math.min(MAX_LOCK_TTL_MS, Math.max(MIN_LOCK_TTL_MS, size * PER_RECORD_LOCK_MS));
 }
 
 async function getExistingAsset(db: D1Database, urlHash: string): Promise<ExistingAsset | null> {
@@ -392,12 +401,12 @@ async function fetchAndStore(env: Env, ref: CoverObjectRef): Promise<FetchOutcom
     return { status: 'failed', error: `HTTP_${resp.status}`, exhausted: false };
   }
 
-  const data = await resp.arrayBuffer();
+  const data = await readBodyWithLimit(resp, MAX_COVER_BYTES);
+  if (!data) {
+    return { status: 'failed', error: 'TOO_LARGE', exhausted: true };
+  }
   if (data.byteLength === 0) {
     return { status: 'failed', error: 'EMPTY_BODY', exhausted: true };
-  }
-  if (data.byteLength > MAX_COVER_BYTES) {
-    return { status: 'failed', error: `TOO_LARGE: ${data.byteLength}`, exhausted: true };
   }
 
   const upstreamType = resp.headers.get('content-type')?.split(';')[0].trim() || '';
@@ -407,6 +416,7 @@ async function fetchAndStore(env: Env, ref: CoverObjectRef): Promise<FetchOutcom
   }
 
   await putCoverObject(env, ref.objectKey, data, contentType, target.hostname);
+  await clearCoverTombstone(env, ref.hash);
   return { status: 'ready', contentType, byteSize: data.byteLength };
 }
 
@@ -426,6 +436,7 @@ async function markReadyFromR2(
     head.size,
     now,
   );
+  await clearCoverTombstone(env, ref.hash);
   return true;
 }
 
@@ -464,9 +475,11 @@ async function processPendingRecord(
     return 'stored';
   }
   if (outcome.status === 'missing') {
+    await putCoverTombstone(env, ref.hash, outcome.error).catch(() => undefined);
     await saveFailure(env.DB, ref, 'missing', outcome.error, 1, false, now + MISSING_RETRY_MS, now);
     return 'missing';
   }
+  await putCoverTombstone(env, ref.hash, outcome.error).catch(() => undefined);
   const next = outcome.exhausted ? 0 : now + (RETRY_BACKOFF_MS[0] ?? 0);
   await saveFailure(env.DB, ref, 'failed', outcome.error, 1, outcome.exhausted, next, now);
   return 'failed';
@@ -477,8 +490,28 @@ async function processRetryAsset(
   asset: RetryAsset,
   now: number,
 ): Promise<'stored' | 'skipped' | 'failed' | 'missing'> {
-  const ref = assetKeyForRetry(asset);
-  if (!ref) return 'failed';
+  // 必须按当前规则重算 key：白名单/归一化变化后，账本里的旧 object_key 会写偏，
+  // 导致代理按新 key 找不到对象，同时产生重复对象。
+  const ref = await coverObjectRef(asset.url);
+  if (!ref) {
+    // URL 不可解析或 host 已不再放行：标记耗尽，避免每批重复选中
+    await env.DB
+      .prepare('UPDATE cover_assets SET retry_exhausted = 1, next_retry_at = 0, updated_at = ? WHERE url_hash = ?')
+      .bind(now, asset.url_hash)
+      .run();
+    return 'failed';
+  }
+
+  // 归一化规则变化导致 hash 变了：把记录映射迁到新 hash，并清掉旧账本，
+  // 否则旧行会一直被重试队列选中，形成重复抓取。
+  if (ref.hash !== asset.url_hash) {
+    await env.DB.batch([
+      env.DB.prepare('UPDATE data_record_covers SET url_hash = ? WHERE url_hash = ?')
+        .bind(ref.hash, asset.url_hash),
+      env.DB.prepare('DELETE FROM cover_assets WHERE url_hash = ?')
+        .bind(asset.url_hash),
+    ]);
+  }
 
   if (await markReadyFromR2(env, env.DB, ref, now)) return 'skipped';
 
@@ -492,12 +525,14 @@ async function processRetryAsset(
   if (outcome.status === 'missing') {
     // 源站 404/410：30 天后再试一次，第二次仍缺失就耗尽
     const exhausted = attempts >= 2;
+    await putCoverTombstone(env, ref.hash, outcome.error).catch(() => undefined);
     await saveFailure(env.DB, ref, 'missing', outcome.error, attempts, exhausted, exhausted ? 0 : now + MISSING_RETRY_MS, now);
     return 'missing';
   }
 
   const exhausted = outcome.exhausted || attempts >= MAX_ATTEMPTS;
   const backoff = RETRY_BACKOFF_MS[Math.min(attempts - 1, RETRY_BACKOFF_MS.length - 1)] ?? 0;
+  await putCoverTombstone(env, ref.hash, outcome.error).catch(() => undefined);
   await saveFailure(
     env.DB,
     ref,
@@ -520,11 +555,13 @@ export async function runCoverBackfillBatch(env: Env): Promise<CoverBackfillBatc
   const settings = await getCoverBackfillSettings(env.DB);
   if (!settings.enabled) return empty;
 
-  const result = await withCronLock(env.DB, LOCK_KEY, LOCK_TTL_MS, async () => {
+  const { pendingLimit } = resolveBatchQuota(settings.batchSize);
+  const lockTtl = resolveLockTtl(settings.batchSize);
+
+  const result = await withCronLock(env.DB, LOCK_KEY, lockTtl, async () => {
     const now = Date.now();
-    const pending = await selectPendingRecords(env.DB, settings.batchSize);
-    const remaining = Math.max(0, settings.batchSize - pending.length);
-    const retries = remaining > 0 ? await selectRetryAssets(env.DB, remaining, now) : [];
+    const pending = await selectPendingRecords(env.DB, pendingLimit);
+    const retries = await selectRetryAssets(env.DB, settings.batchSize - pending.length, now);
 
     const counts: CoverBackfillBatchResult = {
       ran: true, processed: 0, stored: 0, skipped: 0, failed: 0, missing: 0,
@@ -558,10 +595,78 @@ export async function runCoverBackfillBatch(env: Env): Promise<CoverBackfillBatc
   return result ?? empty;
 }
 
+/** 孤儿封面回收：账本行超过 30 天没有任何记录引用，才删除对象与账本 */
+const GC_MIN_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/** 失败墓碑只是短期负缓存，超过 1 天即可清理 */
+const TOMBSTONE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const TOMBSTONE_PREFIX = 'covers/v1/miss/';
+
+export async function gcOrphanCoverAssets(
+  env: Env,
+  limit = 100,
+): Promise<{ assets: number; tombstones: number }> {
+  if (!env.MEDIA) return { assets: 0, tombstones: 0 };
+  const now = Date.now();
+
+  const { results } = await env.DB
+    .prepare(
+      `SELECT a.url_hash, a.object_key
+       FROM cover_assets a
+       LEFT JOIN data_record_covers c ON c.url_hash = a.url_hash
+       WHERE c.url_hash IS NULL AND a.updated_at < ?
+       LIMIT ?`
+    )
+    .bind(now - GC_MIN_AGE_MS, limit)
+    .all<{ url_hash: string; object_key: string }>();
+
+  let assets = 0;
+  for (const row of results || []) {
+    try {
+      await env.MEDIA.delete(row.object_key);
+    } catch (err) {
+      // 对象删除失败就保留账本，交给下一轮 GC，避免账本丢了对象还在
+      console.error('[cover-gc] object delete failed:', row.object_key, err);
+      continue;
+    }
+    await env.DB.prepare('DELETE FROM cover_assets WHERE url_hash = ?').bind(row.url_hash).run();
+    assets += 1;
+  }
+
+  let tombstones = 0;
+  try {
+    const listed = await env.MEDIA.list({ prefix: TOMBSTONE_PREFIX, limit });
+    for (const object of listed.objects) {
+      if (now - object.uploaded.getTime() < TOMBSTONE_MAX_AGE_MS) continue;
+      await env.MEDIA.delete(object.key);
+      tombstones += 1;
+    }
+  } catch (err) {
+    console.error('[cover-gc] tombstone cleanup failed:', err);
+  }
+
+  return { assets, tombstones };
+}
+
+/** 管理端「重新入队」：清空失败计数与退避，让失败项重新走一轮完整重试 */
+export async function requeueCoverFailures(
+  db: D1Database,
+  now = Date.now(),
+): Promise<{ requeued: number }> {
+  const result = await db
+    .prepare(
+      `UPDATE cover_assets
+       SET attempts = 0, retry_exhausted = 0, next_retry_at = 0, updated_at = ?
+       WHERE status IN ('failed', 'missing')`
+    )
+    .bind(now)
+    .run();
+  return { requeued: result.meta.changes ?? 0 };
+}
+
 export async function getCoverStats(env: Env): Promise<CoverStats> {
   const settings = await getCoverBackfillSettings(env.DB);
 
-  const [byTypeResult, failuresResult] = (await env.DB.batch([
+  const [byTypeResult, failuresResult, assetResult, problemsResult] = (await env.DB.batch([
     // 一次分组扫描同时得到总量与分类分布，避免再对 data_records 全表聚合一次
     env.DB.prepare(
       `SELECT
@@ -569,8 +674,7 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
          COUNT(*) AS total,
          SUM(CASE WHEN a.status = 'ready' THEN 1 ELSE 0 END) AS ready,
          SUM(CASE WHEN a.status = 'missing' THEN 1 ELSE 0 END) AS missing,
-         SUM(CASE WHEN a.status = 'failed' THEN 1 ELSE 0 END) AS failed,
-         SUM(CASE WHEN a.status = 'ready' THEN COALESCE(a.byte_size, 0) ELSE 0 END) AS ready_bytes
+         SUM(CASE WHEN a.status = 'failed' THEN 1 ELSE 0 END) AS failed
        FROM data_records d
        LEFT JOIN data_record_covers c ON c.record_id = d.id
        LEFT JOIN cover_assets a ON a.url_hash = c.url_hash
@@ -579,13 +683,28 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
        ORDER BY total DESC`
     ),
     env.DB.prepare(
-      `SELECT url, namespace, status, last_error, attempts, next_retry_at
+      `SELECT url, namespace, status, last_error, attempts, retry_exhausted, next_retry_at
        FROM cover_assets
        WHERE status IN ('failed', 'missing')
        ORDER BY updated_at DESC
        LIMIT 10`
     ),
+    // 存储占用按 url_hash 去重：同一封面被多条记录引用时不能重复累加
+    env.DB.prepare(
+      `SELECT COUNT(*) AS assets, COALESCE(SUM(byte_size), 0) AS bytes
+       FROM cover_assets
+       WHERE status = 'ready'`
+    ),
+    env.DB.prepare(
+      `SELECT
+         COUNT(*) AS problems,
+         SUM(CASE WHEN retry_exhausted = 1 THEN 1 ELSE 0 END) AS exhausted
+       FROM cover_assets
+       WHERE status IN ('failed', 'missing')`
+    ),
   ])) as unknown as [
+    { results: Array<Record<string, unknown>> },
+    { results: Array<Record<string, unknown>> },
     { results: Array<Record<string, unknown>> },
     { results: Array<Record<string, unknown>> },
   ];
@@ -599,7 +718,6 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
   let ready = 0;
   let missing = 0;
   let failed = 0;
-  let readyBytes = 0;
 
   const byType: CoverTypeStats[] = (byTypeResult.results || []).map((item) => {
     const total = num(item.total);
@@ -610,7 +728,6 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
     ready += typeReady;
     missing += typeMissing;
     failed += typeFailed;
-    readyBytes += num(item.ready_bytes);
     return {
       type: String(item.type ?? ''),
       total,
@@ -621,13 +738,17 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
     };
   });
 
+  const assetRow = (assetResult.results || [])[0] ?? {};
+  const problemRow = (problemsResult.results || [])[0] ?? {};
+
   return {
     totalWithCover,
     ready,
     missing,
     failed,
     pending: Math.max(0, totalWithCover - ready - missing - failed),
-    readyBytes,
+    readyBytes: num(assetRow.bytes),
+    retryExhausted: num(problemRow.exhausted),
     byType,
     recentFailures: (failuresResult.results || []).map((item) => ({
       url: String(item.url ?? ''),
@@ -635,6 +756,7 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
       status: item.status === 'missing' ? 'missing' : 'failed',
       lastError: item.last_error == null ? null : String(item.last_error),
       attempts: num(item.attempts),
+      retryExhausted: num(item.retry_exhausted) === 1,
       nextRetryAt: num(item.next_retry_at),
     })),
     enabled: settings.enabled,

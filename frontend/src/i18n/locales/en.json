@@ -1804,7 +1804,7 @@
         "statPending": "Pending backfill",
         "statPendingSub": "Handled by background batches",
         "statProblem": "Failed / missing",
-        "statProblemSub": "Retried with backoff",
+        "statProblemSub": "Retried with backoff, {{count}} stopped",
         "statBytes": "R2 storage",
         "coverageTitle": "Backfill coverage",
         "readyCount": "Cached {{count}}",
@@ -1836,7 +1836,12 @@
         "enabledToast": "Cover backfill enabled",
         "disabledToast": "Cover backfill paused",
         "batchSavedToast": "Batch size saved",
-        "saveFailed": "Failed to save cover backfill settings"
+        "saveFailed": "Failed to save cover backfill settings",
+        "requeueFailures": "Requeue failures",
+        "requeueHint": "Reset retry counters and backoff for failed/missing covers; use after whitelist changes or source recovery.",
+        "requeueConfirm": "Requeue all failed covers? They will be fetched again immediately.",
+        "requeueSuccess": "Failed covers requeued",
+        "requeueFailed": "Failed to requeue covers"
       }
     },
     "trends": {

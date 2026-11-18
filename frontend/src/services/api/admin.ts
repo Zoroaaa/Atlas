@@ -948,6 +948,15 @@ export const dataStorageApi = {
     return response.data;
   },
 
+  /** 把失败/缺失封面重新入队，清空重试次数与退避 */
+  requeueCoverFailures: async (): Promise<CoverStats> => {
+    const response = await apiClient.post<{ success: boolean; data: CoverStats }>(
+      '/admin/data-storage/covers/requeue',
+      {}
+    );
+    return response.data;
+  },
+
   getRankingArchiveMeta: async (): Promise<RankingArchiveMeta> => {
     const response = await apiClient.get<{ success: boolean; data: RankingArchiveMeta }>(
       '/admin/data-storage/rankings/meta'
