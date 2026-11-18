@@ -148,10 +148,21 @@ export async function syncWatch(db: D1Database, key: string): Promise<SyncResult
 
   // 顺便把拉到的作品写进本地库（含已知作品：补齐此前缺失的条目）；失败不影响检测
   try {
+    const sourcePath = entityType === 'actress'
+      ? `/star/${encodeURIComponent(key)}`
+      : entityPathFromKey(key);
     await upsertWorksToLibrary(db, works, {
       sourceName: 'JavBus',
       sourceType: 'info',
-      sourceData: { via: 'follow', entityType, entity: watch.name },
+      sourceData: {
+        via: 'follow',
+        entityType,
+        entity: watch.name,
+        entityKey: key,
+        entityPath: sourcePath,
+      },
+      // 用关注对象页做归属：已入库作品也能建立「女优/导演/厂商/系列」关系
+      attributionUrl: sourcePath ? `https://www.javbus.com${sourcePath}` : undefined,
       actorNames: entityType === 'actress' ? [watch.name] : undefined,
       now,
     });

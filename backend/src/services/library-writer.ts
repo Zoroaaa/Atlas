@@ -3,7 +3,7 @@
  *
  * 关注动态、推荐标签、实体浏览共用同一套语义：
  * - 库里没有的：新增（detail_completed=0，之后由补全任务补详情）
- * - 库里已有的：完全跳过，不更新任何字段
+ * - 库里已有的：不更新任何业务字段，仅补一条来源归属（INSERT OR IGNORE）
  *
  * 2026-11 起定时同步统一改为「只插入不更新」：外部列表页只负责发现新番号，
  * 已入库作品的数据不再被列表页的标题/日期/演员覆盖。缺的详情交给用户查看详情、
@@ -25,6 +25,12 @@ export interface LibraryWriteOptions {
   actorNames?: string[];
   /** 来源 URL 生成器；默认 JavBus 详情页，JavDB 链路可传自己的地址 */
   sourceUrlOf?: (item: JavItem) => string | undefined;
+  /**
+   * 列表页自身地址（如 JavBus 女优/系列/厂商/标签页）。
+   * 来源行记录该地址后，可反查「这部作品是在哪个实体页发现的」；
+   * 不传时退回作品详情页地址。
+   */
+  attributionUrl?: string;
   now?: number;
 }
 
@@ -63,24 +69,30 @@ export async function upsertWorksToLibrary(
 
   for (const item of items) {
     const key = `jav:${item.code}`;
-    // 已入库：只插入新作品，不更新任何已有字段
-    if (byKey.has(key)) continue;
+    const exists = byKey.has(key);
 
-    const recordId = generateId();
+    if (!exists) {
+      const recordId = generateId();
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO data_records
+               (id, record_type, dedup_key, title, cover, code, actors, duration,
+                release_date, publisher, tags, rating, content_data, detail_completed,
+                status, source_count, first_seen_at, last_updated_at)
+             VALUES (?, 'jav', ?, ?, ?, ?, ?, NULL, ?, NULL, '[]', NULL, '{}', 0, 'active', 0, ?, ?)
+             ON CONFLICT(record_type, dedup_key) DO NOTHING`
+          )
+          .bind(
+            recordId, key, (item.title || item.code).slice(0, 300), item.cover ?? null,
+            item.code, actorsJson, item.date ?? null, now, now
+          )
+      );
+    }
+
+    // 已存在的记录不改任何字段，但仍要补一条来源归属：
+    // 否则后来从女优/系列/厂商/标签页发现的老作品永远不会建立归属关系。
     statements.push(
-      db
-        .prepare(
-          `INSERT INTO data_records
-             (id, record_type, dedup_key, title, cover, code, actors, duration,
-              release_date, publisher, tags, rating, content_data, detail_completed,
-              status, source_count, first_seen_at, last_updated_at)
-           VALUES (?, 'jav', ?, ?, ?, ?, ?, NULL, ?, NULL, '[]', NULL, '{}', 0, 'active', 0, ?, ?)
-           ON CONFLICT(record_type, dedup_key) DO NOTHING`
-        )
-        .bind(
-          recordId, key, (item.title || item.code).slice(0, 300), item.cover ?? null,
-          item.code, actorsJson, item.date ?? null, now, now
-        ),
       db
         .prepare(
           `INSERT OR IGNORE INTO data_record_sources
@@ -90,7 +102,9 @@ export async function upsertWorksToLibrary(
         )
         .bind(
           generateId(), options.sourceName, options.sourceType,
-          options.sourceUrlOf?.(item) ?? `https://www.javbus.com/${item.code}`,
+          options.attributionUrl
+            ?? options.sourceUrlOf?.(item)
+            ?? `https://www.javbus.com/${item.code}`,
           sourceDataJson, now, key
         )
     );

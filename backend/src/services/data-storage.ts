@@ -640,6 +640,150 @@ export async function persistDataRecord(
   }
 }
 
+// ── 详情回源合并 ─────────────────────────────────────────────────────
+
+interface ExistingJavRow {
+  id: string;
+  title: string | null;
+  cover: string | null;
+  publisher: string | null;
+  actors: string | null;
+  tags: string | null;
+  content_data: string | null;
+}
+
+function parseJsonObject(raw: string | null | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseJsonStringArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function readString(source: Record<string, unknown>, key: string): string | undefined {
+  const value = source[key];
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function readStringArray(source: Record<string, unknown>, key: string): string[] | undefined {
+  const value = source[key];
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((item): item is string => typeof item === 'string' && item.trim() !== '');
+  return items.length > 0 ? items : undefined;
+}
+
+/** 多值字段存在时同步单值字段，避免 content_data 里 director/directors 不一致 */
+function syncJoinedField(
+  patch: Record<string, unknown>,
+  arrayKey: string,
+  singleKey: string
+): void {
+  const values = patch[arrayKey];
+  if (!Array.isArray(values) || values.length === 0 || readString(patch, singleKey)) return;
+  const joined = values
+    .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+    .join(' / ');
+  if (joined) patch[singleKey] = joined;
+}
+
+/**
+ * 详情回源只覆盖「本次真正解析到」的字段。
+ *
+ * 源站结构变化、软 404、降级页时常只返回标题，其余字段为空；直接写回空值会清掉
+ * 已补全的演员/标签/实体字段。完整度也必须按合并后的结果判定，否则本次残缺数据
+ * 会把本来完整的记录误标成 partial。
+ */
+function mergeJavDetail(
+  previous: ExistingJavRow | null,
+  detail: JavDetail,
+  resolvedCover: string | undefined
+): {
+  title: string;
+  cover: string | undefined;
+  publisher: string | undefined;
+  actorsJson: string | null;
+  tagsJson: string;
+  content: Record<string, unknown>;
+  detailForMask: {
+    director?: string;
+    maker?: string;
+    publisher?: string;
+    directors?: string[];
+    makers?: string[];
+    publishers?: string[];
+  };
+} {
+  const prevContent = parseJsonObject(previous?.content_data);
+  const prevActors = parseJsonStringArray(previous?.actors);
+  const prevTags = parseJsonStringArray(previous?.tags);
+
+  // parseJavDetail 在标题解析失败时会退化成番号，不能让它覆盖已有的真实标题
+  const newTitle = detail.title?.trim();
+  const titleFallback = !newTitle || newTitle === detail.code;
+  const prevTitle = previous?.title?.trim();
+  const keepPrevTitle = Boolean(titleFallback && prevTitle);
+  const title = keepPrevTitle ? prevTitle! : (newTitle || detail.code);
+
+  const cover = resolvedCover ?? previous?.cover ?? undefined;
+
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries({ ...detail, cover })) {
+    if (key === 'title' && keepPrevTitle) continue;
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    patch[key] = value;
+  }
+  syncJoinedField(patch, 'directors', 'director');
+  syncJoinedField(patch, 'makers', 'maker');
+  syncJoinedField(patch, 'publishers', 'publisher');
+  syncJoinedField(patch, 'seriesList', 'series');
+
+  const content: Record<string, unknown> = { ...prevContent, ...patch };
+
+  // 旧记录的发行商可能只落在结构化列里，content_data 没有；合并后仍算已有
+  const prevPublisher = previous?.publisher?.trim();
+  if (!readString(content, 'publisher') && prevPublisher) {
+    content.publisher = prevPublisher;
+  }
+
+  const actresses = detail.actresses?.length ? detail.actresses : prevActors;
+  const tags = detail.tags?.length ? detail.tags : prevTags;
+
+  return {
+    title,
+    cover,
+    publisher: readString(content, 'publisher'),
+    actorsJson: actresses.length > 0 ? JSON.stringify(actresses) : null,
+    tagsJson: JSON.stringify(tags),
+    content,
+    detailForMask: {
+      director: readString(content, 'director'),
+      maker: readString(content, 'maker'),
+      publisher: readString(content, 'publisher'),
+      directors: readStringArray(content, 'directors'),
+      makers: readStringArray(content, 'makers'),
+      publishers: readStringArray(content, 'publishers'),
+    },
+  };
+}
+
 /**
  * 详情补充：用户查看 JAV 详情 / 榜单补全 / 管理批量任务共用。
  * 成功时更新记录并补充磁力来源；失败时只更新 jav_detail_meta 的重试状态，
@@ -670,12 +814,35 @@ export async function enrichDataRecordFromDetail(
     if (!code) return;
 
     const dedupKey = `jav:${code}`;
-    const existing = input.recordId
-      ? { id: input.recordId }
+    // 批量任务传入 recordId 时必须按 ID 定位：历史记录可能使用非 `jav:<code>` 的
+    // dedup_key，按 dedup_key 反查会漏更新、误判失败类型甚至插入重复记录。
+    const found = input.recordId
+      ? await db
+          .prepare(
+            `SELECT id, title, cover, publisher, actors, tags, content_data
+             FROM data_records WHERE id = ?`
+          )
+          .bind(input.recordId)
+          .first<ExistingJavRow>()
       : await db
-          .prepare('SELECT id FROM data_records WHERE record_type = ? AND dedup_key = ?')
+          .prepare(
+            `SELECT id, title, cover, publisher, actors, tags, content_data
+             FROM data_records WHERE record_type = ? AND dedup_key = ?`
+          )
           .bind('jav', dedupKey)
-          .first<{ id: string }>();
+          .first<ExistingJavRow>();
+    // 传了 ID 但查不到时仍按该 ID 更新（影响 0 行），不能退回插入造成重复记录
+    const existing = found ?? (input.recordId
+      ? {
+          id: input.recordId,
+          title: null,
+          cover: null,
+          publisher: null,
+          actors: null,
+          tags: null,
+          content_data: null,
+        }
+      : null);
 
     // 失败路径：只更新重试元数据，不动业务字段
     if (!d || !d.title) {
@@ -693,32 +860,29 @@ export async function enrichDataRecordFromDetail(
     const now = Date.now();
 
     // 磁力只写 data_record_sources（唯一事实源），content_data 不再重复存一份
-    const contentData = {
-      ...d,
-      cover: resolvedCover,
-    };
+    const merged = mergeJavDetail(existing, d, resolvedCover);
 
     let recordId = existing?.id;
     if (recordId) {
-      // 已存在：补充详情字段；完整度稍后由 applyJavDetailSuccess 统一判定
+      // 已存在：只覆盖本次解析到的字段；完整度按合并结果判定
       await db
         .prepare(
           `UPDATE data_records
-             SET title = ?, cover = COALESCE(?, cover), actors = ?,
+             SET title = ?, cover = ?, actors = ?,
                  duration = COALESCE(?, duration), release_date = COALESCE(?, release_date),
-                 publisher = COALESCE(?, publisher), tags = ?, content_data = ?,
+                 publisher = ?, tags = ?, content_data = ?,
                  detail_completed = 0, last_updated_at = ?
            WHERE id = ?`
         )
         .bind(
-          d.title,
-          resolvedCover ?? null,
-          d.actresses?.length ? JSON.stringify(d.actresses) : null,
+          merged.title,
+          merged.cover ?? null,
+          merged.actorsJson,
           d.duration ?? null,
           d.releaseDate ?? null,
-          d.publisher ?? null,
-          JSON.stringify(d.tags || []),
-          JSON.stringify(contentData),
+          merged.publisher ?? null,
+          merged.tagsJson,
+          JSON.stringify(merged.content),
           now,
           recordId
         )
@@ -738,15 +902,15 @@ export async function enrichDataRecordFromDetail(
         .bind(
           recordId,
           dedupKey,
-          d.title,
-          resolvedCover ?? null,
+          merged.title,
+          merged.cover ?? null,
           d.code,
-          d.actresses?.length ? JSON.stringify(d.actresses) : null,
+          merged.actorsJson,
           d.duration ?? null,
           d.releaseDate ?? null,
-          d.publisher ?? null,
-          JSON.stringify(d.tags || []),
-          JSON.stringify(contentData),
+          merged.publisher ?? null,
+          merged.tagsJson,
+          JSON.stringify(merged.content),
           now,
           now
         )
@@ -755,7 +919,7 @@ export async function enrichDataRecordFromDetail(
     }
 
     await insertSources(db, recordId, magnetsToSources(magnets, d.detailUrl));
-    await applyJavDetailSuccess(db, recordId, d, {
+    await applyJavDetailSuccess(db, recordId, merged.detailForMask, {
       magnetFetchFailed: input.magnetFetchFailed,
       // 刚写入的磁力数量已知，只有 0 条时才需要回查库存
       magnetCount: magnetCountOf(magnets),

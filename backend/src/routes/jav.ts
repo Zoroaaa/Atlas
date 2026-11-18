@@ -582,6 +582,8 @@ function saveEntityWorks(db: D1Database, items: JavItem[], path: string): Promis
       entityKind,
       entityPath: path,
     },
+    // 用列表页地址做归属：同一作品从不同实体页被发现时各留一条来源
+    attributionUrl: `https://www.javbus.com${path}`,
   }).catch((err) => console.error('[jav-entity] save works to library failed:', err));
 }
 

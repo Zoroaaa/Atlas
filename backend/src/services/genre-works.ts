@@ -304,6 +304,8 @@ export async function getGenreWorks(
         genreName: genre.name,
         section: genre.section,
       },
+      // 用标签页地址做归属：重复打开同一标签页只留一条来源
+      attributionUrl: pageUrl(genre.section, genre.genre_key, 1),
       now,
     }).catch((err) => console.error('[genre-works] save works to library failed:', err));
 
