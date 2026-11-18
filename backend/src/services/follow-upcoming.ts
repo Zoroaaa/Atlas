@@ -1,12 +1,8 @@
 /**
- * 关注动态「即将发售」同步服务
+ * 关注动态「即将发售」同步：给外部同步脚本返回待刷新对象，并接收回传结果写入
+ * follow_upcoming / follow_upcoming_sources。
  *
- * 数据来源：GitHub Actions 每 30 分钟调用 JavDB App API（需登录），
- * 按关注对象回传未发售作品。Worker 不直接访问 JavDB，避免账号凭据与出站限制。
- *
- * 这里只做两件事：
- *   1. 给同步脚本返回本轮需要刷新的关注对象（按最后尝试时间轮转 + 失败退避）；
- *   2. 接收脚本回传的结果，写入 follow_upcoming / follow_upcoming_sources。
+ * 数据由 GitHub Actions 每 30 分钟调用 JavDB App API 抓取，Worker 不直接访问 JavDB。
  */
 import { FOLLOW } from '@/constants';
 import { inspectJavCode } from '@codeseek/shared/utils';
@@ -48,6 +44,8 @@ export async function listUpcomingTargets(
   limit: number
 ): Promise<UpcomingTarget[]> {
   const batch = Math.min(FOLLOW.UPCOMING_BATCH_MAX, Math.max(1, limit));
+  // 失败次数按 2 的幂退避（指数上限 UPCOMING_MAX_BACKOFF_EXP），避免坏目标被反复抓取；
+  // 条件写在 SQL 里，保证多实例轮转时也不会重复取到同一批
   const rows = await db
     .prepare(
       `SELECT t.watch_key, t.entity_type, t.entity_key, t.name,

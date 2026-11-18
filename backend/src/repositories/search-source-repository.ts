@@ -22,7 +22,7 @@ export interface SearchSourceCard {
   description: string | null;
 }
 
-/** 可用搜索源公共查询片段 */
+/** 可用搜索源公共查询片段：停用或不可搜索的源一律不返回 */
 const SOURCE_SELECT = `SELECT s.* FROM search_sources s
   INNER JOIN search_source_categories c ON s.category_id = c.id
   WHERE s.is_active = 1 AND s.searchable = 1`;
@@ -36,6 +36,7 @@ export async function listSourcesByCategory(
   opts: { categoryId: string; userId: string; defaultOnly?: boolean }
 ): Promise<SearchSource[]> {
   const defaultClause = opts.defaultOnly ? ' AND c.default_searchable = 1' : '';
+  // 数据隔离：只返回系统源与当前用户创建的私有源，不能看到其他用户的源
   const rows = await db
     .prepare(
       `${SOURCE_SELECT}${defaultClause} AND c.major_category_id = ?
@@ -52,6 +53,7 @@ export async function listDefaultSources(
   db: D1Database,
   userId: string
 ): Promise<SearchSource[]> {
+  // 与按大类查询相同的隔离规则：系统源 + 当前用户私有源
   const rows = await db
     .prepare(
       `${SOURCE_SELECT} AND c.default_searchable = 1
@@ -111,6 +113,7 @@ export async function toSourceCards(
       name: source.name,
       subtitle: source.subtitle,
       icon: source.icon,
+      // 模板里的 {keyword} 必须 encodeURIComponent，否则关键词中的 &、# 会截断查询串
       url: source.url_template.replace('{keyword}', encodeURIComponent(picked.text)),
       siteType: source.site_type,
       category: source.category_id,

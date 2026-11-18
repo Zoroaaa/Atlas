@@ -1,3 +1,9 @@
+/**
+ * 收藏与搜索历史管理（/dashboard/favorites、/dashboard/history）。
+ * 数据来源：分页 / 搜索 / 排序全部走服务端 react-query，前端不维护第二份列表；
+ * 全量数据只在点击导出时拉取。
+ * 约束：筛选或排序变化必须重置页码，否则会停留在越界页。
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Heart,
@@ -50,6 +56,7 @@ const getProxyImageUrl = (url: string): string => {
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
+/** 收藏管理：服务端分页 + 批量删除 + JSON 导入导出。 */
 export const FavoritesManager: React.FC = () => {
   const toast = useToast();
   const { t } = useTranslation(['dashboard']);
@@ -163,7 +170,7 @@ export const FavoritesManager: React.FC = () => {
         try {
           const res = await addFavoriteMutation.mutateAsync({ title: item.title, url: item.url, subtitle: item.subtitle, icon: item.icon, keyword: item.keyword });
           if (res.success) successCount++;
-        } catch (_e) { /* skip duplicates/errors */ }
+        } catch (_e) { /* 单条失败（如重复）跳过，不中断整批 */ }
       }
       toast.success(t('dashboard:favoritesHistory.favorites.importSuccess', { count: successCount }));
       setImportModal(false);
@@ -444,6 +451,7 @@ export const FavoritesManager: React.FC = () => {
   );
 };
 
+/** 搜索历史管理：服务端分页 + 日期筛选 + 统计 / 关键词云。 */
 export const HistoryManager: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
@@ -560,7 +568,7 @@ export const HistoryManager: React.FC = () => {
     return groups;
   }, {} as Record<string, SearchHistoryItem[]>);
 
-  // ── 统计（来自服务端聚合）──
+  // ── 统计 ─────────────────────────────
   const totalRecords = stats?.total ?? 0;
   const uniqueKeywords = stats?.uniqueKeywords ?? 0;
   const activeDays = stats?.activeDays ?? 0;

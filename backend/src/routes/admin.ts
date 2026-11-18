@@ -1,8 +1,7 @@
 /**
- * 管理员功能路由
- * 功能：用户管理、系统配置、举报处理、数据统计、角色管理
- * 作者：CodeSeek Team
- * 日期：2024
+ * 管理后台路由：用户、角色、举报、会话、日志、统计与分析。
+ *
+ * 约束：整个 router 由 authMiddleware + adminMiddleware 兜底；跨级操作再单独判定角色优先级。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -300,7 +299,6 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
   const { roleId } = body;
   const adminUser = c.get('user') as JwtPayload;
 
-  // 权限检查：只有超级管理员可以修改用户角色
   const isSuperAdmin = await checkIsSuperAdmin(c);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以修改用户角色'), 403);
@@ -319,10 +317,9 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
       return c.json(error('NOT_FOUND', '用户不存在'), 404);
     }
 
-    // 更新角色
     await updateUserRole(c.env.DB, { userId, roleId, now: Date.now() });
 
-    // 清除该用户所有session，强制重新登录获取新token
+    // 旧 token 中的角色声明仍然有效，必须清会话强制重新登录
     await deleteUserSessions(c.env.DB, userId);
 
     await logUserAction(c.env, adminUser.userId, 'admin_update_user_role', {
@@ -555,11 +552,10 @@ adminRoutes.put('/users/:id/status', validateBody(schemas.admin.updateUserStatus
   const adminUser = c.get('user') as JwtPayload;
 
   try {
-    // 获取当前管理员的角色级别
+    // 优先级低于自己的用户可直接操作；同级或更高只有超级管理员才能操作
     const adminRole = await findUserRolePriority(c.env.DB, adminUser.userId);
     const adminPriority = adminRole?.priority || 10;
 
-    // 获取目标用户信息
     const user = await findUserRoleAndPriority(c.env.DB, userId);
 
     if (!user) {
@@ -667,8 +663,8 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
 
     const target = await findPostNotificationTarget(c.env.DB, report.post_id);
     if (target && target.user_id !== adminUser.userId) {
-      // warn_author 必须真正传达给作者：此前只入库+日志，作者只会收到一句
-      // 「举报已处理」，既不知道被警告也不知道原因。
+      // warn_author 必须真正传达给作者，否则作者只会收到一句「举报已处理」，
+      // 既不知道被警告也不知道原因。
       const warned = status === 'resolved' && action === 'warn_author';
       const body = warned
         ? `${target.title} · 管理员警告：${report.report_reason}${notes ? `（${notes}）` : ''}`
@@ -854,7 +850,6 @@ adminRoutes.get('/logs', async (c) => {
 adminRoutes.post('/cleanup', async (c) => {
   const adminUser = c.get('user') as JwtPayload;
 
-  // 权限检查：只有超级管理员可以执行数据清理
   const isSuperAdmin = await checkIsSuperAdmin(c);
   if (!isSuperAdmin) {
     return c.json(error('FORBIDDEN', '只有超级管理员可以执行数据清理'), 403);
@@ -997,7 +992,7 @@ adminRoutes.delete('/sessions/:id', async (c) => {
       return c.json(error('NOT_FOUND', '会话不存在'), 404);
     }
 
-    // 获取当前管理员的角色级别
+    // 优先级低于自己的用户可直接操作；同级或更高只有超级管理员才能操作
     const adminRole = await findUserRolePriority(c.env.DB, adminUser.userId);
     const adminPriority = adminRole?.priority || 10;
     const targetPriority = (session as any).priority || 10;
@@ -1289,9 +1284,7 @@ adminRoutes.get('/dashboard/user-behavior', async (c) => {
   }
 });
 
-// ====================================================================
-// 系统观测（错误监控）
-// ====================================================================
+// ── 系统观测（错误监控） ─────────────────────────────────
 
 /**
  * 错误统计概览
@@ -1310,13 +1303,10 @@ adminRoutes.get('/errors/stats', async (c) => {
       startTime,
     });
 
-    // 按 error_type 聚合
     const byType = await listSystemErrorsByType(c.env.DB, startTime);
 
-    // 按 fingerprint 聚合 Top 错误
     const topErrors = await listTopSystemErrors(c.env.DB, startTime);
 
-    // 每日错误趋势
     const dailyErrors = await listDailySystemErrors(c.env.DB, startTime);
 
     return c.json(success({
@@ -1455,9 +1445,7 @@ adminRoutes.delete('/errors/:id', async (c) => {
   }
 });
 
-// ====================================================================
-// 跨语言实体别名
-// ====================================================================
+// ── 跨语言实体别名 ───────────────────────────────────────
 
 /**
  * 手动灌入别名

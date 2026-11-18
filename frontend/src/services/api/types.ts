@@ -19,7 +19,7 @@ import type {
 } from '@/types';
 import type { EnrichedSearchData } from '@/types/search';
 
-// ─── 通用响应包装 ──────────────────────────────────────────────────────
+// ── 通用响应包装 ──────────────────────────────────────────────
 
 /** 后端标准成功响应 */
 export interface ApiOkResponse<T> {
@@ -37,7 +37,7 @@ export interface ApiFailResponse {
 /** 后端可能成功也可能失败的联合响应 */
 export type ApiResponse<T> = ApiOkResponse<T> | ApiFailResponse;
 
-// ─── 搜索 ──────────────────────────────────────────────────────────────
+// ── 搜索 ──────────────────────────────────────────────────────
 
 /** 通用搜索结果项（后端 /search 返回的 results 数组元素） */
 export interface SearchResponseItem {
@@ -119,7 +119,7 @@ export interface SearchQuotaData {
 
 export type SearchQuotaResponse = ApiResponse<SearchQuotaData>;
 
-// ─── 用户 / 收藏 / 历史 ────────────────────────────────────────────────
+// ── 用户 / 收藏 / 历史 ────────────────────────────────────────
 
 export type FavoritesResponse = ApiResponse<{ favorites: FavoriteItem[] }>;
 
@@ -138,7 +138,7 @@ export type SearchStatsResponse = ApiResponse<{
   lastWeekSearches: number;
 }>;
 
-// ─── 来源 ──────────────────────────────────────────────────────────────
+// ── 来源 ──────────────────────────────────────────────────────
 
 export type MajorCategoriesResponse = ApiResponse<MajorCategory[]>;
 
@@ -157,7 +157,7 @@ export type SourceStatusCheckResponse = ApiResponse<{
   error: string | null;
 }>;
 
-// ─── 系统 ──────────────────────────────────────────────────────────────
+// ── 系统 ──────────────────────────────────────────────────────
 
 export type SystemStatsResponse = ApiResponse<{
   activeUsers: number;

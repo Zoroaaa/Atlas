@@ -31,6 +31,7 @@ export interface EmailInfo {
   verified: boolean;
 }
 
+/** 类型守卫：字符串是否为已注册的通知类型。 */
 export function isNotificationType(value: unknown): value is NotificationType {
   return typeof value === 'string' && (NOTIFICATION.TYPES as readonly string[]).includes(value);
 }
@@ -124,6 +125,7 @@ export async function getUnreadAnnouncementCount(db: D1Database, userId: string)
   return row?.count ?? 0;
 }
 
+/** 站内未读数 = 收件箱未读 + 仍在生效的公告未读。 */
 export async function getUnreadCount(db: D1Database, userId: string): Promise<number> {
   const [notificationRow, announcementUnread] = await Promise.all([
     db
@@ -260,6 +262,7 @@ export async function getPreferences(db: D1Database, userId: string): Promise<No
   });
 }
 
+/** 增量更新单类型偏好：未传的字段沿用当前值。 */
 export async function setPreference(
   db: D1Database,
   userId: string,
@@ -279,6 +282,7 @@ export async function setPreference(
     .run();
 }
 
+/** 返回脱敏邮箱与验证状态，供设置页展示。 */
 export async function getEmailInfo(db: D1Database, userId: string): Promise<EmailInfo> {
   const user = await db
     .prepare('SELECT email, email_verified FROM users WHERE id = ?')
@@ -290,6 +294,7 @@ export async function getEmailInfo(db: D1Database, userId: string): Promise<Emai
   };
 }
 
+/** 读取通知设置；未设置时按默认值返回。 */
 export async function getSettings(db: D1Database, userId: string): Promise<{ emailHideDetails: boolean }> {
   const row = await db
     .prepare('SELECT email_hide_details FROM notification_settings WHERE user_id = ?')
@@ -298,6 +303,7 @@ export async function getSettings(db: D1Database, userId: string): Promise<{ ema
   return { emailHideDetails: row?.email_hide_details === 1 };
 }
 
+/** 增量更新通知设置，未传字段沿用当前值。 */
 export async function setSettings(
   db: D1Database,
   userId: string,

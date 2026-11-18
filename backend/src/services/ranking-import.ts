@@ -1,21 +1,9 @@
 /**
- * 榜单导入服务
+ * 榜单导入：把周榜/月榜/TOP250/年度榜写成本地库占位记录、来源名次，并归档到
+ * jav_ranking_snapshots / jav_ranking_entries。
  *
- * 做四件事：
- *   1. 把周榜/月榜/TOP250 作品作为占位记录扩充进 data_records（只新增，已存在则完全跳过）；
- *   2. 周榜/月榜把名次写入 data_record_sources（现有「最近热播」面板读取）；
- *   3. 所有榜单把每次导入写成 jav_ranking_snapshots + jav_ranking_entries 归档，
- *      供管理端查看历史名次。四种榜单统一按「周期 + 东八区抓取日」每天保留一期，
- *      同一天重跑只覆盖当天快照；
- *   4. 为新入库的占位记录补 jav_detail_meta（标记详情不完整、缺哪些字段）。
- *
- * 更新策略（2026-11 起）：JavDB 只负责「库里没有时创建」。
- * 已存在记录（尤其已被 JavBus 详情补全过）的任何字段都不允许被榜单数据覆盖，
- * 因此冲突时直接 DO NOTHING；重复导入只追加/刷新名次快照，不更新作品数据。
- *
- * 番号匹配以规范化 code 为准，经典番号额外兼容无横杠写法（jav:WAAA-624 / jav:WAAA624）。
- *
- * 不参与推荐打分。
+ * 更新策略：JavDB 只负责「库里没有时创建」，已存在记录一律 DO NOTHING，不得覆盖 JavBus 详情数据。
+ * 快照键按「周期 + 东八区抓取日」生成，同一通道同一天重跑只覆盖当天。
  */
 import { generateId } from '@/utils';
 import { normalizeJavdbCover } from '@/services/javdb-cover';
@@ -176,6 +164,7 @@ async function loadRecordIdsByKey(
   return idByKey;
 }
 
+/** 导入一份榜单：校验通道、占位入库、写名次来源并归档快照。 */
 export async function importRankingSnapshot(
   db: D1Database,
   payload: RankingImportPayload
@@ -284,7 +273,7 @@ export async function importRankingSnapshot(
 
   const createdCount = Math.max(0, items.length - existingCount);
 
-  // ── 来源记录 ──
+  // ── 来源记录 ──────────────────────────────────────────────────
   // 周榜/月榜用 source_type='ranking'（现有「最近热播」面板读取）；
   // TOP250/年度榜用 'info'，只做本地库来源与名次存证，避免拖慢榜单面板。
   const isWeeklyMonthly = payload.period === 'weekly' || payload.period === 'monthly';
@@ -325,7 +314,7 @@ export async function importRankingSnapshot(
   }
   await runBatches(db, sourceStatements);
 
-  // ── 归档：snapshot + entries（所有榜单通道） ──
+  // ── 归档：snapshot + entries（所有榜单通道） ─────────────────
   // 所有榜单按天保留，同一天重跑替换当天快照。
   const snapshotKey = `${channel.name}:${cycleKeyOf(payload.period, fetchedAt, payload.year)}`;
   const replaceWindowStart = snapshotWindowStartMs(fetchedAt);

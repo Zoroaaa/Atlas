@@ -1,9 +1,8 @@
 /**
- * NovelProvider — 小说搜索适配器
+ * NovelProvider — 小说搜索适配器，实现 SearchProvider 接口并注册到 providerRegistry。
  *
- * 包装 novel-search.ts 的 searchNovel 函数，实现 SearchProvider 接口。
- * 数据源：知轩藏书（HTML 抓取解析）
- * 额外注入「按用户过滤的多源跳转卡片」（与 JAV 机制一致），但保持自身 total（前端分页依赖）。
+ * 包装 novel-search.ts 的 searchNovel：抓取知轩藏书、奇书网的搜索/详情页。
+ * 额外注入按用户过滤的多源跳转卡片（与 JAV 机制一致），但保持 total 为小说条数（前端分页依赖）。
  */
 import {
   SearchProvider,
@@ -23,9 +22,10 @@ export class NovelProvider implements SearchProvider {
   readonly id = 'novel';
   readonly name = '小说搜索';
   readonly supportedCategories = ['novel_sources'];
-  /** 结果含按用户过滤的多源源列表 → 属用户态响应 */
+  /** 结果含按用户过滤的搜索源卡片 → 属用户态响应 */
   readonly injectsUserSources = true;
 
+  /** 小说搜索 + 注入跳转卡片；total 保持小说条数，不被卡片数量覆盖。 */
   async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
     const result = (await searchNovel(keyword, page)) as unknown as SearchResultBase & {
       results?: SearchSourceCard[];
@@ -45,21 +45,22 @@ export class NovelProvider implements SearchProvider {
     return result;
   }
 
+  /** 小说抓取源没有搜索建议接口，返回空数组，由路由回落到本地历史。 */
   async suggestions(_keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {
-    // Anna's Archive 无搜索建议 API，返回空数组，会 fallback 到数据库历史
     return [];
   }
 
+  /** 小说抓取源没有热门榜单，返回空数组，由路由回落到本地历史。 */
   async trending(): Promise<{ keyword: string; count: number }[]> {
     return [];
   }
 
+  /** 写搜索历史：优先取知轩藏书条目，缺失时退到首条结果。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];
     const values: (string | number)[] = [];
 
-    // 小说 NovelItem 抓取源只剩知轩藏书
-    // 跳转卡片源（Z-Library/Anna等）由 search_sources 表注入，不在此处理
+    // 只处理抓取到的 NovelItem；Z-Library / Anna's Archive 等卡片源由 search_sources 注入，不在此处理
     const novels = (result as {
       novels?: Array<{
         id: string;
@@ -99,5 +100,4 @@ export class NovelProvider implements SearchProvider {
   }
 }
 
-/** 导出单例 */
 export const novelProvider = new NovelProvider();

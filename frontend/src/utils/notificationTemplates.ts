@@ -9,11 +9,9 @@ export interface NotificationTemplate {
 }
 
 /**
- * 集中式 Toast 通知模板
+ * 集中式 Toast 通知模板：文案全部走 i18next.t()，随语言切换实时生效。
  *
- * 设计：所有字符串走 i18next.t()，响应语言切换；
- *   - 后端返回的 reason 字符串原样透传（不翻译，遵循"仅前端报错"约定）；
- *   - 函数签名保持不变，调用方零改动。
+ * 约定：后端返回的 reason 原样透传不翻译；无 reason 时回退到 i18n 默认文案。
  */
 export const NotificationTemplates = {
   auth: {

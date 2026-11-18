@@ -1,3 +1,9 @@
+/**
+ * 代理配置与底层工具：代理地址、状态常量、URL 改写与健康检查请求。
+ *
+ * 约束：只改写合法绝对 URL；代理地址不参与编码，拼接后原样发起请求。
+ */
+
 import { PROXY_CONFIG, PROXY_TIMEOUTS } from '@/constants';
 
 export type ProxyStatus = 'disabled' | 'enabled' | 'error' | 'checking';
@@ -38,14 +44,17 @@ export const proxyConfig = {
   } as const,
 };
 
+/** 代理健康检查地址。 */
 export function getProxyHealthCheckUrl(): string {
   return `${proxyConfig.proxyServer}${proxyConfig.api.health}`;
 }
 
+/** 代理状态查询地址。 */
 export function getProxyStatusUrl(): string {
   return `${proxyConfig.proxyServer}${proxyConfig.api.status}`;
 }
 
+/** 把绝对 URL 改写成代理 URL；非法或空输入原样返回，避免产生坏链接。 */
 export function convertToProxyUrl(originalUrl: string, proxyServer?: string): string {
   const server = proxyServer || proxyConfig.proxyServer;
   if (!originalUrl || typeof originalUrl !== 'string') {
@@ -60,6 +69,7 @@ export function convertToProxyUrl(originalUrl: string, proxyServer?: string): st
   }
 }
 
+/** 从代理 URL 还原原始地址；不以代理前缀开头时视为原始地址直接返回。 */
 export function getOriginalUrl(proxyUrl: string, proxyServer?: string): string {
   if (!proxyUrl || typeof proxyUrl !== 'string') {
     return proxyUrl;
@@ -78,6 +88,7 @@ export function getOriginalUrl(proxyUrl: string, proxyServer?: string): string {
   }
 }
 
+/** 请求代理健康检查接口；超时或网络错误都归为 success=false，由调用方决定提示。 */
 export async function testProxyConnectivity(): Promise<{
   success: boolean;
   responseTime?: number;

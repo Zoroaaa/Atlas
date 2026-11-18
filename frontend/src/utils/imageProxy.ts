@@ -1,22 +1,19 @@
+/**
+ * 图片代理 URL 工具：跨域图片统一走后端 /api/jav/proxy-image 代理。
+ */
+
 import { getBackendBaseUrl } from '@/constants';
 
-/**
- * 获取代理后的图片 URL
- *
- * 用于处理跨域图片资源，统一走后端 /api/jav/proxy-image 代理
- *
- * @param url - 原始图片 URL
- * @returns 代理后的图片 URL
- */
+/** 把原始图片 URL 包装成后端代理地址。 */
 export function getProxyImageUrl(url: string): string {
   const baseUrl = getBackendBaseUrl();
   return `${baseUrl}/api/jav/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
 /**
- * 规范化并重新代理图片 URL
+ * 规范化并重新代理图片 URL。
  *
- * 数据库中可能存有旧域名/旧形态的代理 URL，这里统一提取原始地址后按当前后端域名重新代理。
+ * 库里可能存有旧后端域名的代理地址，这里先提取原始 URL，再按当前后端域名重写。
  */
 export function normalizeImageUrl(url: string): string {
   if (!url) return '';

@@ -1,3 +1,8 @@
+/**
+ * 单个 JAV 番号详情的请求状态机：idle / loading / success / error / not_found。
+ *
+ * 约束：请求序号只接受最后一次响应；同番号成功态默认去重，失败后由 retry 重新发起。
+ */
 import { useState, useCallback, useRef } from 'react';
 import { isJavCodeLike, normalizeJavCode } from '@codeseek/shared/utils';
 import { apiClient, ApiError } from '@/services/api';
@@ -5,6 +10,7 @@ import type { JavDetail } from '@/types';
 
 type Status = 'idle' | 'loading' | 'success' | 'error' | 'not_found';
 
+/** 番号详情请求：去重、丢弃过期响应，并把 NOT_FOUND 与普通失败区分开 */
 export function useJavDetail() {
   const [detail, setDetail]   = useState<JavDetail | null>(null);
   const [status, setStatus]   = useState<Status>('idle');
@@ -15,7 +21,8 @@ export function useJavDetail() {
   const fetch = useCallback(async (code: string) => {
     const normalized = normalizeJavCode(code);
     if (!normalized || !isJavCodeLike(normalized)) return;
-    if (normalized === lastCode && status === 'success') return; // 防重复
+    // 同番号已成功则跳过；失败/未找到态仍允许 retry 重新请求
+    if (normalized === lastCode && status === 'success') return;
 
     const requestId = ++requestIdRef.current;
     setStatus('loading');

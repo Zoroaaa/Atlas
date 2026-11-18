@@ -1,9 +1,8 @@
 /**
- * 共享请求契约入口
+ * 共享请求契约桶文件：re-export 各域 zod schema，并组装 `schemas` 分组对象供后端引用。
  *
- * - 后端通过 `schemas` 分组对象引用，与既有的 `schemas.xxx.yyy` 用法保持一致
- * - 前端可只引入实际用到的子模块（如 `@codeseek/shared/schemas/auth`），
- *   避免把全部契约与 zod 拖进首屏
+ * 契约约束：字段调整同时影响前后端；前端可用 `@codeseek/shared/schemas/*` 单模块引入，
+ * 避免把全部契约与 zod 拖进首屏。
  */
 import {
   loginSchema,
@@ -68,6 +67,9 @@ export * from './announcement';
 export * from './feedback';
 export * from './recommend';
 
+// ── 分组对象 ─────────────────────────────
+
+/** 后端统一引用的 schema 分组；键名即路由校验处的调用路径。 */
 export const schemas = {
   auth: {
     login: loginSchema,

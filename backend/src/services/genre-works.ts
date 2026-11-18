@@ -151,11 +151,13 @@ function initialState(nameKey: string): GenrePageState {
   };
 }
 
+/** 有效末页：已确认的末页优先，否则用观察到的最大页码，并受 30 页硬上限约束。 */
 function effectiveMaxPage(state: GenrePageState): number {
   const raw = state.last_page > 0 ? state.last_page : state.max_page_seen;
   return Math.min(GENRE_WORKS.MAX_PAGE, Math.max(1, raw));
 }
 
+/** 随机取页并尽量避开上一页，减少连续两次刷新看到同一页。 */
 function randomPage(maxPage: number, prevPage?: number): number {
   if (maxPage <= 1) return 1;
   let page = 1 + Math.floor(Math.random() * maxPage);
@@ -235,6 +237,7 @@ function scheduleProbe(
   });
 }
 
+/** 读取指定标签的一页作品：缓存整页解析结果，返回前随机抽样。 */
 export async function getGenreWorks(
   db: D1Database,
   userId: string,

@@ -1,14 +1,14 @@
 /**
- * 安全功能模块
- * 功能：安全锁定、安全事件记录、密码重置日志
- * 作者：CodeSeek Team
- * 日期：2024
+ * 账号安全工具：失败尝试计数与锁定、安全事件与密码重置审计日志、可疑登录打分。
+ *
+ * 统一采用 fail-open：安全表查询/写入异常时只打日志并放行，避免 D1 抖动导致登录不可用。
  */
 import { SecurityLockout, UserSecurityEvent, Env } from '@/types';
 import { generateId, hashToken } from '@/utils';
 import { ConfigService } from '@/services';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 
+/** DB 配置缺失时的兜底值；次数单位见键名，时长单位为毫秒，后台 system_config 可覆盖 */
 const DEFAULT_SECURITY_CONFIG = {
   MAX_LOGIN_ATTEMPTS: 5,
   MAX_VERIFICATION_ATTEMPTS: 3,
@@ -21,6 +21,7 @@ const DEFAULT_SECURITY_CONFIG = {
   SUSPICIOUS_ACTIVITY_THRESHOLD: 50,
 };
 
+/** 锁定检查结果：isLocked=false 时 remainingAttempts 为剩余可尝试次数 */
 export interface LockoutCheckResult {
   isLocked: boolean;
   lockedUntil?: number;
@@ -28,6 +29,7 @@ export interface LockoutCheckResult {
   lockoutType?: string;
 }
 
+/** 查询指定标识是否处于锁定期；未锁定时尽量返回剩余尝试次数。 */
 export async function checkLockout(
   db: D1Database,
   lockoutType: string,
@@ -60,11 +62,13 @@ export async function checkLockout(
 
     return { isLocked: false };
   } catch (err) {
+    // fail-open：安全表不可用时按未锁定处理，保证正常用户仍能登录
     console.error('Check lockout error:', err);
     return { isLocked: false };
   }
 }
 
+/** 记录一次失败尝试；达到阈值时写入锁定截止时间并返回剩余次数/锁定信息。 */
 export async function recordFailedAttempt(
   env: Env,
   lockoutType: string,
@@ -87,6 +91,7 @@ export async function recordFailedAttempt(
   const configLockoutDuration = parseInt(securityConfig[DB_CONFIG_KEYS.LOCKOUT_DURATION_MS] || String(DEFAULT_SECURITY_CONFIG.LOCKOUT_DURATION_MS), 10);
   const configPasswordResetLockout = parseInt(securityConfig[DB_CONFIG_KEYS.PASSWORD_RESET_LOCKOUT_DURATION] || String(DEFAULT_SECURITY_CONFIG.PASSWORD_RESET_LOCKOUT_MS), 10);
 
+  // 显式传入的阈值/时长优先，否则按 lockoutType 取对应配置（登录 / 验证码 / 重置密码口径不同）
   const max = maxAttempts || (
     lockoutType === 'password_reset' ? configMaxPasswordResetAttempts :
     lockoutType === 'verification' ? configMaxVerificationAttempts :
@@ -102,6 +107,7 @@ export async function recordFailedAttempt(
     ).bind(lockoutType, identifierHash).first<SecurityLockout>();
 
     if (existing) {
+      // 仍在锁定期内：不再累加次数，直接返回剩余锁定时间
       if (existing.locked_until > now) {
         return {
           isLocked: true,
@@ -151,11 +157,13 @@ export async function recordFailedAttempt(
       remainingAttempts: max - 1,
     };
   } catch (err) {
+    // fail-open：计数写入失败不阻断本次登录/重置尝试
     console.error('Record failed attempt error:', err);
     return { isLocked: false };
   }
 }
 
+/** 清除指定标识的锁定记录（登录成功或重置密码流程完成后调用）。 */
 export async function clearLockout(
   db: D1Database,
   lockoutType: string,
@@ -171,6 +179,7 @@ export async function clearLockout(
   }
 }
 
+/** 写一条安全事件；eventData / riskFactors 以 JSON 字符串落库，写入失败不抛错。 */
 export async function recordSecurityEvent(
   db: D1Database,
   params: {
@@ -212,6 +221,7 @@ export async function recordSecurityEvent(
   }
 }
 
+/** 写一条密码重置审计日志并返回日志 id，供后续按 id 回填状态。 */
 export async function recordPasswordResetLog(
   db: D1Database,
   params: {
@@ -253,6 +263,7 @@ export async function recordPasswordResetLog(
   return id;
 }
 
+/** 增量更新重置日志；只处理显式传入的字段，全部缺省时不产生 SQL。 */
 export async function updatePasswordResetLog(
   db: D1Database,
   logId: string,
@@ -266,6 +277,7 @@ export async function updatePasswordResetLog(
   }
 ): Promise<void> {
   try {
+    // 字段映射逐项显式列出，避免把外部对象直接展开进 SET 子句
     const setClauses: string[] = [];
     const values: (number | string)[] = [];
 
@@ -305,6 +317,7 @@ export async function updatePasswordResetLog(
   }
 }
 
+/** 读取用户最近的安全事件，默认 20 条，按时间倒序。 */
 export async function getRecentSecurityEvents(
   db: D1Database,
   userId: string,
@@ -322,6 +335,10 @@ export async function getRecentSecurityEvents(
   }
 }
 
+/**
+ * 按固定时间窗给一次登录打分：失败登录（24h）、新 IP（7d/30d）、频繁改密（24h）。
+ * 阈值直接取代码内默认值，不读 DB 配置，修改需重新部署。
+ */
 export async function detectSuspiciousActivity(
   env: Env,
   userId: string,
@@ -342,6 +359,7 @@ export async function detectSuspiciousActivity(
      WHERE user_id = ? AND event_type = 'login' AND event_status = 'failed' AND created_at > ?`
   ).bind(userId, Date.now() - CONFIG.Stats.DAY_IN_MS).first<{ count: number }>();
 
+  // 近 24h 失败登录达到 3 次：+20
   if (recentFailedLogins && recentFailedLogins.count >= recentFailedLoginsThreshold) {
     factors.push('多次登录失败');
     riskScore += 20;
@@ -357,6 +375,7 @@ export async function detectSuspiciousActivity(
      WHERE user_id = ? AND event_type = 'login' AND event_status = 'success' AND ip_address = ? AND created_at > ?`
   ).bind(userId, ipAddress, Date.now() - CONFIG.Stats.MONTH_IN_MS).first<{ count: number }>();
 
+  // 近 7 天出现 ≥3 个不同 IP，且当前 IP 近 30 天没有成功登录记录：+15
   if (recentIpLogins && recentIpLogins.count >= recentIpLoginsThreshold && (!knownIpLogin || knownIpLogin.count === 0)) {
     factors.push('新IP地址登录');
     riskScore += 15;
@@ -367,11 +386,13 @@ export async function detectSuspiciousActivity(
      WHERE user_id = ? AND event_type = 'password_change' AND created_at > ?`
   ).bind(userId, Date.now() - CONFIG.Stats.DAY_IN_MS).first<{ count: number }>();
 
+  // 近 24h 改密达到 2 次：+30
   if (recentPasswordChanges && recentPasswordChanges.count >= recentPasswordChangesThreshold) {
     factors.push('频繁修改密码');
     riskScore += 30;
   }
 
+  // 单项分数都低于 50，需至少两类信号叠加才判定可疑；对外封顶 100
   return {
     isSuspicious: riskScore >= suspiciousActivityThreshold,
     riskScore: Math.min(riskScore, 100),

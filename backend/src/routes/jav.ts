@@ -1,10 +1,8 @@
 /**
- * JAV 路由
- * - /rankings：JavDB 周榜/月榜（读 D1 最新快照）
- * - /actresses：热门女优榜（站内热度 + 榜单作品聚合）
- * - /detail、/torrent、/proxy-image：番号详情、种子代理、图片代理
+ * JAV 路由：榜单 / TOP250 / 女优、番号详情、实体作品、种子与封面代理。
  *
- * 共享工具提取至 services/jav-utils.ts；榜单/女优聚合在 services 内。
+ * 约束：仅 proxy-image 注册在 authMiddleware 之前（匿名可访问），其余接口均需登录；
+ * 抓取与解析逻辑统一在 services/jav-utils.ts，本文件只做编排与缓存。
  */
 import { Hono } from 'hono';
 import { Env } from '@/types';
@@ -62,9 +60,7 @@ import {
 
 export const javRoutes = new Hono<{ Bindings: Env }>();
 
-// 图片代理（无需认证）
-// GET /api/jav/proxy-image?url=<encoded_url>
-
+/** 拦截私有 / 回环 / 链路本地地址，防止图片代理被当成内网探测跳板（SSRF）。 */
 function isPrivateIP(hostname: string): boolean {
   const privatePatterns = [
     /^127\./,
@@ -83,6 +79,7 @@ function isPrivateIP(hostname: string): boolean {
 /** 1x1 透明 GIF（错误时返回，避免 <img> 标签触发 ORB） */
 const FALLBACK_GIF = new Uint8Array([71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 0, 0, 0, 44, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 68, 1, 0, 59]);
 
+/** 返回 1x1 透明 GIF：图片代理任何失败分支都走这里，避免 <img> 收到非图片响应触发 ORB。 */
 function fallbackImage(maxAgeSeconds = 0): Response {
   return new Response(FALLBACK_GIF, {
     status: 200,
@@ -96,6 +93,7 @@ function fallbackImage(maxAgeSeconds = 0): Response {
 
 // 单 IP 每分钟回源上限（isolate 内近似值，硬限流交给 Cloudflare WAF/限流规则）
 const UPSTREAM_FETCH_LIMIT = 300;
+// 计数表只存在当前 isolate；超过 5000 个 IP 直接整体清空，防止长驻实例内存无限增长
 const upstreamFetchWindows = new Map<string, { count: number; resetAt: number }>();
 
 function allowUpstreamFetch(ip: string): boolean {
@@ -111,6 +109,7 @@ function allowUpstreamFetch(ip: string): boolean {
   return true;
 }
 
+// 封面图片代理：匿名可访问，必须注册在 authMiddleware 之前
 javRoutes.get('/proxy-image', async (c) => {
   const rawUrl = c.req.query('url');
   if (!rawUrl) {
@@ -225,6 +224,8 @@ javRoutes.get('/proxy-image', async (c) => {
         redirect: 'follow',
       });
 
+      // JavDB CDN 偶发对首包返回 403，间隔 500ms 重试一次；两次都失败才写墓碑，
+      // 避免把瞬时拒绝固化成 5 分钟坏图
       if (resp.status === 403 && attempt === 0) {
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
@@ -292,13 +293,10 @@ javRoutes.get('/proxy-image', async (c) => {
   return fallbackImage(300);
 });
 
+// 以下接口均需登录；proxy-image 已在其之前注册，保持匿名可用
 javRoutes.use('*', authMiddleware);
 
-// ─────────────────────────────────────────────
-// 推荐标签：按收藏/搜索画像挑选 + 随机补位
-// GET /api/jav/genre-recommendations?refresh=0|1
-// ─────────────────────────────────────────────
-
+// ── 推荐标签（按收藏 / 搜索画像挑选 + 随机补位）──────────
 javRoutes.get('/genre-recommendations', async (c) => {
   c.header('Cache-Control', 'no-store');
   const user = c.get('user');
@@ -325,11 +323,7 @@ javRoutes.get('/genre-recommendations', async (c) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 标签作品：随机页 + 随机抽样
-// GET /api/jav/genre-works?genre=<name_key>&refresh=0|1&prevPage=<n>
-// ─────────────────────────────────────────────
-
+// ── 标签作品（随机页 + 随机抽样）─────────────────────────
 javRoutes.get('/genre-works', async (c) => {
   c.header('Cache-Control', 'no-store');
   const user = c.get('user');
@@ -376,10 +370,7 @@ javRoutes.get('/genre-works', async (c) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// 榜单：JavDB 周榜 / 月榜（只读最近快照，不删除历史）
-// ─────────────────────────────────────────────
-
+// ── 榜单：JavDB 周榜 / 月榜（只读最近快照）──────────────
 javRoutes.get('/rankings', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
 
@@ -417,11 +408,7 @@ javRoutes.get('/rankings', async (c) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// TOP250：全部 + 四个大类（月度）/ 年度榜（双月）
-// GET /api/jav/top250?section=all|censored|uncensored|western|fc2&year=2026|all
-// ─────────────────────────────────────────────
-
+// ── TOP250：总榜按大类月度，年度榜按双月 ─────────────────
 javRoutes.get('/top250', async (c) => {
   const rawSection = (c.req.query('section') ?? 'all').trim().toLowerCase();
   const rawYear = (c.req.query('year') ?? '').trim();
@@ -487,14 +474,7 @@ javRoutes.get('/top250', async (c) => {
   }
 });
 
-// =====================================================================
-// 详情页 + 磁力链接提取
-// =====================================================================
-
-// JavDetail 类型已由 parseJavDetail 的返回值替代（定义在 services/jav-utils.ts）
-
-// extractGidUc / parseMagnets / parseDetail 已提取至 services/jav-utils.ts，此处从该模块导入
-
+// ── 番号详情 + 磁力提取 ─────────────────────────────────
 // 本地库详情（只读）：收藏分享到社区时用它补齐磁力链接等信息，不访问外部站点
 javRoutes.get('/library/:code', async (c) => {
   try {
@@ -514,10 +494,11 @@ javRoutes.get('/detail', async (c) => {
   }
   const code = info.code;
 
+  // 1 小时：详情内容变化慢，refresh=1 可强制回源并回写本地库
   const DETAIL_CACHE_TTL = 3600;
   // refresh=1：跳过缓存，强制回源 JavBus，并把新数据同步写回本地库
   const forceRefresh = c.req.query('refresh') === '1';
-  // v2：修复导演/制作商/发行商解析后，避免继续命中旧的空字段缓存
+  // key 带 v2：字段解析逻辑变更时必须升版，否则仍会命中旧缓存里的空字段
   const cacheKey = new Request(`https://internal/jav-detail-v2/${code}`);
   const cache = caches.default;
 
@@ -580,12 +561,10 @@ javRoutes.get('/detail', async (c) => {
   }
 });
 
-// =====================================================================
-// 实体作品列表：导演 / 制作商 / 发行商 / 系列
-// 详情卡片上的实体字段点击后，按 JavBus 列表页抓取同类作品。
-// =====================================================================
-
+// ── 实体作品列表（导演 / 制作商 / 发行商 / 系列）─────────
+// 详情卡片上的实体字段点击后，按 JavBus 列表页抓取同类作品并回写本地库。
 const JAV_ENTITY_CACHE_TTL = 12 * 60 * 60;
+// 实体链接随详情页更新，TTL 比作品列表短，避免长期返回缺失的标签链接
 const JAV_ENTITY_LINKS_CACHE_TTL = 60 * 60;
 
 /**
@@ -619,7 +598,7 @@ javRoutes.get('/entity/resolve', async (c) => {
   }
   const code = info.code;
 
-  // v2：新增 tagLinks，旧 v1 缓存不含标签链接
+  // key 带 v2：返回字段增加 tagLinks，升版可避免命中旧结构缓存
   const cacheKey = new Request(`https://internal/jav-entity-links-v2/${code}`);
   const cache = caches.default;
   const cached = await cache.match(cacheKey);
@@ -629,6 +608,7 @@ javRoutes.get('/entity/resolve', async (c) => {
     });
   }
 
+  // 实体链接解析需要回源 JavBus 详情页，按用户限流避免被当成抓取入口
   const rl = await checkRateLimitD1(
     c.env.DB, `jav-entity-links:${user.userId}`, 60_000, 20
   );
@@ -720,6 +700,7 @@ javRoutes.get('/entity', async (c) => {
     }
   }
 
+  // 实体列表抓取同样回源，限每用户每分钟 40 次
   const rl = await checkRateLimitD1(
     c.env.DB, `jav-entity:${user.userId}`, 60_000, 40
   );
@@ -768,12 +749,8 @@ javRoutes.get('/entity', async (c) => {
   }
 });
 
-// =====================================================================
-// 真实种子文件代理下载
-// GET /api/jav/torrent/:hash
-// 从 itorrents.org 获取真实 .torrent 文件并代理返回
-// =====================================================================
-
+// ── 种子文件代理 ────────────────────────────────────────
+// 按 info hash 从公共种子缓存站取 .torrent；需登录，已位于 authMiddleware 之后
 javRoutes.get('/torrent/:hash', async (c) => {
   const raw = c.req.param('hash').trim();
   // 支持 40位hex 或 32位base32
@@ -783,7 +760,7 @@ javRoutes.get('/torrent/:hash', async (c) => {
     return c.json({ success: false, error: { code: 'INVALID_HASH', message: '无效的 info hash' } }, 400);
   }
 
-  // 统一转为大写hex
+  // 上游只认大写 hex，base32 形式（BTIH 的另一种编码）需先转码
   const hash = isHex ? raw.toUpperCase() : base32ToHexPublic(raw).toUpperCase();
 
   // itorrents.org 是目前最稳定的公共种子缓存服务
@@ -819,7 +796,7 @@ javRoutes.get('/torrent/:hash', async (c) => {
   return c.json({ success: false, error: { code: 'NOT_FOUND', message: '未找到该种子文件，请改用磁力链接' } }, 404);
 });
 
-// base32→hex（供路由内部使用）
+/** BTIH 的 base32 形式转 hex；按 5 bit 对齐取整字节，非字母表字符直接跳过。 */
 function base32ToHexPublic(base32: string): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
@@ -835,13 +812,10 @@ function base32ToHexPublic(base32: string): string {
   return hex;
 }
 
-// =====================================================================
-// 热门女优榜
-// =====================================================================
-
-// GET /api/jav/actresses — 站内热度 + 周榜/月榜上榜作品聚合
+// ── 热门女优榜（站内热度 + 周榜 / 月榜上榜作品聚合）──────
 javRoutes.get('/actresses', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
+  // 版本号参与缓存键：聚合口径调整时必须升版，否则旧缓存会继续返回旧榜单
   const cacheKey = new Request('https://internal/jav-hot-actresses-v6');
   const cache = caches.default;
 

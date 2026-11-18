@@ -1,3 +1,8 @@
+/**
+ * 搜索源可用性探测：按 URL 模板发探测请求，可选校验页面内容，结果缓存到 source_status_cache。
+ *
+ * 约束：缓存 5 分钟内直接复用；探测与内容校验失败只降级为 unavailable/error，不抛给调用方。
+ */
 import { Env } from '@/types';
 import { generateId } from '@/utils';
 
@@ -54,12 +59,14 @@ export interface CachedSourceStatus {
   access_count: number;
 }
 
+/** 探测单个搜索源；命中 5 分钟内缓存时直接返回 fromCache=true。 */
 export const checkSingleSourceStatus = async (
   source: { id?: string; name: string; urlTemplate: string },
   keyword: string,
   keywordHash: string,
   options: SourceStatusCheckOptions
 ): Promise<SourceStatusResult> => {
+  // 默认 10 秒超时；内容校验只在显式开启时执行，避免探测成本翻倍
   const { timeout = 10000, checkContentMatch = false, env } = options;
   const sourceId = source.id || source.name;
   const startTime = Date.now();
@@ -119,6 +126,7 @@ export const checkSingleSourceStatus = async (
       }
     }
 
+    // 判定优先级：HTTP 成功后再看内容校验；404 直接不可用；耗时逼近超时阈值视为 timeout
     let finalStatus: SourceStatusResult['status'] = 'error';
     if (isAvailable) {
       if (checkContentMatch) {
@@ -182,6 +190,7 @@ export const checkSingleSourceStatus = async (
   }
 };
 
+/** 启发式评估页面与关键词的相关度；只用于判断源是否可用，不参与结果排序。 */
 export const analyzePageContent = (
   content: string,
   keyword: string,
@@ -200,6 +209,8 @@ export const analyzePageContent = (
     keywordPositions: [],
   };
 
+  // 质量分权重：正文命中 50、标题命中 30、番号正则 40、部分词最多 30、结果指示词最多 20，
+  // 出现「无结果」提示扣 30；最终夹取到 0-100
   if (lowerContent.includes(lowerKeyword)) {
     details.exactMatch = true;
     qualityScore += 50;
@@ -217,6 +228,7 @@ export const analyzePageContent = (
     qualityScore += 30;
   }
 
+  // 番号类关键词放宽横杠：ABC-123 与 ABC123 视为同一检索
   if (/^[A-Za-z]+-?\d+$/i.test(keyword)) {
     const numberPattern = keyword.replace('-', '-?');
     const regex = new RegExp(numberPattern, 'gi');
@@ -288,6 +300,7 @@ export const analyzePageContent = (
   };
 };
 
+/** 把社区标签标记为活跃；注意这里只置 tag_active，不累计使用次数。 */
 export const updateTagUsageCount = async (env: Env, tagIds: string[]): Promise<void> => {
   if (!Array.isArray(tagIds) || tagIds.length === 0) {
     return;
@@ -310,6 +323,7 @@ export const updateTagUsageCount = async (env: Env, tagIds: string[]): Promise<v
   }
 };
 
+/** 读取该「源 + 关键词 hash」的最新缓存行；查询失败按无缓存处理。 */
 export const getCachedSourceStatus = async (
   env: Env,
   sourceId: string,
@@ -330,11 +344,13 @@ export const getCachedSourceStatus = async (
   }
 };
 
+/** 缓存是否仍在有效期内；默认 5 分钟。 */
 export const isCacheValid = (cached: CachedSourceStatus | null, maxAge = 300000): boolean => {
   if (!cached) return false;
   return Date.now() - cached.created_at < maxAge;
 };
 
+/** 写入一条探测结果缓存，固定 5 分钟后过期。 */
 export const saveSingleStatusToCache = async (
   env: Env,
   sourceId: string,

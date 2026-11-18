@@ -1,3 +1,9 @@
+/**
+ * 统一 HTTP 客户端：注入鉴权头、401 静默刷新、限流与 5xx 重试，失败统一包装为 ApiError。
+ *
+ * 约束：并发 401 共享一次刷新；仅幂等 GET 重试；匿名请求不触发刷新与登出。
+ */
+
 import { getApiBaseUrl, API_CONFIG } from '@/constants';
 import { useAuthStore } from '@/stores/authStore';
 import i18next from '@/i18n';
@@ -28,6 +34,7 @@ let refreshPromise: Promise<string | null> | null = null;
  */
 let inflightRequests = 0;
 
+/** 当前在途请求数；PWA 更新前用它判断是否可以立即接管新版本。 */
 export const getInflightRequestCount = (): number => inflightRequests;
 
 /** 等待在途请求清零；超过 maxWaitMs 仍未结束则放行，避免无限等待 */
@@ -90,6 +97,7 @@ interface RequestOptions {
   timeout?: number;
 }
 
+/** 带鉴权与重试的 HTTP 客户端；baseUrl 在构造时固化，运行时不再变更。 */
 export class ApiClient {
   private baseUrl: string;
   private maxRetries = API_CONFIG.MAX_RETRIES;
@@ -276,6 +284,7 @@ export class ApiClient {
   }
 }
 
+/** 统一错误类型：status 用于分支判断，data 保留后端原始响应，code 用于区分业务错误。 */
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -290,4 +299,5 @@ export class ApiError extends Error {
   }
 }
 
+/** 全局单例：所有 services/api 共用，保证刷新锁与在途计数只有一份。 */
 export const apiClient = new ApiClient(BASE_URL);

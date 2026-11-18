@@ -29,6 +29,7 @@ export interface JavRecordRow {
   tags: string | null;
   publisher: string | null;
   rating: string | null;
+  /** 1 = 详情已补全（演员/标签可用）；推荐候选只取已补全记录 */
   detail_completed: number;
 }
 
@@ -60,7 +61,7 @@ const JAV_RECORD_COLUMNS = `
   id, code, title, cover, actors, tags, publisher, rating, detail_completed
 `;
 
-/** 读取用户收藏（上限 1000，与收藏表上限一致） */
+/** 读取用户收藏的画像信号（硬上限 1000，与收藏表容量一致） */
 export async function getUserFavoriteRows(
   db: D1Database,
   userId: string
@@ -78,7 +79,7 @@ export async function getUserFavoriteRows(
   return rows.results || [];
 }
 
-/** 读取用户 JAV 搜索历史（只看最近 200 条，足够构建画像） */
+/** 读取用户 JAV 搜索历史（默认最近 200 条，足够构建画像） */
 export async function getUserJavHistoryRows(
   db: D1Database,
   userId: string,
@@ -193,6 +194,7 @@ export async function getJavRecordsByCodes(
   codes: string[]
 ): Promise<JavRecordRow[]> {
   if (codes.length === 0) return [];
+  // 去重并截断到 100：控制 IN 列表长度，避免超出 D1 单语句绑定参数上限
   const unique = Array.from(new Set(codes)).slice(0, 100);
   const placeholders = unique.map(() => '?').join(',');
   const rows = await db
@@ -229,7 +231,7 @@ export async function getRecentJavRecords(
   return rows.results || [];
 }
 
-/** 近 7 天导入的榜单行（热门列表第一优先级） */
+/** 全部榜单来源行；「近 7 天」的新鲜度由 service 按 fetchedAt 过滤，SQL 不做时间裁剪 */
 export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
   const rows = await db
     .prepare(

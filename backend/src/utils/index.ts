@@ -1,23 +1,35 @@
+/**
+ * 通用工具桶文件：响应体、ID/密码/Token、客户端信息、基础校验与行为日志，
+ * 末尾统一转出 security / fetch / format / error / rate-limit / oauth-redirect。
+ */
 import { Context } from 'hono';
 import { Env, JwtPayload } from '@/types';
 import * as jose from 'jose';
 
+/** 统一成功响应体 */
 export const success = <T>(data: T, message?: string) => ({
   success: true as const,
   data,
   message,
 });
 
+/** 统一错误响应体；code 供前端分支判断，message 面向用户 */
 export const error = (code: string, message: string, details?: unknown) => ({
   success: false as const,
   error: { code, message, details },
 });
 
+/** 生成 UUID（数据库主键） */
 export const generateId = (): string => {
   return crypto.randomUUID();
 };
 
+/**
+ * PBKDF2-SHA256 哈希，输出 `$pbkdf2-sha256$迭代数$盐$摘要`。
+ * 迭代数写进结果串，调整成本参数时旧密码仍可校验。
+ */
 export const hashPassword = async (password: string): Promise<string> => {
+  // 16 字节随机盐 + 10 万次迭代：在 Worker CPU 预算内尽量抬高离线爆破成本
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -45,6 +57,7 @@ export const hashPassword = async (password: string): Promise<string> => {
   return `$pbkdf2-sha256$100000$${saltBase64}$${hashBase64}`;
 };
 
+/** SHA-256 十六进制摘要，用于会话 token 与限流标识，明文不落库 */
 export const hashToken = async (token: string): Promise<string> => {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
@@ -53,6 +66,7 @@ export const hashToken = async (token: string): Promise<string> => {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 };
 
+/** 校验密码；兼容早期无盐 SHA-256 十六进制摘要（历史账号） */
 export const verifyPassword = async (password: string, storedHash: string): Promise<boolean> => {
   try {
     if (!storedHash.startsWith('$pbkdf2-sha256$')) {
@@ -95,6 +109,7 @@ export const verifyPassword = async (password: string, storedHash: string): Prom
   }
 };
 
+/** 签发 HS256 JWT；默认 30 天。role 仅在调用方明确传入时写入 payload。 */
 export const generateToken = async (userId: string, username: string, secret: string, expiryDays: number = 30, role?: string): Promise<string> => {
   const secretKey = new TextEncoder().encode(secret);
   const payload: { userId: string; username: string; role?: string } = { userId, username };
@@ -109,6 +124,7 @@ export const generateToken = async (userId: string, username: string, secret: st
   return token;
 };
 
+/** 校验 JWT 并返回 payload；签名错误或已过期一律返回 null。 */
 export const verifyToken = async (token: string, secret: string): Promise<JwtPayload | null> => {
   try {
     const secretKey = new TextEncoder().encode(secret);
@@ -130,31 +146,22 @@ export const getClientIP = (c: Context): string => {
 
 import { CONFIG } from '@/constants';
 
-/**
- * 验证邮箱格式
- * 注意：使用 CONFIG 中定义的默认正则表达式，适用于前端基础验证
- */
+/** 基础邮箱格式校验（CONFIG 中的默认正则）；正式流程仍需 zod 与发信验证兜底 */
 export const validateEmail = (email: string): boolean => {
   return CONFIG.VALIDATION.EMAIL_REGEX.test(email);
 };
 
-/**
- * 验证用户名格式
- * 注意：使用 CONFIG 中定义的默认正则表达式，适用于前端基础验证
- */
+/** 基础用户名格式校验（CONFIG 中的默认正则） */
 export const validateUsername = (username: string): boolean => {
   return CONFIG.VALIDATION.USERNAME_REGEX.test(username);
 };
 
-/**
- * 验证密码长度
- * 注意：使用默认最小长度6，适用于前端基础验证
- * 后端验证时应从 ConfigService 获取实际配置值
- */
+/** 仅做最小长度 6 的快速校验；注册/改密链路应以 ConfigService 的密码策略为准 */
 export const validatePassword = (password: string): boolean => {
   return password.length >= 6;
 };
 
+/** 写用户行为日志；未开启 ENABLE_ACTION_LOGGING 时直接短路，写失败不影响主流程。 */
 export const logUserAction = async (
   env: Env, 
   userId: string | null, 
@@ -186,6 +193,7 @@ export const logUserAction = async (
   }
 };
 
+/** 邮箱脱敏：本地部分最多保留前 2 位，域名原样保留 */
 export const maskEmail = (email: string): string => {
   const [localPart, domain] = email.split('@');
   if (localPart.length <= 2) {

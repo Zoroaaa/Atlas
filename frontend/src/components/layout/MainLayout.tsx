@@ -1,6 +1,8 @@
 ﻿/**
- * MainLayout - 主布局
- * 视觉优化：玻璃态导航栏，精美页脚，保持全部功能逻辑不变
+ * MainLayout - 无侧栏场景（门户 / 登录等）的轻量布局。
+ *
+ * 断点策略：<lg 为底部主导航预留高度，≥lg 取消该留白。
+ * 只做页头、内容区与页脚，不承载业务请求。
  */
 import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
@@ -11,6 +13,7 @@ import { Button } from '@/components/ui';
 import { useTranslation } from 'react-i18next';
 import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
 
+/** 轻量布局：玻璃态页头 + 内容出口 + 页脚。 */
 export const MainLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { isAuthenticated, user } = useAuthStore();
@@ -21,12 +24,12 @@ export const MainLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-50 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0 dark:bg-stone-950">
 
-      {/* ── Header ── */}
+      {/* ── 页头 ───────────────────────────────────── */}
       <header className="sticky top-0 z-40 glass safe-area-inset-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
-            {/* Logo + Nav */}
+            {/* 点 Logo 走整页刷新，保持当前路径而不是回到首页 */}
             <div className="flex items-center gap-8">
               <a
                 href={window.location.pathname}
@@ -58,7 +61,6 @@ export const MainLayout: React.FC = () => {
               </nav>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleTheme}
@@ -89,12 +91,12 @@ export const MainLayout: React.FC = () => {
         </div>
       </header>
 
-      {/* ── Content ── */}
+      {/* ── 内容区 ───────────────────────────────────── */}
       <main ref={mainRef} className="flex-1">
         <Outlet />
       </main>
 
-      {/* ── Footer ── */}
+      {/* ── 页脚 ───────────────────────────────────── */}
       <footer className="border-t border-stone-200/60 dark:border-stone-800/60 bg-white/50 dark:bg-stone-900/40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -123,6 +125,7 @@ interface NavLinkProps {
   children: React.ReactNode;
 }
 
+/** 页头内的轻量路由链接，不感知当前激活态。 */
 const NavLink: React.FC<NavLinkProps> = ({ to, children }) => {
   return (
     <Link

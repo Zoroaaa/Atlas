@@ -1,3 +1,9 @@
+/**
+ * 系统设置（/settings）：资料、密码、外观与账号注销。
+ *
+ * 数据来源：userApi / authApi 直连；约束：改密、换邮箱、注销都会使当前会话失效，
+ * 成功后必须登出并跳转登录页。
+ */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -22,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import i18next from '@/i18n';
 import { SUPPORTED_LANGUAGES, type Language } from '@/i18n/config';
 
+/** 设置页；表单状态为本地 state，提交成功后再触发登出。 */
 export const SettingsManager: React.FC = () => {
   const navigate = useNavigate();
   const notification = useNotification();
@@ -152,6 +159,7 @@ export const SettingsManager: React.FC = () => {
     setIsLoading(true);
     try {
       await userApi.updateSettings({ 
+        // 邮箱不走资料接口，需通过下方的独立验证码流程修改
         profile: { 
           username: profileForm.username,
         } 
@@ -189,6 +197,7 @@ export const SettingsManager: React.FC = () => {
       });
       notification.auth.passwordChangeSuccess();
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      // 旧 token 已失效，留 2 秒展示提示后强制重新登录
       setTimeout(() => {
         logout();
         navigate('/login');
@@ -231,6 +240,7 @@ export const SettingsManager: React.FC = () => {
           emailType: 'new',
         });
 
+        // 后端未返回有效期时按 5 分钟兜底，与验证码默认有效期一致
         if (sendResponse.success && sendResponse.data) {
           setEmailChangeCountdown(sendResponse.data.expiresIn || 300);
         } else {

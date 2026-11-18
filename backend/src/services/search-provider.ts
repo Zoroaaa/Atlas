@@ -1,21 +1,12 @@
 /**
- * 统一搜索引擎抽象层
- *
- * 设计目标：
- *   1. 消除路由层 if-else 分发，新增搜索类别只需实现接口 + 注册
- *   2. 为后续扩展（音乐搜索、电子书搜索等）铺平道路
- *   3. 统一搜索选项、结果类型、建议/热门接口契约
- *
- * 使用方式：
- *   1. 实现 SearchProvider 接口
- *   2. 调用 providerRegistry.register(provider)
- *   3. 路由层通过 providerRegistry.getByCategory(categoryId) 获取 Provider 并调用
+ * 统一搜索提供者抽象：每个搜索类别实现 SearchProvider 并注册到 providerRegistry，
+ * 路由层只按 categoryId 取 Provider，不写 if/else 分支；新增类别不需要改路由。
  */
 
 import type { JwtPayload } from '@/types';
 import type { SearchErrorKind } from '@/utils/error';
 
-// ─── 统一搜索上下文 ────────────────────────────────────────────────────
+// ── 统一搜索上下文 ────────────────────────────────────────────────────
 
 /**
  * 搜索执行上下文：由路由注入，让 Provider 能自行完成「需访问数据/用户态」的逻辑
@@ -46,7 +37,7 @@ export interface HistoryEnrichment {
   values: (string | number)[];
 }
 
-// ─── 统一搜索结果基类 ──────────────────────────────────────────────────
+// ── 统一搜索结果基类 ──────────────────────────────────────────────────
 
 export interface SearchResultBase {
   /** 结果类型标识，对应 provider.id */
@@ -66,7 +57,7 @@ export interface SearchResultBase {
   errorKinds?: Record<string, SearchErrorKind>;
 }
 
-// ─── 搜索建议项 ────────────────────────────────────────────────────────
+// ── 搜索建议项 ────────────────────────────────────────────────────────
 
 export interface SuggestionItem {
   text: string;
@@ -74,7 +65,7 @@ export interface SuggestionItem {
   meta?: Record<string, unknown>;
 }
 
-// ─── 热门趋势项 ────────────────────────────────────────────────────────
+// ── 热门趋势项 ────────────────────────────────────────────────────────
 
 export interface TrendingItem {
   keyword: string;
@@ -85,7 +76,7 @@ export interface TrendingItem {
   subtitle?: string;
 }
 
-// ─── SearchProvider 接口 ────────────────────────────────────────────────
+// ── SearchProvider 接口 ────────────────────────────────────────────────
 
 export interface SearchProvider {
   /** 唯一标识（如 'anime' | 'movie' | 'jav'） */
@@ -117,12 +108,12 @@ export interface SearchProvider {
   buildHistoryEnrichment?(result: Record<string, unknown>): HistoryEnrichment | null;
 }
 
-// ─── Provider 注册中心 ──────────────────────────────────────────────────
+// ── Provider 注册中心 ──────────────────────────────────────────────────
 
 class SearchProviderRegistry {
   private providers = new Map<string, SearchProvider>();
 
-  /** 注册一个 SearchProvider */
+  /** 注册 Provider；同 id 重复注册会覆盖并打印告警。 */
   register(provider: SearchProvider): void {
     if (this.providers.has(provider.id)) {
       console.warn(`[SearchProviderRegistry] Provider "${provider.id}" 已存在，将被覆盖`);

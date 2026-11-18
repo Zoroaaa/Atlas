@@ -1,7 +1,8 @@
 ﻿/**
- * UnifiedNavBar - 统一导航栏组件
- * 整合 Logo、核心 Tab 切换器、下拉菜单和工具按钮
- * 支持桌面端和移动端响应式布局
+ * UnifiedNavBar - 移动/窄屏统一导航栏（<lg 主入口）。
+ *
+ * 断点策略：搜索分类 Tab 在 ≥lg 显示于顶栏，<lg 收进页头横向滚动条；
+ * 次要入口按 sm / 2xl 阈值在顶栏与「更多」抽屉之间二选一，避免重复与溢出。
  */
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -28,7 +29,7 @@ import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
 import { useIsDesktop } from '@/hooks';
 import { useTranslation } from 'react-i18next';
 
-/* ── 类型定义 ── */
+// ── 类型定义 ─────────────────────────────────────
 
 export interface UnifiedNavBarProps {
   /** 当前激活的 Tab */
@@ -43,7 +44,7 @@ export interface UnifiedNavBarProps {
   isAdmin: boolean;
 }
 
-/* ── 子组件 ── */
+// ── 子组件 ─────────────────────────────────────
 
 /** 顶栏图标按钮统一尺寸与间距，避免各按钮 padding 不同导致视觉疏密不一 */
 const ICON_BUTTON =
@@ -70,13 +71,14 @@ const LogoSection: React.FC = memo(() => (
 
 LogoSection.displayName = 'LogoSection';
 
-/** Tab 切换按钮 */
+/** Tab 切换按钮的入参约束 */
 interface TabButtonProps {
   tab: (typeof SEARCH_TABS)[SearchTabType];
   isActive: boolean;
   onClick: () => void;
 }
 
+/** 顶级分类 Tab；community 用警示渐变区分，避免与普通搜索源混淆。 */
 const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) => {
   const { t } = useTranslation(['tabs']);
   const isCommunity = tab.id === 'community';
@@ -115,8 +117,9 @@ const TabButton: React.FC<TabButtonProps> = memo(({ tab, isActive, onClick }) =>
 
 TabButton.displayName = 'TabButton';
 
-/* ── 主组件 ── */
+// ── 主组件 ─────────────────────────────────────
 
+/** 移动/窄屏顶栏；≥lg 的导航由 AppShell 侧栏承担，这里只保留工具区。 */
 export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   activeTab,
   onTabChange,
@@ -133,7 +136,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
   const [isProxyConfirmOpen, setIsProxyConfirmOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  // 代理状态初始化原本在已移除的工具按钮组件里
+  // 代理状态只有顶栏这一个宿主，进入页面时需主动初始化
   useEffect(() => {
     initializeProxy();
   }, [initializeProxy]);
@@ -144,7 +147,6 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
     return 'text-stone-500 dark:text-stone-400';
   };
 
-  // 处理 Tab 切换
   const handleTabChange = useCallback(
     (tabKey: string) => {
       onTabChange(tabKey as SearchTabType);
@@ -169,16 +171,15 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
 
   return (
     <>
-      {/* ── 桌面端/平板端导航栏 ── */}
+      {/* ── 顶栏 ───────────────────────────────────── */}
       <header className="sticky top-0 z-40 glass safe-area-inset-top">
         <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 min-w-0">
 
-            {/* 左侧区域：Logo + Tab 切换器 */}
             <div className="flex items-center gap-4 lg:gap-6 min-w-0 flex-shrink">
               <LogoSection />
 
-              {/* Tab 切换器 - 桌面端（≥lg）显示；<lg 由底部主导航 + 页头分类条承担 */}
+              {/* Tab 切换器只在 ≥lg 显示；<lg 由页头分类条承担 */}
               {isAuthenticated && (
               <div className="hidden lg:flex items-center gap-1">
                 <nav role="tablist" className="flex items-center gap-1">
@@ -211,7 +212,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               )}
             </div>
 
-            {/* 右侧区域：用户 + 功能按钮 */}
+            {/* 右侧工具区 */}
             <div className="flex items-center gap-1">
               {/* 功能工具组 - 登录后可见；图标按钮统一 40px，避免尺寸不一导致间距视觉不一致 */}
               {isAuthenticated && (
@@ -220,11 +221,10 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                 <div className="hidden sm:flex">
                   <button
                     onClick={() => {
+                      // 只有开启代理需要二次确认，关闭直接生效
                       if (isProxyEnabled) {
-                        // 已开启时直接关闭，无需确认
                         toggleProxy();
                       } else {
-                        // 未开启时显示确认弹窗
                         setIsProxyConfirmOpen(true);
                       }
                     }}
@@ -268,7 +268,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   </a>
                 </div>
 
-                {/* 更多 - <1440px（平板/窄屏）承载次要入口 */}
+                {/* 更多 - <2xl（1536px 以下）承载次要入口 */}
                 <button
                   onClick={() => setIsMoreOpen(true)}
                   className={clsx(ICON_BUTTON, '2xl:hidden')}
@@ -288,7 +288,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               {/* 语言切换：所有宽度常驻，直接复用顶栏图标按钮规格，保证同高同排版 */}
               <LanguageSwitcher triggerClassName={ICON_BUTTON} />
 
-              {/* 帮助 / GitHub：<1440px 收进“更多”抽屉，避免平板宽度溢出 */}
+              {/* 帮助 / GitHub：<2xl 收进“更多”抽屉，避免平板宽度溢出 */}
               <div className="hidden items-center gap-1 2xl:flex">
                 {/* 帮助按钮 */}
                 <button
@@ -299,7 +299,6 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
                   <HelpCircle className="w-4 h-4" />
                 </button>
 
-                {/* GitHub 链接 */}
                 <a
                   href="https://github.com/Zoroaaa/Atlas"
                   target="_blank"
@@ -335,7 +334,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
           </div>
         </div>
 
-        {/* ── 移动端搜索分类：底部栏改为站点导航后，分类切换就近收进页头 ── */}
+        {/* ── 移动端搜索分类 ───────────────────────────── */}
         {isAuthenticated && (
           <div
             className="lg:hidden border-t border-stone-200/60 dark:border-stone-700/60"
@@ -367,7 +366,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         )}
       </header>
 
-      {/* ── “更多”底部抽屉：<1440px 承载次要入口，避免导航栏横向溢出 ── */}
+      {/* ── 更多抽屉（<2xl） ───────────────────────────── */}
       {isAuthenticated && isMoreOpen && (
         <div
           className="2xl:hidden fixed inset-0 z-[60]"
@@ -487,7 +486,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         </div>
       )}
 
-      {/* ── 帮助入口：简短提示 + 前往帮助中心 ── */}
+      {/* ── 帮助弹窗 ───────────────────────────────────── */}
       <Modal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
@@ -521,7 +520,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
         </div>
       </Modal>
 
-      {/* ── 代理确认弹窗 ── */}
+      {/* ── 代理确认弹窗 ───────────────────────────────── */}
       <Modal
         isOpen={isProxyConfirmOpen}
         onClose={() => setIsProxyConfirmOpen(false)}

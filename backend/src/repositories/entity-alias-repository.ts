@@ -30,6 +30,7 @@ export interface EntityAliasInput {
   confidence?: number;
 }
 
+// 上限用于控制 IN 列表与单批语句数，避免超出 D1 绑定参数/批量语句限制
 const MAX_LOOKUP_KEYS = 12;
 const MAX_CANONICAL_IDS = 40;
 const UPSERT_CHUNK = 40;
@@ -49,6 +50,7 @@ export async function findAliasRows(
 
   const placeholders = clean.map(() => '?').join(',');
   const typeClause = entityType ? ' AND entity_type = ?' : '';
+  // 同一 alias_key 可能命中多个实体，按置信度优先取前 60 条供调用方决策
   const stmt = db.prepare(
     `SELECT * FROM entity_aliases
      WHERE alias_key IN (${placeholders})${typeClause}
@@ -88,6 +90,7 @@ export async function upsertAliasRows(db: D1Database, inputs: EntityAliasInput[]
   const rows = inputs
     .map(input => {
       const alias = input.alias.normalize('NFKC').replace(/\s+/g, ' ').trim();
+      // 归一化后为空的别名（纯标点）与超长串直接丢弃
       const key = aliasKey(alias);
       if (!alias || !key || alias.length > 120) return null;
       return {
@@ -98,6 +101,7 @@ export async function upsertAliasRows(db: D1Database, inputs: EntityAliasInput[]
         alias,
         aliasKey: key,
         source: input.source,
+        // 置信度收敛到 0~1；未显式给出时按元数据来源的默认值 0.9
         confidence: Math.min(1, Math.max(0, input.confidence ?? 0.9)),
       };
     })
@@ -111,6 +115,7 @@ export async function upsertAliasRows(db: D1Database, inputs: EntityAliasInput[]
   const list = Array.from(unique.values());
   if (list.length === 0) return 0;
 
+  // 冲突键与唯一索引一致；source/alias 覆盖旧值，confidence 只升不降
   const ts = nowMs();
   let written = 0;
   for (let i = 0; i < list.length; i += UPSERT_CHUNK) {

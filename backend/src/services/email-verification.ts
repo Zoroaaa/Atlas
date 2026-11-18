@@ -1,3 +1,9 @@
+/**
+ * 邮箱验证服务：验证码生成/校验、邮箱更改请求与验证邮件的编排。
+ *
+ * 约束：校验只比对 code_hash，但明文验证码同样落库（email_verifications.verification_code）；
+ * 重发与发送频率统一由 email-sender 限流。
+ */
 import { Env } from '@/types';
 import { generateId, hashToken, maskEmail } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
@@ -70,6 +76,7 @@ export interface EmailTemplate {
   is_active: number;
 }
 
+/** 无状态的邮箱校验/归一化工具，路由层与邮件模板共用同一套规则。 */
 export const emailVerificationUtils = {
   isValidEmail(email: string): boolean {
     return CONFIG.VALIDATION.EMAIL_REGEX.test(email);
@@ -97,6 +104,7 @@ export const emailVerificationUtils = {
   },
 };
 
+/** 验证码生命周期、邮箱更改请求与验证邮件发送的编排入口。 */
 export class EmailVerificationService {
   private env: Env;
   private siteUrl: string;
@@ -142,6 +150,7 @@ export class EmailVerificationService {
     };
 
     const remainingTime = v.expires_at - now;
+    // 剩余不足 60 秒时允许前端展示重发入口，避免用户卡在验证码即将过期时无操作
     const canResend = remainingTime <= 60000;
 
     return {
@@ -215,6 +224,7 @@ export class EmailVerificationService {
 
     const timeSinceCreated = Date.now() - pending.createdAt;
 
+    // 同一验证码 60 秒内不允许重发，避免用户连续点击触发多封邮件
     if (timeSinceCreated < 60000) {
       return {
         canResend: false,
@@ -260,6 +270,7 @@ export class EmailVerificationService {
     const verificationCode = this.generateVerificationCode();
     const codeHash = await hashToken(verificationCode);
     const configService = new ConfigService(this.env);
+    // 默认有效期 15 分钟、最多 3 次尝试，可在系统配置中覆盖
     const expiryTime = Date.now() + await configService.getInt(DB_CONFIG_KEYS.VERIFICATION_CODE_EXPIRY, 900000);
     const maxAttempts = await configService.getInt(DB_CONFIG_KEYS.MAX_VERIFICATION_ATTEMPTS, 3);
 
@@ -482,7 +493,7 @@ export class EmailVerificationService {
 
     const mappedTemplateType = this.getTemplateType(templateType);
     const template = (await this.getEmailTemplate(mappedTemplateType))
-      // 兼容尚未执行 06_data_system.sql 新增模板的存量库
+      // 存量库可能还没有 email_verify 模板，回退到 registration 模板；模板补齐后应移除该回退
       ?? (templateType === 'email_verify' ? await this.getEmailTemplate('registration') : null);
 
     if (!template) {
@@ -643,6 +654,7 @@ export class EmailVerificationService {
     return (result.meta as { changes?: number })?.changes || 0;
   }
 
+  /** 验证类型 → 邮件模板类型；改邮箱的两个方向共用 email_change 模板。 */
   private getTemplateType(verificationType: VerificationType): string {
     const mapping: Record<string, string> = {
       registration: 'registration',
@@ -718,6 +730,7 @@ export class EmailVerificationService {
     };
   }
 
+  /** 清理指定天数前的已用/过期/失败记录；默认保留 30 天用于排查。 */
   async cleanupOldVerifications(daysOld = 30): Promise<number> {
     const cutoffTime = Date.now() - daysOld * CONFIG.Stats.DAY_IN_MS;
 

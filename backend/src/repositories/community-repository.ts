@@ -1,10 +1,8 @@
 /**
- * 社区数据访问层
+ * 社区数据访问层：community_tags / community_posts / community_comments /
+ * community_likes / community_reports / community_post_views 的 SQL 读写。
  *
- * 收口 community_tags / community_posts / community_comments / community_likes /
- * community_reports 的读写，使 community 路由不再直接持有 SQL。
- * 用户社区统计在读取时从上述源表聚合，不再维护 community_user_stats。
- * 需要原子性的多语句操作（batch）在此整体提供，避免拆分后丢失原子性。
+ * 用户社区统计在读取时从源表聚合；多语句原子操作统一走 db.batch，拆开会丢失原子性。
  */
 import { cached, invalidateCache } from '@/utils/cache';
 
@@ -17,19 +15,18 @@ export type CommunityCommentRow = Record<string, unknown> & { userName?: string 
 /** SQL 绑定值 */
 type SqlValue = string | number | boolean | null;
 
-// ===========================================================================
-// community_tags
-// ===========================================================================
+// ── community_tags ──────────────────────────────────────────────────
 
 /**
  * 查询所有活跃标签（附带使用该标签的活跃帖子数）
  *
  * 帖子 tags 为 JSON 数组，先一次性 json_each 聚合出各标签计数，再 LEFT JOIN 标签表；
- * 避免旧写法对每个标签各扫一遍活跃帖子（O(标签数 × 帖子数)）。
+ * 避免对每个标签各扫一遍活跃帖子（O(标签数 × 帖子数)）。
  * 结果做 60s 进程内缓存，标签增删改时主动失效。
  */
 export async function listActiveTags(db: D1Database): Promise<Array<Record<string, unknown>>> {
   return cached('community:active-tags', 60_000, async () => {
+    // 历史数据可能不是合法 JSON 数组，先用 json_valid 兜底成 '[]'，否则 json_each 会直接报错
     const rows = await db
       .prepare(
         `SELECT t.*, COALESCE(c.cnt, 0) AS posts_count
@@ -97,6 +94,7 @@ export async function updateTagFields(
   db: D1Database,
   opts: { updates: string[]; params: SqlValue[] }
 ): Promise<void> {
+  // 字段片段由调用方按白名单构造（含 updated_at 与 id 绑定值），不得拼接用户输入
   await db
     .prepare(`UPDATE community_tags SET ${opts.updates.join(', ')} WHERE id = ?`)
     .bind(...opts.params)
@@ -104,7 +102,7 @@ export async function updateTagFields(
   invalidateCache('community:active-tags');
 }
 
-/** 统计使用某标签的帖子数（按 LIKE 模式匹配 tags 字段） */
+/** 统计使用某标签的帖子数；pattern 为调用方拼好的 LIKE 模式（含 % 通配符） */
 export async function countPostsByTagPattern(db: D1Database, pattern: string): Promise<number> {
   const row = await db
     .prepare("SELECT COUNT(*) as cnt FROM community_posts WHERE tags LIKE ? ESCAPE '\\'")
@@ -119,9 +117,7 @@ export async function deleteTag(db: D1Database, id: string): Promise<void> {
   invalidateCache('community:active-tags');
 }
 
-// ===========================================================================
-// community_posts
-// ===========================================================================
+// ── community_posts ─────────────────────────────────────────────────
 
 /** 构造「我的帖子」过滤条件（所属用户 + 可选状态） */
 function userPostFilter(opts: { userId: string; status?: string | null }): {
@@ -212,6 +208,7 @@ export async function listPosts(
   const whereClauses: string[] = ['p.status = ?'];
   const params: Array<string | number> = [opts.status];
 
+  // 类型白名单硬编码：非法值直接忽略，避免任意字符串进入查询
   if (opts.postType && ['jav', 'anime', 'movie', 'manga', 'novel', 'actress'].includes(opts.postType)) {
     whereClauses.push('p.post_type = ?');
     params.push(opts.postType);
@@ -226,6 +223,7 @@ export async function listPosts(
   if (opts.tags) {
     const tagList = opts.tags.split(',').filter(t => t.trim());
     if (tagList.length > 0) {
+      // tags 存 JSON 数组字符串：带引号匹配完整标签，避免 "jav" 命中 "javbus" 这类子串
       whereClauses.push(`(${tagList.map(() => 'p.tags LIKE ?').join(' OR ')})`);
       tagList.forEach(tag => params.push(`%"${tag.trim()}"%`));
     }
@@ -386,6 +384,7 @@ export async function updatePostFields(
   db: D1Database,
   opts: { updates: string[]; params: Array<string | number> }
 ): Promise<void> {
+  // 字段片段由调用方按白名单构造（含 updated_at 与 id 绑定值），不得拼接用户输入
   await db
     .prepare(`UPDATE community_posts SET ${opts.updates.join(', ')} WHERE id = ?`)
     .bind(...opts.params)
@@ -419,7 +418,7 @@ export async function deletePost(db: D1Database, id: string): Promise<void> {
   await db.prepare('DELETE FROM community_posts WHERE id = ?').bind(id).run();
 }
 
-/** 更新帖子状态（管理员审核） */
+/** 更新帖子状态（管理员审核）；列表查询只取 status='active'，其余值即为软删除/下架 */
 export async function updatePostStatus(
   db: D1Database,
   opts: { postId: string; status: string; now: number }
@@ -430,9 +429,7 @@ export async function updatePostStatus(
     .run();
 }
 
-// ===========================================================================
-// community_likes（点赞 / 收藏）
-// ===========================================================================
+// ── community_likes（点赞 / 收藏） ───────────────────────────────────
 
 /** 查询用户对帖子的某类互动记录（like / favorite） */
 export async function findPostLike(
@@ -461,9 +458,7 @@ export async function deletePostLikeById(db: D1Database, id: string): Promise<vo
   await db.prepare('DELETE FROM community_likes WHERE id = ?').bind(id).run();
 }
 
-// ===========================================================================
-// community_comments
-// ===========================================================================
+// ── community_comments ──────────────────────────────────────────────
 
 /** 统计帖子评论数 */
 export async function countPostComments(db: D1Database, postId: string): Promise<number> {
@@ -516,9 +511,7 @@ export async function deleteComment(db: D1Database, id: string): Promise<void> {
   await db.prepare('DELETE FROM community_comments WHERE id = ?').bind(id).run();
 }
 
-// ===========================================================================
-// community_reports
-// ===========================================================================
+// ── community_reports ───────────────────────────────────────────────
 
 /** 查询用户对某帖子的待处理举报记录 */
 export async function findPendingReport(
@@ -545,9 +538,7 @@ export async function insertReport(
     .run();
 }
 
-// ===========================================================================
-// 用户社区统计（读时聚合）
-// ===========================================================================
+// ── 用户社区统计（读时聚合） ─────────────────────────────────────────
 
 /** 用户社区统计聚合结果 */
 export interface UserCommunityStatsAggregate {

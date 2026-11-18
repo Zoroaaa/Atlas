@@ -1,8 +1,8 @@
 /**
- * AnimeProvider — 动漫搜索适配器
+ * AnimeProvider — 动漫搜索适配器，实现 SearchProvider 接口并注册到 providerRegistry。
  *
- * 包装 anime-search.ts 的 searchAnime 函数，实现 SearchProvider 接口。
- * 数据源：Bangumi（元数据）+ Nyaa.si / Mikan / AnimeTosho / DMHY（磁力）
+ * 包装 anime-search.ts 的 searchAnime：Bangumi 元数据 + Mikan / AnimeTosho / DMHY 磁力（Nyaa 已禁用）。
+ * 响应会注入按用户过滤的源卡片，因此 injectsUserSources=true，路由必须按用户隔离缓存。
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchAnime } from '@/services/anime-search';
@@ -48,6 +48,7 @@ export class AnimeProvider implements SearchProvider {
     return { ...result, resultType: 'anime', sourceCards: cards } as unknown as SearchResultBase;
   }
 
+  /** 从结果中取首条 Bangumi 作品写入搜索历史；无作品时返回 null 由路由跳过。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];
     const values: (string | number)[] = [];
@@ -77,6 +78,7 @@ export class AnimeProvider implements SearchProvider {
     return fields.length > 0 ? { fields, values } : null;
   }
 
+  /** Bangumi 搜索建议；接口异常时返回空数组，由路由回落到本地历史。 */
   async suggestions(keyword: string): Promise<SuggestionItem[]> {
     try {
       const url = `https://api.bgm.tv/search/subject/${encodeURIComponent(keyword)}?type=2&responseGroup=small&max_results=5`;
@@ -100,6 +102,7 @@ export class AnimeProvider implements SearchProvider {
     }
   }
 
+  /** Bangumi 站内排行前 10 作为热门；异常时返回空数组。 */
   async trending(): Promise<TrendingItem[]> {
     try {
       // Bangumi v0 排行榜：type=2 动画，sort=rank 按站内排名。
@@ -128,5 +131,4 @@ export class AnimeProvider implements SearchProvider {
   }
 }
 
-/** 导出单例 */
 export const animeProvider = new AnimeProvider();

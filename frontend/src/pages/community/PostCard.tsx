@@ -1,3 +1,8 @@
+/**
+ * 社区帖子卡片：列表页与「相关推荐」共用。
+ * 数据来源：props.post，contentData 为 JSON 字符串，解析失败按空对象处理。
+ * 约束：未传入 onLike / onFavorite 时不渲染对应按钮，避免无效点击。
+ */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
@@ -13,6 +18,7 @@ interface PostCardProps {
   onClick?: (postId: string) => void;
 }
 
+// 类型 → 图标 / 底色 / 徽章样式；新增类型需同步 types 与详情页渲染器
 const POST_TYPE_CONFIG = {
   jav: { icon: Film, color: 'bg-rose-500', badgeVariant: 'error' as const },
   anime: { icon: Tv, color: 'bg-rose-500', badgeVariant: 'accent' as const },
@@ -22,6 +28,7 @@ const POST_TYPE_CONFIG = {
   actress: { icon: Users, color: 'bg-pink-500', badgeVariant: 'accent' as const },
 };
 
+/** 帖子卡片；点击整卡触发 onClick，点赞 / 收藏按钮阻止冒泡。 */
 export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, onClick }) => {
   const { t } = useTranslation(['communityPages']);
   const [likeAnimating, setLikeAnimating] = useState(false);
@@ -29,6 +36,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
   const typeConfig = POST_TYPE_CONFIG[post.postType];
   const TypeIcon = typeConfig.icon;
 
+  // 7 天（604800000ms）以内显示相对时间，超过则直接显示日期
   const formatDate = (timestamp: number) => {
     if (!timestamp) return '';
     const d = new Date(timestamp);
@@ -77,7 +85,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
       onClick={handleClick}
       padding="none"
     >
-      {/* 封面图区域 */}
       <div className="relative aspect-[16/10] max-h-[200px] overflow-hidden bg-stone-100 dark:bg-stone-800" onClick={(e) => e.stopPropagation()}>
         {post.coverImage ? (
           <ProxyImage
@@ -91,7 +98,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           </div>
         )}
 
-        {/* 类型标签 */}
         <div className="absolute top-3 left-3">
           <Badge variant={typeConfig.badgeVariant} size="sm">
             <TypeIcon className="w-3 h-3 mr-1" />
@@ -99,7 +105,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           </Badge>
         </div>
 
-        {/* 特殊标签 - 按类型展示关键信息 */}
         <div className="absolute top-3 right-3 flex gap-1.5">
           {post.postType === 'jav' && contentData.actresses?.length > 0 && (
             <Badge variant="default" size="sm" className="bg-black/60 text-white backdrop-blur-sm border-0">
@@ -141,31 +146,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           )}
         </div>
 
-        {/* 渐变遮罩 */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
 
-        {/* 浏览数 */}
         <div className="absolute bottom-3 left-3 flex items-center gap-1 text-white/90 text-xs">
           <Eye className="w-3.5 h-3.5" />
           <span>{post.viewCount.toLocaleString()}</span>
         </div>
       </div>
 
-      {/* 内容区域 */}
       <div className="p-4 space-y-3">
-        {/* 标题 */}
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm leading-snug line-clamp-1 break-words" title={post.title}>
           {post.title}
         </h3>
 
-        {/* 推荐语摘要 */}
         {post.caption && (
           <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed">
             {post.caption.length > 50 ? post.caption.slice(0, 50) + '...' : post.caption}
           </p>
         )}
 
-        {/* 作者信息 */}
         <div className="flex items-center gap-2">
           {post.userAvatar ? (
             <img
@@ -184,7 +183,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           <span className="text-xs text-stone-400 whitespace-nowrap">{formatDate(post.createdAt)}</span>
         </div>
 
-        {/* 标签列表 */}
         {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {post.tags.slice(0, 3).map((tag, idx) => (
@@ -203,7 +201,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           </div>
         )}
 
-        {/* 操作栏 */}
         <div className="flex items-center justify-between pt-2 border-t border-stone-100 dark:border-stone-700/50">
           <div className="flex items-center gap-3 text-xs text-stone-500">
             <MessageSquare className="w-3.5 h-3.5" />
@@ -211,7 +208,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
           </div>
 
           <div className="flex items-center gap-1">
-            {/* 点赞按钮（未提供处理函数时不渲染，避免无效点击） */}
             {onLike && (
             <button
               onClick={handleLike}
@@ -235,7 +231,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
             </button>
             )}
 
-            {/* 收藏按钮（未提供处理函数时不渲染） */}
             {onFavorite && (
             <button
               onClick={handleFavorite}

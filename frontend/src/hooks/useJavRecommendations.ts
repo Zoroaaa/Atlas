@@ -1,3 +1,8 @@
+/**
+ * JAV 推荐查询：相关推荐实时请求，「为你推荐」带 30 分钟本地持久化缓存。
+ *
+ * 约束：for-you 缓存键含用户 ID 与版本号；推荐口径或数量变化时必须升版本，否则会继续命中旧缓存。
+ */
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores';
 import { recommendApi } from '@/services/api';
@@ -25,6 +30,7 @@ function hasValidSeed(seed?: JavRecommendationSeed): boolean {
   );
 }
 
+/** JAV 推荐查询：相关推荐实时拉取，为你推荐读本地缓存并按需刷新 */
 export function useJavRecommendations({
   variant,
   seed,
@@ -33,6 +39,7 @@ export function useJavRecommendations({
 }: UseJavRecommendationsOptions) {
   const { isAuthenticated, user } = useAuthStore();
   const isForYou = variant === 'for-you';
+  // 版本号 v2：推荐口径/数量变更时必须同步升级，否则旧缓存仍会命中
   const forYouCacheKey = `jav-rec:for-you:v2:${user?.id}`;
   const seedValid = hasValidSeed(seed);
   const queryEnabled = isAuthenticated && enabled && (variant === 'for-you' || seedValid);

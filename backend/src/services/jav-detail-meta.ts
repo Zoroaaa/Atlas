@@ -38,6 +38,8 @@ const SCAN_CHUNK_DAYS = 90;
 /** 顺延兜底上限（60 条/天 × 10 年），正常量级不会触达 */
 const MAX_DEFER_DAYS = 3650;
 
+// ── 重试排期 ─────────────────────────────────────────────
+
 /**
  * 计算 30 天重试时间，并按「东八区自然日」对同日重试做错峰。
  *
@@ -84,6 +86,8 @@ export async function nextStaggeredRetryAt(db: D1Database, now = Date.now()): Pr
   return firstDayStart + MAX_DEFER_DAYS * DAY_MS + offsetInDay;
 }
 
+// ── 数据结构 ─────────────────────────────────────────────
+
 export interface JavDetailMeta {
   status: JavDetailStatus;
   missingMask: number;
@@ -105,6 +109,7 @@ export interface JavDetailLike {
   publishers?: string[];
 }
 
+/** 缺失位掩码 → 字段名列表，供前端直接展示缺哪些。 */
 export function missingFieldsFromMask(mask: number): JavDetailField[] {
   return (Object.keys(DETAIL_FIELD_BITS) as JavDetailField[]).filter(
     (field) => (mask & DETAIL_FIELD_BITS[field]) !== 0
@@ -177,6 +182,9 @@ function rowToMeta(row: JavDetailMetaRow): JavDetailMeta {
   };
 }
 
+// ── 读写 ─────────────────────────────────────────────────
+
+/** 读取单条记录的详情元数据；无记录时返回 pending 空值。 */
 export async function readJavDetailMeta(db: D1Database, recordId: string): Promise<JavDetailMeta> {
   const row = await db
     .prepare(
@@ -251,6 +259,7 @@ export async function readJavDetailMetaMap(
   return result;
 }
 
+/** 写入详情元数据（按 record_id upsert），不包含派生的 missingFields。 */
 export async function saveJavDetailMeta(
   db: D1Database,
   recordId: string,
@@ -339,6 +348,8 @@ export async function hasJavMagnets(db: D1Database, recordId: string): Promise<b
     .first<{ one: number }>();
   return row !== null;
 }
+
+// ── 结果落库 ─────────────────────────────────────────────
 
 /**
  * 成功拿到详情后统一落完整度：
@@ -494,6 +505,7 @@ export async function applyJavDetailAbsent(
   const prev = previous ?? (await readJavDetailMeta(db, recordId));
   const attempts = prev.attempts + 1;
   const exhausted = attempts >= DETAIL_MAX_ATTEMPTS ? 1 : 0;
+  // 源站确认缺号：四个字段一律视为缺失，等下次命中后重新判定
   const meta: JavDetailMeta = {
     status: 'absent',
     missingMask: 0b1111,

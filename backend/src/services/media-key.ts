@@ -1,14 +1,8 @@
 /**
- * 封面对象的纯函数规则
+ * 封面对象 key 的纯函数规则：只做 URL → R2 key 的确定性计算，不读写数据库、不发请求。
  *
- * 这里只做「URL → 对象 key」的确定性计算，不读写数据库、不发请求。
- * 代理接口与后台回填必须共用本文件，否则同一张图会算出两个 key。
- *
- * key 规则：
- *   covers/v1/orig/<namespace>/<sha256 前 2 位>/<sha256>
- *
- * 不变式：host → namespace 的映射只增不改。已有 host 不允许改分类，
- * 否则同一 URL 会算出两个 key，产生重复对象。
+ * 代理接口与后台回填必须共用本文件，否则同一张图会算出两个 key；key 格式为
+ * covers/v1/orig/<namespace>/<sha256 前 2 位>/<sha256>，host → namespace 映射只增不改。
  */
 import { normalizeJavdbCover } from './javdb-cover';
 
@@ -24,7 +18,10 @@ export interface CoverObjectRef {
   objectKey: string;
 }
 
-/** 允许代理的封面 host。与旧版 jav.ts 的白名单保持一致。 */
+/**
+ * 允许代理/缓存的封面 host 白名单。
+ * 新增图床必须同时在 coverNamespaceForHost 里指定命名空间，否则 key 会落到 misc。
+ */
 const ALLOWED_IMAGE_HOSTS = new Set([
   'www.javbus.com',
   'javbus.com',
@@ -54,6 +51,7 @@ const ALLOWED_IMAGE_HOSTS = new Set([
   'image.mgstage.com',
 ]);
 
+/** 白名单判断；javdb/jdbstatic 用子域后缀放行，避免新增 CDN 节点时漏配。 */
 export function isAllowedCoverHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
   if (ALLOWED_IMAGE_HOSTS.has(host)) return true;
@@ -63,6 +61,10 @@ export function isAllowedCoverHost(hostname: string): boolean {
     || host.endsWith('.javdb.com');
 }
 
+/**
+ * host → 命名空间映射。
+ * 该映射只增不改：改分类会让同一 URL 算出两个 key，形成重复对象且无法回收。
+ */
 export function coverNamespaceForHost(hostname: string): CoverNamespace {
   const host = hostname.toLowerCase();
   if (
@@ -132,6 +134,7 @@ export function normalizeCoverUrl(raw: string | null | undefined): string | null
   return parsed.toString();
 }
 
+/** 计算小写 hex SHA-256，作为对象 key 与墓碑 key 的共同来源。 */
 export async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);

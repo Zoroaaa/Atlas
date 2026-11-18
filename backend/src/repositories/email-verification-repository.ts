@@ -6,9 +6,7 @@
  */
 import type { EmailVerification, EmailChangeRequest } from '@/types';
 
-// ---------------------------------------------------------------------------
-// email_verifications
-// ---------------------------------------------------------------------------
+// ── email_verifications ─────────────────────────────────────────────
 
 /**
  * 按邮箱 + 验证码 + 类型查询有效验证码（取最新一条）
@@ -18,6 +16,7 @@ export async function findVerificationByCode(
   db: D1Database,
   opts: { email: string; code: string; type: string; now: number; userId?: string | null }
 ): Promise<EmailVerification | null> {
+  // 取最新一条：同一邮箱可能残留旧验证码，按 created_at 倒序只认最近一条
   const userClause = opts.userId ? ' AND user_id = ?' : '';
   const params: (string | number)[] = [opts.email, opts.code, opts.type, opts.now];
   if (opts.userId) params.push(opts.userId);
@@ -68,9 +67,7 @@ export async function deleteVerificationById(db: D1Database, id: string): Promis
   await db.prepare('DELETE FROM email_verifications WHERE id = ?').bind(id).run();
 }
 
-// ---------------------------------------------------------------------------
-// email_change_requests
-// ---------------------------------------------------------------------------
+// ── email_change_requests ───────────────────────────────────────────
 
 /** 按 id + 归属用户查询处于 pending 且未过期的邮箱更改请求 */
 export async function findPendingChangeRequestById(
@@ -139,6 +136,7 @@ export async function markChangeRequestVerified(
   field: 'old_email_verified' | 'new_email_verified',
   now: number
 ): Promise<void> {
+  // field 只能来自联合类型中的两个列名，不接受外部传入的任意字段
   await db
     .prepare(`UPDATE email_change_requests SET ${field} = 1, updated_at = ? WHERE id = ?`)
     .bind(now, requestId)

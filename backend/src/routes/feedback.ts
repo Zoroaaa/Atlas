@@ -1,7 +1,7 @@
 /**
- * 用户反馈路由
- * 功能：用户提交反馈、管理员查看/处理反馈、处理完成后自动发送邮件通知
- * 作者：CodeSeek Team
+ * 用户反馈路由：提交、本人查询、管理员处理与邮件回复。
+ *
+ * 约束：仅提交接口允许匿名（必须留联系邮箱）；管理接口实时查库校验角色。
  */
 import { Hono, Context, Next } from 'hono';
 import { Env, JwtPayload } from '@/types';
@@ -14,9 +14,7 @@ import { sendEmail, logEmailSend } from '@/services/email-sender';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
 
-// -----------------------------------------------------------------------
-// 可选鉴权中间件（有 token 就解析，没有也放行）
-// -----------------------------------------------------------------------
+// ── 可选鉴权：有 token 就解析，没有也放行 ────────────────
 const optionalAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
@@ -29,9 +27,7 @@ const optionalAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
 
 feedbackRoutes.use('*', optionalAuth);
 
-// -----------------------------------------------------------------------
-// 反馈类型与优先级的中文映射（用于邮件/展示）
-// -----------------------------------------------------------------------
+// ── 反馈类型与状态的中文映射（用于邮件展示） ─────────────
 const TYPE_LABELS: Record<string, string> = {
   bug: '🐛 问题反馈',
   suggestion: '💡 优化建议',
@@ -44,9 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
   closed: '已关闭',
 };
 
-// -----------------------------------------------------------------------
-// POST /api/feedback  — 提交反馈
-// -----------------------------------------------------------------------
+// ── POST /api/feedback — 提交反馈 ────────────────────────
 feedbackRoutes.post('/', validateBody(schemas.feedback.create), async (c) => {
   const user = c.get('user') as JwtPayload | undefined;
   const body = c.get('validatedBody') as z.infer<typeof schemas.feedback.create>;
@@ -64,7 +58,7 @@ feedbackRoutes.post('/', validateBody(schemas.feedback.create), async (c) => {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null;
     const ua = c.req.header('User-Agent') || null;
 
-    // 获取已登录用户邮箱
+    // 未显式填写联系邮箱时回退到账号邮箱，否则管理员无法回复
     let resolvedEmail = contactEmail || null;
     if (user?.userId && !resolvedEmail) {
       const u = await c.env.DB.prepare('SELECT email FROM users WHERE id = ?')
@@ -104,9 +98,7 @@ feedbackRoutes.post('/', validateBody(schemas.feedback.create), async (c) => {
   }
 });
 
-// -----------------------------------------------------------------------
-// GET /api/feedback/my  — 当前用户查看自己的反馈列表（需登录）
-// -----------------------------------------------------------------------
+// ── GET /api/feedback/my — 当前用户的反馈列表 ────────────
 feedbackRoutes.get('/my', async (c) => {
   const user = c.get('user') as JwtPayload | undefined;
   if (!user) return c.json(error('AUTH_ERROR', '请先登录'), 401);
@@ -140,9 +132,7 @@ feedbackRoutes.get('/my', async (c) => {
   }
 });
 
-// -----------------------------------------------------------------------
-// 管理员专用路由 — 需要 admin 权限（实时数据库查询）
-// -----------------------------------------------------------------------
+// ── 管理员专用路由：权限在每次请求时实时校验 ─────────────
 const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload | null> => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -150,7 +140,7 @@ const getAdminUser = async (c: Context<{ Bindings: Env }>): Promise<JwtPayload |
   const payload = await verifyToken(token, c.env.JWT_SECRET);
   if (!payload) return null;
 
-  // 实时查询数据库确认管理员权限
+  // token 里的角色可能已被降级，这里实时查库确认管理员权限
   const isAdmin = await checkIsAdmin(c);
   if (!isAdmin) return null;
 
@@ -312,7 +302,7 @@ feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c
       feedbackId
     ).run();
 
-    // 发送邮件通知给用户（当管理员填写了回复内容且 sendEmail=true 时）
+    // 只有勾选发信且填写了回复才发送，避免把空回复发给用户
     let emailResult: { sent: boolean; error?: string } = { sent: false };
     if (sendEmail && adminReply && (item as Record<string, unknown>).contact_email) {
       try {
@@ -348,9 +338,7 @@ feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c
   }
 });
 
-// -----------------------------------------------------------------------
-// 辅助：发送反馈回复邮件
-// -----------------------------------------------------------------------
+// ── 辅助：发送反馈回复邮件 ───────────────────────────────
 async function sendFeedbackReplyEmail(
   env: Env,
   feedback: z.infer<typeof feedbackSchema>,

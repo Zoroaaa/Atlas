@@ -1,8 +1,8 @@
 /**
- * 搜索源管理路由
- * 功能：搜索源、分类、大类管理
- * 作者：CodeSeek Team
- * 日期：2024
+ * 搜索源管理路由：大类 / 分类 / 搜索源 / 用户配置的 CRUD 与导出。
+ *
+ * 约束：系统级数据仅管理员可写；自建源仅创建者或管理员可见可改；
+ * 启用语义为「无配置行 = 启用」，仅显式 is_enabled = 0 才禁用。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -28,8 +28,7 @@ sourceRoutes.use('*', async (c, next) => {
   }
 });
 
-// 不再使用本地 checkAdminRole 函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
-
+// ── 大类 / 分类字典 ─────────────────────────────────────
 sourceRoutes.get('/major-categories', async (c) => {
   try {
     const categories = await cached('sources:dict:major', 5 * 60_000, async () => {
@@ -121,6 +120,7 @@ sourceRoutes.get('/categories/:id', async (c) => {
   }
 });
 
+// ── 搜索源查询 ─────────────────────────────────────────
 sourceRoutes.get('/', async (c) => {
   const user = c.get('user');
   
@@ -129,6 +129,7 @@ sourceRoutes.get('/', async (c) => {
     const searchable = c.req.query('searchable');
     const siteType = c.req.query('siteType');
     
+    // 只返回系统源与当前用户自建源：自建源不在他人列表中出现
     let query = 'SELECT * FROM search_sources WHERE is_active = 1 AND (is_system = 1 OR created_by = ?)';
     const params: (string | number)[] = [user.userId];
     
@@ -191,6 +192,7 @@ sourceRoutes.get('/search', async (c) => {
   }
 
   try {
+    // 名称模糊搜索固定上限 20 条：LIKE 无法走索引，避免返回量放大成额外开销
     const sources = await c.env.DB.prepare(`
       SELECT * FROM search_sources 
       WHERE is_active = 1 AND searchable = 1 AND (is_system = 1 OR created_by = ?)
@@ -397,6 +399,7 @@ sourceRoutes.get('/user-configs/:userId', async (c) => {
   const currentUser = c.get('user');
 
   const isAdmin = await checkIsAdmin(c);
+  // 用户配置按 userId 隔离：非本人且非管理员一律拒绝，避免枚举他人订阅状态
   if (userId !== currentUser.userId && !isAdmin) {
     return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
   }
@@ -420,6 +423,7 @@ sourceRoutes.get('/with-user-config/:userId', async (c) => {
   const currentUser = c.get('user');
 
   const isAdmin = await checkIsAdmin(c);
+  // 同上：带他人配置的源列表也只允许本人或管理员读取
   if (requestedUserId !== currentUser.userId && !isAdmin) {
     return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
   }
@@ -781,6 +785,7 @@ sourceRoutes.post('/:id/increment-usage', async (c) => {
   }
 });
 
+// ── 大类 / 分类写操作（仅管理员）───────────────────────
 sourceRoutes.post('/major-categories', validateBody(schemas.sources.createMajorCategory), async (c) => {
   
   if (!await checkIsAdmin(c)) {
@@ -884,6 +889,7 @@ sourceRoutes.post('/categories', validateBody(schemas.sources.createCategory), a
       color?.trim() || '#3b82f6',
       defaultSearchable !== false ? 1 : 0,
       defaultSiteType || 'search',
+      // 优先级收敛到 1-10，与前端设置面板的滑块范围保持一致
       Math.min(Math.max(searchPriority || 5, 1), 10),
       now,
       now
@@ -1003,6 +1009,7 @@ sourceRoutes.delete('/categories/:id', async (c) => {
   }
 });
 
+// ── 搜索源写操作 ───────────────────────────────────────
 sourceRoutes.post('/', validateBody(schemas.sources.createSource), async (c) => {
   const user = c.get('user');
 
@@ -1345,6 +1352,7 @@ sourceRoutes.delete('/:id', async (c) => {
   }
 });
 
+// ── 用户配置批量更新 ───────────────────────────────────
 sourceRoutes.post('/user-configs/batch', validateBody(schemas.sources.batchUpdateUserConfigs), async (c) => {
   const user = c.get('user');
 

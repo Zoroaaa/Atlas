@@ -1,3 +1,9 @@
+/**
+ * 分类管理（/dashboard/categories）：维护大类与子分类层级、默认可搜索性与站点类型。
+ *
+ * 数据来源：useMajorCategories / useCategories（react-query），写操作后需同时失效两者。
+ * 约束：系统分类只有管理员可编辑或删除。
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Tag,
@@ -28,6 +34,7 @@ import type {
   UpdateCategoryRequest,
 } from '@/types';
 
+/** 分类管理页；新建与编辑共用同一份表单 state。 */
 export const CategoryManager: React.FC = () => {
   const toast = useToast();
   const { t } = useTranslation(['dashboard']);
@@ -43,6 +50,7 @@ export const CategoryManager: React.FC = () => {
   const [expandedMajor, setExpandedMajor] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
+  // 大类与子分类被源站列表共用，写操作后必须一起失效
   const invalidateSourceMeta = () => {
     queryClient.invalidateQueries({ queryKey: sourcesKeys.majorCategories });
     queryClient.invalidateQueries({ queryKey: sourcesKeys.categories });
@@ -392,7 +400,6 @@ export const CategoryManager: React.FC = () => {
                           key={category.id}
                           className="flex items-center gap-3 p-3 sm:p-4 sm:pl-16 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
                         >
-                          {/* Icon */}
                           <div
                             className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm"
                             style={{ backgroundColor: category.color || '#d4a853' }}
@@ -404,7 +411,6 @@ export const CategoryManager: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Name + description + badges */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="font-medium text-sm text-surface-900 dark:text-surface-100 truncate">
@@ -417,7 +423,7 @@ export const CategoryManager: React.FC = () => {
                                 </Badge>
                               )}
                             </div>
-                            {/* Badges on mobile go below name */}
+                            {/* 窄屏徽章换行到名称下方 */}
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               <Badge variant={category.defaultSearchable ? 'success' : 'default'} className="text-xs">
                                 {category.defaultSearchable ? t('dashboard:categories.searchable') : t('dashboard:categories.notSearchable')}
@@ -437,7 +443,6 @@ export const CategoryManager: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Actions */}
                           <div className="shrink-0 flex items-center gap-0.5">
                             {(isAdmin || !category.isSystem) && (
                               <>

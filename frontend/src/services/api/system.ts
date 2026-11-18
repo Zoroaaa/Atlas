@@ -1,3 +1,9 @@
+/**
+ * 系统 API：错误上报、站点统计、行为日志，以及分析与配置管理。
+ *
+ * 约束：错误上报必须静默失败，任何异常都不能冒泡到用户。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import type { SystemStats, RecordActionRequest, AnalyticsEvent, AnalyticsStats } from '@/types';
@@ -69,6 +75,7 @@ export interface GroupedConfigs {
   configs: SystemConfigItem[];
 }
 
+/** 系统级接口：错误上报、公开统计与用户行为日志。 */
 export const systemApi = {
   reportError: async (data: {
     source: 'frontend';
@@ -104,6 +111,7 @@ export const systemApi = {
       return {
         success: true,
         data: {
+          // 后端把用户数放在 users，前端展示口径统一为 activeUsers
           activeUsers: response.data.activeUsers || response.data.users || 0,
           activeSources: response.data.sources || 0,
           totalSearches: response.data.searches || 0,
@@ -178,6 +186,7 @@ export const systemApi = {
         success: true,
         data: {
           logs: response.data.actions.map(a => {
+            // data 是后端存的 JSON 字符串，解析失败时降级为空对象，不影响列表展示
             let dataObj: Record<string, unknown> = {};
             try {
               dataObj = JSON.parse(a.data || '{}');
@@ -203,6 +212,7 @@ export const systemApi = {
   },
 };
 
+/** 埋点接口：事件写入与按天统计。 */
 export const analyticsApi = {
   recordEvent: async (data: AnalyticsEvent): Promise<{ 
     success: boolean; 
@@ -221,6 +231,7 @@ export const analyticsApi = {
   },
 };
 
+/** 系统配置接口：公开配置、增删改查、分组、审计日志与导入导出。 */
 export const configApi = {
   getPublicConfig: async (): Promise<{ success: boolean; data: Record<string, unknown> }> => {
     return apiClient.get('/config/public');

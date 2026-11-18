@@ -1,3 +1,4 @@
+/** 路由桶文件：集中导出各业务子应用，供 Worker 入口统一挂载。 */
 export { authRoutes } from './auth';
 export { githubOAuthRoutes } from './github-oauth';
 export { googleOAuthRoutes } from './google-oauth';

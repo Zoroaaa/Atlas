@@ -1,8 +1,8 @@
 /**
- * DashboardLayout - 个人中心
+ * DashboardLayout - 个人中心布局。
  *
- * 桌面端交给统一 AppShell（左侧全局栏 + 顶栏），本文件只保留移动端菜单页；
- * 侧栏数据统一来自 workspaceNav，避免与全局导航各维护一份。
+ * 断点策略：≥lg 交给 AppShell（全局侧栏 + 顶栏），本文件只渲染内容；<lg 渲染移动端菜单页。
+ * 数据来源：侧栏项统一取自 workspaceNav，避免与全局导航各维护一份。
  */
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -20,6 +20,7 @@ const mobilePathOverrides: Record<string, string> = {
   overview: '/dashboard/overview',
 };
 
+/** 个人中心布局：桌面走 AppShell，移动端走菜单页 + 内容区。 */
 export const DashboardLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { user } = useAuthStore();
@@ -31,7 +32,7 @@ export const DashboardLayout: React.FC = () => {
 
   const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
   const isMenuRoot = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
-  // 从首页入口进入时回首页；从个人中心菜单页进入时仍回菜单页
+  // 返回落点：从首页入口进来回首页（location.state.from），否则回到个人中心菜单页
   const originPath = (location.state as { from?: string } | null)?.from;
 
   const mobileGroups = dashboardNavGroups;

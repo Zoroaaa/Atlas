@@ -1,4 +1,9 @@
-﻿import { Context, Next } from 'hono';
+﻿/**
+ * 认证与鉴权中间件：校验 Bearer token 对应的会话，并把角色写入 context。
+ *
+ * 约束：会话查询以 user_sessions 为主表，users/roles 缺失时回退普通用户角色而不判会话失效。
+ */
+import { Context, Next } from 'hono';
 import { Env, JwtPayload, Role } from '@/types';
 import { verifyToken, error, hashToken } from '@/utils';
 
@@ -67,7 +72,7 @@ export async function checkIsSuperAdmin(c: Context<{ Bindings: Env }>): Promise<
  * 使下游中间件与角色判定函数无需再次查询数据库。
  *
  * SQL 语义保证：
- *   - 以 session 为主表判断会话有效性（与旧实现一致，不因用户/角色缺失而误判会话失效）
+ *   - 以 session 为主表判断会话有效性，不因用户/角色缺失而误判会话失效
  *   - users/roles 使用 LEFT JOIN，缺失时回退 DEFAULT_USER_ROLE
  */
 export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
@@ -111,6 +116,7 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
 
   c.set('user', payload);
   c.set('authToken', token);
+  // roles 缺失时用兜底角色，避免下游鉴权读到 null 直接崩溃
   c.set('userRole', row.id ? (row as unknown as Role) : DEFAULT_USER_ROLE);
   await next();
 };

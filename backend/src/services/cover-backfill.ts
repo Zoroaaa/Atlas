@@ -1,10 +1,8 @@
 /**
- * 本地库封面回填（D1 账本 + R2 对象）
+ * 本地库封面回填：把 data_records.cover 下载到 R2，并维护 cover_assets 账本。
  *
- * - 由每分钟 cron 推进，默认 20 条/批，可在「封面管理」页暂停/调批次；
- * - 只处理 data_records.cover，不回写该字段；
- * - 幂等：先 head R2，对象已存在就直接记账本，不重复下载；
- * - 与 jav-detail-job 串行执行，避免同时对 JavBus 发起两拨请求。
+ * 由每分钟 cron 推进（默认 20 条/批，可暂停/调批次）；先 head R2 保证幂等，
+ * 与 jav-detail-job 串行执行，避免同时对 JavBus 发起两拨请求。只回填，不回写 cover 字段。
  */
 import type { Env } from '@/types';
 import { DB_CONFIG_KEYS } from '@/constants';
@@ -31,7 +29,9 @@ const LOCK_KEY = 'cover-backfill';
 const PER_RECORD_LOCK_MS = 12_000;
 const MIN_LOCK_TTL_MS = 55_000;
 const MAX_LOCK_TTL_MS = 20 * 60_000;
+/** 封面失败最多重试次数；到达后置 retry_exhausted，不再入选重试队列。 */
 const MAX_ATTEMPTS = 5;
+/** 源站 404/410 的复查间隔：30 天（封面缺失通常是长期状态，不必频繁打源站） */
 const MISSING_RETRY_MS = 30 * 24 * 60 * 60 * 1000;
 /** 第 1/2/3/4 次失败后的等待时间；第 5 次直接耗尽 */
 const RETRY_BACKOFF_MS = [60 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000, 3 * 24 * 60 * 60_000];
@@ -108,6 +108,7 @@ interface ExistingAsset {
 /** 同一 isolate 内跨批次保留，避免每分钟重新起算限速间隔 */
 const hostLastFetchAt = new Map<string, number>();
 
+/** 各图源的最小请求间隔（ms）：按站点反爬强度区分，避免封面回填把源站打出限流。 */
 function hostGapMs(host: string): number {
   if (host.endsWith('javbus.com')) return 500;
   if (host.endsWith('javdb.com') || host.endsWith('jdbstatic.com') || host === 'tp.spfcas.com') return 500;
@@ -119,6 +120,7 @@ function hostGapMs(host: string): number {
   return 300;
 }
 
+/** 按 host 串行限速：记录上次抓取时间，不足间隔则等待。 */
 async function paceHost(host: string): Promise<void> {
   const wait = (hostLastFetchAt.get(host) ?? 0) + hostGapMs(host) - Date.now();
   if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
@@ -132,6 +134,7 @@ function readBoolean(value: string | null | undefined, fallback: boolean): boole
   return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
+/** 读取回填开关与批次大小；读取失败时按「关闭 + 默认 20 条」处理。 */
 export async function getCoverBackfillSettings(db: D1Database): Promise<CoverBackfillSettings> {
   try {
     const { results } = await db
@@ -149,6 +152,7 @@ export async function getCoverBackfillSettings(db: D1Database): Promise<CoverBac
   }
 }
 
+/** 更新开关/批次大小（批次限制 1-100），并清掉 ConfigService 的 60 秒缓存。 */
 export async function setCoverBackfillSettings(
   db: D1Database,
   patch: { enabled?: boolean; batchSize?: number },
@@ -197,6 +201,7 @@ export async function setCoverBackfillSettings(
   return getCoverBackfillSettings(db);
 }
 
+/** 选出待回填记录：从未建映射，或 cover URL 已变更。 */
 async function selectPendingRecords(db: D1Database, limit: number): Promise<PendingRecord[]> {
   const { results } = await db
     .prepare(
@@ -213,6 +218,7 @@ async function selectPendingRecords(db: D1Database, limit: number): Promise<Pend
   return results || [];
 }
 
+/** 选出已到重试时间的失败/缺失项；耗尽或未到期的不会入选。 */
 async function selectRetryAssets(
   db: D1Database,
   limit: number,
@@ -364,6 +370,7 @@ async function saveFailure(
       sourceHost,
       attempts,
       exhausted ? 1 : 0,
+      // last_error 截断到 500 字符，避免长堆栈/HTML 片段撑爆账本行
       error.slice(0, 500),
       nextRetryAt,
       now,
@@ -394,6 +401,7 @@ async function fetchAndStore(env: Env, ref: CoverObjectRef): Promise<FetchOutcom
     return { status: 'failed', error: `NETWORK: ${(err as Error).message || 'fetch failed'}`, exhausted: false };
   }
 
+  // 404/410 是「资源不存在」，与网络/限流失败分开记账：前者 30 天后复查，后者走指数退避
   if (resp.status === 404 || resp.status === 410) {
     return { status: 'missing', error: `HTTP_${resp.status}` };
   }
@@ -403,12 +411,14 @@ async function fetchAndStore(env: Env, ref: CoverObjectRef): Promise<FetchOutcom
 
   const data = await readBodyWithLimit(resp, MAX_COVER_BYTES);
   if (!data) {
+    // 超过体积上限：直接耗尽重试，继续重试只会重复下载大文件
     return { status: 'failed', error: 'TOO_LARGE', exhausted: true };
   }
   if (data.byteLength === 0) {
     return { status: 'failed', error: 'EMPTY_BODY', exhausted: true };
   }
 
+  // 上游 content-type 可能是 text/plain 或缺失，用图片魔数兜底判断
   const upstreamType = resp.headers.get('content-type')?.split(';')[0].trim() || '';
   const contentType = upstreamType.startsWith('image/') ? upstreamType : detectImageMime(data);
   if (!contentType) {
@@ -546,6 +556,7 @@ async function processRetryAsset(
   return 'failed';
 }
 
+/** cron 入口：按配额先处理待迁移记录，再用剩余额度处理到期重试项；无 MEDIA 绑定或开关关闭时直接空转。 */
 export async function runCoverBackfillBatch(env: Env): Promise<CoverBackfillBatchResult> {
   const empty: CoverBackfillBatchResult = {
     ran: false, processed: 0, stored: 0, skipped: 0, failed: 0, missing: 0,
@@ -601,6 +612,7 @@ const GC_MIN_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const TOMBSTONE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const TOMBSTONE_PREFIX = 'covers/v1/miss/';
 
+/** 回收超过 30 天无人引用的封面对象与过期墓碑；单次有上限，交给多轮 GC 收敛。 */
 export async function gcOrphanCoverAssets(
   env: Env,
   limit = 100,
@@ -663,6 +675,7 @@ export async function requeueCoverFailures(
   return { requeued: result.meta.changes ?? 0 };
 }
 
+/** 管理页统计：按类型的就绪/缺失/失败分布、存储占用、最近失败项。 */
 export async function getCoverStats(env: Env): Promise<CoverStats> {
   const settings = await getCoverBackfillSettings(env.DB);
 

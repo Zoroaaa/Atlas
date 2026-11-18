@@ -1,3 +1,8 @@
+/**
+ * 工作台通用面板原子组件（Panel / PanelSection / PanelHeader / PanelBody / PanelRail）。
+ *
+ * 约束：只负责表面样式与折叠交互，不耦合业务数据。
+ */
 import React, { useId } from 'react';
 import { clsx } from 'clsx';
 
@@ -35,6 +40,7 @@ interface PanelHeaderProps {
   className?: string;
 }
 
+/** 面板头：传入 onToggle 时整条横条可折叠，内部可交互元素不触发折叠。 */
 export const PanelHeader: React.FC<PanelHeaderProps> = ({
   icon,
   title,
@@ -107,6 +113,7 @@ interface PanelBodyProps {
   className?: string;
 }
 
+/** 面板正文容器。 */
 export const PanelBody: React.FC<PanelBodyProps> = ({ children, className }) => (
   <div className={clsx('panel-body', className)}>{children}</div>
 );
@@ -116,6 +123,7 @@ interface PanelRailProps {
   className?: string;
 }
 
+/** 面板侧轨容器，用于左右分栏排列。 */
 export const PanelRail: React.FC<PanelRailProps> = ({ children, className }) => (
   <div className={clsx('panel-rail', className)}>{children}</div>
 );

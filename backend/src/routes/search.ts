@@ -1,17 +1,8 @@
 /**
- * 搜索模块路由
- * 功能：提供搜索、搜索历史、收藏、搜索建议等功能
- * 支持：
- *   - Provider 模式：通过 SearchProvider 接口分发到各搜索引擎（anime/movie/jav/manga/novel）
- *   - 通用模式：返回匹配的搜索源 URL 列表（原有行为）
+ * 搜索路由：认证、多级限流、Provider 分发、结果缓存与搜索历史写入。
  *
- * 分层说明：
- *   路由只做「认证 → 限流 → 找 Provider → 缓存 → 返回」；
- *   源查询/历史读写下沉至 repositories/*，Provider 专属差异（子模式、多源注入、历史增强）
- *   由各 Provider 内部承载。
- *
- * 作者：CodeSeek Team
- * 日期：2024 / 2026 重构
+ * 约束：JAV / 小说响应体含按用户过滤的搜索源列表，缓存键与 Cache-Control 必须按用户隔离。
+ * 分层：源查询与历史读写走 repositories，Provider 差异由各 Provider 自行处理。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -57,8 +48,8 @@ export const searchRoutes = new Hono<{ Bindings: Env }>();
 searchRoutes.use('*', authMiddleware);
 
 /**
- * 将 Provider 从结果中提取的增强字段写入搜索历史
- * 无增强内容时跳过更新（保持原有「无字段则不写」的行为）
+ * 把 Provider 从结果中提取的增强字段写入搜索历史。
+ * 无增强内容时跳过更新，避免为没有元数据的结果白写一次库。
  */
 async function applyHistoryEnrichment(
   db: D1Database,
@@ -74,9 +65,8 @@ async function applyHistoryEnrichment(
 }
 
 /**
- * 执行搜索
- * POST /api/search
- * 需要认证，记录搜索历史
+ * 执行搜索：POST /api/search。
+ * 先按档位限流；Provider 命中失败或抛错时会删除刚写入的历史，避免留下脏记录。
  */
 searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
   const userPayload = c.get('user');
@@ -126,12 +116,13 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
       ? await listDisabledSourceIds(c.env.DB, userPayload.userId)
       : null;
 
-    // ── Provider 分发模式：通过 Registry 查找匹配的搜索引擎 ──
+    // ── Provider 分发模式 ───────────────────────────────────
     if (majorCategoryId) {
       const provider = providerRegistry.getByCategory(majorCategoryId);
       if (provider) {
-        // ── Cache Layer: 缓存热门搜索结果 ──
-        const SEARCH_CACHE_TTL = 10 * 60; // 10 分钟
+        // ── 搜索结果缓存 ─────────────────────────────────────
+        // 10 分钟：搜索热点集中，TTL 过长会让源开关/子模式切换迟迟不生效
+        const SEARCH_CACHE_TTL = 10 * 60;
 
         // JAV / Novel 的响应体含「按用户过滤的搜索源列表」（用户启用项 + 用户私有源），
         // 属于用户态数据，必须按用户隔离缓存键，否则不同用户会互相串源列表。
@@ -209,7 +200,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
             );
           }
 
-          // ── Cache Layer: 缓存搜索结果 ──
+          // ── 写回缓存 ─────────────────────────────────────
           const responseBody = JSON.stringify(success(enrichedData, '搜索完成'));
           const newResponse = new Response(responseBody, {
             headers: {
@@ -240,7 +231,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
       }
     }
 
-    // ── 通用模式：返回匹配的搜索源 URL 列表 ──
+    // ── 通用模式：仅返回搜索源跳转卡片 ─────────────────────
     const sources = majorCategoryId
       ? await listSourcesByCategory(c.env.DB, {
           categoryId: majorCategoryId,
@@ -282,9 +273,8 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
 });
 
 /**
- * 搜索配额
- * GET /api/search/quota
- * 返回当前档位、各窗口用量、全部档位规则与下一档进度（供前端常驻展示与升级说明）
+ * 搜索配额：GET /api/search/quota。
+ * 返回当前档位、各窗口用量与下一档进度，供前端常驻展示；管理员直接返回 unlimited。
  */
 searchRoutes.get('/quota', async (c) => {
   const userPayload = c.get('user');
@@ -327,10 +317,8 @@ searchRoutes.get('/quota', async (c) => {
 });
 
 /**
- * 获取搜索建议
- * GET /api/search/suggestions?keyword=xxx&source=xxx
- * source 参数：按搜索源过滤历史（优先具体 source，同时兼容 'all'）
- * Provider 模式：带 source 且对应 Provider 支持 suggestions → 走 Provider
+ * 获取搜索建议：GET /api/search/suggestions。
+ * 带 source 且 Provider 支持 suggestions 时优先走 Provider，空结果再回落历史统计。
  */
 searchRoutes.get('/suggestions', async (c) => {
   const userPayload = c.get('user');
@@ -355,12 +343,13 @@ searchRoutes.get('/suggestions', async (c) => {
     return c.json(success([]));
   }
 
-  // ── Provider suggestions 模式 ──
+  // ── Provider suggestions 模式 ───────────────────────────
   if (source && source !== 'all') {
     const provider = providerRegistry.getByCategory(source);
     if (provider?.suggestions) {
-      // ── Cache Layer: 缓存 Provider suggestions ──
-      const SUGGESTIONS_CACHE_TTL = 5 * 60; // 5 分钟
+      // ── suggestions 缓存 ───────────────────────────────
+      // 5 分钟：自动补全触发频繁，缓存键只含 source + keyword（公共数据，可按 URL 共享）
+      const SUGGESTIONS_CACHE_TTL = 5 * 60;
       const cacheKey = new Request(`https://internal/suggestions/${source}/${encodeURIComponent(keyword)}`);
       const cache = caches.default;
 
@@ -404,7 +393,7 @@ searchRoutes.get('/suggestions', async (c) => {
     }
   }
 
-  // ── 通用模式：基于全局搜索历史统计 ──
+  // ── 通用模式：基于全局搜索历史统计 ─────────────────────
   // 数据量不大时直接查历史表；缓存和前端防抖是控制请求量的关键
   try {
     const trimmedKeyword = keyword.trim();
@@ -412,6 +401,7 @@ searchRoutes.get('/suggestions', async (c) => {
       return c.json(success([]));
     }
 
+    // 30 天窗口：只统计近期搜索，避免久远冷词长期霸占建议位
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     // JAV 番号 WAAA-624 / WAAA624 等价：匹配历史时额外忽略横杠
@@ -439,10 +429,8 @@ searchRoutes.get('/suggestions', async (c) => {
 });
 
 /**
- * 获取热门搜索关键词
- * GET /api/search/trending?source=xxx
- * Provider 模式：带 source 且对应 Provider 支持 trending → 走 Provider
- * 否则 fallback 到全局搜索历史统计
+ * 获取热门搜索关键词：GET /api/search/trending。
+ * 带 source 且 Provider 支持 trending 时优先走 Provider，否则回落历史统计。
  */
 searchRoutes.get('/trending', async (c) => {
   const userPayload = c.get('user');
@@ -468,12 +456,14 @@ searchRoutes.get('/trending', async (c) => {
     R.TRENDING.MAX_HOURS
   );
 
-  // ── Provider trending 模式 ──
+  // ── Provider trending 模式 ──────────────────────────────
   if (source && source !== 'all') {
     const provider = providerRegistry.getByCategory(source);
     if (provider?.trending) {
-      // ── Cache Layer: 缓存 Provider trending ──
-      const TRENDING_CACHE_TTL = 30 * 60; // 30 分钟
+      // ── trending 缓存 ─────────────────────────────────
+      // 30 分钟：趋势榜单变化慢；缓存键只含 source，因为 Provider 返回全量榜单，
+      // limit / hours 仅对通用模式生效
+      const TRENDING_CACHE_TTL = 30 * 60;
       const cacheKey = new Request(`https://internal/trending/${source}`);
       const cache = caches.default;
 
@@ -518,7 +508,7 @@ searchRoutes.get('/trending', async (c) => {
     }
   }
 
-  // ── 通用模式：基于全局搜索历史统计 ──
+  // ── 通用模式：按时间窗口聚合历史 ───────────────────────
   try {
     const since = Date.now() - hours * hourInMs;
 

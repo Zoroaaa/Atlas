@@ -144,6 +144,7 @@ function previousRankMaps(parsed: RankingRecord[]): Map<string, Map<string, numb
   return result;
 }
 
+/** 每组只保留最新 fetchedAt 的那批记录，同番号取最小名次，避免重复导入产生并列行。 */
 function latestRecordsOf(parsed: RankingRecord[]): RankingRecord[] {
   const latestByGroup = new Map<string, number>();
   for (const record of parsed) {
@@ -173,6 +174,7 @@ function latestRecordsOf(parsed: RankingRecord[]): RankingRecord[] {
   });
 }
 
+/** 截取面板展示条数，并相对上一期快照计算名次变化或新上榜标记。 */
 function entriesOf(
   records: RankingRecord[],
   period: RankingPeriod,

@@ -1,3 +1,8 @@
+/**
+ * 动漫聚合结果面板：Bangumi 条目 + Nyaa / AnimeTosho / Mikan / DMHY 多源资源。
+ *
+ * 主作品无资源但其他作品有资源时默认按源平铺；各来源分页独立，换关键词或批次后统一重置。
+ */
 import React, { useEffect, useState } from 'react';
 import {
   Star, Calendar, Tv, ExternalLink,
@@ -311,6 +316,7 @@ interface AnimeSearchResultPanelProps {
   onLoginRequired?: () => void;
 }
 
+/** 动漫搜索结果面板：渲染源错误提示、视图切换，以及分组/分源两种资源布局 */
 export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   data,
   isAuthenticated = false,
@@ -326,6 +332,7 @@ export const AnimeSearchResultPanel: React.FC<AnimeSearchResultPanelProps> = ({
   const [atosPage, setAtosPage] = useState(1);
   const [mikanPage, setMikanPage] = useState(1);
   const [dmhyPage, setDmhyPage] = useState(1);
+  // Nyaa 用独立分页，其余三个来源共用 SOURCE_PAGE_SIZE；两者当前都按 10 条一页
   const SOURCE_PAGE_SIZE = 10;
   const PAGE_SIZE = 10;
 

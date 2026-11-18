@@ -1,8 +1,8 @@
 /**
- * MangaProvider — 漫画搜索适配器
+ * MangaProvider — 漫画搜索适配器，实现 SearchProvider 接口并注册到 providerRegistry。
  *
- * 包装 manga-search.ts 的 searchManga 函数，实现 SearchProvider 接口。
- * 数据源：MangaDex（漫画元数据）
+ * 包装 manga-search.ts 的 searchManga：MangaDex 为主源，MangaUpdates 补全/降级。
+ * 响应含按用户过滤的源卡片，因此 injectsUserSources=true，路由必须按用户隔离缓存。
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment } from '@/services/search-provider';
 import { searchManga } from '@/services/manga-search';
@@ -17,6 +17,7 @@ export class MangaProvider implements SearchProvider {
   /** 响应含按用户过滤的源卡片，缓存键需按用户隔离 */
   readonly injectsUserSources = true;
 
+  /** 漫画搜索 + 源卡片；别名覆盖不足时后台异步灌入 MangaDex altTitles，不阻塞本次响应。 */
   async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
     const { cards, skip } = await resolveLiveSources(ctx.db, {
       categoryId: ctx.categoryId,
@@ -36,11 +37,11 @@ export class MangaProvider implements SearchProvider {
     return { ...result, sourceCards: cards } as unknown as SearchResultBase;
   }
 
+  /** 写搜索历史：取首条 MangaDex 结果作为作品卡片。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];
     const values: (string | number)[] = [];
 
-    // 漫画：提取首条 MangaDex 结果 → title + cover + code(manga:id) + tags
     const manga = (result as {
       manga?: Array<{ id: string; title: string; cover: string; status?: string; tags?: string[] }>;
     }).manga;
@@ -57,6 +58,7 @@ export class MangaProvider implements SearchProvider {
     return fields.length > 0 ? { fields, values } : null;
   }
 
+  /** MangaDex 搜索建议；异常时返回空数组，由路由回落到本地历史。 */
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {
     try {
       const trimmedKeyword = keyword.trim();
@@ -83,11 +85,11 @@ export class MangaProvider implements SearchProvider {
     }
   }
 
+  /** 漫画抓取源没有热门榜单，返回空数组，由路由回落到本地历史。 */
   async trending(): Promise<{ keyword: string; count: number }[]> {
     // 漫画没有热门搜索 API，返回空数组，会 fallback 到数据库历史
     return [];
   }
 }
 
-/** 导出单例 */
 export const mangaProvider = new MangaProvider();

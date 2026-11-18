@@ -1,3 +1,8 @@
+/**
+ * 源管理状态：源树的展开态、批量/单个健康检查与检查结果。
+ *
+ * 约束：展开态只在首次拿到数据时初始化一次，此后由用户操作决定，避免数据刷新把折叠状态重置。
+ */
 import { useState, useRef, useEffect } from 'react';
 import { useMajorCategories, useCategories, useSourcesWithUserConfig } from '@/hooks';
 import { sourceApi } from '@/services/api';
@@ -17,6 +22,7 @@ interface MajorCategoryWithCategories extends MajorCategory {
   categories: CategoryWithSources[];
 }
 
+/** 源管理：展开态、源树组装与健康检查 */
 export function useSourceManager() {
   const toast = useToast();
   const { data: majorCategories = [] } = useMajorCategories();
@@ -72,6 +78,7 @@ export function useSourceManager() {
     setExpandedCategories(next);
   };
 
+  // 空分类与空大类不进入树，避免展示没有任何源的空节点
   const getMajorCategoriesWithCategories = (): MajorCategoryWithCategories[] =>
     majorCategories.map(mc => {
       const cats = categories.filter(c => c.majorCategoryId === mc.id);
@@ -83,6 +90,7 @@ export function useSourceManager() {
     }).filter(mc => mc.categories.length > 0);
 
   const handleBatchCheckSources = async () => {
+    // 只有可搜索或有主页地址的源才有可探测目标，其余直接跳过
     const checkableSources = allSources.filter(s => s.searchable || s.homepageUrl);
     if (checkableSources.length === 0) { toast.warning(i18next.t('errors:hooks.source.noCheckableSourcesTitle')); return; }
     setIsBatchChecking(true);
@@ -91,6 +99,7 @@ export function useSourceManager() {
     let totalChecked = 0;
     try {
       const sourceIds = checkableSources.map(s => s.id);
+      // 每批 20 条：健康检查耗时长，分批降低超时风险；单批失败不中断后续批次
       for (let i = 0; i < sourceIds.length; i += 20) {
         const batch = sourceIds.slice(i, i + 20);
         try {

@@ -1,5 +1,13 @@
+/**
+ * 搜索源管理服务：维护大类 / 分类 / 搜索源 / 用户级配置的 D1 读写与视图映射。
+ *
+ * 约束：删除一律软删除（is_active=0），名称唯一性只校验启用记录；
+ * 系统内置项（is_system=1）禁止删除，修改则仅限创建者本人。
+ */
 import { Env } from '@/types';
 import { generateId } from '@/utils';
+
+// ── 数据模型 ─────────────────────────────────────────────
 
 export interface MajorCategory {
   id: string;
@@ -150,7 +158,10 @@ export interface UpdateUserSourceConfigData {
   notes?: string;
 }
 
+// ── 大类与分类 ───────────────────────────────────────────
+
 export class SearchSourcesService {
+  /** 启用中的大类列表，按展示顺序排序。 */
   async getAllMajorCategories(env: Env): Promise<{ majorCategories: MajorCategory[] }> {
     try {
       const result = await env.DB.prepare(
@@ -168,6 +179,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 新建自定义大类；display_order 固定 999，排在系统大类之后。 */
   async createMajorCategory(
     env: Env,
     majorCategoryData: CreateMajorCategoryData,
@@ -226,6 +238,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 分类列表；includeSystem=false 时只返回用户自建分类。 */
   async getUserSourceCategories(
     env: Env,
     userId: string,
@@ -267,6 +280,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 在指定大类下新建分类；大类必须存在且启用。 */
   async createSourceCategory(
     env: Env,
     categoryData: CreateSourceCategoryData,
@@ -347,6 +361,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 更新分类；只允许创建者操作，is_system 仅影响能否删除。 */
   async updateSourceCategory(
     env: Env,
     categoryId: string,
@@ -436,6 +451,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 软删除分类；仍被启用的搜索源引用时拒绝删除。 */
   async deleteSourceCategory(
     env: Env,
     categoryId: string,
@@ -498,6 +514,9 @@ export class SearchSourcesService {
     }
   }
 
+  // ── 搜索源 ─────────────────────────────────────────────
+
+  /** 搜索源列表（含用户个性化覆盖值）；enabledOnly 时未配置的系统可搜源视为启用。 */
   async getUserSearchSources(
     env: Env,
     userId: string,
@@ -555,9 +574,12 @@ export class SearchSourcesService {
       }
 
       if (enabledOnly) {
+        // 用户从未配置过时 usc.is_enabled 为 NULL：系统内置且可搜索的源默认开启，
+        // 否则老用户会在升级后突然丢掉全部默认源。
         query += ` AND (usc.is_enabled = 1 OR (usc.is_enabled IS NULL AND ss.is_system = 1 AND ss.searchable = 1))`;
       }
 
+      // 用户自定义优先级优先；未自定义时回落到源默认优先级。
       query += ` ORDER BY 
         COALESCE(usc.custom_priority, ss.search_priority) ASC, 
         ss.display_order ASC, 
@@ -576,6 +598,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 新建搜索源，并为创建者写入默认启用配置。 */
   async createSearchSource(
     env: Env,
     sourceData: CreateSearchSourceData,
@@ -641,6 +664,7 @@ export class SearchSourcesService {
         )
         .run();
 
+      // 新源在自己的账号下必须立即可用，否则创建后列表里看不到。
       await this.createUserSourceConfig(env, creatorId, sourceId, { isEnabled: true });
 
       return this.formatSearchSource({
@@ -670,6 +694,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 更新搜索源；同时改 URL 模板并标记可搜索时，模板必须保留 {keyword} 占位符。 */
   async updateSearchSource(
     env: Env,
     sourceId: string,
@@ -774,6 +799,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 软删除搜索源，同时物理删除所有用户的个性化配置。 */
   async deleteSearchSource(
     env: Env,
     sourceId: string,
@@ -812,6 +838,7 @@ export class SearchSourcesService {
         .bind(Date.now(), sourceId)
         .run();
 
+      // 源本身软删除，但用户配置直接物理删除：残留配置会继续被列表 JOIN 出来。
       await env.DB.prepare(
         `DELETE FROM user_source_configs 
          WHERE source_id = ?`
@@ -832,6 +859,9 @@ export class SearchSourcesService {
     }
   }
 
+  // ── 用户级配置 ─────────────────────────────────────────
+
+  /** 当前用户的全部个性化配置（仅启用中的源）。 */
   async getUserSourceConfigs(env: Env, userId: string): Promise<{ configs: UserSourceConfig[] }> {
     try {
       const result = await env.DB.prepare(
@@ -861,6 +891,12 @@ export class SearchSourcesService {
     }
   }
 
+  /**
+   * 写入单个用户配置（upsert）。
+   *
+   * D1 的 INSERT OR REPLACE 会整行替换，这里用子查询保留已有记录的 id 与 created_at，
+   * 避免每次保存都换主键、丢失创建时间。
+   */
   async updateUserSourceConfig(
     env: Env,
     userId: string,
@@ -975,6 +1011,7 @@ export class SearchSourcesService {
       .run();
   }
 
+  /** 批量写用户配置；任一 sourceId 不存在或已停用则整体失败。 */
   async batchUpdateUserSourceConfigs(
     env: Env,
     userId: string,
@@ -1042,6 +1079,9 @@ export class SearchSourcesService {
     }
   }
 
+  // ── 统计与导出 ─────────────────────────────────────────
+
+  /** 全局计数与按大类的分类/源/已启用源统计。 */
   async getSearchSourceStats(
     env: Env,
     userId: string
@@ -1114,6 +1154,7 @@ export class SearchSourcesService {
     }
   }
 
+  /** 导出当前用户的搜索源配置；version 供导入端做格式兼容判断。 */
   async exportUserSearchSources(
     env: Env,
     userId: string
@@ -1146,6 +1187,8 @@ export class SearchSourcesService {
       throw new Error('导出用户搜索源配置失败', { cause: error });
     }
   }
+
+  // ── 行数据 → 视图模型 ──────────────────────────────────
 
   private formatMajorCategory(data: Record<string, unknown>): MajorCategory {
     return {
@@ -1185,6 +1228,8 @@ export class SearchSourcesService {
   }
 
   private formatSearchSource(data: Record<string, unknown>): SearchSource {
+    // custom_* 是用户个性化覆盖：展示名/副标题/图标/优先级优先取用户值，
+    // original* 字段保留源站原值供管理端编辑。
     return {
       id: data.id as string,
       categoryId: data.category_id as string,
@@ -1211,6 +1256,7 @@ export class SearchSourcesService {
       displayOrder: (data.display_order as number) || 999,
       usageCount: (data.usage_count as number) || 0,
       lastUsedAt: (data.last_used_at as number) || null,
+      // 未配置过该源时按「系统内置且可搜索」判定默认开启，与 enabledOnly 的 SQL 口径保持一致。
       userEnabled:
         data.user_enabled !== null && data.user_enabled !== undefined
           ? Boolean(data.user_enabled)
@@ -1272,6 +1318,7 @@ export class SearchSourcesService {
     return fieldMap[field] || null;
   }
 
+  /** 宽松解析 JSON 文本；失败时返回默认值，避免单条坏配置阻断整个列表。 */
   parseJsonSafely<T>(jsonString: string | null, defaultValue: T): T {
     try {
       return jsonString ? JSON.parse(jsonString) : defaultValue;

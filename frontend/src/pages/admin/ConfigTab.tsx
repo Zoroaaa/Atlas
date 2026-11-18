@@ -1,3 +1,9 @@
+/**
+ * 系统配置（/admin-panel/config）：按分组展示 system_config，支持编辑、重置、导入导出与变更日志。
+ *
+ * 数据来源：configApi；写操作后必须调用 refreshConfig() 刷新全局配置上下文，否则页面仍读旧值。
+ * 约束：is_sensitive 字段默认打码，只有用户主动切换后才显示明文。
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Settings,
@@ -35,6 +41,7 @@ import { useNotification } from '@/hooks';
 import { useConfig } from '@/contexts';
 import { useTranslation } from 'react-i18next';
 
+// 值必须是 i18n key；新增配置类型时三种语言需同步补齐
 const CONFIG_TYPE_LABELS: Record<string, string> = {
   string: 'admin:config.type.string',
   integer: 'admin:config.type.integer',
@@ -69,6 +76,7 @@ function parseSelectOptions(raw: string | null | undefined): SelectOption[] {
   }
 }
 
+// 分组名与后端 system_config.group 对应，未命中的分组回落到齿轮图标
 const CONFIG_GROUP_ICONS: Record<string, React.ReactNode> = {
   basic: <Globe className="w-4 h-4" />,
   features: <Zap className="w-4 h-4" />,
@@ -84,6 +92,7 @@ const EMAIL_PROVIDER_LABELS: Record<EmailProviderName, string> = {
   brevo: 'Brevo',
 };
 
+/** 配置页；所有写操作成功后需同时重载列表与全局配置上下文。 */
 export const ConfigTab: React.FC = () => {
   const notification = useNotification();
   const { refreshConfig } = useConfig();

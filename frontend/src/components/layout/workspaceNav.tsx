@@ -1,3 +1,7 @@
+/**
+ * 侧栏导航数据源（社区 / 个人中心 / 管理后台）。
+ * 约束：path 需与路由表一致，i18n 三语必须齐全；AppShell 另有一份同语义分组数据，改动需同步。
+ */
 import React from 'react';
 import {
   Activity,
@@ -30,6 +34,7 @@ import {
   Users,
 } from 'lucide-react';
 
+/** 工作区标识，用于按区域区分导航来源。 */
 export type WorkspaceId = 'search' | 'community' | 'dashboard' | 'admin';
 
 export interface WorkspaceNavItem {
@@ -45,6 +50,8 @@ export interface WorkspaceNavGroup {
   items: WorkspaceNavItem[];
 }
 
+// ── 图标 ─────────────────────────────────────
+
 function ShieldIcon() {
   return <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 5 6v6c0 4.4 3 8.4 7 9 4-.6 7-4.6 7-9V6l-7-3z" /></svg>;
 }
@@ -53,6 +60,9 @@ function SettingsIcon() {
   return <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>;
 }
 
+// ── 导航数据 ─────────────────────────────────────
+
+/** 社区侧栏分组：是否挂载由 communityEnabled 开关决定。 */
 export const communityNavGroups: WorkspaceNavGroup[] = [
   {
     id: 'community',
@@ -66,6 +76,7 @@ export const communityNavGroups: WorkspaceNavGroup[] = [
   },
 ];
 
+/** 个人中心侧栏分组；categories 项仅管理员可见。 */
 export const dashboardNavGroups: WorkspaceNavGroup[] = [
   {
     id: 'overview',
@@ -111,6 +122,7 @@ export const dashboardNavGroups: WorkspaceNavGroup[] = [
   },
 ];
 
+/** 管理后台侧栏分组，仅 admin / super_admin 可见。 */
 export const adminNavGroups: WorkspaceNavGroup[] = [
   {
     id: 'overview',
@@ -171,7 +183,14 @@ export const adminNavGroups: WorkspaceNavGroup[] = [
   },
 ];
 
-/** 各工作区侧栏项的 active 判断：首页同时匹配默认子路由。 */
+// ── 激活判断 ─────────────────────────────────────
+
+/**
+ * 侧栏项激活判断。
+ *
+ * 首页类路径需额外匹配默认子路由（如 /community/browse），
+ * 数据存储概览是索引页，必须排除子页前缀抢占。
+ */
 export const isNavItemActive = (path: string, pathname: string): boolean => {
   if (path === '/main') return pathname === '/main';
   if (path === '/community') return pathname === '/community' || pathname.startsWith('/community/browse');

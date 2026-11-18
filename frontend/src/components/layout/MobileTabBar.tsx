@@ -19,6 +19,7 @@ interface MobileTab {
   active: boolean;
 }
 
+/** 移动端底部主导航（仅 <lg 渲染）；激活态完全由 pathname 推导。 */
 export const MobileTabBar: React.FC = () => {
   const { t } = useTranslation(['nav']);
   const { isAuthenticated } = useAuthStore();
@@ -70,7 +71,7 @@ export const MobileTabBar: React.FC = () => {
       aria-label={t('nav:mobileNav.ariaLabel')}
     >
       <div className="relative flex h-14 items-stretch">
-        {/* 金色滑动指示条：位置由路由推导，切换时平滑跟随 */}
+        {/* 金色滑动指示条：宽度按 tab 数均分，找不到激活项时隐藏 */}
         <div
           aria-hidden="true"
           className={clsx(

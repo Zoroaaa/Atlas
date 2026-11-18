@@ -1,8 +1,7 @@
 /**
- * 内部榜单导入路由
+ * 内部榜单导入路由：POST /api/internal/rankings/import。
  *
- * POST /api/internal/rankings/import
- * 只接受带 X-Rankings-Secret 的机器调用，不走 admin JWT。
+ * 约束：只接受带 X-Rankings-Secret 的机器调用，不走 admin JWT；未配置密钥时入口关闭。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -14,6 +13,7 @@ import { purgeRankingCaches } from '@/services/ranking-cache';
 
 export const rankingsRoutes = new Hono<{ Bindings: Env }>();
 
+/** 定长比较，避免逐字符提前返回带来的时序侧信道；长度不等直接判失败。 */
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -23,6 +23,7 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// 导入入口是机器对机器调用：密钥只从环境变量读取，缺失即视为功能未启用
 rankingsRoutes.use('/import', async (c, next) => {
   const secret = c.env.RANKINGS_IMPORT_SECRET;
   if (!secret) {
@@ -37,6 +38,7 @@ rankingsRoutes.use('/import', async (c, next) => {
   await next();
 });
 
+/** 导入榜单快照：写入成功后立即失效对应缓存，保证下一次请求拿到新榜。 */
 rankingsRoutes.post(
   '/import',
   validateBody(schemas.rankings.import),

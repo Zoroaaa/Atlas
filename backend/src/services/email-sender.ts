@@ -1,12 +1,7 @@
 /**
- * 统一邮件发送器
+ * 统一邮件发送器：验证码 / 通知摘要 / 反馈回复共用通道选择、发送日志与限流口径。
  *
- * 验证码、通知摘要、反馈回复三类邮件共用：
- * - 同一套发送通道选择（Cloudflare / Resend / Mailtrap / Brevo）
- * - 同一套 email_send_logs 记录字段
- * - 同一套“哪些邮件计入验证码发送限流”的口径
- *
- * 各业务模块只负责模板渲染与触发时机，邮件文案不变。
+ * 通道按管理端优先级依次尝试，跳过停用/未配置/超日限额的服务商；各服务商使用独立子域发件地址。
  */
 import { generateId, hashToken } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
@@ -36,11 +31,12 @@ export interface SendResult {
 /** 不计入验证码发送限流的邮件类型（通知/运营/管理员测试） */
 const NON_RATE_LIMITED_EMAIL_TYPES = ['notification_digest', 'feedback_reply', 'admin_test'] as const;
 
+/** 该邮件类型是否计入验证码发送限流（通知/运营/管理测试计入白名单豁免）。 */
 export function isRateLimitedEmailType(emailType: string): boolean {
   return !NON_RATE_LIMITED_EMAIL_TYPES.includes(emailType as typeof NON_RATE_LIMITED_EMAIL_TYPES[number]);
 }
 
-// ─── 发送通道 ──────────────────────────────────────────────────────────
+// ── 发送通道 ──────────────────────────────────────────────────────────
 
 /**
  * 各服务商的发件地址。
@@ -54,6 +50,7 @@ const PROVIDER_FROM_EMAIL: Record<Exclude<EmailProvider, 'cloudflare'>, string> 
   brevo: 'noreply@brevo.wort.uk',
 };
 
+/** 取服务商发件地址；Cloudflare 走 DEFAULT_FROM_EMAIL 兜底。 */
 export function getProviderFromEmail(env: Env, provider: EmailProvider): string {
   return provider === 'cloudflare'
     ? env.DEFAULT_FROM_EMAIL || 'noreply@mail.wort.uk'
@@ -71,6 +68,7 @@ function resolveFrom(
   };
 }
 
+/** Resend 通道发送；未配置 key 或请求失败都返回 ok=false，不抛错。 */
 export async function sendResendEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
   if (!env.RESEND_API_KEY) return { ok: false, error: '未配置 RESEND_API_KEY', provider: 'resend' };
 
@@ -98,6 +96,7 @@ export async function sendResendEmail(env: Env, email: OutgoingEmail): Promise<S
   }
 }
 
+/** Cloudflare Email Binding 通道发送；错误统一拼成 `code: message` 返回。 */
 export async function sendCloudflareEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
   if (!env.EMAIL) {
     return { ok: false, error: '未配置 Cloudflare EMAIL 绑定', provider: 'cloudflare' };
@@ -124,6 +123,7 @@ export async function sendCloudflareEmail(env: Env, email: OutgoingEmail): Promi
   }
 }
 
+/** Mailtrap 通道发送；errors 可能是数组或对象，需分别展开成可读错误。 */
 export async function sendMailtrapEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
   if (!env.MAILTRAP_API_TOKEN) {
     return { ok: false, error: '未配置 MAILTRAP_API_TOKEN', provider: 'mailtrap' };
@@ -168,6 +168,7 @@ export async function sendMailtrapEmail(env: Env, email: OutgoingEmail): Promise
   }
 }
 
+/** Brevo 通道发送；请求体字段名与其他服务商不同（htmlContent/textContent）。 */
 export async function sendBrevoEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
   if (!env.BREVO_API_KEY) {
     return { ok: false, error: '未配置 BREVO_API_KEY', provider: 'brevo' };
@@ -313,6 +314,7 @@ async function countProviderSentToday(env: Env, provider: EmailProvider): Promis
   }
 }
 
+/** 按服务商分发；未知取值回落到 resend（历史默认通道）。 */
 function dispatchToProvider(env: Env, provider: EmailProvider, email: OutgoingEmail): Promise<SendResult> {
   switch (provider) {
     case 'cloudflare':
@@ -367,7 +369,7 @@ export async function sendEmail(env: Env, email: OutgoingEmail): Promise<SendRes
   };
 }
 
-// ─── 统一发送日志 ────────────────────────────────────────────────────────
+// ── 统一发送日志 ──────────────────────────────────────────────────────
 
 export interface EmailSendLogOptions {
   userId?: string | null;
@@ -420,12 +422,14 @@ export async function buildEmailSendLogStatement(
   );
 }
 
+/** 直接落一条发送日志；需要与队列状态同批写入时改用 buildEmailSendLogStatement。 */
 export async function logEmailSend(db: D1Database, options: EmailSendLogOptions): Promise<void> {
   await (await buildEmailSendLogStatement(db, options)).run();
 }
 
-// ─── 统一限流口径 ────────────────────────────────────────────────────────
+// ── 统一限流口径 ──────────────────────────────────────────────────────
 
+/** 统计窗口内计入限流的成功发送数；邮箱或 IP 任一命中都计入。 */
 export async function countRateLimitedEmailsSince(
   db: D1Database,
   params: { email: string; ipAddress: string; since: number }

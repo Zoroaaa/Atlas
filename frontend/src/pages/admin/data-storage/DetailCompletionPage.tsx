@@ -1,10 +1,7 @@
 /**
- * 数据存储 · 详情补全
- *
- * 从原「统计概览」中拆出的 JAV 详情批量补全面板：
- * - 四个字段入口（导演/制作商/发行商/磁力）
- * - 三个状态入口（待补全/暂时失败/源站缺失）
- * - 暂停/继续/停止、进度、最近失败
+ * 数据存储 · 详情补全（/admin-panel/data-storage/detail）。
+ * 数据来源：dataStorageApi.getDetailJob；运行中每 15 秒仅拉进度，完整统计在打开页面与任务结束时各拉一次。
+ * 约束：筛选只决定挑选哪些记录，抓到后仍写完整详情，避免半成品数据。
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { clsx } from 'clsx';
@@ -35,6 +32,7 @@ import {
   toNumber,
 } from './shared';
 
+/** JAV 详情完整度与批量补全主页面。 */
 export const DetailCompletionPage: React.FC = () => {
   const { t } = useTranslation(['admin']);
   const toast = useToast();
@@ -171,8 +169,9 @@ export const DetailCompletionPage: React.FC = () => {
   );
 };
 
-// ─── 子组件：JAV 详情完整度与批量补全 ────────────────────────────────
+// ── 详情补全面板 ─────────────────────────────
 
+/** 补全任务面板：四类字段入口 + 三类状态入口 + 运行控制与最近失败。 */
 const DetailJobPanel: React.FC<{
   view: JavDetailJobView | null;
   startingFilter: JavDetailJobFilter | null;

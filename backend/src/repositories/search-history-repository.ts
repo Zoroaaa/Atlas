@@ -64,6 +64,7 @@ export async function enrichSearchHistory(
   values: (string | number)[],
   resultsCount: number
 ): Promise<void> {
+  // fields 由调用方按固定白名单构造（形如 'title=?'），不得拼接用户输入
   const allFields = [...fields, 'results_count=?'];
   const allValues: (string | number)[] = [...values, resultsCount, id, userId];
   await db
@@ -72,12 +73,13 @@ export async function enrichSearchHistory(
     .run();
 }
 
-/** 全局搜索历史的「建议」前缀统计（近 30 天，按来源过滤） */
+/** 「建议」前缀统计；since 由调用方给定窗口（业务侧取近 30 天），source='all' 表示通用模式记录 */
 export async function querySuggestionStats(
   db: D1Database,
   opts: { since: number; prefix: string; source: string; limit: number; compactPrefix?: string }
 ): Promise<{ keyword: string; count: number }[]> {
-  // JAV 番号 WAAA-624 / WAAA624 等价：额外用「去掉横杠」的形式匹配一次
+  // JAV 番号 WAAA-624 / WAAA624 等价：额外用「去掉横杠」的形式匹配一次；
+  // 副作用是 GROUP BY query 仍按原始写法分组，两种写法会各自计数
   const compactClause = opts.compactPrefix ? ` OR REPLACE(query, '-', '') LIKE ?` : '';
   const values: (string | number)[] = [opts.since, opts.prefix];
   if (opts.compactPrefix) values.push(opts.compactPrefix);
@@ -97,7 +99,7 @@ export async function querySuggestionStats(
   return rows.results || [];
 }
 
-/** 全局搜索历史的「热门」统计（时间窗内按次数排序） */
+/** 「热门」统计：不区分来源，按 since 窗口内的出现次数排序 */
 export async function queryTrendingStats(
   db: D1Database,
   opts: { since: number; limit: number }

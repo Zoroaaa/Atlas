@@ -1,12 +1,8 @@
 /**
- * 管理后台数据访问层
+ * 管理后台数据访问层：用户/角色、登录与行为日志、举报、系统统计、会话、
+ * 分析事件、看板趋势与错误监控的 SQL 全部收口于此。
  *
- * 收口 admin 路由涉及的全部 SQL：用户/角色管理、登录与行为日志、举报处理、
- * 系统统计、会话管理、分析事件、看板与趋势、错误监控等。
- * 使 admin 路由不再直接持有 SQL；需要原子性的多语句操作在此整体提供。
- *
- * 说明：本文件中「用户」相关查询刻意集中于此（而非 user-repository），
- * 以避免改动既有 repository、降低回归风险。
+ * 需原子性的多语句操作以 db.batch 整体提供；用户相关查询刻意留在此文件以降低回归风险。
  */
 import type { CommunityReport, Role, User, UserAction } from '@/types';
 
@@ -16,9 +12,7 @@ type SqlValue = string | number | boolean | null;
 /** 通用结果行 */
 type Row = Record<string, unknown>;
 
-// ===========================================================================
-// 角色管理
-// ===========================================================================
+// ── 角色管理 ────────────────────────────────────────────────────────
 
 /** 查询全部角色（按优先级倒序） */
 export async function listRoles(db: D1Database): Promise<Role[]> {
@@ -31,9 +25,7 @@ export async function findRoleById(db: D1Database, roleId: string): Promise<Role
   return db.prepare('SELECT * FROM roles WHERE id = ?').bind(roleId).first<Role>();
 }
 
-// ===========================================================================
-// 用户统计与列表
-// ===========================================================================
+// ── 用户统计与列表 ──────────────────────────────────────────────────
 
 /** 用户概览统计行 */
 export interface UserStatsRow {
@@ -121,7 +113,7 @@ function userListFilter(opts: { search?: string; status?: string; roleId?: strin
 
 /**
  * 分页查询用户列表（含角色名，按创建时间倒序）。
- * 合并了原先 countUsers + listUsers 两次请求：同批执行，1 个 D1 往返。
+ * COUNT 与列表同批执行：1 个 D1 往返，避免两次请求。
  */
 export async function listUsers(
   db: D1Database,
@@ -212,9 +204,7 @@ export async function listUserRecentActions(
   return rows.results || [];
 }
 
-// ===========================================================================
-// 用户角色 / 状态 / 权限维护
-// ===========================================================================
+// ── 用户角色 / 状态 / 权限维护 ──────────────────────────────────────
 
 /** 用户角色引用（用于角色变更） */
 export type UserRoleRef = { id: string; username: string; role_id?: string };
@@ -278,9 +268,7 @@ export async function findUserRoleAndPriority(
     .first<User & { role_name: string; priority: number }>();
 }
 
-// ===========================================================================
-// 登录日志 / 活跃用户 / 活跃排名
-// ===========================================================================
+// ── 登录日志 / 活跃用户 / 活跃排名 ──────────────────────────────────
 
 /** 统计用户登录相关行为数（login / login_failed） */
 export async function countUserLoginActions(db: D1Database, userId: string): Promise<number> {
@@ -314,6 +302,7 @@ export async function listActiveUsers(
   db: D1Database,
   opts: { startTime: number; limit: number }
 ): Promise<Row[]> {
+  // 时间窗放在 LEFT JOIN 的 ON 里而不是 WHERE：没有行为的活跃用户仍会保留，计数为 0
   const rows = await db
     .prepare(
       `SELECT u.id, u.username, u.email, u.role_id, u.login_count,
@@ -444,9 +433,7 @@ export async function listLoginFailedAttempts(db: D1Database, startTime: number)
   return rows.results || [];
 }
 
-// ===========================================================================
-// 举报处理
-// ===========================================================================
+// ── 举报处理 ────────────────────────────────────────────────────────
 
 /** 统计某状态的举报数 */
 export async function countReportsByStatus(db: D1Database, status: string): Promise<number> {
@@ -506,7 +493,7 @@ export async function updateReportHandling(
     .run();
 }
 
-/** 隐藏帖子（举报处理为移除来源时） */
+/** 隐藏帖子：软删除，仅把 status 置为 hidden，历史数据保留 */
 export async function hidePost(db: D1Database, opts: { postId: string; now: number }): Promise<void> {
   await db
     .prepare("UPDATE community_posts SET status = 'hidden', updated_at = ? WHERE id = ?")
@@ -514,9 +501,7 @@ export async function hidePost(db: D1Database, opts: { postId: string; now: numb
     .run();
 }
 
-// ===========================================================================
-// 系统统计
-// ===========================================================================
+// ── 系统统计 ────────────────────────────────────────────────────────
 
 /** 系统用户统计行（本周新增） */
 export interface SystemUserStatsRow {
@@ -648,9 +633,7 @@ export async function listTopUsedSources(db: D1Database): Promise<Row[]> {
   return rows.results || [];
 }
 
-// ===========================================================================
-// 行为日志统计与列表
-// ===========================================================================
+// ── 行为日志统计与列表 ──────────────────────────────────────────────
 
 /** 行为日志总数 */
 export async function countUserActions(db: D1Database): Promise<number> {
@@ -732,6 +715,7 @@ function actionLogFilter(opts: { userId?: string; username?: string; action?: st
     params.push(`%${opts.username}%`);
   }
   if (opts.action) {
+    // 支持逗号分隔多值；值只作为绑定参数，不参与 SQL 拼接
     const actions = opts.action.split(',').map(a => a.trim()).filter(Boolean);
     if (actions.length > 0) {
       conditions.push(`a.action IN (${actions.map(() => '?').join(', ')})`);
@@ -775,9 +759,7 @@ export async function listActionLogs(
   return rows.results || [];
 }
 
-// ===========================================================================
-// 数据清理
-// ===========================================================================
+// ── 数据清理 ────────────────────────────────────────────────────────
 
 /** 删除过期的密码重置日志，返回删除条数 */
 export async function deletePasswordResetLogsBefore(db: D1Database, before: number): Promise<number> {
@@ -797,9 +779,7 @@ export async function deleteSecurityEventsBefore(db: D1Database, before: number)
   return result.meta.changes || 0;
 }
 
-// ===========================================================================
-// 会话管理
-// ===========================================================================
+// ── 会话管理 ────────────────────────────────────────────────────────
 
 /** 会话总数 */
 export async function countAllSessions(db: D1Database): Promise<number> {
@@ -943,9 +923,7 @@ export async function deleteSessionById(db: D1Database, sessionId: string): Prom
   await db.prepare('DELETE FROM user_sessions WHERE id = ?').bind(sessionId).run();
 }
 
-// ===========================================================================
-// 分析事件
-// ===========================================================================
+// ── 分析事件 ────────────────────────────────────────────────────────
 
 /** 统计自某时刻起的分析事件数 */
 export async function countAnalyticsEventsSince(db: D1Database, startTime: number): Promise<number> {
@@ -1089,9 +1067,7 @@ export async function listAnalyticsEvents(
   return rows.results || [];
 }
 
-// ===========================================================================
-// 看板概览
-// ===========================================================================
+// ── 看板概览 ────────────────────────────────────────────────────────
 
 /** 看板用户统计行 */
 export interface DashboardUserStatsRow {
@@ -1253,7 +1229,7 @@ export async function listDashboardRecentActions(db: D1Database): Promise<Row[]>
   return rows.results || [];
 }
 
-/** 看板概览快照：10 条聚合查询合并为一个 db.batch（1 个 D1 往返） */
+/** 看板概览快照：各分区统计 + 最近行为动态 */
 export interface DashboardOverviewSnapshot {
   userStats: DashboardUserStatsRow | null;
   sessionStats: { total: number; active: number; unique_users: number } | null;
@@ -1267,6 +1243,7 @@ export interface DashboardOverviewSnapshot {
   activeUsersToday: number;
 }
 
+/** 10 条聚合查询合并为一个 db.batch，1 个 D1 往返生成看板首屏数据。 */
 export async function getDashboardOverviewSnapshot(
   db: D1Database,
   opts: { oneDayAgo: number; oneWeekAgo: number; oneMonthAgo: number; now: number }
@@ -1354,9 +1331,7 @@ export async function getDashboardOverviewSnapshot(
   };
 }
 
-// ===========================================================================
-// 趋势 / 用户行为
-// ===========================================================================
+// ── 趋势 / 用户行为 ─────────────────────────────────────────────────
 
 /** 用户注册按天趋势 */
 export async function listUserRegistrationsByDay(db: D1Database, startTime: number): Promise<Row[]> {
@@ -1486,9 +1461,7 @@ export async function listWeeklyActivity(db: D1Database, startTime: number): Pro
   return rows.results || [];
 }
 
-// ===========================================================================
-// 错误监控
-// ===========================================================================
+// ── 错误监控 ────────────────────────────────────────────────────────
 
 /** 错误总体统计行 */
 export interface SystemErrorStatsRow {
@@ -1604,6 +1577,7 @@ function systemErrorFilter(opts: {
   const conditions: string[] = [];
   const params: SqlValue[] = [];
 
+  // source 只接受 frontend/backend，非法值等价于不做来源过滤
   if (opts.source === 'frontend' || opts.source === 'backend') {
     conditions.push('source = ?');
     params.push(opts.source);
@@ -1663,7 +1637,7 @@ export async function listSystemErrors(
   return rows.results || [];
 }
 
-/** 按 id 批量查询用户名（用于错误列表关联用户名） */
+/** 按 id 批量查询用户名（用于错误列表关联用户名）；ids 长度由调用方限制，此处不截断 */
 export async function listUsernamesByIds(
   db: D1Database,
   ids: string[]

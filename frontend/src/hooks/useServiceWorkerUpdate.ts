@@ -1,11 +1,6 @@
 /**
- * useServiceWorkerUpdate — 用户确认后再应用的 Service Worker 更新流程。
- *
- * - 新版本安装后停留在 waiting，不自动接管
- * - 同一 waiting worker 只提示一次；「稍后」按版本号持久化，新版本到达时会再次提示
- * - 用户点「立即更新」后进入连续更新链：刷新后若仍有 waiting 版本，自动继续，
- *   直到没有待更新版本；次数 / 时间窗口 / 版本不变会中止，避免刷新死循环
- * - 用户确认时若仍有在途 API 请求，先等待请求结束再 skipWaiting + 刷新
+ * useServiceWorkerUpdate — 需用户确认后才应用的 Service Worker 更新流程。
+ * 同一 worker 只提示一次（「稍后」按版本持久化）；确认后先等在途请求再接管，连续更新遇版本不变即中止。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import i18next from '@/i18n';
@@ -19,9 +14,12 @@ import {
   writePwaUpdateLoop,
 } from '@/services/pwaUpdateLoop';
 
+/** 更新提示状态机：available 待确认，waiting 等在途请求，applying 接管中。 */
 export type SwUpdateStatus = 'idle' | 'available' | 'waiting' | 'applying';
 
+// localStorage 中「已忽略」的版本号，跨会话生效；新版本号变化后会再次提示
 const DISMISS_STORAGE_KEY = 'pwa:update-dismissed-version';
+// 拿不到版本号时的占位值，保证「稍后」仍能按版本维度去重
 const UNKNOWN_VERSION = '__unknown__';
 
 const getSessionStorage = (): Storage | null => {
@@ -53,6 +51,7 @@ const getWorkerVersion = (worker: ServiceWorker): Promise<string | null> =>
   new Promise((resolve) => {
     try {
       const channel = new MessageChannel();
+      // 1500ms 未响应视为 SW 不支持 GET_VERSION，按未知版本处理
       const timer = window.setTimeout(() => {
         channel.port1.close();
         resolve(null);
@@ -159,6 +158,7 @@ export interface UseServiceWorkerUpdateOptions {
   enabled?: boolean;
 }
 
+/** 订阅 SW 更新并暴露应用 / 忽略动作；默认只在生产构建启用。 */
 export const useServiceWorkerUpdate = (
   options: UseServiceWorkerUpdateOptions = {}
 ): ServiceWorkerUpdateState => {

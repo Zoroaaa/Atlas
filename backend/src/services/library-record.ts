@@ -9,8 +9,10 @@ import { inspectJavCode } from '@codeseek/shared/utils';
 
 export type LibraryRecordType = 'jav' | 'anime' | 'movie' | 'manga' | 'novel';
 
+/** 可入库的记录类型；与 data_records.record_type 取值保持一致。 */
 export const LIBRARY_RECORD_TYPES: LibraryRecordType[] = ['jav', 'anime', 'movie', 'manga', 'novel'];
 
+/** 类型守卫：路由/前端传入的字符串是否为受支持的记录类型。 */
 export function isLibraryRecordType(value: string): value is LibraryRecordType {
   return (LIBRARY_RECORD_TYPES as string[]).includes(value);
 }
@@ -57,7 +59,7 @@ export interface LibraryRecordQuery {
   title?: string;
 }
 
-// ─── 内部辅助 ────────────────────────────────────────────────────────
+// ── 内部辅助 ────────────────────────────────────────────────────────
 
 interface RecordRow {
   id: string;
@@ -236,7 +238,7 @@ async function findIdByQuery(
   return row?.id ?? null;
 }
 
-// ─── 公开 API ────────────────────────────────────────────────────────
+// ── 公开 API ────────────────────────────────────────────────────────
 
 /**
  * 按「类别 + code/url/标题」读取单条本地库记录。

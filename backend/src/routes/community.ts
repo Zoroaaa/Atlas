@@ -1,7 +1,7 @@
 /**
- * 社区模块路由
- * 功能：资源分享（帖子/标签/评论/点赞/收藏/举报/统计/通知）
- * 版本：3.0 - 从搜索源分享重构为资源分享
+ * 社区路由：帖子、标签、评论、点赞收藏、举报与个人统计。
+ *
+ * 约束：所有请求先过 authMiddleware 与社区开关；写操作统一走 enforceWriteLimit 限流。
  */
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -53,6 +53,7 @@ import {
 
 export const communityRoutes = new Hono<{ Bindings: Env }>();
 
+// tags 列存的是 JSON 数组字符串，标签名中的 % / _ 会破坏 LIKE 匹配，必须转义
 const escapeLike = (v: string) => v.replace(/[\\%_]/g, (m) => '\\' + m);
 
 /** 浏览量去重窗口：同一用户对同一帖子 24 小时内只计一次 */
@@ -122,9 +123,7 @@ communityRoutes.use('*', async (c, next) => {
   await next();
 });
 
-// ============================================================
-// 1. 标签管理
-// ============================================================
+// ── 标签管理 ─────────────────────────────────────────────
 
 /** 获取所有活跃标签 */
 communityRoutes.get('/tags', async (c) => {
@@ -346,9 +345,7 @@ communityRoutes.delete('/tags/:id', async (c) => {
   }
 });
 
-// ============================================================
-// 6. 个人中心（必须在 /posts/:id 之前注册！）
-// ============================================================
+// ── 个人中心（必须注册在 /posts/:id 之前，否则会被动态路由抢先匹配） ─────
 
 /** 我的帖子 */
 communityRoutes.get('/posts/my-posts', async (c) => {
@@ -440,9 +437,7 @@ communityRoutes.get('/posts/my-favorites', async (c) => {
   }
 });
 
-// ============================================================
-// 2. 帖子管理
-// ============================================================
+// ── 帖子管理 ─────────────────────────────────────────────
 
 /** 获取帖子列表 */
 communityRoutes.get('/posts', async (c) => {
@@ -454,6 +449,7 @@ communityRoutes.get('/posts', async (c) => {
   const sort = c.req.query('sort') || 'latest';
   const search = c.req.query('search');
   const isAdmin = await checkIsAdmin(c);
+  // 普通用户被强制限定为 active；只有管理员能显式查询 hidden，用于审核
   const status = isAdmin ? (c.req.query('status') || 'active') : 'active';
 
   try {
@@ -468,7 +464,6 @@ communityRoutes.get('/posts', async (c) => {
       pageSize,
     });
 
-    // 当前用户的点赞/收藏状态
     const likedSet = new Set(likedPostIds);
     const favoritedSet = new Set(favoritedPostIds);
 
@@ -519,6 +514,7 @@ communityRoutes.get('/posts/:id', async (c) => {
     }
 
     if (post.status !== 'active' && post.user_id !== user.userId && !await checkIsAdmin(c)) {
+      // 隐藏帖子对非作者、非管理员统一返回 404，避免暴露帖子是否存在
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
@@ -538,7 +534,7 @@ communityRoutes.get('/posts/:id', async (c) => {
       }
     }
 
-    // 查询当前用户的点赞/收藏状态
+    // 列表接口会批量带出互动状态，详情页只有单条，单独查一次
     const interaction = await findPostInteractionState(c.env.DB, { postId, userId: user.userId });
 
     return c.json(success({
@@ -585,7 +581,7 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
     const now = Date.now();
     const contentDataStr = typeof contentData === 'string' ? contentData : JSON.stringify(contentData);
 
-    // 执行 INSERT（用户统计在读取时聚合，无需同步维护）
+    // 用户统计读取时聚合，这里只落帖子行，不维护冗余计数
     await insertPost(c.env.DB, {
       id,
       userId: user.userId,
@@ -724,9 +720,7 @@ communityRoutes.put('/posts/:id/status', validateBody(schemas.community.updatePo
   }
 });
 
-// ============================================================
-// 3. 互动功能 - 点赞 / 收藏（切换）
-// ============================================================
+// ── 互动功能：点赞 / 收藏（切换语义） ─────────────────────
 
 /** 点赞/取消点赞 */
 communityRoutes.post('/posts/:id/like', async (c) => {
@@ -787,6 +781,7 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
+    // 收藏与点赞共用 post_likes 表，靠 like_type 区分
     const existing = await findPostLike(c.env.DB, { postId, userId: user.userId, likeType: 'favorite' });
 
     if (existing) {
@@ -814,9 +809,7 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
   }
 });
 
-// ============================================================
-// 4. 评论功能
-// ============================================================
+// ── 评论功能 ─────────────────────────────────────────────
 
 /** 获取帖子评论列表 */
 communityRoutes.get('/posts/:id/comments', async (c) => {
@@ -943,9 +936,7 @@ communityRoutes.delete('/comments/:id', async (c) => {
   }
 });
 
-// ============================================================
-// 5. 举报功能
-// ============================================================
+// ── 举报功能 ─────────────────────────────────────────────
 
 /** 举报帖子 */
 communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportPost), async (c) => {
@@ -968,7 +959,7 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
       return c.json(error('NOT_FOUND', '帖子不存在'), 404);
     }
 
-    // 检查是否已举报过
+    // 去重只针对 pending 状态的举报，已处理过的帖子允许再次举报
     const existingReport = await findPendingReport(c.env.DB, { postId, userId: user.userId });
 
     if (existingReport) {
@@ -994,9 +985,7 @@ communityRoutes.post('/posts/:id/report', validateBody(schemas.community.reportP
   }
 });
 
-// ============================================================
-// 7. 统计
-// ============================================================
+// ── 统计 ─────────────────────────────────────────────────
 
 /** 当前用户统计（读时聚合，口径：仅统计 active 帖子与其收到的互动） */
 communityRoutes.get('/user-stats', async (c) => {

@@ -1,5 +1,7 @@
 /**
- * 通知路由：站内收件箱 + 偏好
+ * 通知路由：站内收件箱、公告合并、已读状态与通知偏好。
+ *
+ * 约束：全部接口要求登录；公告与站内通知在服务端合并后再分页，避免前端二次排序。
  */
 import { Hono } from 'hono';
 import { Env } from '@/types';
@@ -239,6 +241,7 @@ notificationRoutes.delete('/read', async (c) => {
   }
 });
 
+// 公告不提供全局删除，删除动作只记录当前用户的 dismissed_at
 notificationRoutes.delete('/:id', async (c) => {
   const user = c.get('user');
   const id = c.req.param('id');
@@ -276,6 +279,7 @@ async function preferencesPayload(db: D1Database, userId: string) {
   return { preferences, email, settings };
 }
 
+/** 通知偏好：各类型的站内/邮件开关、邮箱验证状态与全局设置一并返回 */
 notificationRoutes.get('/preferences', async (c) => {
   const user = c.get('user');
   try {

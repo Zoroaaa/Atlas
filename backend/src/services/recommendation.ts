@@ -1,9 +1,8 @@
 /**
- * JAV 推荐引擎
+ * JAV 推荐引擎：只负责相关度打分与候选筛选，不做人气加权、不乘榜单名次。
  *
- * 只做"相关度"。相关推荐（以当前作品为种子）：演员 50% / 标签 40% / 发行商 10%；
- * 为你推荐：只用标签 + 发行商（权重 4:1）——女优维度交给"关注女优"动态，不再重复计算。
- * 不做人气加权、不乘榜单名次；热门列表由 services/hot-list.ts 独立负责。
+ * 相关推荐权重为演员 50% / 标签 40% / 发行商 10%；为你推荐只算标签 + 发行商（4:1），
+ * 女优维度交给「关注女优」动态。热门列表由 services/hot-list.ts 独立负责。
  */
 import { RECOMMEND } from '@/constants';
 import type { JavRecommendationItem, JavRecommendationResponse } from '@/types';
@@ -36,7 +35,7 @@ import {
   type ScoredItem,
 } from './recommendation-allocation';
 
-// ─── 类型 ──────────────────────────────────────────────────────────────
+// ── 类型 ──────────────────────────────────────────────────────────────
 
 interface DimensionData {
   /** 小写 key → 归一化权重 */
@@ -72,7 +71,7 @@ export interface RelatedInput {
   limit?: number;
 }
 
-// ─── 维度收集 / 归一化 ────────────────────────────────────────────────
+// ── 维度收集 / 归一化 ────────────────────────────────────────────────
 
 function createCollector(): DimensionCollector {
   return { values: new Map() };
@@ -117,8 +116,11 @@ function topValues(dim: DimensionData, limit: number): string[] {
     .map(([key]) => dim.display[key] || key);
 }
 
-// ─── 画像 ──────────────────────────────────────────────────────────────
+// ── 画像 ──────────────────────────────────────────────────────────────
 
+/**
+ * 读取用户画像，按 userId 缓存；口径调整时必须升级 key 版本，否则旧画像会继续命中。
+ */
 export async function getUserProfile(
   db: D1Database,
   userId: string
@@ -220,8 +222,9 @@ async function buildUserProfile(db: D1Database, userId: string): Promise<UserPro
   };
 }
 
-// ─── 打分 ──────────────────────────────────────────────────────────────
+// ── 打分 ──────────────────────────────────────────────────────────────
 
+/** 把种子字段各自归一化为等权维度，用于计算候选与种子的重合度。 */
 function seedWeights(
   actors: string[],
   tags: string[],
@@ -300,8 +303,9 @@ function scoreRow(
   };
 }
 
-// ─── 相关推荐 ──────────────────────────────────────────────────────────
+// ── 相关推荐 ──────────────────────────────────────────────────────────
 
+/** 以当前作品为种子做相关推荐；排除已收藏与种子自身，按演员/标签/发行商加权打分。 */
 export async function recommendRelated(
   db: D1Database,
   userId: string,
@@ -362,7 +366,7 @@ export async function recommendRelated(
   };
 }
 
-// ─── 为你推荐 ──────────────────────────────────────────────────────────
+// ── 为你推荐 ──────────────────────────────────────────────────────────
 
 /**
  * 画像命中为空时返回 null，由路由层回退到独立热门列表。

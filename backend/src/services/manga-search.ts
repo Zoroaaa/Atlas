@@ -1,23 +1,21 @@
 /**
- * 漫画搜索服务
- * 元数据: MangaDex（主）+ MangaUpdates（第二源，补年份/评分/简介/类型/封面）
+ * 漫画搜索服务：MangaDex 为主源，MangaUpdates 为第二元数据源与主源失败时的降级源。
  *
- * ⚠️ 类型契约：本文件导出的接口（MangaItem, MangaSearchResult）
- *    与 frontend/src/types/search.ts 保持结构同步。
- *    修改任一端时，请同步更新另一端。
+ * 类型契约：MangaItem / MangaSearchResult 与 frontend/src/types/search.ts 同步。
+ * MangaUpdates 只做标题全等补全，避免把衍生作的简介/评分串到主作上。
  */
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { classifySearchError, sanitizeError, type SearchErrorKind } from '@/utils/error';
 
-// ─── Constants ───────────────────────────────────────────────────────────
+// ── 常量 ─────────────────────────────────────────────────
 
 const MD_BASE = 'https://api.mangadex.org';
 const COVER_BASE = 'https://uploads.mangadex.org/covers';
 const MU_API = 'https://api.mangaupdates.com/v1/series/search';
 const UA = 'Atlas/1.0 (https://github.com/Zoroaaa)';
 
-// ─── Types ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 interface MdManga {
   id: string;
@@ -78,8 +76,9 @@ export interface MangaSearchResult {
   manga: MangaItem[];
 }
 
-// ─── MangaDex ───────────────────────────────────────────────────────────
+// ── MangaDex ─────────────────────────────────────────────
 
+/** MangaDex 搜索：offset 分页，作者与封面通过 includes 随同一次请求返回。 */
 async function fetchMangaDex(keyword: string, page: number): Promise<{ items: MangaItem[]; total: number }> {
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -114,8 +113,9 @@ async function fetchMangaDex(keyword: string, page: number): Promise<{ items: Ma
   }
 }
 
-// ─── MangaUpdates（第二元数据源）────────────────────────────────────────
+// ── MangaUpdates（第二元数据源）─────────────────────────
 
+/** MangaUpdates 搜索；接口按 page/perpage 分页，返回 results 可能为空。 */
 async function fetchMangaUpdates(keyword: string, page: number): Promise<MuHit[]> {
   const r = await fetchWithRetry(MU_API, {
     method: 'POST',
@@ -140,6 +140,7 @@ function normalizeTitle(value: string): string {
     .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
+/** MangaUpdates 命中 → 统一 MangaItem；id 用 mu: 前缀避免与 MangaDex UUID 冲突。 */
 function muRecordToItem(hit: MuHit): MangaItem {
   const rec = hit.record;
   return {
@@ -185,8 +186,12 @@ function enrichWithMangaUpdates(items: MangaItem[], hits: MuHit[]): MangaItem[] 
   });
 }
 
-// ─── Search ─────────────────────────────────────────────────────────────
+// ── 搜索入口 ─────────────────────────────────────────────
 
+/**
+ * 漫画搜索主入口：MangaDex 成功时 MangaUpdates 仅补全元数据；
+ * MangaDex 失败时用 MangaUpdates 结果降级。
+ */
 export async function searchManga(
   keyword: string,
   page: number,
@@ -209,6 +214,7 @@ export async function searchManga(
 
   if (mdRes.status === 'fulfilled' && !skip.has('mangadex')) {
     const mdTotal = mdRes.value.total;
+    // limit 固定 20，与请求参数一致；只有 MangaDex 返回 total 才能准确判断是否还有下一页
     const hasMore = page * 20 < mdTotal;
     // 主源成功时，MangaUpdates 只做补全；它失败不影响结果，不向用户报错
     if (muRes.status === 'fulfilled') {
@@ -243,6 +249,8 @@ export async function searchManga(
       keyword,
       page,
       total: items.length,
+      // MangaUpdates 不返回总数，这里只能用本页条数猜测：
+      // 最后一页恰好满 20 条时会多显示一次「加载更多」，下一页返回空数组后自然收敛。
       hasMore: muRes.value.length >= 20,
       errors,
       errorKinds,

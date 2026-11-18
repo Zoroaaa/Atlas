@@ -1,50 +1,29 @@
 /**
- * CodeSeek 后端常量 — Layer 2: 代码固定值
+ * 后端代码级固定值（Layer 2）：枚举、正则、域名黑白名单、业务阈值与权重。
  *
- * 职责：存放真正的"代码级固定值"——改了需要修改代码重新部署的内容。
- *
- * 三层架构职责边界：
- *   Layer 1 wrangler.toml  → 部署级基础设施参数（域名、邮件发件人、JWT策略）
- *   Layer 2 constants.ts   → 本文件：代码枚举/正则/固定业务逻辑/验证规则
- *   Layer 3 DB system_config → 运行期业务参数，管理后台可热改
- *
- * 判断标准：
- *   放这里  → 改了需要改代码逻辑（正则、枚举、黑白名单、验证规则）
- *   放 DB   → 管理员在后台调一下就能生效（功能开关、安全限制）
+ * 分层：wrangler.toml 管部署参数，DB system_config 管可热改业务配置；
+ * 只有「改动必须改代码并重新部署」的值才放这里。
  */
 
 import { VALIDATION_PATTERNS } from '@codeseek/shared';
 
+/** 代码级固定配置集合 */
 export const CONFIG = {
 
-  // ==================================================================
-  // 默认域名配置 — 仅作为环境变量未设置时的 fallback
-  // 实际部署时应在 wrangler.toml 中配置 FRONTEND_URL 和 BACKEND_URL
-  // ==================================================================
-
+  // ── 默认域名（环境变量未设置时的兜底，正式部署以 wrangler.toml 为准） ──
   DEFAULT_URLS: {
     FRONTEND: 'https://atlas.wort.uk',
     BACKEND: 'https://atlas.wort.uk',
   },
 
-  // ==================================================================
-  // 固定枚举值 — 代码逻辑依赖，不可热改
-  // ==================================================================
-
-  // ==================================================================
-  // 正则表达式 — 格式规则，改了需改验证逻辑
-  // ==================================================================
-
+  // ── 正则表达式（格式规则，改动需同步验证逻辑） ──
   VALIDATION: {
     USERNAME_REGEX: VALIDATION_PATTERNS.USERNAME,
     EMAIL_REGEX: VALIDATION_PATTERNS.EMAIL,
     VERIFICATION_CODE_REGEX: VALIDATION_PATTERNS.VERIFICATION_CODE,
   },
 
-  // ==================================================================
-  // 邮箱域名黑白名单 — 安全规则，不允许管理员在后台修改
-  // ==================================================================
-
+  // ── 邮箱域名黑白名单（安全规则，不允许后台修改） ──
   TempEmail: {
     DOMAINS: [
       '10minutemail.com', 'guerrillamail.com', 'tempmail.org', 'temp-mail.org',
@@ -63,10 +42,7 @@ export const CONFIG = {
     ] as const,
   },
 
-  // ==================================================================
-  // CORS — 与部署域名强绑定，改了需要重新部署
-  // ==================================================================
-
+  // ── CORS（与部署域名强绑定，改动需重新部署） ──
   CORS: {
     MAX_AGE: 86400,
     ALLOW_METHODS: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -88,10 +64,7 @@ export const CONFIG = {
     MONTH_IN_MS: 30 * 24 * 60 * 60 * 1000,
   },
 
-  // ==================================================================
-  // UI/展示默认值 — 代码渲染逻辑依赖，无业务含义
-  // ==================================================================
-
+  // ── UI / 展示默认值（渲染逻辑依赖，无业务含义） ──
   Defaults: {
     SEARCH_PRIORITY: 5,
     DISPLAY_ORDER: 999,
@@ -103,10 +76,7 @@ export const CONFIG = {
     DEFAULT_SITE_TYPE: 'search',
   },
 
-  // ==================================================================
-  // 角色枚举 — 仅角色名判定（admin/superadmin），不存在细粒度权限体系
-  // ==================================================================
-
+  // ── 角色枚举（只按角色名判定 admin/superadmin，无细粒度权限体系） ──
   Roles: {
     DEFAULT_ROLE_ID: 'user',
     DEFAULT_ROLE_NAME: 'user',
@@ -115,16 +85,13 @@ export const CONFIG = {
   },
 };
 
-// ==================================================================
-// 共享验证规则 - 从 shared/ 单源导入，消除前后端重复维护
-// ==================================================================
+// ── 共享验证规则（从 shared/ 单源导入，避免前后端重复维护） ──
 export { VALIDATION_RULES } from '@codeseek/shared';
 
-// ==================================================================
-// DB配置Key常量 — 仅保留真正需要动态管理的配置项
-// 使用方式：configService.getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true)
-// ==================================================================
-
+/**
+ * DB system_config 的 key 常量，仅保留需要后台动态调整的项。
+ * 用法：configService.getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true)
+ */
 export const DB_CONFIG_KEYS = {
   // 基础配置 — 网站信息
   SITE_NAME: 'site_name',
@@ -171,10 +138,7 @@ export const DB_CONFIG_KEYS = {
   SECURITY_EVENT_RETENTION_DAYS: 'security_event_retention_days',
 } as const;
 
-// ==================================================================
-// JAV 榜单常量 — 周榜/月榜来源、面板限量、热门女优权重
-// ==================================================================
-
+// ── JAV 榜单（周榜/月榜来源、面板限量、热门女优权重） ──
 export const JAV_RANKING = {
   SOURCE: {
     CENSORED_WEEKLY: {
@@ -215,10 +179,7 @@ export const JAV_RANKING = {
   ACTRESS_FOLLOW_WEIGHT: 2,
 } as const;
 
-// ==================================================================
-// JavDB TOP250 — 总榜（全部 + 四个大类）每月、年度榜每两月同步
-// ==================================================================
-
+// ── JavDB TOP250（总榜每月、年度榜每两月同步） ──
 export const JAV_TOP250 = {
   /** 总的类别：来源站点的 type_value（all / 0 / 1 / 2 / 3） */
   SECTIONS: [
@@ -240,27 +201,29 @@ export const JAV_TOP250 = {
   MIN_IMPORT_ITEMS: 20,
 } as const;
 
+/** TOP250 全部板块 key（总榜 + 四个大类） */
 export const JAV_TOP250_SECTION_KEYS = JAV_TOP250.SECTIONS.map((item) => item.key);
+/** TOP250 板块 key 联合类型 */
 export type JavTop250SectionKey = (typeof JAV_TOP250.SECTIONS)[number]['key'];
 
+/** 年度榜覆盖年份（含首尾） */
 export const JAV_TOP250_YEARS: number[] = Array.from(
   { length: JAV_TOP250.YEAR_END - JAV_TOP250.YEAR_START + 1 },
   (_, index) => JAV_TOP250.YEAR_START + index
 );
 
+/** 板块 key → 榜单 source_name；未知 key 回退到总榜 */
 export function javTop250SourceName(section: JavTop250SectionKey): string {
   return JAV_TOP250.SECTIONS.find((item) => item.key === section)?.sourceName
     ?? JAV_TOP250.SECTIONS[0].sourceName;
 }
 
+/** 年度榜 source_name，形如 `JavDB:TOP250年度2024` */
 export function javTop250YearSourceName(year: number): string {
   return `JavDB:TOP250年度${year}`;
 }
 
-// ==================================================================
-// 关注女优 / 通知系统常量
-// ==================================================================
-
+// ── 关注女优 / 通知系统 ──
 export const FOLLOW = {
   MAX_PER_USER: 100,
   /** 每轮（每 30 分钟）最多检查 20 位关注对象 */
@@ -323,10 +286,7 @@ export const NOTIFICATION = {
   ] as const,
 } as const;
 
-// ==================================================================
-// 推荐标签（JavBus 类别词典 + 类别作品）常量
-// ==================================================================
-
+// ── 推荐标签（JavBus 类别词典 + 类别作品） ──
 export const GENRE_DICT = {
   CENSORED_URL: 'https://www.javbus.com/genre',
   UNCENSORED_URL: 'https://www.javbus.com/uncensored/genre',

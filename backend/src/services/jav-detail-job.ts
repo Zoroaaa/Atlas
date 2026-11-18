@@ -1,12 +1,8 @@
 /**
- * JAV 详情批量补全任务
+ * JAV 详情批量补全任务：每分钟 cron 按批次推进，状态落 D1，可停止/暂停且重启后续跑。
  *
- * - 手动启动后按批次运行（默认每批 5 条、批内间隔 4 秒），由每分钟 cron 驱动；
- * - 任务状态写 D1（detail_fetch_jobs），刷新页面 / Worker 重启后继续；
- * - 源站缺失累计 3 次后不再重试；暂时失败只退避，不消耗次数；
- * - 缺导演 / 制作商 / 发行商的记录不会进入每小时自动补全，只能由本任务的
- *   手动批次补（见 MANUAL_ONLY_PREDICATE）。
- * - 无新增 cron 时，也可以由现有每小时 cron 兜底推进。
+ * 失败语义：暂时失败只指数退避、不消耗次数；源站缺失累计 3 次后停止重试。
+ * 缺导演 / 制作商 / 发行商的记录不进入每小时自动补全，只能由管理端手动批次补。
  */
 import { DB_CONFIG_KEYS } from '@/constants';
 import { generateId } from '@/utils';
@@ -23,9 +19,11 @@ import { enrichDataRecordFromDetail } from './data-storage';
 import { fetchJavbusDetailWithMagnets, isJavCodeLike, normalizeJavCode } from './jav-utils';
 
 const LOCK_KEY = 'jav-detail-batch';
+/** cron 锁租约；5 分钟足以覆盖一批（5 条 × 4 秒 + 单条抓取超时） */
 const LOCK_TTL_MS = 5 * 60 * 1000;
 /** 每分钟 cron 每批处理的条数；接口与前端都复用这个默认值 */
 export const JAV_DETAIL_DEFAULT_BATCH_SIZE = 5;
+/** 条与条之间的间隔：JavBus 对连续请求敏感，批量抓取必须限速 */
 const RECORD_GAP_MS = 4000;
 
 /**
@@ -41,6 +39,7 @@ export type JavDetailMissingFilter =
   | 'director' | 'maker' | 'publisher' | 'magnets'
   | 'transient' | 'absent' | 'pending';
 
+/** 校验手动批次的筛选值；未知值返回 false，由调用方当作「不限」。 */
 export function isJavDetailMissingFilter(value: unknown): value is JavDetailMissingFilter {
   return value === 'director' || value === 'maker' || value === 'publisher'
     || value === 'magnets' || value === 'transient' || value === 'absent' || value === 'pending';
@@ -256,6 +255,7 @@ export async function isJavDetailJobEnabled(db: D1Database): Promise<boolean> {
   }
 }
 
+/** 管理面板视图：最近任务 + 候选集计数 + 运行时开关。 */
 export async function getJavDetailJobView(db: D1Database): Promise<JavDetailJobView> {
   const now = Date.now();
   const [job, enabled] = await Promise.all([getLatestJob(db), isJavDetailJobEnabled(db)]);
@@ -299,6 +299,7 @@ export async function getJavDetailJobProgress(db: D1Database): Promise<{
   return { job, enabled };
 }
 
+/** 全量完整度统计（打开页面/任务结束时使用，不在轮询路径上调用）。 */
 export async function getJavDetailStats(db: D1Database): Promise<JavDetailStats> {
   const [totalRow, agg] = await Promise.all([
     db
@@ -350,6 +351,11 @@ export async function getJavDetailStats(db: D1Database): Promise<JavDetailStats>
   };
 }
 
+/**
+ * 启动任务：筛选条件落库，后续每个 cron tick 沿用同一条件。
+ *
+ * 已有 running 任务时不新建（并发点击由唯一索引兜底），直接返回当前视图。
+ */
 export async function startJavDetailJob(
   db: D1Database,
   options: { batchSize?: number; createdBy?: string; missing?: JavDetailMissingFilter | null } = {}
@@ -637,7 +643,7 @@ export async function fetchJavDetailForRecord(
  * 空转门控分两步：
  *   1. 先看是否存在 running 任务（无则 1 条语句直接返回，最省）；
  *   2. 再用 isJavDetailJobEnabled 判断开关——它与暂停/继续、批次内续跑共用
- *      同一套取值解析（0/false/否/no/off 等），避免 Go 与 SQL 各认一套值。
+ *      同一套取值解析（0/false/否/no/off 等），避免 cron 与补全逻辑各认一套值。
  * 开关关闭时在抢 cron 锁、统计候选集之前就返回，不产生任何抓取请求；
  * 任务行保持 running，重新打开后从同一任务继续。
  */

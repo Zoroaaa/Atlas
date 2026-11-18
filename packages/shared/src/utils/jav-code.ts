@@ -1,13 +1,11 @@
 /**
- * JAV 番号清洗 / 识别 / 查询变体
+ * JAV 番号清洗 / 识别 / 查询变体（前后端唯一事实来源）。
  *
- * 前后端唯一事实来源：搜索校验、榜单导入、推荐判断都使用同一套规则。
- * 设计原则：
- *   - 识别宽：标准番号、数字日期、下划线日期、多段（FC2）、HEYZO、数字前缀等；
- *   - canonical 只做无歧义归一化，不擅自改变站点语义（如下划线不改成横杠）；
- *   - 查询变体只用于后端详情抓取，不用于 UI 展示。
+ * 原则：识别从宽（标准、日期、FC2、Tokyo Hot 等），normalize 只做无歧义归一化，
+ * 不改写站点语义（如下划线不转横杠）；查询变体只用于后端抓取，不用于 UI 展示。
  */
 
+/** 番号格式分类，决定生成哪些查询变体。 */
 export type JavCodeKind =
   | 'standard'
   | 'alnum'
@@ -17,6 +15,7 @@ export type JavCodeKind =
   | 'tokyo-hot'
   | 'unknown';
 
+/** 识别结果：code 为归一化值，recognized=false 时应回退到标题 / 多源搜索。 */
 export interface JavCodeInfo {
   code: string;
   kind: JavCodeKind;

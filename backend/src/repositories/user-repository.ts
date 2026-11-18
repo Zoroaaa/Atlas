@@ -16,12 +16,11 @@ const USER_WITH_ROLE_SELECT = `SELECT u.*, r.name as role_name, r.display_name a
   FROM users u
   LEFT JOIN roles r ON u.role_id = r.id`;
 
+/** 会话写入语句：token_hash 为 SHA-256 摘要，明文 token 不落库 */
 const SESSION_INSERT = `INSERT INTO user_sessions (id, user_id, token_hash, expires_at, created_at, last_activity, ip_address, user_agent)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-// ---------------------------------------------------------------------------
-// users
-// ---------------------------------------------------------------------------
+// ── users ───────────────────────────────────────────────────────────
 
 /** 按登录标识（用户名或邮箱）查询用户（含角色） */
 export async function findUserForLogin(
@@ -29,6 +28,7 @@ export async function findUserForLogin(
   field: 'username' | 'email',
   value: string
 ): Promise<UserWithRole | null> {
+  // 列名只能来自联合类型的两个白名单值，实际值走参数绑定，避免拼接注入
   const column = field === 'email' ? 'u.email' : 'u.username';
   return db.prepare(`${USER_WITH_ROLE_SELECT} WHERE ${column} = ?`).bind(value).first<UserWithRole>();
 }
@@ -208,6 +208,7 @@ export async function resetPasswordAndRevokeSessions(
 
 /** 删除账户：级联清理该用户的全部关联数据 */
 export async function deleteAccountCascade(db: D1Database, userId: string): Promise<void> {
+  // 逐表显式删除，不依赖外键级联；新增归属用户的表时需确认已有外键或在此补充
   await db.batch([
     db.prepare('DELETE FROM email_verifications WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM email_change_requests WHERE user_id = ?').bind(userId),
@@ -220,9 +221,7 @@ export async function deleteAccountCascade(db: D1Database, userId: string): Prom
   ]);
 }
 
-// ---------------------------------------------------------------------------
-// user_sessions
-// ---------------------------------------------------------------------------
+// ── user_sessions ───────────────────────────────────────────────────
 
 /** 写入一条会话（登录成功） */
 export async function insertSession(
@@ -259,6 +258,7 @@ export async function findActiveSessionByToken(
   tokenHash: string,
   now: number
 ): Promise<UserSession | null> {
+  // 必须同时匹配 user_id：token_hash 只在用户内唯一，跨用户重放会被拒绝
   return db
     .prepare('SELECT * FROM user_sessions WHERE user_id = ? AND token_hash = ? AND expires_at > ?')
     .bind(userId, tokenHash, now)

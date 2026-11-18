@@ -1,10 +1,7 @@
 /**
- * 推荐路由
+ * 推荐路由：JAV 个性化推荐、热门推荐与相关推荐。
  *
- * GET  /api/recommend/jav?mode=for-you|popular
- * POST /api/recommend/jav/related
- *
- * 所有入口都需要登录（与搜索接口一致）；推荐只做 JAV。
+ * 约束：所有入口需登录；结果每次随机并禁止缓存；for-you 无命中时回退热门。
  */
 import { Hono } from 'hono';
 import type { Context } from 'hono';
@@ -32,6 +29,7 @@ recommendRoutes.use('*', async (c, next) => {
 
 recommendRoutes.use('*', authMiddleware);
 
+/** 推荐统一限流：每用户每分钟 30 次，管理员跳过（随机推荐成本较高）。 */
 async function checkRecommendRateLimit(c: Context<{ Bindings: Env }>) {
   const user = c.get('user');
   const key = `recommend:${user.userId}`;
@@ -39,6 +37,7 @@ async function checkRecommendRateLimit(c: Context<{ Bindings: Env }>) {
   return checkRateLimitD1(c.env.DB, key, 60_000, 30);
 }
 
+/** 获取 JAV 推荐：mode=popular 走热门榜，默认按用户画像推荐。 */
 recommendRoutes.get('/jav', async (c) => {
   const rl = await checkRecommendRateLimit(c);
   if (!rl.allowed) {
@@ -72,6 +71,7 @@ recommendRoutes.get('/jav', async (c) => {
   }
 });
 
+/** 获取相关推荐：按演员 / 标签 / 发行商等种子字段匹配相似作品。 */
 recommendRoutes.post(
   '/jav/related',
   validateBody(schemas.recommend.related),

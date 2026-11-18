@@ -1,16 +1,18 @@
 /**
- * MovieProvider — 影视搜索适配器
+ * MovieProvider — 影视搜索适配器，实现 SearchProvider 接口并注册到 providerRegistry。
  *
- * 包装 movie-search.ts 的 searchMovie 函数，实现 SearchProvider 接口。
- * 数据源：TMDB（元数据）+ TPB / EZTV（磁力）
+ * 包装 movie-search.ts 的 searchMovie：TMDB 元数据 + TPB / EZTV 磁力。
+ * 源卡片放独立的 sourceCards 字段，不覆盖 results（results 是 TMDB 元数据契约）；
+ * 响应含按用户过滤的源卡片，因此 injectsUserSources=true。
  */
 import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
 import { searchMovie } from '@/services/movie-search';
 import { resolveLiveSources } from '@/services/live-sources';
 
-/** 默认 TMDB API Key（由外部注入，留空时 suggestions/trending 会静默跳过） */
+/** 模块级注入的 TMDB API Key；为空时 suggestions / trending 直接跳过，避免无效请求。 */
 let _tmdbApiKey: string | undefined;
 
+/** 注入 TMDB API Key（由运行时配置提供）。 */
 export function setTmdbApiKey(key: string | undefined): void {
   _tmdbApiKey = key;
 }
@@ -35,6 +37,7 @@ export class MovieProvider implements SearchProvider {
   /** 响应含按用户过滤的源卡片，缓存键需按用户隔离 */
   readonly injectsUserSources = true;
 
+  /** 影视搜索；源卡片单列 sourceCards，保持 results 为 TMDB 元数据。 */
   async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
     // 影视的 results 字段是 TMDB 元数据，源卡片单列 sourceCards，避免覆盖既有契约
     const { cards, skip } = await resolveLiveSources(ctx.db, {
@@ -50,11 +53,11 @@ export class MovieProvider implements SearchProvider {
     return { ...result, resultType: 'movie', sourceCards: cards } as unknown as SearchResultBase;
   }
 
+  /** 写搜索历史：取首条 TMDB 结果作为作品卡片。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];
     const values: (string | number)[] = [];
 
-    // 影视：提取首条 TMDB 结果 → title + cover(poster) + code(tmdb:id) + release_date
     const results = (result as {
       results?: Array<{ id: number; title: string; poster: string | null; release_date?: string; first_air_date?: string; vote_average?: number }>;
     }).results;
@@ -76,6 +79,7 @@ export class MovieProvider implements SearchProvider {
     return fields.length > 0 ? { fields, values } : null;
   }
 
+  /** TMDB 搜索建议；无 Key 或接口异常时返回空数组。 */
   async suggestions(keyword: string): Promise<SuggestionItem[]> {
     // 无 API Key 时直接返回空，避免无效请求
     if (!_tmdbApiKey) return [];
@@ -106,6 +110,7 @@ export class MovieProvider implements SearchProvider {
     }
   }
 
+  /** TMDB 当日热门；无 Key 或接口异常时返回空数组。 */
   async trending(): Promise<TrendingItem[]> {
     // 无 API Key 时直接返回空，避免无效请求
     if (!_tmdbApiKey) return [];
@@ -135,5 +140,4 @@ export class MovieProvider implements SearchProvider {
   }
 }
 
-/** 导出单例 */
 export const movieProvider = new MovieProvider();

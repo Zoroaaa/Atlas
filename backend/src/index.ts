@@ -1,8 +1,8 @@
 /**
- * CodeSeek 后端API主入口
- * 功能：路由注册、中间件配置、全局错误处理
- * 作者：CodeSeek Team
- * 日期：2024
+ * Worker 入口：注册中间件与全部业务路由、统一错误落库、按 cron 调度后台任务。
+ *
+ * 约束：单 Worker 同时托管 API 与前端静态资源，`/api` 以外的路径不在本文件处理；
+ * 所有 Cron 分支按 cron 表达式区分，改动触发器时需与 wrangler 配置同步。
  */
  
 import { Hono } from 'hono';
@@ -35,7 +35,8 @@ const HALF_HOUR_LOCK_TTL_MS = 25 * 60_000;
 /** 1 小时一轮的任务：租约 50 分钟 */
 const HOURLY_LOCK_TTL_MS = 50 * 60_000;
 
-// ── 注册所有搜索 Provider（新增搜索类别只需在此添加一行）──
+// 新增搜索类别只需实现 SearchProvider 并在此注册，不要在 routes/search.ts 里加分支
+// ── 搜索 Provider 注册 ───────────────────────────────────
 providerRegistry.register(animeProvider);
 providerRegistry.register(movieProvider);
 providerRegistry.register(javProvider);
@@ -52,6 +53,7 @@ app.use('*', cors({
       return origin;
     }
 
+    // 额外放行线上官方域名与本地开发端口；其余来源返回 null（不下发 CORS 头）
     const allowedPatterns = [
       /^https:\/\/atlas\.wort\.uk$/,
       /^https:\/\/www\.atlas\.wort\.uk$/,
@@ -90,6 +92,8 @@ app.get('/api', (c) => {
   });
 });
 
+// ── 路由挂载 ─────────────────────────────────────────────
+// 各业务子应用统一挂在 /api 下；systemRoutes 直接挂 /api 根，提供 /api/health 等入口
 app.route('/api/auth', authRoutes);
 app.route('/api/auth', githubOAuthRoutes);
 app.route('/api/auth', googleOAuthRoutes);
@@ -132,7 +136,8 @@ app.onError((err, c) => {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || null;
     const userAgent = c.req.header('User-Agent') || null;
 
-    // 生成与前端一致的错误指纹
+    // 生成与前端一致的错误指纹：取 message 前 200 字 + 堆栈前 5 行，
+    // 既能把同类错误聚到一起，又避免长堆栈导致同一条错误每次指纹都不同
     const errorType = err instanceof Error ? err.name : 'ServerError';
     const stackLines = (stack || '').split('\n').slice(0, 5).join('|').replace(/\s+/g, ' ').trim();
     const raw = `${errorType}::${message.slice(0, 200)}::${stackLines}::${url || ''}`;
@@ -232,6 +237,8 @@ export default {
         })()
       );
     }
+    // 每小时第 5 分钟：清理过期会话与验证码、数据保留、榜单补全、词典同步；
+    // 03:05 UTC 额外回收孤儿封面。各任务独立持锁，单个任务慢不会阻塞其余任务。
     if (event.cron === '5 * * * *') {
       ctx.waitUntil(
         env.DB.prepare('DELETE FROM user_sessions WHERE expires_at < ?').bind(Date.now()).run()

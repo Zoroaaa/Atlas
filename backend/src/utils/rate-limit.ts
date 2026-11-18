@@ -1,11 +1,11 @@
 /**
- * 速率限制器（D1 持久化版本）
+ * 速率限制器（D1 持久化）：计数存 D1，不同 isolate / 实例共享同一窗口。
  *
- * 使用 D1 数据库跨实例共享限流计数，确保严格的请求频率控制
+ * 采用 fail-open：D1 读写异常时放行并打日志，限流故障不阻断业务请求。
  */
 
-/** 默认配置：每分钟最多 15 次请求 */
-const DEFAULT_WINDOW_MS = 60_000; // 1 分钟窗口
+/** 默认单窗口配置：60 秒内最多 15 次请求 */
+const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX_REQUESTS = 15;
 
 interface RateLimitResult {
@@ -20,12 +20,9 @@ export interface MultiLevelLimit {
 }
 
 /**
- * 检查是否允许请求（D1 持久化版本）
- * @param db - D1 数据库实例
- * @param identifier - 限流键，如 "search:user123" 或 "suggestions:ip:1.2.3.4"
- * @param windowMs - 时间窗口（毫秒），默认 60000
- * @param maxRequests - 窗口内最大请求数，默认 15
- * @returns { allowed, retryAfter } — allowed=false 时 retryAfter 为建议等待秒数
+ * 单窗口计数限流（D1 持久化，跨 isolate 共享）。
+ * identifier 需自带业务前缀与主体，如 "search:user123"、"suggestions:ip:1.2.3.4"；
+ * allowed=false 时 retryAfter 为建议等待秒数。
  */
 export async function checkRateLimitD1(
   db: D1Database,
@@ -37,14 +34,12 @@ export async function checkRateLimitD1(
   const resetAt = now + windowMs;
 
   try {
-    // 查询现有记录
     const existing = await db
       .prepare('SELECT count, reset_at FROM rate_limits WHERE id = ?')
       .bind(identifier)
       .first<{ count: number; reset_at: number }>();
 
     if (!existing || now > existing.reset_at) {
-      // 新窗口或已过期：创建新记录
       await db
         .prepare(
           'INSERT OR REPLACE INTO rate_limits (id, count, reset_at, created_at) VALUES (?, 1, ?, ?)',
@@ -55,14 +50,12 @@ export async function checkRateLimitD1(
     }
 
     if (existing.count >= maxRequests) {
-      // 达到限流阈值
       return {
         allowed: false,
         retryAfter: Math.ceil((existing.reset_at - now) / 1000),
       };
     }
 
-    // 未达到阈值：递增计数
     await db
       .prepare('UPDATE rate_limits SET count = count + 1 WHERE id = ?')
       .bind(identifier)
@@ -70,18 +63,15 @@ export async function checkRateLimitD1(
 
     return { allowed: true };
   } catch (error) {
-    // 数据库错误时不阻断请求，记录日志并放行
+    // fail-open：限流表故障时放行，避免全站请求被误判为超限
     console.error('[RateLimit] D1 error:', error);
     return { allowed: true };
   }
 }
 
 /**
- * 多级限流检查（支持每分钟/每小时/每天多级限制）
- * @param db - D1 数据库实例
- * @param identifier - 基础限流键，如 "search:user123"
- * @param limits - 限流配置数组，如 [{ windowMs: 60000, maxRequests: 5, label: '每分钟' }]
- * @returns { allowed, retryAfter, level } — level 表示触发限制的层级（如果有）
+ * 多级限流（如每分钟/每小时/每天）：任一层超限即整体拒绝，且不消耗任何一层计数。
+ * 每层独立 key 为 `${identifier}:L{i}`，level 返回触发限制的层级下标。
  */
 export async function checkMultiLevelRateLimit(
   db: D1Database,
@@ -129,7 +119,7 @@ export async function checkMultiLevelRateLimit(
 
     return { allowed: true };
   } catch (error) {
-    // 数据库错误时不阻断请求，记录日志并放行
+    // 与单窗口版本一致：异常时放行
     console.error('[RateLimit] Multi-level error:', error);
     return { allowed: true };
   }
@@ -190,9 +180,7 @@ export async function getMultiLevelRateLimitUsage(
   });
 }
 
-// ──────────────────────────────────────────────
-// 注册风控（邮箱注册与 OAuth 自动注册共用）
-// ──────────────────────────────────────────────
+// ── 注册风控（邮箱注册与 OAuth 自动注册共用） ───────────────────────
 
 /**
  * 注册风控多级限流配置：同一出口 IP 的注册请求上限（含失败重试）。
@@ -235,8 +223,7 @@ export function normalizeIpForRateLimit(ip: string): string {
   return full.slice(0, 4).join(':');
 }
 
-// 兼容旧版本的内存级限流（已废弃，仅保留接口兼容）
-// @deprecated 使用 checkRateLimitD1 替代
+/** @deprecated 内存实现已移除，改用 checkRateLimitD1；保留本函数仅为兼容旧调用点。 */
 export function checkRateLimit(
   _identifier: string,
   _windowMs?: number,

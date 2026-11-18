@@ -1,9 +1,7 @@
 /**
- * Google OAuth 路由
- * GET  /auth/google          — 发起授权（重定向到 Google Consent）
- * GET  /auth/google/callback — 处理回调（换 token，自动注册/登录）
+ * Google OAuth 路由：发起授权与回调（OIDC + PKCE，自动注册/登录）。
  *
- * 流程参考 github-oauth.ts，使用 Google OAuth 2.0 + OIDC（含 openid email profile scope）
+ * 约束：回调同时校验 state 与 code_verifier cookie；只接受 email_verified 的账号。
  */
 
 import { Hono } from 'hono';
@@ -27,9 +25,7 @@ import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } fr
 
 export const googleOAuthRoutes = new Hono<{ Bindings: Env }>();
 
-// ──────────────────────────────────────────────
-// 工具函数
-// ──────────────────────────────────────────────
+// ── 工具函数 ─────────────────────────────────────────────
 
 /** 生成随机 state（防 CSRF） */
 const generateState = (): string =>
@@ -93,9 +89,7 @@ async function resolveUsername(db: D1Database, baseName: string): Promise<string
   return `${candidate}_${suffix}`.slice(0, 20);
 }
 
-// ──────────────────────────────────────────────
-// Route 1: 发起授权
-// ──────────────────────────────────────────────
+// ── 发起授权 ─────────────────────────────────────────────
 googleOAuthRoutes.get('/google', async (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
@@ -131,9 +125,7 @@ googleOAuthRoutes.get('/google', async (c) => {
   return c.redirect(googleAuthUrl, 302);
 });
 
-// ──────────────────────────────────────────────
-// Route 2: OAuth 回调
-// ──────────────────────────────────────────────
+// ── OAuth 回调 ───────────────────────────────────────────
 googleOAuthRoutes.get('/google/callback', async (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
@@ -152,7 +144,7 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
     return c.redirect(`${loginErrorBase}?error=google_not_configured`, 302);
   }
 
-  // Google 取消授权
+  // 用户在 Google 侧拒绝授权时会带 error 参数回来
   if (errorParam) {
     return c.redirect(`${loginErrorBase}?error=google_cancelled`, 302);
   }
@@ -251,7 +243,7 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
         .first<User & { role_name?: string; role_display_name?: string }>();
 
       if (user) {
-        // 绑定 google_id
+        // 邮箱命中已有账号即视为同一人，补绑 google_id 后下次可直接命中
         await c.env.DB.prepare(
           'UPDATE users SET google_id = ?, google_username = ?, updated_at = ? WHERE id = ?'
         )
@@ -281,7 +273,6 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
         return c.redirect(`${callbackBase}?error=register_rate_limited`, 302);
       }
 
-      // 自动注册新用户
       const enableRegistration = await new ConfigService(c.env).getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true);
       if (!enableRegistration) {
         return c.redirect(`${callbackBase}?error=registration_disabled`, 302);
@@ -346,7 +337,7 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
         c
       );
 
-      // 重新查一次（带 role join）
+      // 建号后需要带出角色信息，重新查一次
       user = await c.env.DB.prepare(
         `SELECT u.*, r.name as role_name, r.display_name as role_display_name
          FROM users u
@@ -414,7 +405,7 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
       })
     );
 
-    // 清除 state + verifier cookie
+    // state 与 verifier 都是一次性的，回调结束即清除，避免被重放
     c.header('Set-Cookie', 'g_oauth_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/', { append: true });
     c.header('Set-Cookie', 'g_oauth_verifier=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/', { append: true });
 

@@ -1,3 +1,9 @@
+/**
+ * 代理服务：维护开关状态、连通性检查与健康轮询，并把开关持久化到 localStorage。
+ *
+ * 约束：状态变更通过 document 事件广播；清理时必须停掉轮询定时器。
+ */
+
 import {
   proxyConfig,
   testProxyConnectivity,
@@ -6,6 +12,7 @@ import {
 } from './proxy-config';
 import i18next from '@/i18n';
 
+/** 代理状态机：负责启用/停用、健康检查与状态持久化。 */
 class ProxyService {
   private currentStatus: ProxyStatus = proxyConfig.status.DISABLED;
   private lastHealthCheck: number | null = null;
@@ -135,6 +142,7 @@ class ProxyService {
 
   private startHealthCheck(): void {
     this.checkProxyHealth();
+    // 每 5 分钟轮询一次；仅代理开启时才真正发请求
     this.healthCheckTimer = setInterval(() => {
       if (this.isProxyEnabled()) {
         this.checkProxyHealth().then(result => {
@@ -172,6 +180,7 @@ class ProxyService {
   }
 
   private dispatchStatusChange(): void {
+    // 事件名是跨组件契约，改名需同步所有 document 监听方
     document.dispatchEvent(new CustomEvent('proxyStatusChanged', {
       detail: {
         enabled: this.isProxyEnabled(),
@@ -191,6 +200,7 @@ class ProxyService {
   }
 }
 
+/** 全局单例；应用启动时调用 init() 恢复上次开关状态。 */
 export const proxyService = new ProxyService();
 
 export { convertToProxyUrl, getOriginalUrl } from './proxy-config';

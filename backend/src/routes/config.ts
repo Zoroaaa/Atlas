@@ -1,8 +1,7 @@
 /**
- * 系统配置与分析模块
- * 功能：系统配置管理、分析事件记录、缓存管理、配置变更日志
- * 作者：CodeSeek Team
- * 日期：2024
+ * 系统配置路由：公开配置、配置字典读写、变更日志、分析与邮件日志。
+ *
+ * 约束：写操作需管理员，导入 / 删除 / 重置需超级管理员；每次变更必须写 config_change_logs。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -44,8 +43,8 @@ configRoutes.get('/public', async (c) => {
 
 configRoutes.use('*', authMiddleware);
 
-// 不再使用本地权限检查函数，改用从 middleware/auth.ts 导入的 checkIsAdmin/checkIsSuperAdmin
-
+// ── 配置默认值 ─────────────────────────────────────────
+// 兼两个用途：重置接口的默认值来源，以及库中 validation_rules 缺失时的兜底
 const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string; configType: string; configGroup: string; isPublic: number; isSensitive: number; validationRules?: string; options?: string }> = {
   'site_name': { value: 'Atlas', description: '网站名称', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
   'site_description': { value: '搜索全网资源，一步直达', description: '网站描述', configType: 'string', configGroup: 'basic', isPublic: 1, isSensitive: 0 },
@@ -139,6 +138,7 @@ const DEFAULT_CONFIG_VALUES: Record<string, { value: string; description: string
   'security_event_retention_days': { value: '90', description: '安全事件保留天数', configType: 'integer', configGroup: 'cleanup', isPublic: 0, isSensitive: 0, validationRules: '{"min": 30, "max": 365}' },
 };
 
+/** 写配置变更审计日志；审计失败只打日志，不能反过来让配置写入失败。 */
 async function logConfigChange(
   env: Env,
   configKey: string,
@@ -177,6 +177,7 @@ async function logConfigChange(
   }
 }
 
+/** 按 config_type 校验配置值；rules 解析失败时放行，避免历史脏规则把配置锁死。 */
 function validateConfigValue(
   value: string,
   configType: string,
@@ -382,6 +383,7 @@ configRoutes.get('/export', async (c) => {
       version: '2.0.0',
       exportedAt: new Date().toISOString(),
       exportedBy: user.username,
+      // 敏感配置导出时打码；导入侧遇到 ****** 会跳过，避免把掩码写回数据库
       configs: (configs.results || []).map(c => ({
         key: c.key,
         value: c.is_sensitive ? '******' : c.value,
@@ -539,6 +541,7 @@ configRoutes.get('/email/queue', async (c) => {
       `SELECT COUNT(*) as total FROM email_queue q ${whereClause}`
     ).bind(...params).first<{ total: number }>();
 
+    // 队列项的 last_error：skipped 直接给原因，否则取该用户最近一次失败的发送日志
     const rows = await c.env.DB.prepare(`
       SELECT q.*, u.username, u.email AS user_email,
         CASE
@@ -568,8 +571,7 @@ configRoutes.get('/email/queue', async (c) => {
   }
 });
 
-// ─── 管理端邮件测试 ──────────────────────────────────────────────────────
-
+// ── 管理端邮件测试 ─────────────────────────────────────
 const EMAIL_PROVIDER_LABELS: Record<EmailProvider, string> = {
   cloudflare: 'Cloudflare',
   resend: 'Resend',
@@ -742,6 +744,7 @@ configRoutes.post('/import', validateBody(schemas.config.importConfig), async (c
       }
     }
 
+    // 进程内配置缓存不清理会继续返回旧值，因此任何写操作成功后都要显式清一次
     if (results.some(r => r.success)) {
       ConfigService.clearCache();
     }

@@ -10,6 +10,7 @@ import type { MultiLevelLimit } from '@/utils/rate-limit';
 const DAY_MS = 86_400_000;
 /** 档位重算间隔：24 小时 */
 const TIER_REFRESH_MS = DAY_MS;
+/** 最高档位；达到后不再重算。 */
 const MAX_TIER = 4;
 
 export interface SearchTierRule {
@@ -35,7 +36,7 @@ export interface SearchTierLimit extends MultiLevelLimit {
   unit: 'minute' | 'hour' | 'day';
 }
 
-/** 各档位搜索限流配置：分钟档仅作突发防护，小时/天配额在原有基础上翻倍 */
+/** 各档位搜索限流配置：分钟档只防突发，档位差异主要体现在小时/天配额。 */
 export const SEARCH_TIER_LIMITS: Record<number, SearchTierLimit[]> = {
   1: [
     { unit: 'minute', windowMs: 60_000, maxRequests: 5, label: '每分钟' },
@@ -78,6 +79,7 @@ export function normalizeSearchTier(tier: number | null | undefined): number {
   return tier > MAX_TIER ? MAX_TIER : tier;
 }
 
+/** 取档位对应规则；非法档位先归一化，查不到时回落到基础档。 */
 export function getSearchTierRule(tier: number): SearchTierRule {
   return SEARCH_TIER_RULES.find((rule) => rule.tier === normalizeSearchTier(tier)) ?? SEARCH_TIER_RULES[0];
 }

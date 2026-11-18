@@ -1,24 +1,16 @@
 /**
- * 小说搜索服务
- * NovelItem 抓取源:
- *   知轩藏书 (https://zxcs.zip) — 精校版全本，明文搜索 + 直链下载
+ * 小说搜索服务：抓取知轩藏书与奇书网的 HTML 搜索页/详情页，产出可直接下载的 TXT 条目。
  *
- * 奇书网 (xqishuta.org) 已于 2026-11 下线：源站仅收 HTTPS，且 HTTPS 握手失败、
- *   Cloudflare 返回 522（源站不可达），无法产出数据，故移除抓取实现。
- *
- * 跳转卡片源（SearchResultsPanel）：由 search.ts 路由从数据库 search_sources 表注入，
- *   含 Z-Library / Anna's Archive / 知轩藏书 / SoBooks / Lunarora / PDFs.top / 读书派等。
- *   Anna's Archive 因人机验证不再做 NovelItem 抓取，仅保留跳转卡片。
- *
- * ⚠️ 类型契约：本文件导出的接口（NovelItem, NovelSearchResult）
- *    与 frontend/src/types/search.ts 保持结构同步。
+ * 类型契约：NovelItem / NovelSearchResult 与 frontend/src/types/search.ts 同步。
+ * 跳转卡片源（Z-Library、Anna's Archive 等）不在此抓取，由 search.ts 路由从
+ * search_sources 表注入到 results 字段。
  */
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
 import { decodeGbk, encodeGbkQuery } from '@/utils/gbk';
 
-// ─── Constants ───────────────────────────────────────────────────────────
+// ── 常量 ─────────────────────────────────────────────────
 
 /** 知轩藏书域名 */
 const ZXCS_DOMAIN = 'zxcs.zip';
@@ -53,7 +45,7 @@ const QSX_HEADERS = {
 /** 单次请求超时（ms） */
 const FETCH_TIMEOUT = 15000;
 
-// ─── Types ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 export interface NovelItem {
   /** MD5，作为唯一标识 */
@@ -110,7 +102,7 @@ export interface NovelSearchResult {
   }>;
 }
 
-// ─── HTML 解析工具 ──────────────────────────────────────────────────────
+// ── HTML 解析工具 ────────────────────────────────────────
 
 function decodeEntities(s: string): string {
   return s
@@ -174,7 +166,7 @@ interface NovelSourceResult {
   hasMore: boolean;
 }
 
-// ─── 知轩藏书 (zxcs.zip) ───────────────────────────────────────────────
+// ── 知轩藏书（zxcs.zip）────────────────────────────────
 
 /**
  * 知轩藏书搜索流程：
@@ -209,7 +201,6 @@ function parseZxcsDetailPage(
   html: string,
   searchResult: { title: string; bookUrl: string },
 ): NovelItem | null {
-  // 书籍 ID
   const idMatch = searchResult.bookUrl.match(/\/book\/(\d+)\.html/);
   const bookId = idMatch ? idMatch[1] : '';
 
@@ -218,7 +209,6 @@ function parseZxcsDetailPage(
   const downloadUrl = downloadMatch ? downloadMatch[1] : '';
   if (!downloadUrl) return null;
 
-  // 作者
   const author = firstMatch(html, /【作者】：([^<]+)<\/p>/);
 
   // 简介（<br /> 后到 </p>，压缩空白）
@@ -228,14 +218,12 @@ function parseZxcsDetailPage(
   // 字数（并入 size 后缀，便于卡片展示）
   const wordCount = firstMatch(html, /【字数】：([^<]+)<\/p>/).trim();
 
-  // 状态（完本 / 连载）
   const status = firstMatch(html, /【状态】：([^<]+)<\/p>/);
 
   // TXT 大小（追加字数信息）
   const txtSize = firstMatch(html, /【TXT大小】：([^<]+)<\/p>/).trim();
   const size = wordCount ? `${txtSize} · ${wordCount}字` : txtSize;
 
-  // 分类
   const category = firstMatch(html, /【分类】：<a[^>]*>([^<]+)<\/a>/);
 
   // 标签（多个 a，拼接）
@@ -313,7 +301,7 @@ async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSour
   }
 }
 
-// ─── 奇书网 (qishuxia.com) ─────────────────────────────────────────────
+// ── 奇书网（qishuxia.com）───────────────────────────────
 
 interface QsxSearchRow {
   bookUrl: string;
@@ -384,6 +372,7 @@ function parseQsxSearchResults(html: string): QsxSearchRow[] {
   return rows;
 }
 
+/** 解析奇书网详情页；字段缺失时回退到搜索页行数据，封面缺失则按 bookId 规则拼接。 */
 function parseQsxDetailPage(html: string, row: QsxSearchRow): NovelItem {
   const title = firstMatch(html, /<div class="info">[\s\S]*?<h1>([^<]+)<\/h1>/i) || row.title;
   const author = firstMatch(html, /作者：([^<]+)<\/p>/i) || row.author;
@@ -470,8 +459,9 @@ async function searchQishuNovel(keyword: string, page: number): Promise<NovelSou
   }
 }
 
-// ─── 搜索入口 ────────────────────────────────────────────────────────
+// ── 搜索入口 ─────────────────────────────────────────────
 
+/** 小说搜索主入口：两站并发抓取，任一源失败只记录该源错误。 */
 export async function searchNovel(keyword: string, page: number): Promise<NovelSearchResult> {
   const safePage = Math.max(1, page);
   const [zxcsResult, qishuResult] = await Promise.all([
@@ -487,7 +477,8 @@ export async function searchNovel(keyword: string, page: number): Promise<NovelS
   if (zxcsResult.errorKind) errorKinds.zxcs = zxcsResult.errorKind;
   if (qishuResult.errorKind) errorKinds.qishu = qishuResult.errorKind;
 
-  // 跨站去重：两站 id 空间不同，靠前缀区分记录（见 data-storage 的 dedupKey）
+  // 两站 id 空间不同（zxcs 用站内书籍 ID，奇书网用数字 ID），这里不做跨站去重；
+  // 落库时 data-storage 的 dedupKey 按 novel:zxcs / novel:qishu 前缀区分。
   const novels = [...zxcsResult.items, ...qishuResult.items];
 
   return {

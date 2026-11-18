@@ -1,3 +1,8 @@
+/**
+ * JAV 榜单面板：周榜/月榜，按有码/无码分栏，支持折叠与分页。
+ *
+ * 约束：layout=page 时作为独立页面渲染，不套面板外壳；移动端行布局由 RankingRow 的 mobileLayout 决定。
+ */
 import React, { useEffect, useState } from 'react';
 import {
   TrendingUp,
@@ -25,8 +30,10 @@ interface JavRankingsPanelProps {
 
 const RANK_COLORS = ['text-primary-500', 'text-surface-400', 'text-primary-700'];
 
+/** 页面级操作按钮（刷新等）的统一样式，Top250 与推荐页复用 */
 export const pageActionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-3 text-xs font-medium text-surface-600 transition-colors hover:bg-surface-50 disabled:opacity-50 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300 dark:hover:bg-surface-800';
 
+/** 榜单行：排名、升降标识、封面与标题；stacked 供移动端改为纵向卡片 */
 export const RankingRow: React.FC<{
   item: JavRankingEntry;
   onClick: (code: string) => void;
@@ -103,6 +110,7 @@ export const RankingRow: React.FC<{
   );
 };
 
+/** JAV 榜单：周期/分区切换、刷新与分页 */
 export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick, layout = 'panel' }) => {
   const { t } = useTranslation(['jav']);
   const { data, isLoading, error, refresh } = useJavRankings();
@@ -118,6 +126,7 @@ export const JavRankingsPanel: React.FC<JavRankingsPanelProps> = ({ onCodeClick,
   const totalPages = Math.max(1, Math.ceil(activeItems.length / pageSize));
   const pageItems = activeItems.slice((page - 1) * pageSize, page * pageSize);
 
+  // 切换周期/分区时回到第一页；数据变短导致页码越界时收敛到最后一页
   useEffect(() => { setPage(1); }, [period, section]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   const updatedAt = data?.[period]?.updatedAt ?? 0;

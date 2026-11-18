@@ -1,3 +1,9 @@
+/**
+ * 登录态 store：持有 user/token，并持久化到 localStorage 的 auth-storage。
+ *
+ * 约束：token 与 user 快照同时存在才算登录；登出必须同时清持久缓存与 query 缓存。
+ */
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User, UserSettings } from '@/types';
@@ -20,12 +26,14 @@ interface AuthState {
   initialize: () => void;
 }
 
+/** 全局登录态；组件只读状态，token 写入统一走 setToken/persistToken。 */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
+      // 初始为 true，鉴权完成前用于阻止受保护页面渲染
       isLoading: true,
 
       setUser: (user) => {

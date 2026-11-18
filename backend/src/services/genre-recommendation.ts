@@ -1,12 +1,8 @@
 /**
- * 推荐标签选择
+ * 推荐标签选择：按收藏/历史中的内容标签算偏好，再从 genre 词典产出可识别的推荐标签。
  *
- * 口径（与方案一致）：
- * - 只统计可识别为 JAV 作品的番号；同一番号在收藏/历史中重复出现只算 1 部
- * - 剔除技术/发行属性标签（tag-filter）
- * - 分母是"含至少 1 个内容标签的作品数"，不是记录数或标签总数
- * - 收藏权重 0.7、历史权重 0.3（只有一个来源时该来源权重 1）
- * - 不足 10 个时从词典中随机补满；两来源都无标签时等价新用户，全随机
+ * 约束：只统计可识别的 JAV 番号且同番号只算 1 部；剔除技术/发行属性标签；
+ * 分母是「含至少 1 个内容标签的作品数」；不足 MAX_TAGS 时从词典随机补满。
  */
 import { GENRE_REC } from '@/constants';
 import {
@@ -196,6 +192,7 @@ function buildResult(
   return { tags: selected, isNewUser, coverage };
 }
 
+/** 读取（或重算）用户推荐标签；refresh=true 跳过缓存，缓存 key 带版本号。 */
 export async function getGenreRecommendations(
   db: D1Database,
   userId: string,

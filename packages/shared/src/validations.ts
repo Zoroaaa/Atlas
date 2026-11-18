@@ -1,18 +1,20 @@
-// ==================================================================
-// 共享验证规则 - 前后端通用
-// 前后端都从本文件导入，保持规则一致性
-// 改了需要前后端同步重新部署
-// ==================================================================
+/**
+ * 共享校验常量：前端表单与后端 zod 校验的唯一来源。
+ *
+ * 约束：改任一数值都等于改契约，前后端必须同时验证并重新部署。
+ */
 
-/** 格式型规则（正则）— 与 VALIDATION_RULES 一样是前后端唯一来源 */
+/** 格式型规则（正则），与 VALIDATION_RULES 一样是前后端唯一来源。 */
 export const VALIDATION_PATTERNS = {
   USERNAME: /^[a-zA-Z0-9_]+$/,
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   VERIFICATION_CODE: /^\d{6}$/,
 } as const;
 
+/** 长度、数量与时限阈值；上限需与数据库字段长度保持一致。 */
 export const VALIDATION_RULES = {
 
+  // ── 账号 ─────────────────────────────
   USERNAME: {
     MIN_LENGTH: 3,
     MAX_LENGTH: 20,
@@ -33,6 +35,7 @@ export const VALIDATION_RULES = {
     MAX_COUNT: 50,
   },
 
+  // ── 收藏与历史 ─────────────────────────────
   FAVORITES: {
     MAX_SYNC_COUNT: 1000,
     MAX_COUNT: 1000,
@@ -94,6 +97,7 @@ export const VALIDATION_RULES = {
     DETAILS_MAX_LENGTH: 1000,
   },
 
+  // ── 分页与检索 ─────────────────────────────
   PAGINATION: {
     DEFAULT_PAGE_SIZE: 20,
     MAX_PAGE_SIZE: 100,
@@ -114,6 +118,7 @@ export const VALIDATION_RULES = {
     MAX_LIMIT: 50,
   },
 
+  // ── 验证码与限流 ─────────────────────────────
   VERIFICATION_CODE: {
     LENGTH: 6,
     EXPIRY_MS: 15 * 60 * 1000,

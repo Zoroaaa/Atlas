@@ -1,3 +1,9 @@
+/**
+ * 搜索源 API：把后端 snake_case 行数据映射为前端 camelCase 模型。
+ *
+ * 约束：写操作先经 shared zod 校验；未登录时只读取公共源，userConfig 恒为 null。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import { getApiBaseUrl } from '@/constants';
@@ -66,6 +72,7 @@ interface RawUserConfig {
   notes: string | null;
 }
 
+/** 用户源配置映射；null 表示该用户没有对这条源做自定义。 */
 function mapUserConfig(config: RawUserConfig | null): UserSourceConfig | null {
   if (!config) return null;
   return {
@@ -81,6 +88,7 @@ function mapUserConfig(config: RawUserConfig | null): UserSourceConfig | null {
   };
 }
 
+/** catalog 行 → 前端模型：SQLite 的 0/1 布尔与空字符串统一归一化。 */
 function mapCatalogItem(item: RawCatalogItem): SourceCatalogItem {
   return {
     id: item.id,
@@ -105,6 +113,7 @@ function mapCatalogItem(item: RawCatalogItem): SourceCatalogItem {
   };
 }
 
+/** 搜索源、分类、用户源配置的增删改查；列表接口在这里完成字段映射。 */
 export const sourceApi = {
   getMajorCategories: async (): Promise<{ 
     success: boolean; 
@@ -324,6 +333,7 @@ export const sourceApi = {
     data: Array<SearchSource & { userConfig: UserSourceConfig | null }> 
   }> => {
     const token = apiClient.getToken();
+    // 未登录：只取公共源列表，不请求用户配置接口
     if (!token) {
       const response = await apiClient.get<{ success: boolean; data: { sources: Array<{
         id: string;
@@ -376,6 +386,7 @@ export const sourceApi = {
       return { success: false, data: [] };
     }
     
+    // 用户配置接口按 userId 寻址，这里从 JWT payload 直接取；解析失败视为本地 token 损坏
     let userId = '';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -583,6 +594,7 @@ export const sourceApi = {
     params.append('format', format);
     if (categoryId) params.append('categoryId', categoryId);
     
+    // json 走 apiClient 统一错误处理；csv/opml 是二进制流，只能直接 fetch
     if (format === 'json') {
       return apiClient.get(`/search-sources/export?${params.toString()}`);
     }

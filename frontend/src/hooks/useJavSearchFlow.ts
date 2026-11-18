@@ -1,3 +1,8 @@
+/**
+ * JAV 搜索详情流程：合并「搜索响应内联详情」与「单独请求的详情」，并处理手动回源。
+ *
+ * 约束：内联详情优先级高于二次请求结果；回源使用 refresh=1，后端会跳过缓存并同步写回本地库。
+ */
 import { useState, useCallback } from 'react';
 import { useJavDetail } from '@/hooks';
 import { apiClient } from '@/services/api';
@@ -5,6 +10,7 @@ import { useToast } from '@/hooks/useNotification';
 import i18next from '@/i18n';
 import type { JavDetail } from '@/types/jav';
 
+/** JAV 详情流程：合并内联与二次请求的详情，提供回源刷新与整体重置 */
 export function useJavSearchFlow() {
   const toast = useToast();
   const { detail: fetchedDetail, status: javDetailStatus, fetch: fetchJavDetail, retry: retryJavDetail, reset: resetJavDetail } = useJavDetail();

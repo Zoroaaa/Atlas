@@ -1,7 +1,7 @@
 /**
- * GitHub OAuth 路由
- * GET  /auth/github          — 发起授权（重定向到 GitHub）
- * GET  /auth/github/callback — 处理回调（换 token，自动注册/登录）
+ * GitHub OAuth 路由：发起授权与回调（换 token、自动注册/登录）。
+ *
+ * 约束：回调必须校验 state cookie 防 CSRF；OAuth 自动注册与邮箱注册共用同一 IP 配额。
  */
 
 import { Hono } from 'hono';
@@ -25,9 +25,7 @@ import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } fr
 
 export const githubOAuthRoutes = new Hono<{ Bindings: Env }>();
 
-// ──────────────────────────────────────────────
-// 工具函数
-// ──────────────────────────────────────────────
+// ── 工具函数 ─────────────────────────────────────────────
 
 /** 生成随机 state（防 CSRF） */
 const generateState = (): string =>
@@ -83,14 +81,11 @@ async function resolveUsername(db: D1Database, baseLogin: string): Promise<strin
     .first();
   if (!existing) return candidate;
 
-  // 追加随机4位数字
   const suffix = Math.floor(1000 + Math.random() * 9000);
   return `${candidate}_${suffix}`.slice(0, 20);
 }
 
-// ──────────────────────────────────────────────
-// Route 1: 发起授权
-// ──────────────────────────────────────────────
+// ── 发起授权 ─────────────────────────────────────────────
 githubOAuthRoutes.get('/github', async (c) => {
   const clientId = c.env.GITHUB_CLIENT_ID;
   if (!clientId) {
@@ -119,9 +114,7 @@ githubOAuthRoutes.get('/github', async (c) => {
   return c.redirect(githubAuthUrl, 302);
 });
 
-// ──────────────────────────────────────────────
-// Route 2: OAuth 回调
-// ──────────────────────────────────────────────
+// ── OAuth 回调 ───────────────────────────────────────────
 githubOAuthRoutes.get('/github/callback', async (c) => {
   const clientId = c.env.GITHUB_CLIENT_ID;
   const clientSecret = c.env.GITHUB_CLIENT_SECRET;
@@ -140,7 +133,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
     return c.redirect(`${loginErrorBase}?error=github_not_configured`, 302);
   }
 
-  // GitHub 取消授权
+  // 用户在 GitHub 侧拒绝授权时会带 error 参数回来
   if (errorParam) {
     return c.redirect(`${loginErrorBase}?error=github_cancelled`, 302);
   }
@@ -221,7 +214,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         .first<User & { role_name?: string; role_display_name?: string }>();
 
       if (user) {
-        // 绑定 github_id
+        // 邮箱命中已有账号即视为同一人，补绑 github_id 后下次可直接命中
         await c.env.DB.prepare(
           'UPDATE users SET github_id = ?, github_username = ?, updated_at = ? WHERE id = ?'
         )
@@ -251,7 +244,6 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         return c.redirect(`${callbackBase}?error=register_rate_limited`, 302);
       }
 
-      // 自动注册新用户
       const enableRegistration = await new ConfigService(c.env).getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true);
       if (!enableRegistration) {
         return c.redirect(`${callbackBase}?error=registration_disabled`, 302);
@@ -320,7 +312,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         c
       );
 
-      // 重新查一次（带 role join）
+      // 建号后需要带出角色信息，重新查一次
       user = await c.env.DB.prepare(
         `SELECT u.*, r.name as role_name, r.display_name as role_display_name
          FROM users u
@@ -371,7 +363,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
       userAgent,
     });
 
-    // 将 token 和用户数据通过 URL fragment 传给前端（前端 /auth/callback 页面读取）
+    // token 与用户信息通过 URL query 传给前端回调页
     const userData = encodeURIComponent(
       JSON.stringify({
         id: user.id,
@@ -388,7 +380,7 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
       })
     );
 
-    // 清除 state cookie
+    // state 一次性使用，回调结束即清除，避免被重放
     c.header(
       'Set-Cookie',
       'gh_oauth_state=; HttpOnly; Secure; SameSite=Lax; Max-Age=0; Path=/'

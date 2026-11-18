@@ -1,3 +1,9 @@
+/**
+ * 源站管理（/dashboard/sources）：按「大类 → 分类 → 源站」三级展开，支持批量启停与状态检测。
+ *
+ * 数据来源：源 / 大类 / 分类走 react-query，源站统计走 sourceApi 局部 state。
+ * 约束：启停写入的是当前用户配置，不改系统源本身；系统源只有管理员可编辑或删除。
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database,
@@ -54,6 +60,7 @@ interface MajorCategoryWithCategories extends MajorCategory {
   isAllDisabled: boolean;
 }
 
+/** 源站管理页；启停状态以 userConfig 为准，未配置视为启用。 */
 export const SourceManager: React.FC = () => {
   const notification = useNotification();
   const { t } = useTranslation(['dashboard']);
@@ -132,6 +139,7 @@ export const SourceManager: React.FC = () => {
     loadStats();
   }, [loadStats]);
 
+  // ── 数据组装 ─────────────────────────────
   const getMajorCategoriesWithCategories = (): MajorCategoryWithCategories[] => {
     return majorCategories.map(mc => {
       const majorCategoryCategories = categories.filter(c => c.majorCategoryId === mc.id);
@@ -173,6 +181,7 @@ export const SourceManager: React.FC = () => {
            );
   });
 
+  // ── 启停与增删改 ─────────────────────────────
   const handleToggleMajorCategory = async (majorCategoryId: string, enable: boolean) => {
     const mc = getMajorCategoriesWithCategories().find(m => m.id === majorCategoryId);
     if (!mc) return;
@@ -312,6 +321,7 @@ export const SourceManager: React.FC = () => {
     }
   };
 
+  // ── 状态检测与导出 ─────────────────────────────
   const handleCheckStatus = async (sourceId: string) => {
     try {
       const response = await sourceApi.checkSourceStatus(sourceId);
@@ -634,7 +644,7 @@ export const SourceManager: React.FC = () => {
             <Card key={majorCategory.id} className="overflow-hidden border-surface-200/50 dark:border-surface-700/50 shadow-lg">
               <div className="p-4 sm:p-5 bg-gradient-to-r from-surface-50 to-surface-100 dark:from-surface-800/50 dark:to-surface-800">
                 <div className="flex items-center gap-3">
-                  {/* Expand toggle + icon + title — takes available space */}
+                  {/* 整行拦截展开点击，右侧控制按钮单独 stopPropagation */}
                   <button
                     onClick={() => toggleMajorCategoryExpand(majorCategory.id)}
                     className="flex items-center gap-3 flex-1 text-left min-w-0"
@@ -660,7 +670,7 @@ export const SourceManager: React.FC = () => {
                     </div>
                   </button>
 
-                  {/* Controls: shrink-0 so they never wrap into the title */}
+                  {/* 操作区不参与收缩，避免窄屏被标题挤压换行 */}
                   <div className="shrink-0 flex items-center gap-2">
                     <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-100 dark:bg-surface-700 text-xs text-surface-600 dark:text-surface-300 whitespace-nowrap">
                       {majorCategory.enabledCount}/{majorCategory.totalCount}
@@ -756,7 +766,7 @@ export const SourceManager: React.FC = () => {
                                     !isEnabled ? 'opacity-60' : ''
                                   }`}
                                 >
-                                  {/* Mobile: stacked layout; Desktop: single row */}
+                                  {/* 窄屏纵向排列，≥sm 单行 */}
                                   <div className="flex items-start gap-3">
                                     <div className="shrink-0 mt-0.5">
                                       <SourceIcon
@@ -766,7 +776,6 @@ export const SourceManager: React.FC = () => {
                                       />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      {/* Name + system badge row */}
                                       <div className="flex items-center gap-1.5 flex-wrap">
                                         <p className="text-sm font-medium text-surface-800 dark:text-surface-200 truncate">
                                           {source.userConfig?.customName || source.name}
@@ -817,13 +826,11 @@ export const SourceManager: React.FC = () => {
                                           );
                                         })()}
                                       </div>
-                                      {/* Subtitle */}
                                       {(source.userConfig?.customSubtitle || source.subtitle) && (
                                         <p className="text-xs text-surface-500 dark:text-surface-400 truncate mt-0.5">
                                           {source.userConfig?.customSubtitle || source.subtitle}
                                         </p>
                                       )}
-                                      {/* Actions row — always on its own line on mobile */}
                                       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                         <button
                                           onClick={() => handleToggleSource(source.id, !isEnabled)}

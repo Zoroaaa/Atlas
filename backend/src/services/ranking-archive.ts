@@ -1,26 +1,26 @@
 /**
- * 榜单归档查询
+ * 榜单归档查询：只读 jav_ranking_snapshots / jav_ranking_entries，写入方是 ranking-import。
  *
- * jav_ranking_snapshots / jav_ranking_entries 由榜单导入服务写入：
- * 四种榜单统一按天保留，同一天重跑覆盖当天；缺失的周榜/月榜历史
- * 可由 14_jav_ranking_archive.sql 按作品最后出现日期补档。
- * 这里同时服务：
- *   - 前台 TOP250 面板（只读最新一期）；
- *   - 管理端「榜单归档」页面（按周期/分类/年份/快照/关键词筛选历史）。
+ * 服务两个场景：前台 TOP250 面板取最新一期；管理端按周期/分类/年份/快照/关键词筛选历史。
+ * 迁移未执行时返回空态而不是抛错，保证页面可渲染。
  */
 import { JAV_TOP250 } from '@/constants';
 import { missingFieldsFromMask, type JavDetailField } from './jav-detail-meta';
 
+/** list_type 合法值；与导入侧写入的 period 一致。 */
 const VALID_LIST_TYPES = ['weekly', 'monthly', 'top250', 'yearly'] as const;
+/** 榜单分类合法值；yearly 只有 all。 */
 const VALID_SECTIONS = ['censored', 'uncensored', 'western', 'fc2', 'all'] as const;
 
 export type RankingListType = (typeof VALID_LIST_TYPES)[number];
 export type RankingArchiveSection = (typeof VALID_SECTIONS)[number];
 
+/** 查询参数里的榜单周期是否为合法值。 */
 export function isRankingListType(value: unknown): value is RankingListType {
   return typeof value === 'string' && (VALID_LIST_TYPES as readonly string[]).includes(value);
 }
 
+/** 查询参数里的分类是否为合法值。 */
 export function isRankingArchiveSection(value: unknown): value is RankingArchiveSection {
   return typeof value === 'string' && (VALID_SECTIONS as readonly string[]).includes(value);
 }
@@ -42,7 +42,7 @@ export interface Top250Snapshot {
   total: number;
 }
 
-/** 表单缺失字段的中文/机器可读列表（管理页直接复用） */
+/** 管理端榜单归档条目：含详情补全状态与缺失字段。 */
 export interface RankingArchiveEntry {
   id: string;
   snapshotKey: string;
@@ -96,6 +96,7 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
   return Math.min(max, Math.max(min, value));
 }
 
+/** 解析分页参数；页码上限 100000，每页最多 100 条，防止大 offset 拖垮查询。 */
 export function parseArchivePagination(query: {
   page?: string;
   pageSize?: string;
@@ -186,9 +187,7 @@ export async function getTop250Snapshot(
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 管理端：元数据 / 快照列表 / 名次明细
-// ─────────────────────────────────────────────────────────────
+// ── 管理端：元数据 / 快照列表 / 名次明细 ─────────────────────────────
 
 interface ArchiveFilterInput {
   listType?: string;
@@ -229,6 +228,7 @@ function buildFilters(input: ArchiveFilterInput): {
   };
 }
 
+/** 管理端概览：快照/条目/作品总数、各通道统计与可选年份列表。 */
 export async function getRankingArchiveMeta(db: D1Database): Promise<RankingArchiveMeta> {
   try {
     const [totalRow, channelRows] = await db.batch([
@@ -279,6 +279,7 @@ export async function getRankingArchiveMeta(db: D1Database): Promise<RankingArch
   }
 }
 
+/** 管理端快照列表：按快照时间倒序分页。 */
 export async function listRankingSnapshots(
   db: D1Database,
   input: ArchiveFilterInput,
@@ -324,6 +325,7 @@ export async function listRankingSnapshots(
   }
 }
 
+/** 管理端名次明细：联表补全标题/封面/详情补全状态，支持番号或标题模糊搜索。 */
 export async function listRankingEntries(
   db: D1Database,
   input: ArchiveFilterInput,

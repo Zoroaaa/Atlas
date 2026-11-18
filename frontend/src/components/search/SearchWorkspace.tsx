@@ -1,3 +1,8 @@
+/**
+ * 搜索工作台主区：按当前类别渲染主结果面板，宽屏时把多源直达栏固定在右侧。
+ *
+ * 约束：JAV 在 activeTab=jav 下用 javSubMode 区分番号详情与女优搜索；右侧源栏只在可点源 ≥2 时出现。
+ */
 import React from 'react';
 import { ArrowLeft, RefreshCw, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +40,7 @@ interface SearchWorkspaceProps {
   javExcludeCodes?: string[];
 }
 
+/** 搜索工作台：主结果渲染与右侧源栏的响应式组合 */
 export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
   activeTab,
   javSubMode,
@@ -58,6 +64,7 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
   const javData = resultType === 'jav' ? (enrichedData as JavEnrichedData) : undefined;
   const isActressMode = activeTab === 'jav' && javSubMode === 'actress' && Boolean(javData);
   const hasSourceLinks = searchFlow.searchResults.length > 0;
+  // 番号模式下详情由 JAV 专用流程承载，聚合结果面板让位
   const hasJavPrimary = activeTab === 'jav' && !isActressMode
     && (javFlow.javDetailStatus !== 'idle' || Boolean(javFlow.javDetail));
 

@@ -1,10 +1,9 @@
 /**
- * 错误信息脱敏工具
- * 将内部实现细节（API 地址、HTTP 状态码、bot detection 等）
- * 转换为用户友好的中文提示，避免泄露内部架构信息。
+ * 外部错误脱敏与失败分类：把内部细节（API 地址、状态码、bot 检测等）转成用户提示，
+ * 并给出 SOURCE_UNAVAILABLE / RATE_LIMITED 等语义供前端区分。
  */
 
-/** 已知的错误模式 → 用户友好提示映射 */
+/** 已知错误模式 → 用户友好提示；按数组顺序匹配，先命中先返回，宽泛模式必须放最后 */
 const ERROR_MAP: Array<{ pattern: RegExp; message: string }> = [
   { pattern: /nyaa_rss_blocked|response is HTML/i, message: '数据源暂时不可用' },
   { pattern: /nyaa_rss_http_(\d+)/, message: '数据源请求失败' },
@@ -36,7 +35,7 @@ export function sanitizeError(raw: string | null | undefined): string {
   return '请求失败，请稍后重试';
 }
 
-// ─── 失败语义 ──────────────────────────────────────────────────────────
+// ── 失败语义 ────────────────────────────────────────────────────────
 
 /**
  * 搜索失败类型：让前端区分「源暂时不可用」与「限流」等，

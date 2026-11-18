@@ -1,3 +1,9 @@
+/**
+ * 搜索与用户数据 API：搜索入口先经 zod 校验，收藏/历史列表在此做字段归一化。
+ *
+ * 约束：收藏与历史含用户上下文，缓存键必须按用户隔离。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import { camelizeKeys } from '@/utils';
@@ -27,6 +33,7 @@ import type {
   SearchStatsResponse,
 } from './types';
 
+/** 搜索相关接口：/search 请求体经 shared schema 校验后再提交。 */
 export const searchApi = {
   search: async (data: SearchRequest): Promise<SearchEndpointResponse> => {
     const { searchSchema } = await import('@codeseek/shared/schemas/search');
@@ -49,6 +56,7 @@ export const searchApi = {
   },
 };
 
+/** 用户中心接口：设置、收藏、搜索历史、行为日志；列表返回值统一补齐可选字段。 */
 export const userApi = {
   getSettings: async (): Promise<{ 
     success: boolean; 
@@ -83,6 +91,7 @@ export const userApi = {
       return {
         success: true,
         data: {
+          // 行数据是 snake_case，先 camelize 再统一把空串归一化为 undefined
           favorites: camelizeKeys<FavoriteItem[]>(response.data.favorites).map(f => ({
             ...f,
             subtitle: f.subtitle || undefined,
@@ -241,6 +250,7 @@ export const userApi = {
   getSearchHistoryStats: async (): Promise<ApiResponse<SearchHistoryStats>> => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    // 后端用 todayStart + 时区偏移换算记录日期，避免 UTC 日期与本地"今天"错位
     const tzOffset = -now.getTimezoneOffset();
     const response = await apiClient.get<{ success: boolean; data: SearchHistoryStats }>(
       `/user/search-history/stats?todayStart=${todayStart}&tzOffset=${tzOffset}`

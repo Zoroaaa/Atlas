@@ -1,12 +1,10 @@
 /**
- * CodeSeek 后端类型定义
- * 功能：定义所有数据库实体、环境变量、API响应类型
+ * 后端类型定义汇总：数据库实体行、环境绑定、API 响应与推荐相关类型。
+ *
+ * 除注明外，所有时间戳均为 Unix 毫秒；JWT 的 iat/exp 例外，为秒。
  */
 
-// =====================================================================
-// Env — 对应 wrangler.toml [vars] + secrets
-// 只包含 Layer 1（部署级）配置，业务配置已全部迁移至 DB
-// =====================================================================
+// ── Env（wrangler.toml [vars] + secrets，仅部署级配置） ──
 
 /** Workers AI 绑定的最小接口（避免依赖具体 workers-types 版本） */
 export interface WorkersAiBinding {
@@ -86,9 +84,7 @@ export interface Env {
   ALIAS_AI_MODEL?: string;
 }
 
-// =====================================================================
-// 推荐系统类型
-// =====================================================================
+// ── 推荐系统类型 ──
 
 export type RecommendReasonType = 'actor' | 'tag' | 'publisher' | 'popular' | 'ranking';
 
@@ -151,13 +147,17 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  /** `$pbkdf2-sha256$迭代数$盐$摘要`；早期账号可能是无盐 SHA-256 十六进制串 */
   password_hash: string;
   created_at: number;
   updated_at: number;
+  /** 用户偏好，JSON 字符串 */
   settings: string;
+  /** 0 = 已禁用（禁止登录），1 = 正常 */
   is_active: number;
   last_login: number | null;
   login_count: number;
+  /** 0 = 未验证，1 = 已验证 */
   email_verified: number;
   last_password_change?: number | null;
   role_id?: string;
@@ -181,6 +181,7 @@ export interface Role {
 export interface UserSession {
   id: string;
   user_id: string;
+  /** 会话 token 的 SHA-256 摘要；明文 token 只存在于客户端 */
   token_hash: string;
   expires_at: number;
   created_at: number;
@@ -278,8 +279,10 @@ export interface SearchSource {
   subtitle: string | null;
   description: string | null;
   icon: string | null;
+  /** 搜索地址模板，`{keyword}` 占位符由后端做 encodeURIComponent 后替换 */
   url_template: string;
   homepage_url: string | null;
+  /** search = 可直接搜索；browse = 只跳转浏览（跟随分类默认值） */
   site_type: string;
   searchable: number;
   search_priority: number;
@@ -334,7 +337,9 @@ export interface EmailVerification {
   user_agent?: string | null;
   attempt_count?: number;
   email_hash?: string | null;
+  /** 验证码哈希；库里不存明文验证码 */
   code_hash?: string | null;
+  /** pending / used / expired / failed */
   status?: string;
   metadata?: string;
 }
@@ -346,6 +351,7 @@ export interface EmailChangeRequest {
   new_email: string;
   old_email_verified: number;
   new_email_verified: number;
+  /** pending / completed / expired / cancelled；旧邮箱与新邮箱两侧都验证后才置为 completed */
   status: string;
   expires_at: number;
   created_at: number;
@@ -440,9 +446,12 @@ export interface SystemConfig {
   key: string;
   value: string;
   description: string | null;
+  /** 值类型（string / number / boolean / json 等），决定后台编辑器与解析方式 */
   config_type: string;
   config_group: string | null;
+  /** 1 = 可下发给前端公开接口 */
   is_public: number;
+  /** 1 = 敏感值，接口与日志中必须脱敏 */
   is_sensitive: number;
   is_resettable: number;
   validation_rules: string | null;
@@ -477,6 +486,7 @@ export interface ConfigGroup {
   updated_at: number;
 }
 
+/** JWT 载荷；iat/exp 单位为秒（jose 约定），与库里其他毫秒时间戳不同 */
 export interface JwtPayload {
   userId: string;
   username: string;
@@ -484,5 +494,3 @@ export interface JwtPayload {
   iat: number;
   exp: number;
 }
-
-// 系统错误记录（前端 ErrorBoundary + 后端 onError 上报）

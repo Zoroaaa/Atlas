@@ -1,14 +1,9 @@
 /**
- * JavProvider — JAV 搜索适配器
+ * JavProvider — JAV 搜索适配器：按 ctx.subMode 分 code / title / actress 三条子路径。
  *
- * JAV 搜索与动漫/影视本质不同，这里由 Provider 内部承载三条子路径：
- *   - code：以番号为精确匹配，走 JavBus 详情页解析 + 磁力提取（单条结果，无分页）
- *   - title：非番号格式 → 仅保留多源跳转卡片（在 JavBus 等站点按标题搜）
- *   - actress：JavBus 女优资料 + 作品列表 + 多源跳转卡片
- * 另外 code/title/actress 三条路径都会注入「按用户过滤的多源跳转卡片」，
- * 并将 total 覆盖为源卡片数量（前端展示依赖）。
- *
- * 共享工具（番号解析/parseMagnets/parseJavDetail 等）提取至 jav-utils.ts
+ * code 走 JavBus 详情页 + 磁力（单条结果、无分页），title 只返回多源跳转卡片，
+ * actress 抓取 JavBus 女优资料与作品列表。三条路径都会注入按用户过滤的源卡片，
+ * 并把 total 覆盖为卡片数量（前端展示依赖），因此 injectsUserSources=true。
  */
 import {
   SearchProvider,
@@ -36,7 +31,7 @@ import {
   type SearchSourceCard,
 } from '@/repositories/search-source-repository';
 
-// ─── 类型定义 ────────────────────────────────────────────────────────────
+// ── 类型定义 ─────────────────────────────────────────────
 
 export interface JavDetailResult {
   code: string;
@@ -86,7 +81,7 @@ export interface JavSearchResult extends SearchResultBase {
   magnetFetchFailed?: boolean;
 }
 
-// ─── Provider 实现 ──────────────────────────────────────────────────────
+// ── Provider 实现 ────────────────────────────────────────
 
 export class JavProvider implements SearchProvider {
   readonly id = 'jav';
@@ -94,9 +89,10 @@ export class JavProvider implements SearchProvider {
   /** JAV 不依赖 majorCategoryId 进行路由分发，由前端按 tab 判断。
    *  此处保留一个虚拟 category ID 用于 Registry 匹配。 */
   readonly supportedCategories = ['jav_sources'];
-  /** 结果含按用户过滤的多源源列表 → 属用户态响应 */
+  /** 结果含按用户过滤的搜索源卡片 → 属用户态响应 */
   readonly injectsUserSources = true;
 
+  /** 按 subMode 分发；未识别的番号回退 title，识别但无详情回退 sources-only。 */
   async search(keyword: string, page: number, ctx: SearchContext): Promise<JavSearchResult> {
     if (ctx.subMode === 'actress') {
       return this.searchActress(keyword, page, ctx);
@@ -317,6 +313,7 @@ export class JavProvider implements SearchProvider {
     );
   }
 
+  /** 从 JavBus 首页提取包含输入片段的番号，最多 10 条（没有独立的搜索建议接口）。 */
   async suggestions(keyword: string): Promise<{ text: string; meta?: Record<string, unknown> }[]> {
     try {
       const normalized = normalizeJavCode(keyword);
@@ -350,6 +347,7 @@ export class JavProvider implements SearchProvider {
     }
   }
 
+  /** JavBus 首页推荐位；只解析首页 movie-box，不做额外搜索请求。 */
   async trending(): Promise<{ keyword: string; count: number; cover?: string; subtitle?: string }[]> {
     try {
       const html = await getHtml('https://www.javbus.com/', 10000);
@@ -382,6 +380,7 @@ export class JavProvider implements SearchProvider {
     }
   }
 
+  /** 写搜索历史：番号结果取详情，女优结果退化为首位女优资料。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];
     const values: (string | number)[] = [];
@@ -400,7 +399,6 @@ export class JavProvider implements SearchProvider {
     }).detail;
 
     if (detail) {
-      // JAV 番号搜索：提取详情数据 → title + cover + code(番号) + actors + duration + release_date + publisher + tags
       fields.push('title=?, cover=?');
       values.push(detail.title, detail.cover || '');
       if (detail.code) {
@@ -428,7 +426,6 @@ export class JavProvider implements SearchProvider {
         values.push(detail.tags.join(','));
       }
     } else {
-      // JAV 女优搜索（无 detail，有 actresses）：提取首位女优 → title + cover + code(actress:id) + actors + subtitle + tags
       const actresses = (result as {
         actresses?: Array<{
           id: string;
@@ -461,5 +458,4 @@ export class JavProvider implements SearchProvider {
   }
 }
 
-/** 导出单例 */
 export const javProvider = new JavProvider();

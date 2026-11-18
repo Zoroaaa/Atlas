@@ -1,8 +1,8 @@
 /**
- * 用户路由模块
- * 功能：用户设置、收藏、搜索历史、活动记录
- * 作者：CodeSeek Team
- * 日期：2024
+ * 用户路由：设置、收藏、搜索历史、用户搜索源配置与行为统计。
+ *
+ * 约束：所有查询与写入必须带 user_id；收藏 / 历史写入后按上限裁剪，
+ * 防止并发插入突破条数上限。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -128,6 +128,7 @@ userRoutes.get('/favorites/index', async (c) => {
 });
 
 // 传 page/pageSize 时分页返回（含 total）；不传则保持全量返回（仪表盘/导出使用）
+// 分页上限 50：控制台列表够用，同时避免一次把全量收藏拉进响应
 userRoutes.get('/favorites', async (c) => {
   const user = c.get('user');
 
@@ -338,7 +339,8 @@ userRoutes.get('/search-history/stats', async (c) => {
 
   try {
     const todayStart = parseInt(c.req.query('todayStart') || '0', 10) || 0;
-    // 客户端时区偏移（分钟，东区为正），用于按本地日期统计活跃天数
+    // 客户端时区偏移（分钟，东区为正），用于按本地日期统计活跃天数；
+    // 收敛到 ±840 分钟（UTC-14 ~ UTC+14），避免异常参数把日期算到别的日子
     const tzOffset = Math.max(-840, Math.min(840, parseInt(c.req.query('tzOffset') || '0', 10) || 0));
 
     const [summary, top] = await Promise.all([
@@ -428,6 +430,7 @@ userRoutes.get('/search-history', async (c) => {
   }
 });
 
+/** 保存一条搜索历史并按上限裁剪：超限时一次性删到最近 N 条，避免反复超限。 */
 userRoutes.post('/search-history', validateBody(schemas.user.addSearchHistory), async (c) => {
   const user = c.get('user');
 
@@ -574,7 +577,7 @@ userRoutes.delete('/search-history/:id', async (c) => {
   }
 });
 
-// 批量删除搜索历史
+/** 批量删除搜索历史；WHERE 同时带 id 与 user_id，确保删不到他人记录。 */
 userRoutes.post('/search-history/batch-delete', validateBody(schemas.user.batchDeleteSearchHistory), async (c) => {
   const user = c.get('user');
 
@@ -669,6 +672,7 @@ userRoutes.get('/source-configs', async (c) => {
   }
 });
 
+/** 用户搜索源配置的增量保存：只写请求中出现的字段，未传字段保持原值。 */
 userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSourceConfig), async (c) => {
   const user = c.get('user');
   const sourceId = c.req.param('sourceId');
@@ -750,6 +754,7 @@ userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSour
 
 userRoutes.get('/activities', async (c) => {
   const user = c.get('user');
+  // limit 上限 100：单次最多返回 100 条，避免审计日志一次拉全量
   const limit = Math.min(parseInt(c.req.query('limit') || '100'), 100);
   const offset = parseInt(c.req.query('offset') || '0');
   const actionType = c.req.query('action');

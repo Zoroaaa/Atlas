@@ -1,7 +1,7 @@
 /**
- * JavActressResultsPanel — JAV 女优搜索结果面板
+ * JAV 女优搜索结果面板：女优资料列表 + 该女优作品网格，两个连续区段。
  *
- * 女优资料与女优作品为两个连续区段，不再各自套独立卡片。
+ * 约束：搜索失败与「该女优没有作品」是两件事，必须分别提示，不能合并成同一个空态。
  */
 import { useState } from 'react';
 import { Users, MapPin, Calendar, Cake, Sparkles, SearchX, Film, ExternalLink } from 'lucide-react';
@@ -135,6 +135,7 @@ export interface JavActressResultsPanelProps {
   onWorkClick?: (code: string) => void;
 }
 
+/** JAV 女优搜索结果：资料分页与作品网格，点击作品回到番号搜索 */
 export function JavActressResultsPanel({
   data,
   isAuthenticated,
@@ -150,6 +151,7 @@ export function JavActressResultsPanel({
   // 作品源失败与「该女优没有作品」是两件事，必须分别展示
   const worksError = data.errors?.works;
 
+  // JavBus 的女优检索（searchstar）与作品检索（search）是两个入口，关键词优先用归一化结果
   const actressSearchUrl = `https://www.javbus.com/searchstar/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;
   const actressSearchHref = isProxyEnabled ? convertToProxyUrl(actressSearchUrl) : actressSearchUrl;
   const worksSearchUrl = `https://www.javbus.com/search/${encodeURIComponent(data.normalizedKeyword ?? data.keyword)}`;

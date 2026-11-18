@@ -1,3 +1,9 @@
+/**
+ * 站点公开配置：内存缓存 5 分钟，请求失败时回退到上次成功值或内置默认值。
+ *
+ * 约束：字段同时兼容 camelCase 与后端历史 snake_case 命名。
+ */
+
 import { configApi } from '@/services/api';
 
 export interface PublicConfig {
@@ -8,6 +14,7 @@ export interface PublicConfig {
   communityEnabled: boolean;
 }
 
+// 仅用于清理旧版本残留的 localStorage 键，当前配置只缓存在内存
 const CONFIG_CACHE_KEY = 'app_config_cache';
 const CONFIG_CACHE_TTL = 5 * 60 * 1000;
 
@@ -41,6 +48,7 @@ function parseConfig(data: Record<string, unknown>): PublicConfig {
   };
 }
 
+/** 公开配置服务：供 ConfigContext 读取站点名、注册开关等全局信息。 */
 export const configService = {
   async getPublicConfig(): Promise<PublicConfig> {
     const now = Date.now();

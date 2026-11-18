@@ -1,12 +1,8 @@
 /**
- * JavBus 女优资料搜索抓取
+ * 女优资料与作品搜索：抓取 JavBus 的 /searchstar、/star、/search 页面。
  *
- * 原数据源 minnano-av.com 已上线反爬（Worker 侧请求一律返回安全验证页），
- * 故改用 JavBus 自身作为女优资料来源：
- *   /searchstar/{keyword} → 女优列表（star slug / 姓名 / 头像）
- *   /star/{key}           → 资料块（生日/年龄/身高/罩杯/胸围/腰围/臀围/出生地/爱好）
- *
- * 关键词归一化：JavBus 是日文站，中文俗称/简繁体需先经 normalizeActressKeyword 转日文名。
+ * 原 minnano-av.com 对 Worker 请求一律返回验证页，故改用 JavBus 自身数据。
+ * JavBus 是日文站，中文俗称/简繁体必须先经 normalizeActressKeyword 转成日文名。
  */
 
 import { getHtml, normalizeJavbusUrl, parseActressList, parseGrid, type JavItem } from '@/services/jav-utils';
@@ -14,7 +10,7 @@ import { normalizeActressKeyword } from '@/services/actress-name-map';
 
 const JAVBUS_BASE = 'https://www.javbus.com';
 
-// ─── 类型 ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 export interface ActressProfile {
   /** JavBus star slug（如 2xi） */
@@ -45,7 +41,7 @@ export interface ActressProfile {
   detailUrl: string;
 }
 
-// ─── 解析 ──────────────────────────────────────────────────────────────
+// ── 解析 ─────────────────────────────────────────────────
 
 /** 提取数值（"163cm" → 163） */
 function toInt(raw: string | undefined): number | undefined {
@@ -115,9 +111,10 @@ function parseStarProfile(
   };
 }
 
-// ─── 主入口 ────────────────────────────────────────────────────────────
+// ── 主入口 ───────────────────────────────────────────────
 
-const MAX_DETAIL_FETCH = 10; // 最多并发抓取资料页数量
+/** 最多抓取的女优资料页数量：列表页可能命中大量同名条目，只取前 N 个。 */
+const MAX_DETAIL_FETCH = 10;
 
 /**
  * 搜索女优：/searchstar/ 取列表 → 并发抓前 N 个 star 页资料块
@@ -159,19 +156,12 @@ export async function fetchActresses(
   });
 }
 
-// ─── JavBus 女优作品搜索 ────────────────────────────────────────────────
+// ── JavBus 女优作品搜索 ──────────────────────────────────
 
-/**
- * 抓取 JavBus 女优搜索页（/search/{keyword}）前 20 条作品。
- *
- * 与女优资料抓取解耦：资料源失败时仍会尝试抓取作品列表。
- * 关键词归一化：JavBus 同样是日文站，中文俗称/简繁体无法直接命中。
- *
- * JavBus 搜索页与首页/genre/star 页共享同一 movie-box 网格结构，
- * 复用 jav-utils.ts 的 parseGrid 解析器。
- */
+/** 女优作品列表最多返回条数（JavBus 搜索页首屏）。 */
 const JAVBUS_ACTRESS_WORKS_LIMIT = 20;
 
+/** 抓取 JavBus 女优搜索页前 20 条作品；与资料抓取解耦，关键词同样需转日文名。 */
 export async function fetchActressWorks(
   keyword: string,
   normalizedKeyword?: string

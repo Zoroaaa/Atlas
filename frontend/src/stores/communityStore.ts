@@ -1,3 +1,9 @@
+/**
+ * 社区 store：帖子/评论/标签的客户端缓存与点赞收藏乐观更新。
+ *
+ * 约束：只持久化筛选条件；帖子和评论属于服务端数据，进入页面时重新拉取。
+ */
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { communityApi } from '@/services/api/community';
@@ -100,12 +106,13 @@ const initialState = {
   userStats: null,
 };
 
+/** 社区全局状态；列表、详情与个人中心共用同一份数据。 */
 export const useCommunityStore = create<CommunityState>()(
   persist(
     (set, get) => ({
       ...initialState,
 
-      // ==================== 帖子操作 ====================
+      // ── 帖子操作 ──────────────────────────────────────────────
 
       fetchPosts: async (params) => {
         set({ postsLoading: true });
@@ -196,7 +203,7 @@ export const useCommunityStore = create<CommunityState>()(
         }
       },
 
-      // ==================== 互动功能（乐观更新）====================
+      // ── 互动功能（乐观更新） ──────────────────────────────────
 
       toggleLike: async (postId) => {
         const { posts, currentPost } = get();
@@ -328,7 +335,7 @@ export const useCommunityStore = create<CommunityState>()(
         }
       },
 
-      // ==================== 评论操作 ====================
+      // ── 评论操作 ──────────────────────────────────────────────
 
       fetchComments: async (postId) => {
         set({ commentsLoading: true });
@@ -351,7 +358,6 @@ export const useCommunityStore = create<CommunityState>()(
 
           set((state) => ({
             comments: [...state.comments, response.data],
-            // 更新帖子的评论数
             posts: state.posts.map((p) =>
               p.id === data.postId
                 ? { ...p, commentCount: p.commentCount + 1 }
@@ -377,7 +383,6 @@ export const useCommunityStore = create<CommunityState>()(
           const comment = get().comments.find((c) => c.id === id);
           set((state) => ({
             comments: state.comments.filter((c) => c.id !== id),
-            // 更新帖子的评论数
             posts: state.posts.map((p) =>
               p.id === comment?.postId
                 ? { ...p, commentCount: Math.max(0, p.commentCount - 1) }
@@ -396,7 +401,7 @@ export const useCommunityStore = create<CommunityState>()(
         }
       },
 
-      // ==================== 标签操作 ====================
+      // ── 标签操作 ──────────────────────────────────────────────
 
       fetchTags: async () => {
         set({ tagsLoading: true });
@@ -413,7 +418,7 @@ export const useCommunityStore = create<CommunityState>()(
         }
       },
 
-      // ==================== 个人中心 ====================
+      // ── 个人中心 ──────────────────────────────────────────────
 
       fetchMyPosts: async (params) => {
         set({ myPostsLoading: true });
@@ -455,7 +460,7 @@ export const useCommunityStore = create<CommunityState>()(
         }
       },
 
-      // ==================== 筛选器 ====================
+      // ── 筛选器 ────────────────────────────────────────────────
 
       setPostTypeFilter: (filter) => {
         set({ postTypeFilter: filter, postsPage: 1 });
@@ -469,7 +474,7 @@ export const useCommunityStore = create<CommunityState>()(
         set({ searchQuery: query, postsPage: 1 });
       },
 
-      // ==================== 重置 ====================
+      // ── 重置 ──────────────────────────────────────────────────
 
       reset: () => {
         set(initialState);

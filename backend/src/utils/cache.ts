@@ -10,6 +10,7 @@ interface CacheEntry {
   expiresAt: number;
 }
 
+// 无容量上限与淘汰策略：只适合少量固定 key，不要缓存按用户/关键词展开的大基数数据
 const store = new Map<string, CacheEntry>();
 
 /**

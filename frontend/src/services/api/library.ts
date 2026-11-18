@@ -1,3 +1,7 @@
+/**
+ * 本地库只读 API：按番号或类别读取已采集的记录与磁力，不访问外部站点。
+ */
+
 import { apiClient } from './client';
 
 export interface LibraryMagnet {
@@ -70,6 +74,7 @@ export interface LibraryRecordQuery {
   title?: string;
 }
 
+/** 本地库查询接口；found=false 表示该条目尚未采集或详情未补全。 */
 export const libraryApi = {
   /** 本地库里已采集的 JAV 详情（含磁力）；只读本地，不访问外部站点 */
   getJavDetail: async (code: string): Promise<LibraryLookup> => {

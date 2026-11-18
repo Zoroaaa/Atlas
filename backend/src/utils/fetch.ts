@@ -9,10 +9,8 @@ export interface RetryOptions {
 }
 
 /**
- * 带重试的 fetch
- * - 429 Too Many Requests / 503 Service Unavailable → 指数退避重试
- * - 网络错误 → 同样重试
- * - 耗尽重试次数后抛出最后一个错误
+ * 带重试的 fetch：仅 429/503 与网络异常重试（指数退避，状态码分支额外加 0~500ms 抖动）；
+ * 其余状态码原样返回交给调用方判断，重试耗尽后抛出最后一个错误。
  */
 export async function fetchWithRetry(
   url: string,
@@ -25,7 +23,7 @@ export async function fetchWithRetry(
   for (let i = 0; i <= retries; i++) {
     try {
       const r = await fetch(url, init);
-      // 429 / 503 → 重试（覆盖两处原有逻辑的并集）
+      // 429 / 503 视为暂时性失败；抖动避免多个 Worker 同时重试打爆上游
       if ((r.status === 429 || r.status === 503) && i < retries) {
         const delay = baseDelay * Math.pow(2, i) + Math.random() * 500;
         console.warn(`[retry] ${url} → ${r.status}, retry #${i + 1} after ${Math.round(delay)}ms`);

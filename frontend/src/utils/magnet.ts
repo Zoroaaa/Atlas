@@ -1,12 +1,14 @@
-// ─────────────────────────────────────────────────────────────────
-// magnet.ts  —  磁力链接工具集
-// ─────────────────────────────────────────────────────────────────
+/**
+ * 磁力链接工具集：解析 magnet、下载 .torrent、复制链接与唤起本地客户端。
+ *
+ * 约束：infoHash 统一输出 40 位小写 hex，32 位 base32 需先转 hex 再使用。
+ */
 
 import { apiClient } from '@/services/api/client';
 import { getApiBaseUrl } from '@/constants';
 
 export interface ParsedMagnet {
-  infoHash: string;    // 40位小写hex
+  infoHash: string;    // 40 位小写 hex
   name: string;
   dn: string;
   trackers: string[];
@@ -14,6 +16,7 @@ export interface ParsedMagnet {
 
 // ── 解析 ─────────────────────────────────────────────────────────
 
+/** 解析 magnet URI；兼容 40 位 hex 与 32 位 base32 的 btih，无法识别时返回 null。 */
 export function parseMagnet(magnetUri: string): ParsedMagnet | null {
   if (!magnetUri || !magnetUri.startsWith('magnet:')) return null;
   try {
@@ -25,6 +28,7 @@ export function parseMagnet(magnetUri: string): ParsedMagnet | null {
     if (!m) return null;
 
     let infoHash = m[1];
+    // 32 位 base32 需要先转成 40 位 hex，后端按 hex 寻址种子
     if (infoHash.length === 32) infoHash = base32ToHex(infoHash);
 
     return {
@@ -53,10 +57,12 @@ function base32ToHex(base32: string): string {
   return hex;
 }
 
-// ── 下载种子文件 ─────────────────────────────────────────────────
-// 优先走后端代理获取真实 .torrent（含 pieces，BT 客户端可正确识别）
-// 后端 404 时降级为直接下载 itorrents.org（前端同源限制可能失败，仅兜底）
+// ── 下载种子文件 ─────────────────────────────────────────────
 
+/**
+ * 下载 .torrent：优先走后端代理（含 pieces，BT 客户端能正确识别），
+ * 后端失败时降级为 itorrents.org 直链（受 CORS 限制，仅兜底）。
+ */
 export async function downloadTorrentFile(
   magnetUri: string,
   filename?: string,
@@ -67,8 +73,7 @@ export async function downloadTorrentFile(
   const hash = parsed.infoHash.toUpperCase();
   const name = (filename || parsed.name || hash).replace(/[/\\?%*:|"<>]/g, '_');
 
-  // 1. 优先：后端代理
-  // 动态获取API地址（与 services/api/client.ts 逻辑保持一致）
+  // 1. 优先：后端代理（API 基址动态获取，与 services/api/client.ts 保持一致）
   const apiBase = getApiBaseUrl();
   const backendUrl = `${apiBase}/jav/torrent/${hash}`;
 
@@ -108,11 +113,13 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  // 延迟回收 blob URL，给浏览器留出启动下载的时间
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // ── 复制到剪贴板 ─────────────────────────────────────────────────
 
+/** 复制文本到剪贴板；Clipboard API 不可用时回退到 execCommand。 */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -137,6 +144,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 
 // ── 唤起本地 BT 客户端 ───────────────────────────────────────────
 
+/** 唤起系统注册的 BT 客户端。 */
 export function openMagnetClient(magnetUri: string): void {
   window.location.href = magnetUri;
 }

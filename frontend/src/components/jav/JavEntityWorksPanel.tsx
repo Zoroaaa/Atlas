@@ -58,9 +58,11 @@ const pickPath = (data: EntityLinksData, target: JavEntityTarget): string | unde
   if (links.length === 0) return undefined;
   const exact = links.find((link) => link.name === target.name);
   if (exact) return exact.path;
+  // 多值字段用 " / " 拼接（如发行商 A / B），按包含关系回退到第一个匹配
   return (links.find((link) => target.name.includes(link.name)) ?? links[0])?.path;
 };
 
+/** 实体作品弹窗：列表项点击回到番号搜索，老记录缺链接时先回源解析 */
 export const JavEntityWorksPanel: React.FC<JavEntityWorksPanelProps> = ({
   entity,
   onClose,

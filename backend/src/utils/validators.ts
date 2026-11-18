@@ -1,5 +1,7 @@
+/** 后端行数据 zod schema 汇总：用于校验从 D1 读出的行结构。 */
 import { z } from 'zod';
 
+/** 用户行为日志行 */
 export const userActivitySchema = z.object({
   id: z.string(),
   user_id: z.string(),
@@ -10,6 +12,7 @@ export const userActivitySchema = z.object({
   created_at: z.number(),
 });
 
+/** 反馈工单行（含管理员处理与回信字段） */
 export const feedbackSchema = z.object({
   id: z.string(),
   user_id: z.string().nullable(),
@@ -33,6 +36,7 @@ export const feedbackSchema = z.object({
   updated_at: z.number(),
 });
 
+/** 社区统计计数；列缺省时按 0 处理 */
 export const communityStatsSchema = z.object({
   likes: z.number().default(0),
   reviews: z.number().default(0),
@@ -40,6 +44,7 @@ export const communityStatsSchema = z.object({
   reports: z.number().default(0),
 });
 
+/** 管理员会话行 */
 export const adminSessionSchema = z.object({
   id: z.string(),
   user_id: z.string(),
@@ -51,6 +56,7 @@ export const adminSessionSchema = z.object({
   last_activity: z.number(),
 });
 
+/** 管理后台事件行（severity 固定四级） */
 export const adminEventSchema = z.object({
   id: z.string(),
   event_type: z.string(),
@@ -66,6 +72,7 @@ export const adminEventSchema = z.object({
   created_at: z.number(),
 });
 
+/** 管理后台操作审计行 */
 export const adminActionSchema = z.object({
   id: z.string(),
   user_id: z.string().nullable(),

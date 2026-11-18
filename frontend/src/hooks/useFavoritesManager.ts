@@ -1,3 +1,8 @@
+/**
+ * 收藏管理：搜索与详情页各类内容的收藏切换、分页列表与导出。
+ *
+ * 约束：收藏以 URL 作为唯一标识，无 URL 的结果在入口直接拦截；变更后的缓存失效由收藏 mutation 统一处理。
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +19,7 @@ interface UseFavoritesManagerOptions {
   keyword: string;
 }
 
+/** 收藏管理：各类内容的收藏切换、分页面板与导出 */
 export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
   const navigate = useNavigate();
   const toast = useToast();

@@ -1,14 +1,11 @@
 /**
- * 影视搜索服务
- * 元数据: TMDB
- * 磁力资源: TPB API（关键词搜索）+ EZTV（剧集）
+ * 影视搜索服务：TMDB 提供元数据，TPB（关键词）与 EZTV（剧集）提供磁力。
  *
- * ⚠️ 类型契约：本文件导出的接口（TMDBResult, ResourceItem, MovieSearchResult）
- *    与 frontend/src/types/search.ts 保持结构同步。
- *    修改任一端时，请同步更新另一端。
+ * 类型契约：TMDBResult / ResourceItem / MovieSearchResult 与 frontend/src/types/search.ts 同步。
+ * 外部源失败必须落到 tmdbError / tpbError / eztvError，不能静默返回空数组冒充「没有资源」。
  */
 
-// ─── Types ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 export interface TMDBResult {
   id: number;
@@ -82,7 +79,7 @@ import { lookupQueryVariants, resolveQuery } from '@/services/alias-resolver';
 import { ingestTmdbAliases } from '@/services/alias-ingest';
 import { toSourceSearchText } from '@/services/query-normalizer';
 
-// ─── Constants ───────────────────────────────────────────────────────────
+// ── 常量 ─────────────────────────────────────────────────
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
@@ -92,8 +89,9 @@ function extractHash(magnet: string): string {
   return m ? m[1].toLowerCase() : '';
 }
 
-// ─── TMDB API ──────────────────────────────────────────────────────────
+// ── TMDB API ─────────────────────────────────────────────
 
+/** TMDB 多类型搜索（movie + tv），最多保留前 20 条。 */
 async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-CN'): Promise<TMDBResult[]> {
   const url = `https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&query=${encodeURIComponent(keyword)}&language=${lang}&page=${page}&include_adult=false`;
   const r = await fetch(url, {
@@ -126,8 +124,9 @@ async function searchTMDB(keyword: string, apiKey: string, page = 1, lang = 'zh-
     });
 }
 
-// ─── The Pirate Bay API（apibay.org JSON，最全，CF Workers 可达）──────
+// ── The Pirate Bay（apibay.org）──────────────────────────
 
+/** TPB 关键词搜索；cat=0 表示全部分类，结果由调用方按 infoHash 去重。 */
 async function searchTPB(keyword: string): Promise<ResourceItem[]> {
   // apibay 的 q 区分大小写：实测 "Inception" 返回 0 条、"inception" 返回 100 条。
   // TMDB 英文标题首字母大写，必须转小写再查，否则整个 TPB 源恒为空。
@@ -167,8 +166,9 @@ async function searchTPB(keyword: string): Promise<ResourceItem[]> {
   }));
 }
 
-// ─── TMDB External IDs（获取 IMDB ID 用于 EZTV）──────────────────────
+// ── TMDB External IDs ───────────────────────────────────
 
+/** 读取 TMDB 剧集的 IMDB ID，供 EZTV 查询。 */
 async function fetchTMDBExternalIds(tmdbId: number, apiKey: string): Promise<{ imdb_id: string | null }> {
   try {
     const url = `https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${apiKey}`;
@@ -184,8 +184,9 @@ async function fetchTMDBExternalIds(tmdbId: number, apiKey: string): Promise<{ i
   }
 }
 
-// ─── EZTV JSON API（剧集专用）─────────────────────────────────────────
+// ── EZTV JSON API ────────────────────────────────────────
 
+/** 按 IMDB ID 取 EZTV 剧集资源；无结果返回空数组，请求异常向上抛出由调用方降级。 */
 async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
   try {
     // EZTV 只接受纯数字 IMDB id；带 tt 前缀时该参数被忽略，会把全站最新种子当成该剧资源
@@ -223,8 +224,13 @@ async function fetchEZTV(imdbId: string): Promise<ResourceItem[]> {
   }
 }
 
-// ─── 主入口 ────────────────────────────────────────────────────────────
+// ── 主入口 ───────────────────────────────────────────────
 
+/**
+ * 影视搜索主入口：TMDB 中英双语并行取元数据，再用英文标题查 TPB、用 IMDB ID 查 EZTV。
+ *
+ * 返回 total 为元数据条数、resourceTotal 为去重后资源条数；两套计数前端分别使用。
+ */
 export async function searchMovie(
   keyword: string,
   page = 1,
@@ -266,7 +272,7 @@ export async function searchMovie(
     seen.add(key); return true;
   });
 
-  // ── 构建 TPB 搜索关键词列表 ──
+  // ── TPB 关键词 ────────────────────────────────────────
   const enResults: TMDBResult[] = enMetaRes.status === 'fulfilled' ? enMetaRes.value : [];
   const idToEnglishTitle = new Map<number, string>();
   for (const item of enResults) {
@@ -299,7 +305,7 @@ export async function searchMovie(
     if (!tpbKeywords.includes(en)) tpbKeywords.push(en);
   }
 
-  // ── TPB 并发搜索（所有关键词）──
+  // ── TPB 并发搜索 ──────────────────────────────────────
   let allTpbResults: ResourceItem[] = [];
   let tpbError: string | null = null;
   if (tpbKeywords.length > 0 && !skip.has('tpb')) {
@@ -335,7 +341,7 @@ export async function searchMovie(
     // 只要有一个关键词请求成功，TPB 源就是可用的。
     // 部分标题变体失败不应让已返回的资源上方出现「TPB 请求失败」。
     if (tpbFulfilled > 0) tpbError = null;
-    // 按 btih 去重
+    // 按 btih 去重：magnet 前缀固定 20 字符，其后 40 位即 infoHash
     const seenHashes = new Set<string>();
     allTpbResults = allTpbResults.filter(r => {
       const hash = r.magnet?.slice(20, 60) || '';
@@ -344,7 +350,7 @@ export async function searchMovie(
     }).slice(0, 40);
   }
 
-  // ── Phase 2: EZTV 剧集搜索（需要 IMDB ID）──
+  // ── Phase 2: EZTV 剧集搜索（需要 IMDB ID）──────────────
   const eztvResults: ResourceItem[] = [];
   let eztvError: string | null = null;
   const tvItems = results.filter(r => r.mediaType === 'tv');
@@ -371,7 +377,7 @@ export async function searchMovie(
     if (eztvFulfilled > 0) eztvError = null;
   }
 
-  // ── 合并所有资源 + 去重 + 排序 ──
+  // ── 合并资源、去重、排序 ──────────────────────────────
   const allResources = [...allTpbResults, ...eztvResults];
   const seenHashes = new Set<string>();
   const dedupedResources = allResources.filter(r => {
@@ -381,12 +387,12 @@ export async function searchMovie(
     return true;
   }).sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1));
 
-  // 收集实际命中的源列表
+  // 实际命中的源列表，前端仅展示有资源的源标签
   const sourceNames = new Set<string>();
   if (allTpbResults.length > 0) sourceNames.add('TPB');
   if (eztvResults.length > 0) sourceNames.add('EZTV');
 
-  // ── 构建作品级归组数据 ──
+  // ── 作品级归组 ────────────────────────────────────────
   // 用 TMDB 作品标题匹配资源，替换前端粗糙的模糊匹配
   const groupedResult = groupResourcesBySubject(results, dedupedResources, {
     subjectTitles: (s) => [s.title, s.originalTitle],

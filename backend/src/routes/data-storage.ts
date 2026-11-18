@@ -49,17 +49,15 @@ dataStorageRoutes.use('*', adminMiddleware);
 const VALID_TYPES = ['jav', 'anime', 'movie', 'manga', 'novel', 'actress'];
 const VALID_STATUSES = ['active', 'hidden'];
 
-// ============================================================
-// 1. 统计概览
-// ============================================================
+// ── 统计概览 ─────────────────────────────────────────────
 
 dataStorageRoutes.get('/stats', async (c) => {
   // 看板统计是全量聚合（标签展开、来源分组、时间窗计数），单次约十几万行读取。
   // 这些数字的变化粒度是「天」，5 分钟内重复计算没有意义：结果按固定路径缓存在边缘，
   // 所有管理员共用（数据本身是全局的，不含用户维度）。
   //
-  // 注意：Cache API 只接受「本 zone 的 URL」。之前用 https://internal/... 作为 key，
-  // 写入会被拒绝（未捕获的 rejection），缓存实际从未生效；这里改用当前请求的 origin。
+  // 注意：Cache API 只接受「本 zone 的 URL」，缓存 key 必须由当前请求 origin 推导；
+  // 用非本 zone 的 URL 会让 cache.put 被拒绝，缓存静默失效。
   const cache = typeof caches !== 'undefined' ? caches.default : null;
   let cacheKey: Request | null = null;
   if (cache) {
@@ -106,7 +104,7 @@ dataStorageRoutes.get('/stats', async (c) => {
            COUNT(*) as total
          FROM data_records`
       ),
-      // 三个时间窗合并成一次范围扫描：原先是三条 COUNT 各扫一遍全表
+      // 三个时间窗合并成一次范围扫描，避免对全表执行三次 COUNT
       c.env.DB.prepare(
         `SELECT
            SUM(CASE WHEN first_seen_at > ? THEN 1 ELSE 0 END) AS today,
@@ -234,9 +232,7 @@ dataStorageRoutes.get('/stats', async (c) => {
   }
 });
 
-// ============================================================
-// 2. 趋势数据
-// ============================================================
+// ── 趋势数据 ─────────────────────────────────────────────
 
 dataStorageRoutes.get('/trends', async (c) => {
   const days = Math.min(90, Math.max(7, parseInt(c.req.query('days') || '30')));
@@ -276,9 +272,7 @@ dataStorageRoutes.get('/trends', async (c) => {
   }
 });
 
-// ============================================================
-// 3. 记录列表（分页 + 筛选）
-// ============================================================
+// ── 记录列表（分页 + 筛选） ──────────────────────────────
 
 dataStorageRoutes.get('/records', async (c) => {
   const page = Math.max(1, parseInt(c.req.query('page') || '1'));
@@ -382,9 +376,7 @@ dataStorageRoutes.get('/records', async (c) => {
   }
 });
 
-// ============================================================
-// 4. 记录详情（含来源子表）
-// ============================================================
+// ── 记录详情（含来源子表） ───────────────────────────────
 
 dataStorageRoutes.get('/records/:id', async (c) => {
   const id = c.req.param('id');
@@ -437,9 +429,7 @@ dataStorageRoutes.get('/records/:id', async (c) => {
   }
 });
 
-// ============================================================
-// 5. 更新状态（显示/隐藏）
-// ============================================================
+// ── 更新状态（显示 / 隐藏） ──────────────────────────────
 
 dataStorageRoutes.put('/records/:id/status', validateBody(schemas.admin.updateDataRecordStatus), async (c) => {
   const id = c.req.param('id');
@@ -467,11 +457,9 @@ dataStorageRoutes.put('/records/:id/status', validateBody(schemas.admin.updateDa
   }
 });
 
-// ============================================================
-// 5.1 单条记录：重置重试状态 / 立即补详情
-// ============================================================
+// ── 单条记录：重置重试状态 / 立即补详情 ──────────────────
 
-/** 只允许对 JAV 记录操作补全相关按钮 */
+/** 读取记录类型，供补详情接口判断是否 JAV（非 JAV 直接拒绝） */
 async function findJavRecord(
   db: D1Database,
   id: string
@@ -540,9 +528,7 @@ dataStorageRoutes.post('/records/:id/detail/fetch', async (c) => {
   }
 });
 
-// ============================================================
-// 6. 删除记录（仅超级管理员，级联删除来源）
-// ============================================================
+// ── 删除记录（仅超级管理员，级联删除来源） ───────────────
 
 dataStorageRoutes.delete('/records/:id', async (c) => {
   const id = c.req.param('id');
@@ -569,9 +555,7 @@ dataStorageRoutes.delete('/records/:id', async (c) => {
   }
 });
 
-// ============================================================
-// 7. 清理隐藏/无效数据（仅超级管理员）
-// ============================================================
+// ── 清理隐藏数据（仅超级管理员） ─────────────────────────
 
 dataStorageRoutes.post('/cleanup', async (c) => {
   if (!(await checkIsSuperAdmin(c))) {
@@ -592,9 +576,7 @@ dataStorageRoutes.post('/cleanup', async (c) => {
   }
 });
 
-// ============================================================
-// 8. 手动同步 JAV 推荐标签词典
-// ============================================================
+// ── 手动同步 JAV 推荐标签词典 ────────────────────────────
 
 dataStorageRoutes.post('/genre-dict/sync', async (c) => {
   const userId = c.get('user')?.userId ?? 'unknown';
@@ -624,9 +606,7 @@ dataStorageRoutes.post('/genre-dict/sync', async (c) => {
   }
 });
 
-// ============================================================
-// 9. JAV 详情批量补全任务
-// ============================================================
+// ── JAV 详情批量补全任务 ─────────────────────────────────
 
 dataStorageRoutes.get('/detail-jobs/current', async (c) => {
   // 运行中的面板每 15 秒轮询一次。完整视图带字段统计与失败列表（全表聚合），
@@ -769,9 +749,7 @@ dataStorageRoutes.post('/detail-jobs/resume', async (c) => {
   }
 });
 
-// ============================================================
-// 10. 封面管理：覆盖率统计 + 回填开关
-// ============================================================
+// ── 封面管理：覆盖率统计 + 回填开关 ──────────────────────
 
 dataStorageRoutes.get('/covers/stats', async (c) => {
   try {
@@ -806,9 +784,7 @@ dataStorageRoutes.post('/covers/requeue', async (c) => {
   }
 });
 
-// ============================================================
-// 11. 榜单归档（周榜 / 月榜 / 年度榜 / TOP250 历史名次）
-// ============================================================
+// ── 榜单归档（周榜 / 月榜 / 年度榜 / TOP250 历史名次） ────
 
 dataStorageRoutes.get('/rankings/meta', async (c) => {
   try {
@@ -877,7 +853,7 @@ dataStorageRoutes.get('/rankings/entries', async (c) => {
   }
 });
 
-// ─── 行映射辅助 ──────────────────────────────────────────────────────
+// ── 行映射辅助 ───────────────────────────────────────────
 
 function mapRecordRow(r: Record<string, unknown>) {
   const missingMask = Number(r.detail_missing_mask ?? 0);

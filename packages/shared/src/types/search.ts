@@ -1,3 +1,9 @@
+/**
+ * 搜索域共享类型：历史、收藏、结果、建议与趋势。
+ * 契约约束：请求体优先由 zod 推导，仅后端内部使用的请求保留手写；字段需与 shared schemas 同步。
+ */
+
+/** 搜索历史条目；由搜索接口在后端写入，前端只读。 */
 export interface SearchHistoryItem {
   id: string;
   userId: string;
@@ -18,6 +24,7 @@ export interface SearchHistoryItem {
   cover?: string;
 }
 
+/** 收藏条目；cover / code 等增强字段可能缺失，渲染时需回退。 */
 export interface FavoriteItem {
   id: string;
   userId: string;
@@ -38,6 +45,7 @@ export interface FavoriteItem {
   status?: string;
 }
 
+/** 单个源站的搜索命中结果。 */
 export interface SearchResult {
   sourceId: string;
   sourceName: string;
@@ -50,6 +58,7 @@ export interface SearchResult {
 export type { SearchRequest } from '../schemas/search';
 export type { AddFavoriteRequest } from '../schemas/user';
 
+/** 搜索接口的响应结构。 */
 export interface SearchResponse {
   success: boolean;
   data: {
@@ -64,11 +73,13 @@ export interface SearchResponse {
   };
 }
 
+/** 搜索建议项，count 为历史命中次数。 */
 export interface SearchSuggestion {
   keyword: string;
   count: number;
 }
 
+/** 热门搜索项。 */
 export interface TrendingSearch {
   keyword: string;
   count: number;
@@ -81,6 +92,7 @@ export interface SaveSearchHistoryRequest {
   resultsCount?: number;
 }
 
+/** 搜索统计聚合结果。 */
 export interface SearchStats {
   totalSearches: number;
   topSources: Array<{

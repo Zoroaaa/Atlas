@@ -1,3 +1,8 @@
+/**
+ * 多源直达列表：把聚合搜索命中的站点整理成紧凑行，支持代理跳转与收藏。
+ *
+ * 约束：无 URL 的结果不渲染跳转按钮；收藏态由父级传入的轻量索引提供，本组件不发请求。
+ */
 import React from 'react';
 import { Globe, Heart, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +28,7 @@ interface SearchResultsPanelProps {
   onToggleFavorite: (result: SearchResultItem) => void;
 }
 
-/** 多源直达：紧凑行列表，不再有列表/网格切换。 */
+/** 多源直达面板：每个命中的站点一行，含分类、站点类型与跳转/收藏操作 */
 export const SearchResultsPanel: React.FC<SearchResultsPanelProps> = ({
   results,
   isAuthenticated,

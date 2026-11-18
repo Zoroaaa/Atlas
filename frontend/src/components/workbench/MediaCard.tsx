@@ -1,3 +1,8 @@
+/**
+ * 工作台通用媒体卡：row 用于列表行，tile 用于等高等宽的网格。
+ *
+ * 约束：tile 模式的 actions 绝对定位覆盖封面右上角，调用方不要放长文案。
+ */
 import React from 'react';
 import { clsx } from 'clsx';
 import { ProxyImage } from '@/components/ui/ImagePreview';
@@ -23,7 +28,7 @@ interface MediaCardProps {
   className?: string;
 }
 
-/** 统一的媒体卡：row 用于列表，tile 用于等高等宽的网格。 */
+/** 媒体卡：selected 控制高亮，只有传入 onSelect 时才可点击 / 可聚焦。 */
 export const MediaCard: React.FC<MediaCardProps> = ({
   cover,
   coverFallback,

@@ -1,8 +1,8 @@
 /**
- * 系统路由模块
- * 功能：健康检查、状态缓存、用户行为记录、系统统计
- * 作者：CodeSeek Team
- * 日期：2024
+ * 系统路由：公开配置、健康检查、APK 版本、前端错误上报、搜索源探测与用户行为记录。
+ *
+ * 约束：公开配置 / 健康检查 / 版本 / 错误上报必须注册在 authMiddleware 之前，
+ * 错误上报还需按 IP 限流，防止匿名刷量。
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -90,16 +90,8 @@ systemRoutes.get('/health', async (c) => {
   }));
 });
 
-// ──────────────────────────────────────────────────────────────
-// 前端错误上报端点
-// POST /api/system/errors — 前端 ErrorBoundary + window.onerror + unhandledrejection
-// 设计要点：
-//   1. 允许匿名上报（用户可能崩溃在登录前），用 IP 限流
-//   2. 限流防止恶意刷量（每 IP 每分钟 30 次）
-//   3. 生成错误指纹用于聚合相同错误
-//   4. 必须在 authMiddleware 之前注册
-// ──────────────────────────────────────────────────────────────
-
+// ── 前端错误上报 ───────────────────────────────────────
+// 允许匿名（用户可能崩溃在登录前），因此必须注册在 authMiddleware 之前，并单独做 IP 限流
 function generateErrorFingerprint(
   errorType: string,
   message: string,
@@ -180,8 +172,13 @@ systemRoutes.post('/errors', validateBody(schemas.system.reportError), async (c)
   }
 });
 
+// 以下接口均需登录；公开端点已在其之前注册，顺序不能调换
 systemRoutes.use('*', authMiddleware);
 
+/**
+ * 探测源站可达性：区分「站点存在但拒绝匿名」（4xx 计入可达）与网络层不可达 / 超时。
+ * 结果里的 status 供前端展示，available 才是是否可用的判定。
+ */
 async function checkUrlReachability(url: string, timeoutMs = 10000): Promise<{
   status: string;
   available: boolean;
@@ -214,6 +211,7 @@ async function checkUrlReachability(url: string, timeoutMs = 10000): Promise<{
     const responseTime = Date.now() - startTime;
     const httpStatus = response.status;
 
+    // 400/401/403/405/406/429 说明站点活着只是拒绝匿名请求，仍算可达
     const reachableSet = new Set([200, 201, 204, 206, 301, 302, 303, 304, 307, 308, 400, 401, 403, 405, 406, 429]);
     const available = reachableSet.has(httpStatus) || (httpStatus >= 200 && httpStatus < 400);
 
@@ -241,6 +239,7 @@ async function checkUrlReachability(url: string, timeoutMs = 10000): Promise<{
   }
 }
 
+/** 探测 URL 选取：优先首页，其次把模板里的 {keyword} 换成 test 再探测。 */
 function resolveCheckUrl(source: SearchSource): string {
   if (source.homepage_url && source.homepage_url.startsWith('http')) {
     return source.homepage_url;
@@ -252,6 +251,7 @@ function resolveCheckUrl(source: SearchSource): string {
   return template;
 }
 
+/** 写入探测结果缓存（默认 5 分钟）；缓存只是加速手段，写失败静默忽略。 */
 async function saveStatusCache(
   db: Env['DB'],
   sourceId: string,
@@ -286,6 +286,7 @@ systemRoutes.get('/source-status-check', async (c) => {
   }
 
   try {
+    // 5 分钟内复用上一次探测，避免重复回源；批量接口也按同一窗口判定缓存
     const cached = await c.env.DB.prepare(`
       SELECT * FROM source_status_cache
       WHERE source_id = ? AND created_at > ?
@@ -423,6 +424,7 @@ systemRoutes.post('/record-action', validateBody(schemas.system.recordAction), a
 
 systemRoutes.get('/stats', async (c) => {
   try {
+    // 活跃用户按「最近一周有搜索记录」定义，增长率与此前一周对比
     const userCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_active = 1').first<{ count: number }>();
     const sourceCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1').first<{ count: number }>();
     const searchCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM user_search_history').first<{ count: number }>();

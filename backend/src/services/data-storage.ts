@@ -1,18 +1,8 @@
 /**
- * 数据存储管理服务
+ * 数据存储管理：把搜索结果去重落库到 data_records / data_record_sources，积累本地数据资产。
  *
- * 在用户搜索时将有效结果去重落库到 data_records / data_record_sources 表，
- * 逐步积累本地数据资产。不保存用户个人信息，仅保留数据本身。
- *
- * 集成点：
- *   - persistDataRecord: 搜索路由 saveEnrichedHistory 之后异步调用
- *   - enrichDataRecordFromDetail: JAV detail 路由返回前异步调用（补充磁力来源）
- *
- * 数据完整性策略：
- *   - content_data 存储搜索返回的首条完整元数据（含 overview/summary 等明细字段）
- *   - data_record_sources 表存储所有磁力/下载链接（anime/movie/novel 各源的磁力）
- *   - JAV 番号搜索返回完整详情，首采即 detail_completed=1
- *   - 列表型结果（anime/movie/manga/novel）首采 detail_completed=0，后续按需补充
+ * 约束：不保存用户个人信息；content_data 只存元数据，磁力/下载链接统一进 sources 表；
+ * 列表类结果首采 detail_completed=0，JAV 番号走详情补全路径并按字段完整度判定。
  */
 import { generateId } from '@/utils';
 import type { JavEntityLink, MagnetItem } from './jav-utils';
@@ -23,7 +13,7 @@ import {
   magnetCountOf,
 } from './jav-detail-meta';
 
-// ─── JAV 封面相对路径补全 ─────────────────────────────────────────────
+// ── JAV 封面相对路径补全 ─────────────────────────────────────────────
 // JavBus 返回的 cover 是相对路径（如 /pics/cover/9ho0_b.jpg），
 // 落库时补全为完整 URL，避免前端展示时再处理。
 function resolveJavCover(cover: string | undefined): string | undefined {
@@ -33,7 +23,7 @@ function resolveJavCover(cover: string | undefined): string | undefined {
   return cover;
 }
 
-// ─── 类型：Provider 返回结构（局部定义，避免循环依赖） ────────────────
+// ── 类型：Provider 返回结构（局部定义，避免循环依赖） ────────────────
 
 interface ActressItem {
   id: string;
@@ -181,7 +171,7 @@ interface JavDetail {
   detailUrl: string;
 }
 
-// ─── 内部：来源写入辅助 ──────────────────────────────────────────────
+// ── 内部：来源写入辅助 ──────────────────────────────────────────────
 
 interface SourceEntry {
   sourceName: string;
@@ -190,6 +180,7 @@ interface SourceEntry {
   sourceData: Record<string, unknown>;
 }
 
+/** 批量写入来源表；(record_id, source_name, source_url) 冲突时只刷新 source_data。 */
 async function insertSources(
   db: D1Database,
   recordId: string,
@@ -226,7 +217,7 @@ async function insertSources(
   }
 }
 
-// ─── 内部：主记录 upsert ─────────────────────────────────────────────
+// ── 内部：主记录 upsert ─────────────────────────────────────────────
 
 interface RecordPayload {
   recordType: 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'actress';
@@ -308,8 +299,9 @@ async function upsertRecord(db: D1Database, payload: RecordPayload): Promise<str
   return existing?.id ?? null;
 }
 
-// ─── JAV 磁力 → 来源条目 ─────────────────────────────────────────────
+// ── JAV 磁力 → 来源条目 ─────────────────────────────────────────────
 
+/** 详情页 URL 记为 detail 来源，磁力逐条记为 magnet 来源；空磁力跳过。 */
 function magnetsToSources(magnets: MagnetItem[], detailUrl?: string): SourceEntry[] {
   const sources: SourceEntry[] = [];
   if (detailUrl) {
@@ -332,7 +324,7 @@ function magnetsToSources(magnets: MagnetItem[], detailUrl?: string): SourceEntr
   return sources;
 }
 
-// ─── 媒体资源 → 来源条目（动漫/影视共用） ─────────────────────────────
+// ── 媒体资源 → 来源条目（动漫/影视共用） ─────────────────────────────
 
 /**
  * 资源写入 data_record_sources 的唯一入口。
@@ -377,7 +369,7 @@ function mediaResourcesToSources(resources: MediaResourceLike[], limit = 30): So
   return sources;
 }
 
-// ─── 动漫磁力资源 → 来源条目 ─────────────────────────────────────────
+// ── 动漫磁力资源 → 来源条目 ─────────────────────────────────────────
 // 优先取 grouped 中首条作品的关联磁力（精准归属），无归组时 fallback 到全部磁力前 20 条
 function animeResourcesToSources(
   result: Record<string, unknown>,
@@ -423,7 +415,7 @@ function animeResourcesToSources(
   return mediaResourcesToSources(merged, 20);
 }
 
-// ─── 影视资源 → 来源条目 ─────────────────────────────────────────────
+// ── 影视资源 → 来源条目 ─────────────────────────────────────────────
 
 /**
  * 只写入「当前记录所属作品」的归组资源。
@@ -435,14 +427,12 @@ function movieResourcesToSources(result: Record<string, unknown>, subjectId: num
   return mediaResourcesToSources(group?.resources ?? [], 30);
 }
 
-// ═════════════════════════════════════════════════════════════════════
-// 公开 API
-// ═════════════════════════════════════════════════════════════════════
+// ── 公开 API ─────────────────────────────────────────────────────────
 
 /**
  * 主入口：从搜索结果提取并落库。
  * - 列表型结果采首条完整元数据 + 所有磁力资源写入 sources 表
- * - JAV 番号搜索返回完整详情，首采即 detail_completed=1
+ * - JAV 番号结果转交 enrichDataRecordFromDetail，按字段完整度判定 detail_completed
  *
  * 容错：任何异常只 console.error，不抛出（搜索路由用 waitUntil 异步调用）。
  */
@@ -503,7 +493,6 @@ export async function persistDataRecord(
         const bgm = result.bgm as BgmItem[] | undefined;
         const first = bgm?.[0];
         if (first && first.id) {
-          // 提取该作品关联的磁力资源
           sources = animeResourcesToSources(result, first.id);
 
           payload = {

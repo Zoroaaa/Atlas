@@ -1,3 +1,8 @@
+/**
+ * 源管理侧栏：桌面端固定侧栏、移动端底部抽屉 + 浮动入口，panel 模式则作为工作台区段嵌入。
+ *
+ * 约束：启用态以 userConfig.isEnabled 为准，缺省视为启用；健康检查结果由父级传入，本组件只负责展示。
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Globe,
@@ -53,6 +58,7 @@ interface SourceTreeProps {
   getSiteTypeLabel: (siteType?: string) => string;
 }
 
+/** 大类 → 分类 → 源的三级树；展开态由父级持有，避免刷新后丢失 */
 const SourceTree: React.FC<SourceTreeProps> = ({
   majorCategoriesWithCategories,
   expandedMajorCategories,
@@ -71,6 +77,7 @@ const SourceTree: React.FC<SourceTreeProps> = ({
     {majorCategoriesWithCategories.map((majorCategory) => {
       const isMajorExpanded = expandedMajorCategories.has(majorCategory.id);
       const totalSources = majorCategory.categories.reduce((sum, c) => sum + c.sources.length, 0);
+      // 缺省 isEnabled 视为启用：老数据的 userConfig 可能为空
       const enabledSources = majorCategory.categories.reduce(
         (sum, c) => sum + c.sources.filter(s => s.userConfig?.isEnabled !== false).length, 0
       );
@@ -274,6 +281,7 @@ interface SourcesSidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
+/** 源管理侧栏：sidebar 固定侧栏 / panel 工作台区段，并共用同一棵源树 */
 export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
   show,
   allSources,
@@ -300,6 +308,7 @@ export const SourcesSidebar: React.FC<SourcesSidebarProps> = ({
   const [internalCollapsed, setInternalCollapsed] = useState(!defaultExpanded);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
+  // 折叠态支持受控与非受控：父级传入 collapsed 时以父级为准，否则用内部状态
   const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
   const toggleCollapsed = useCallback(() => {
     const next = !isCollapsed;

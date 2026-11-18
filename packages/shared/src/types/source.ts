@@ -1,7 +1,16 @@
+/**
+ * 源站域共享类型：源站、分类、大类、状态检测与用户个性化配置。
+ *
+ * 契约约束：字段需与 `schemas/sources` 对齐；用户配置缺失时按「启用」处理。
+ */
+
+/** 源站可用状态；unknown 表示尚未检测，与 error（检测失败）语义不同。 */
 export type SourceStatus = 'active' | 'inactive' | 'error' | 'unknown';
 
+/** 站点类型：search 支持关键词搜索，browse 仅可浏览，reference 为工具/参考站。 */
 export type SiteType = 'search' | 'browse' | 'reference';
 
+/** 源站定义；urlTemplate 中的 {keyword} 由搜索时替换。 */
 export interface SearchSource {
   id: string;
   name: string;
@@ -23,6 +32,7 @@ export interface SearchSource {
   updatedAt: string;
 }
 
+/** 子分类；defaultSiteType / defaultSearchable 作为新建源站的默认值。 */
 export interface Category {
   id: string;
   name: string;
@@ -42,6 +52,7 @@ export interface Category {
   sources?: SearchSource[];
 }
 
+/** 大类，仅作为分类的上级分组。 */
 export interface MajorCategory {
   id: string;
   name: string;
@@ -56,6 +67,7 @@ export interface MajorCategory {
   categories?: Category[];
 }
 
+/** 单次源站连通性检测结果；responseTime 单位为毫秒。 */
 export interface SourceCheckResult {
   sourceId: string;
   status: SourceStatus;
@@ -65,6 +77,7 @@ export interface SourceCheckResult {
   error?: string;
 }
 
+/** 用户对源站的个性化配置；custom* 为空时回落到源站自身字段。 */
 export interface UserSourceConfig {
   id: string;
   userId: string;
@@ -77,6 +90,7 @@ export interface UserSourceConfig {
   notes: string | null;
 }
 
+/** 源站管理页的统计聚合。 */
 export interface SourceStats {
   totalSources: number;
   searchableSources: number;

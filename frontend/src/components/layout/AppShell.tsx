@@ -1,9 +1,8 @@
 /**
- * AppShell - 桌面端全局外壳
- *
- * 侧栏用「手风琴分组」承载全部导航：搜索 / 发现 / 我的 / 社区 / 管理看板。
- * 同一时间只展开一个分组，默认展开与当前路由匹配的分组；所有页面都在本壳层
- * 内容区渲染，不再切换第二套侧栏。移动端（<lg）直接返回 children。
+ * AppShell - 桌面端全局外壳（≥lg）。
+ * 侧栏用「手风琴分组」承载全部导航，同一时间只展开一个分组，默认展开与当前路由匹配的分组。
+ * 断点策略：<lg 直接返回 children，由 UnifiedNavBar + MobileTabBar 承担导航。
+ * 约束：本文件自建一份侧栏分组数据，改动导航项时需与 workspaceNav.tsx 同步。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -95,6 +94,7 @@ const DISCOVER_ITEMS = [
   { id: 'actresses', labelKey: 'home:mobileHome.discoverPage.sections.actresses', icon: <Users className="h-[16px] w-[16px]" /> },
 ] as const;
 
+/** 把当前路径归入侧栏分组，决定手风琴默认展开项。 */
 const groupForPath = (pathname: string): GroupId => {
   if (pathname.startsWith('/discover')) return 'discover';
   if (pathname.startsWith('/dashboard') || pathname === '/me' || pathname.startsWith('/settings')) return 'mine';
@@ -113,6 +113,7 @@ interface SideItemProps {
   to?: string;
 }
 
+/** 侧栏叶子项：有 to 时渲染为路由链接，否则为点击项。 */
 const SideItem: React.FC<SideItemProps> = ({ label, icon, active, badge, collapsed, onClick, to }) => {
   const className = clsx(
     'group relative flex h-[32px] w-full items-center gap-2.5 rounded-lg pl-7 pr-2 text-[12.5px] font-medium transition-colors',
@@ -148,6 +149,7 @@ const SideItem: React.FC<SideItemProps> = ({ label, icon, active, badge, collaps
   );
 };
 
+/** 全局桌面壳层：左侧手风琴侧栏 + 顶栏，children 为页面内容区。 */
 export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children }) => {
   const { t } = useTranslation(['nav', 'tabs', 'home', 'search']);
   const isDesktop = useIsDesktop();
@@ -178,6 +180,7 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
     setOpenGroup((current) => (current === group ? current : group));
   }, [pathname]);
 
+  // ── 侧栏分组数据 ─────────────────────────────
   const groups: SideNavGroup[] = useMemo(() => {
     const list: SideNavGroup[] = [
       {
@@ -234,6 +237,7 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
       },
     ];
 
+    // 社区与后台分组按开关/角色动态挂载，避免无权限入口出现在侧栏
     if (communityEnabled !== false) {
       list.push({
         id: 'community',
@@ -306,6 +310,7 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
     navigate(`/main?tab=${tab}`);
   };
 
+  // 断点：<lg 不渲染侧栏与顶栏，导航交给 UnifiedNavBar / MobileTabBar
   if (!isDesktop) return <>{children}</>;
 
   return (
@@ -351,6 +356,7 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
             const open = !collapsed && openGroup === group.id;
             const groupActive = group.items.some((item) => item.active);
 
+            // 折叠态只保留分组图标：点击图标会先展开侧栏，再打开对应分组
             if (collapsed) {
               return (
                 <button

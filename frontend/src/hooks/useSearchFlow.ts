@@ -1,3 +1,8 @@
+/**
+ * 搜索流程编排：发起聚合搜索、按类别分发响应结构、维护本地结果状态并联动番号详情。
+ *
+ * 约束：用请求序号丢弃过期响应；JAV 番号详情优先取搜索响应内联的 detail，避免重复回源。
+ */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchStore, useAuthStore } from '@/stores';
 import { useSearchMutation, useSearchHistory, useSearchSuggestions, searchHistoryKeys } from '@/hooks';
@@ -32,6 +37,7 @@ interface UseSearchFlowOptions {
   onSearch?: (keyword: string, subMode?: JavSubMode) => void;
 }
 
+/** 搜索流程：搜索触发、结果映射、错误/回退提示与 JAV 详情联动 */
 export function useSearchFlow({
   activeTab,
   fetchJavDetail,
@@ -48,12 +54,12 @@ export function useSearchFlow({
   const searchMutation = useSearchMutation();
   const { data: searchHistory = [] } = useSearchHistory(20);
 
-  // ── Search Suggestions ──
+  // ── 搜索建议 ─────────────────────────────────────────────────────────
   // 传大类 ID，后端会查该大类 + 该大类下所有子类 + 'all'
   const currentSource = SEARCH_TABS[activeTab].majorCategoryId ?? undefined;
   const { suggestions, isLoading: isLoadingSuggestions, showSuggestions, setShowSuggestions } = useSearchSuggestions({ source: currentSource });
 
-  // ── Local state (previously in searchStore) ──
+  // ── 本地搜索状态 ─────────────────────────────────────────────────────
   const [isSearching, setSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
@@ -114,12 +120,13 @@ export function useSearchFlow({
       return;
     }
     const requestId = ++searchRequestIdRef.current;
-    // 番号模式不再硬拦截：识别不了的输入由后端按标题/多源搜索回退
+    // 番号模式不做前端硬拦截：识别不了的输入交给后端按标题/多源搜索回退
     setHasSearched(true);
     // 关闭搜索建议
     setShowSuggestions(false);
     // 通知外部（用于 URL 同步等）：携带 effectiveSubMode，避免外部闭包捕获旧 javSubMode
     onSearch?.(query.trim(), activeTab === 'jav' ? effectiveSubMode : undefined);
+    // 埋点会话 ID 存 sessionStorage：同一标签页复用，关闭标签即失效
     const sessionId = sessionStorage.getItem('analytics_session_id') || (() => {
       const id = Math.random().toString(36).slice(2);
       sessionStorage.setItem('analytics_session_id', id);
@@ -267,7 +274,7 @@ export function useSearchFlow({
         }
         const trimmed = query.trim();
         if (activeTab === 'jav' && isJavCodeLike(trimmed)) {
-          // 搜索响应已带详情（本地库或 JavBus）时不再单独请求，避免重复回源
+          // 搜索响应已带详情（本地库或 JavBus）时跳过单独请求，避免重复回源
           const hasEnrichedDetail = 'resultType' in response.data
             && response.data.resultType === 'jav'
             && Boolean((response.data as JavEnrichedData).detail);

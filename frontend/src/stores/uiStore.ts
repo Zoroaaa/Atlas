@@ -1,3 +1,9 @@
+/**
+ * 全局 UI 状态：Toast 队列、Modal 与侧边栏开关，不做持久化。
+ *
+ * 约束：Toast 定时器存在模块级 Map 中，clearToasts 必须同步清理，避免泄漏。
+ */
+
 import { create } from 'zustand';
 import type { Toast, ToastOptions, ToastPosition, ToastConfig } from '@/types';
 import { DEFAULT_TOAST_CONFIG } from '@/types';
@@ -34,6 +40,7 @@ const clearToastTimer = (id: string) => {
   }
 };
 
+/** 全局 UI store；Toast 相关操作都在这里统一处理排队、超时与回调。 */
 export const useUIStore = create<UIState>((set, get) => ({
   toasts: [],
   toastConfig: DEFAULT_TOAST_CONFIG,
@@ -62,6 +69,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     };
     
     let newToasts: Toast[];
+    // 超出上限时淘汰最早的一条，保证新 Toast 一定可见
     if (toasts.length >= maxToasts) {
       const oldestToast = toasts[0];
       if (oldestToast) {
@@ -78,6 +86,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     if (toast.duration > 0) {
       const timer = setTimeout(() => {
         get().setToastExiting(id, true);
+        // 300ms 是退出动画时长，动画结束后再真正移除
         setTimeout(() => {
           get().removeToast(id);
         }, 300);

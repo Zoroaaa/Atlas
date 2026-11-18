@@ -1,5 +1,7 @@
 /**
- * 关注女优路由：关注管理 + 关注动态
+ * 关注路由：关注对象的增删改查 + 关注动态。
+ *
+ * 约束：全部接口要求登录；关注键必须匹配 KEY_PATTERN，避免把任意 URL 当成抓取目标。
  */
 import { Hono } from 'hono';
 import { Env } from '@/types';
@@ -168,6 +170,7 @@ followRoutes.post('/', async (c) => {
   }
 });
 
+// 只切换站内提醒；邮件提醒由通知偏好统一管理
 followRoutes.patch('/:key{.+}', async (c) => {
   const user = c.get('user');
   const key = c.req.param('key');
@@ -306,6 +309,7 @@ interface SearchRow extends FeedRow {
   is_unread: number;
 }
 
+// 关键词会拼进 LIKE，% / _ 必须转义后再使用
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 
 /**

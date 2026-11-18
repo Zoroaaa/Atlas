@@ -1,3 +1,9 @@
+/**
+ * 后台管理 API：分组封装 /admin 及数据存储接口，响应统一解包 { success, data }。
+ *
+ * 约定：分页接口把后端行数组映射为 items，并补齐 totalPages。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import type { Role, AdminUser, AdminUserDetail, UserLoginLog } from '@/types';
@@ -147,6 +153,7 @@ export interface AliasSuggestResult {
   written: number;
 }
 
+/** 后台管理接口集合；分页接口统一把后端 rows/total 映射为 items/totalPages。 */
 export const adminApi = {
   getRoles: async (): Promise<Role[]> => {
     const response = await apiClient.get<{ success: boolean; data: { roles: Role[] } }>('/admin/roles');
@@ -694,6 +701,7 @@ export const adminApi = {
     await apiClient.delete(`/admin/errors/${errorId}${query}`);
   },
 
+  // 邮件日志/队列挂在 /config 路由下，不在 /admin 命名空间
   getEmailLogs: async (params: {
     page?: number;
     pageSize?: number;
@@ -800,10 +808,9 @@ export interface EmailQueueRow {
   last_error: string | null;
 }
 
-// ============================================================
-// 数据存储管理
-// ============================================================
+// ── 数据存储管理 ──────────────────────────────────────────────
 
+/** 数据存储治理接口：记录补全、封面回填、榜单归档与 genre 词典同步。 */
 export const dataStorageApi = {
   getStats: async (): Promise<DataStorageStats> => {
     const response = await apiClient.get<{ success: boolean; data: DataStorageStats }>(

@@ -21,7 +21,7 @@ import {
 import { getHotSignals, type HotSignals } from './hot-signals';
 import { getLatestRankingRecords, type RankingRecord } from './ranking-snapshot';
 
-// ─── 热门列表 ──────────────────────────────────────────────────────────
+// ── 热门列表 ──────────────────────────────────────────────────────────
 
 const RANKING_CACHE_KEY = 'https://internal/recommend-ranking-records-v1';
 const RANKING_CACHE_TTL_SECONDS = 300;
@@ -72,6 +72,7 @@ function heatOf(row: JavRecordRow, signals: HotSignals): number {
   return heat;
 }
 
+/** 热门列表：按榜单、站内热度、热演员/标签命中、最近入库依次补位，已收藏作品跳过。 */
 export async function recommendPopular(
   db: D1Database,
   userId: string,

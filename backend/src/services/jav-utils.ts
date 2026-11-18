@@ -1,10 +1,8 @@
 /**
- * JAV 搜索共享工具
- *
- * 从 jav.ts 路由和 jav-provider.ts 中提取的公共逻辑。
- * 两处都需要：番号解析 / extractGidUc / parseMagnets / parseJavDetail
+ * JAV 搜索共享工具：番号解析、JavBus 页面/磁力解析、详情抓取与失败分类。
  *
  * 番号格式规则统一来自 @codeseek/shared/utils（前后端唯一事实来源）。
+ * 所有抓取入口都必须保留「资源不存在」与「源不可用」的区分，供上层决定文案。
  */
 import {
   isJavCodeLike,
@@ -14,7 +12,7 @@ import {
 
 export { isJavCodeLike, normalizeJavCode, javCodeLookupVariants };
 
-// ─── 类型 ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 export interface MagnetItem {
   name: string;
@@ -62,7 +60,7 @@ export function isReleasedBeforeMonthsAgo(
   return releasedAt < cutoff;
 }
 
-// ─── JavBus 网格项类型 ─────────────────────────────────────────────────
+// ── JavBus 网格项 ────────────────────────────────────────
 
 export interface JavItem {
   code: string;
@@ -80,7 +78,8 @@ export interface JavItem {
 export function parseGrid(html: string, source: string): JavItem[] {
   if (!html) return [];
   const items: JavItem[] = [];
-  // 截取 waterfall 区域
+  // 只解析 waterfall 区域：列表页其它位置也会有 movie-box 链接（侧栏/推荐），
+  // 从 id="waterfall" 起截取可避免把无关条目混进结果。
   const wi = html.indexOf('id="waterfall"');
   const section = wi !== -1 ? html.slice(wi, wi + 60000) : html;
 
@@ -119,7 +118,7 @@ export function normalizeJavbusUrl(url: string): string {
   return url;
 }
 
-// ─── JavBus 女优列表解析 ────────────────────────────────────────────────
+// ── JavBus 女优列表 ──────────────────────────────────────
 
 /** JavBus 女优列表项（/actresses 与 /searchstar/ 结构一致） */
 export interface ActressListEntry {
@@ -157,8 +156,9 @@ export function parseActressList(html: string, limit = 50): ActressListEntry[] {
   return entries;
 }
 
-// ─── HTTP 请求常量 ──────────────────────────────────────────────────────
+// ── HTTP 请求常量 ────────────────────────────────────────
 
+/** JavBus 通用请求头；封面/详情/磁力接口共用。 */
 export const JAV_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xhtml+xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -169,13 +169,14 @@ export const JAV_HEADERS = {
   'Referer': 'https://www.javbus.com/',
 };
 
-// ─── HTTP 辅助 ──────────────────────────────────────────────────────────
+// ── HTTP 辅助 ────────────────────────────────────────────
 
 /** get() 返回类型 */
 export type GetResult =
   | { ok: true; html: string; /** 跟随重定向后的最终地址，用于识别验证页 */ finalUrl: string }
   | { ok: false; error: 'TIMEOUT' | 'NETWORK_ERROR' | 'HTTP_ERROR' | 'PARSE_ERROR'; status?: number };
 
+/** 发起 JavBus 请求并把失败归类为超时/网络/HTTP，供上层区分「源不可用」的具体原因。 */
 export async function get(
   url: string,
   timeoutMs = 10000,
@@ -200,7 +201,7 @@ export async function get(
   }
 }
 
-/** 兼容函数：返回空字符串而不是结构化错误（用于现有代码） */
+/** 只取正文的旧入口；失败统一返回空字符串，无法区分失败原因，新代码优先用 get。 */
 export async function getHtml(url: string, timeoutMs = 10000): Promise<string> {
   const result = await get(url, timeoutMs);
   return result.ok ? result.html : '';
@@ -312,7 +313,7 @@ export async function fetchJavbusDetailHtml(
   return { ok: false, error };
 }
 
-// ─── 页面解析 ────────────────────────────────────────────────────────────
+// ── 页面解析 ─────────────────────────────────────────────
 
 /** 从详情页 HTML 提取 gid / uc（用于磁力 Ajax） */
 export function extractGidUc(html: string): { gid: string; uc: string } | null {
@@ -390,12 +391,10 @@ export function parseMagnets(html: string): MagnetItem[] {
   return items;
 }
 
-/**
- * 只接受 JavBus 自身的实体列表页路径，避免把详情页里的任意 href
- * 当成可请求地址（前端会把它回传给实体作品接口）。
- */
+/** 合法的 JavBus 实体列表页路径（可带 uncensored 前缀）。 */
 const JAVBUS_ENTITY_PATH_RE = /^\/(?:uncensored\/)?(?:director|studio|label|series|genre)\/[a-z0-9]+$/i;
 
+/** 把详情页里的实体 href 归一为站内路径；非法来源或非白名单路径返回 undefined。 */
 export function normalizeJavbusEntityPath(raw: string): string | undefined {
   try {
     const url = new URL(raw, 'https://www.javbus.com');
@@ -440,13 +439,11 @@ export function parseJavDetail(
   actresses: string[];
   detailUrl: string;
 } {
-  // 标题
   const titleM = html.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i) ||
                  html.match(/<title>([^<]+)<\/title>/i);
   const rawTitle = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : code;
   const title = rawTitle.replace(/\s*-\s*JavBus\s*$/i, '').trim();
 
-  // 封面
   const coverM = html.match(/bigImage[^>]*href="([^"]+)"/i) ||
                  html.match(/<img[^>]+class="[^"]*cover[^"]*"[^>]+src="([^"]+)"/i);
   const cover = coverM ? coverM[1] : undefined;
@@ -539,7 +536,6 @@ export function parseJavDetail(
     }
   }
 
-  // 演员
   const actressSet = new Set<string>();
   const actresses: string[] = [];
   const starRe = /<a[^>]+href="[^"]*\/star\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
@@ -624,8 +620,8 @@ async function fetchMagnetList(
 
 /**
  * 详情页（元数据）+ 磁力 Ajax 的统一抓取入口。
- * 历史上榜单补全只抓了详情页，导致记录 detail_completed=1 但磁力为空；
- * 需要「完整详情」的路径（搜索 Provider / 详情接口 / 榜单补全 / 管理批量任务）统一走这里。
+ * 只抓详情页会产生 detail_completed=1 但磁力为空的记录；搜索 Provider、详情接口、
+ * 榜单补全、管理批量任务等需要完整详情的路径都必须走这里。
  */
 export async function fetchJavbusDetailWithMagnets(
   code: string,

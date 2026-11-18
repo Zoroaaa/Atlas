@@ -1,3 +1,9 @@
+/**
+ * 管理后台概览（/admin-panel）：用户、会话、搜索、社区等核心指标。
+ *
+ * 数据来源：adminApi.getDashboardOverview 一次性拉取，只在进入页面与手动刷新时请求，无轮询。
+ * 约束：概览为聚合值，具体明细请到各自管理页查看。
+ */
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
@@ -98,6 +104,7 @@ const colorClasses = {
   teal: 'from-teal-500 to-teal-600',
 };
 
+/** 指标卡：数值统一千分位展示，trend 为正负百分比。 */
 const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon, trend, trendLabel, color }) => (
   <Card className="p-5 hover:shadow-lg transition-shadow">
     <div className="flex items-start justify-between">
@@ -130,6 +137,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon, trend
   </Card>
 );
 
+/** 概览页；加载失败时展示错误态并提供重试。 */
 export const AdminPanelOverview: React.FC = () => {
   const { t } = useTranslation(['admin']);
   const [loading, setLoading] = useState(true);
@@ -345,6 +353,7 @@ export const AdminPanelOverview: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+              {/* 最近操作只取前 10 条，完整列表在 /admin-panel/actions */}
               {data.recentActions.slice(0, 10).map((action, index) => (
                 <tr key={index} className="hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                   <td className="py-3 px-4">

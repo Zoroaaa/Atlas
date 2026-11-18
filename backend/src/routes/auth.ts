@@ -1,3 +1,9 @@
+/**
+ * 认证路由：登录 / 注册 / 登出、密码找回与修改、邮箱验证与换绑、账号删除、Token 刷新。
+ *
+ * 约束：登录失败按 identifier 计数并锁定；邮箱 / 账号操作需有效会话，登录、注册、
+ * 找回密码与验证码发送是公开链路；验证码一次性消费，并按邮箱归属校验防枚举。
+ */
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env } from '@/types';
@@ -18,6 +24,7 @@ const expiresInSeconds = (expiresAt: number) => Math.max(0, Math.floor((expiresA
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
+// 需要登录态的邮箱 / 账号操作；登录、注册、找回密码等公开接口不在此列
 authRoutes.use('/request-email-change', authMiddleware);
 authRoutes.use('/send-email-change-code', authMiddleware);
 authRoutes.use('/verify-email-change-code', authMiddleware);
@@ -27,6 +34,10 @@ authRoutes.use('/send-current-email-code', authMiddleware);
 authRoutes.use('/verify-current-email', authMiddleware);
 authRoutes.use('/user-verification-status', authMiddleware);
 
+/**
+ * 密码登录：用户名或邮箱 + 密码。
+ * 失败按 identifier 累计锁定；成功时同时签发 JWT 并写入会话表，供登出与吊销使用。
+ */
 authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
   const body = c.get('validatedBody') as { identifier: string; password: string };
   const { identifier, password } = body;
@@ -111,6 +122,7 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
     await recordLogin(c.env.DB, user.id, now);
 
     const userRole = user.role_name || 'user';
+    // 默认 30 天：session 过期时间与 JWT 保持一致，改这里要同步两者
     const expiryDays = parseInt(c.env.JWT_EXPIRY_DAYS || '30', 10);
     const token = await generateToken(user.id, user.username, c.env.JWT_SECRET, expiryDays, userRole);
 
@@ -154,6 +166,10 @@ authRoutes.post('/login', validateBody(schemas.auth.login), async (c) => {
   }
 });
 
+/**
+ * 注册：邮箱验证码必填，验证通过后建号并直接登录。
+ * 除字段校验外还限制邮箱域名，并对出口 IP 做多级限流，遏制批量注册。
+ */
 authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
   const configService = new ConfigService(c.env);
   const enableRegistration = await configService.getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true);
@@ -289,6 +305,7 @@ authRoutes.post('/logout', authMiddleware, async (c) => {
   }
 });
 
+/** 当前用户信息与会话校验：会话失效返回 401，避免前端拿着已吊销 token 继续操作。 */
 authRoutes.get('/me', authMiddleware, async (c) => {
   const payload = c.get('user');
   const token = c.get('authToken');
@@ -307,6 +324,7 @@ authRoutes.get('/me', authMiddleware, async (c) => {
       return c.json(error('AUTH_ERROR', '会话已过期'), 401);
     }
 
+    // 5 分钟内不重复写 last_activity：降低每次请求一次 D1 写入的成本
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     if ((session.last_activity as number) < fiveMinutesAgo) {
       c.executionCtx.waitUntil(touchSession(c.env.DB, session.id, Date.now()));
@@ -360,6 +378,7 @@ authRoutes.post('/verify-token', authMiddleware, async (c) => {
   }
 });
 
+/** 请求重置密码验证码；邮箱不存在时也返回同一文案，避免被用来枚举账号。 */
 authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), async (c) => {
   const body = c.get('validatedBody') as z.infer<typeof schemas.auth.forgotPassword>;
   const { email } = body;
@@ -438,10 +457,12 @@ authRoutes.post('/forgot-password', validateBody(schemas.auth.forgotPassword), a
   }
 });
 
+/** 校验验证码并重置密码；成功后吊销该用户全部会话，旧 token 立即失效。 */
 authRoutes.post('/reset-password', validateBody(schemas.auth.resetPassword), async (c) => {
   const body = c.get('validatedBody') as z.infer<typeof schemas.auth.resetPassword>;
   const { email, code, verificationCode, newPassword } = body;
   
+  // code 是旧客户端字段名，verificationCode 是新字段名，两者取其一
   const actualCode = code || verificationCode;
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
@@ -565,6 +586,7 @@ authRoutes.delete('/account', authMiddleware, validateBody(schemas.auth.deleteAc
   }
 });
 
+/** 刷新 JWT：旧 token 必须仍在会话表；换发时同步轮换 session 中的 token_hash。 */
 authRoutes.post('/refresh', authMiddleware, async (c) => {
   const payload = c.get('user');
   const oldToken = c.get('authToken');
@@ -1082,6 +1104,7 @@ authRoutes.get('/user-verification-status', async (c) => {
   }
 });
 
+/** 统一验证码发送入口（注册 / 重置 / 换绑 / 删号）；force=1 时跳过重复发送检查。 */
 authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCode), async (c) => {
   const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendVerificationCode>;
   const { email, verificationType, force = false } = body;

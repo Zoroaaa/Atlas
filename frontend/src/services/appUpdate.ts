@@ -1,3 +1,9 @@
+/**
+ * App 更新检查：经自家后端代理查询 GitHub Release，并把结果缓存在 localStorage。
+ *
+ * 约束：正常结果缓存 6 小时、空结果缓存 30 分钟；手动检查必须绕过浏览器缓存。
+ */
+
 import { compareVersions, type AndroidRelease } from '@codeseek/shared/utils';
 import { API_BASE_URL } from '@/constants';
 import { isAndroidApp } from '@/utils/nativeShell';
@@ -38,6 +44,7 @@ function writeCache(release: AndroidRelease | null): void {
   }
 }
 
+/** 拉取最新 Android Release；force=true 时跳过本地缓存并加时间戳绕开 HTTP 缓存。 */
 export async function fetchLatestAndroidRelease(force = false): Promise<AndroidRelease | null> {
   if (!force) {
     const cached = readCache();
@@ -45,6 +52,7 @@ export async function fetchLatestAndroidRelease(force = false): Promise<AndroidR
   }
 
   const controller = new AbortController();
+  // 8s 超时：Release 接口不可达时不能阻塞启动流程
   const timer = window.setTimeout(() => controller.abort(), 8000);
   // 手动检查绕过浏览器 HTTP 缓存；服务端仍按自己的缓存策略回源
   const requestUrl = force ? `${RELEASE_API}?t=${Date.now()}` : RELEASE_API;
@@ -69,6 +77,7 @@ export async function fetchLatestAndroidRelease(force = false): Promise<AndroidR
   }
 }
 
+/** 读取已安装 App 版本；非 Android 壳直接返回 null，Capacitor 不可用时回退解析 UA。 */
 export async function getInstalledAppVersion(): Promise<string | null> {
   if (!isAndroidApp()) return null;
   try {

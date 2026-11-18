@@ -1,3 +1,8 @@
+/**
+ * 影视聚合结果面板：TMDB 匹配作品 + YTS / EZTV / TPB 资源。
+ *
+ * 主作品无资源但其他作品有资源时默认按源平铺；资源按选中作品标题过滤，过滤为空则回退全部。
+ */
 import React, { useEffect, useState } from 'react';
 import {
   Star, Film, Tv2, Calendar, ExternalLink, Magnet,
@@ -125,6 +130,7 @@ interface MovieSearchResultPanelProps {
   onLoginRequired?: () => void;
 }
 
+/** 影视搜索结果面板：作品卡片、选中详情与磁力/网盘资源列表 */
 export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   data,
   isAuthenticated = false,
@@ -139,6 +145,7 @@ export const MovieSearchResultPanel: React.FC<MovieSearchResultPanelProps> = ({
   const [selectedItem, setSelectedItem] = useState<TMDBResult | null>(data.results[0] ?? null);
   const [resourcePage, setResourcePage] = useState(1);
   const [showAllResources, setShowAllResources] = useState(false);
+  // 资源每页 10 条；默认只展示前 5 条，展开后展示当前整页
   const RES_PAGE_SIZE = 10;
 
   const hasGrouped = !!(data.grouped && (data.grouped.groups.some((group) => group.resources.length > 0) || data.grouped.ungrouped.length > 0));

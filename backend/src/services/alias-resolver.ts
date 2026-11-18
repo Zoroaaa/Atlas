@@ -1,17 +1,8 @@
 /**
- * 跨语言实体解析（L2）
+ * 跨语言实体解析（L2）：把一个用户写法解析为同一实体在各语言的写法。
  *
- * 输入一个用户写法，输出「同一实体在不同语言下的写法」。
- *
- * 解析顺序：
- *   1. 本地 entity_aliases（最快、可离线）
- *   2. Wikipedia langlinks / Wikidata labels+aliases（免费、无 key，仅当允许联网）
- *   3. 确定性变体兜底（L1 已生成）
- *
- * 设计约束：
- *   - 永不抛错：外部源失败时退化为确定性变体。
- *   - 不做在线机器翻译：专名对应关系必须来自可信数据源或人工词表。
- *   - JAV 等敏感类目默认 allowNetwork=false，避免把用户查询发给第三方。
+ * 顺序：本地 entity_aliases → Wikipedia/Wikidata（默认关闭）→ 确定性变体兜底。
+ * 约束：永不抛错；不做在线机器翻译；JAV 等敏感类目默认不联网。
  */
 import { token_set_ratio } from 'fuzzball';
 import type { EntityType } from '@/repositories/entity-alias-repository';
@@ -46,6 +37,8 @@ export interface ResolvedQuery {
   from: 'deterministic' | 'database' | 'network';
 }
 
+// isolate 级缓存：只存解析结果，不含用户数据；超过 300 条时按写入顺序淘汰最早项
+// 联网请求 5 秒超时；Wikidata 相似度低于 60 分不认作同一实体
 const CACHE_TTL_MS = 10 * 60_000;
 const CACHE_MAX = 300;
 const NETWORK_TIMEOUT_MS = 5000;
@@ -76,6 +69,7 @@ function writeCache(key: string, result: ResolvedQuery): void {
   cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, result });
 }
 
+/** 合并多来源变体：按「语言 + 文本」去重，保留置信度更高的一条。 */
 function mergeVariants(...lists: QueryVariant[][]): QueryVariant[] {
   const merged = new Map<string, QueryVariant>();
   for (const list of lists) {
@@ -107,7 +101,7 @@ function buildSeedVariants(keyword: string, entityType: EntityType): QueryVarian
   return variants;
 }
 
-// ─── Wikipedia / Wikidata ──────────────────────────────────────────────
+// ── Wikipedia / Wikidata ──────────────────────────────────────────────
 
 interface Langlink {
   lang?: string;
@@ -365,7 +359,7 @@ export async function verifyAliasCandidate(
   return false;
 }
 
-// ─── 对外入口 ──────────────────────────────────────────────────────────
+// ── 对外入口 ──────────────────────────────────────────────────────────
 
 /** 仅查本地别名表（不联网），用于搜索结果卡片等高频路径 */
 export async function lookupQueryVariants(

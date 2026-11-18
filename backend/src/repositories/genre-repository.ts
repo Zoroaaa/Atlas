@@ -7,21 +7,26 @@
 
 import { cached, invalidateCache } from '@/utils/cache';
 
+/** 词典分区：有码 / 无码 */
 export type GenreSection = 'censored' | 'uncensored';
 
 export interface GenreRow {
   id: string;
+  /** 标签名归一化键（全局唯一，跨 section 去重与业务引用都用它） */
   name_key: string;
   name: string;
+  /** 源站 URL 中的分类 slug，与展示名解耦 */
   genre_key: string;
   section: GenreSection;
   url: string;
+  /** 1 = 技术/发行属性标签（如高清、单体作品），推荐与筛选用标签时必须排除 */
   is_technical: number;
   sort_order: number;
   created_at: number;
   updated_at: number;
 }
 
+/** 写入词典的行，字段语义同 GenreRow */
 export interface GenreInsertRow {
   id: string;
   name_key: string;
@@ -35,21 +40,27 @@ export interface GenreInsertRow {
   updated_at: number;
 }
 
+/** 词典同步到期判定用的分区统计行 */
 export interface GenreSectionStat {
   section: GenreSection;
   count: number;
   last_updated_at: number;
 }
 
+/** 标签作品分页探测状态（源站不返回总页数，只能向后试探） */
 export interface GenrePageState {
   name_key: string;
+  /** 历史上确认存在内容的最大页码 */
   max_page_seen: number;
+  /** 已确认的最后有效页；0 表示未知，仍需按 max_page_seen 继续扩张 */
   last_page: number;
+  /** 最近一次探测的目标页 */
   last_page_p: number;
   probed_at: number;
   updated_at: number;
 }
 
+/** 推荐信号行：tags 为 JSON 数组字符串，解析与计权在 service 层 */
 export interface GenreSignalRow {
   code: string | null;
   tags: string | null;
@@ -101,9 +112,9 @@ export async function getGenreSectionStats(db: D1Database): Promise<GenreSection
 }
 
 /**
- * 原子替换单个 section 的词典：
- * D1 的 batch 是事务，避免"删了没插进去"的空窗。
+ * 替换单个 section 的词典：常规路径用单个 batch（事务）避免删除后插入失败的空窗；
  * INSERT OR IGNORE 保证同名标签只保留一条（有码优先，先同步 censored）。
+ * 超过单批上限时退化为分批，此时不再保证整体原子。
  */
 export async function replaceSectionGenres(
   db: D1Database,
@@ -182,7 +193,7 @@ export async function saveGenrePageState(
     .run();
 }
 
-/** 推荐标签的收藏信号（上限 1000，与收藏表上限一致） */
+/** 推荐标签的收藏信号；limit 由调用方给定（上限 1000，与收藏表上限一致） */
 export async function getGenreFavoriteSignals(
   db: D1Database,
   userId: string,
@@ -201,7 +212,7 @@ export async function getGenreFavoriteSignals(
   return rows.results || [];
 }
 
-/** 推荐标签的历史信号（只看最近 200 条 JAV 搜索记录） */
+/** 推荐标签的历史信号（仅 source='jav_sources'；limit 由调用方给定，业务侧取 200） */
 export async function getGenreHistorySignals(
   db: D1Database,
   userId: string,
@@ -227,6 +238,7 @@ export async function getFavoriteCodesAmong(
   codes: string[]
 ): Promise<Set<string>> {
   if (codes.length === 0) return new Set();
+  // 去重并截断到 100：控制 IN 列表长度，避免超出 D1 单语句绑定参数上限
   const unique = Array.from(new Set(codes)).slice(0, 100);
   const placeholders = unique.map(() => '?').join(',');
   const rows = await db

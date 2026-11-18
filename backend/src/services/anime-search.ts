@@ -1,19 +1,13 @@
 /**
- * 动漫搜索服务
- * 元数据: Bangumi API
- * 磁力资源: Nyaa.si RSS（?page=rss）
+ * 动漫搜索服务：Bangumi 提供元数据，Nyaa / Mikan / AnimeTosho / DMHY 提供磁力。
  *
- * ⚠️ 类型契约：本文件导出的接口（BangumiSubject, NyaaTorrent, MikanItem, DmhyItem, AnimeSearchResult）
- *    与 frontend/src/types/search.ts 保持结构同步。
- *    修改任一端时，请同步更新另一端。
- *
- * 改用 RSS 原因：
- *   HTML 接口从 Cloudflare Workers 出站 IP 请求时触发 bot protection，
- *   返回 403 或 JS challenge 页，原 HTML 正则静默失败返回空数组。
- *   RSS 接口对机器客户端宽松，且字段语义明确，无需脆弱的 HTML 解析。
+ * 类型契约：导出的 BangumiSubject / NyaaTorrent / MikanItem / DmhyItem / AnimeSearchResult
+ * 与 frontend/src/types/search.ts 保持同步，改任一端需同时改另一端。
+ * 磁力源统一走 RSS/HTML 解析：Workers 出站 IP 请求搜索页会触发 bot protection，
+ * 必须把「被拦截」与「确实无结果」区分开；Nyaa 因无法通过验证当前禁用。
  */
 
-// ─── Types ──────────────────────────────────────────────────────────────
+// ── 类型 ─────────────────────────────────────────────────
 
 export interface BangumiSubject {
   id: number;
@@ -140,7 +134,7 @@ import { formatBytes } from '@/utils/format';
 import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
 import { groupResourcesBySubject } from '@/utils/title-grouping';
 
-// ─── Nyaa.si RSS 搜索 ─────────────────────────────────────────────────
+// ── Nyaa RSS ─────────────────────────────────────────────
 
 const NYAA_TRACKERS = [
   'http://nyaa.tracker.wf:7777/announce',
@@ -267,7 +261,7 @@ export async function fetchNyaa(keyword: string): Promise<NyaaTorrent[]> {
   return parseNyaaRss(xml);
 }
 
-// ─── AnimeTosho 搜索页（HTML）─────────────────────────────────────────
+// ── AnimeTosho 搜索页 ────────────────────────────────────
 
 /**
  * URL: https://animetosho.org/search?q={keyword}
@@ -369,9 +363,9 @@ function parseAnimeToshoHtml(html: string): NyaaTorrent[] {
   return items;
 }
 
-// formatBytes 已从 @/utils/format 导入，此处不再重复定义
+// Mikan 的 magnet 不随 RSS 下发，需要逐条下载 .torrent 解析，属于高成本源
 
-// ─── Mikan Project RSS 搜索 ────────────────────────────────────────────
+// ── Mikan RSS ────────────────────────────────────────────
 
 /**
  * Mikan Project RSS 搜索
@@ -391,7 +385,7 @@ const MIKAN_TRACKERS = [
   'udp://tracker.openbittorrent.com:6969/announce',
 ].map(t => `&tr=${encodeURIComponent(t)}`).join('');
 
-// ── 最小 bencode 解码器（仅支持解析 .torrent 提取 info hash ──
+// ── 最小 bencode 解码器（只解析 .torrent 以提取 info hash）────────────
 
 function decodeBencodeString(buf: Uint8Array, pos: [number]): Uint8Array {
   let lenStr = '';
@@ -564,7 +558,7 @@ async function fetchMikan(keyword: string): Promise<MikanItem[]> {
 
   const xml = await r.text();
 
-  // 检查是否被重定向到 HTML 页面
+  // 被 CF/验证码拦截时返回 HTML，必须报错而不是当作「无结果」
   if (/<html[\s>]/i.test(xml)) {
     throw new Error('mikan_blocked: response is HTML (bot protection or redirect)');
   }
@@ -617,7 +611,6 @@ async function fetchMikan(keyword: string): Promise<MikanItem[]> {
   const results: MikanItem[] = [];
   const magnetTargets = rawItems.slice(0, MIKAN_TORRENT_LIMIT);
   const BATCH_SIZE = 5;
-  // 磁力解析整体预算：超预算的条目退化为页面链接，避免整源拖到搜索总超时
   const deadline = Date.now() + MIKAN_MAGNET_BUDGET_MS;
   let parsedCount = 0;
 
@@ -660,7 +653,7 @@ async function fetchMikan(keyword: string): Promise<MikanItem[]> {
 }
 
 
-// ─── DMHY（动漫花园）RSS 搜索 ─────────────────────────────────────────
+// ── DMHY RSS ─────────────────────────────────────────────
 
 /**
  * DMHY（动漫花园）RSS 搜索
@@ -765,7 +758,7 @@ async function fetchDmhy(keyword: string): Promise<DmhyItem[]> {
   return parseDmhyRss(xml);
 }
 
-// ─── Bangumi 元数据 ───────────────────────────────────────────────────
+// ── Bangumi 元数据 ───────────────────────────────────────
 
 /** Bangumi 每页条数（与分页偏移一起构成真实分页） */
 const BGM_PAGE_SIZE = 10;
@@ -827,11 +820,16 @@ async function fetchBangumi(keyword: string, page: number): Promise<{ items: Ban
   return { items, total };
 }
 
-// ─── 主入口 ────────────────────────────────────────────────────────────
+// ── 主入口 ───────────────────────────────────────────────
 
 /** 动漫搜索总超时（ms），超时后返回已有结果 + 标记未完成的源 */
 const ANIME_SEARCH_TIMEOUT_MS = 20_000;
 
+/**
+ * 动漫搜索主入口：并发抓取元数据与磁力源，整体超时时保留已完成源的结果。
+ *
+ * 磁力源没有真正的翻页，只有第 1 页抓取；skip 用于跳过用户禁用或已失败的源。
+ */
 export async function searchAnime(
   keyword: string,
   page = 1,
@@ -849,9 +847,8 @@ export async function searchAnime(
   // 关键差异：整体超时不再清空结果，已完成的源照常返回，只把未完成的源标记为超时。
   const sources: Record<SourceKey, Promise<unknown>> = {
     bangumi: skip.has('bangumi') ? Promise.resolve([]) : fetchBangumi(keyword, safePage),
-    // 【已禁用】因部署环境(Cloudflare Workers 出站 IP)无法解决 nyaa.si 的 bot 验证，
-    // RSS/HTML 均被拦截返回 403 或 JS challenge。先取消爬这个源，后续如有代理方案再恢复。
-    // fetchNyaa(keyword),
+    // nyaa 源在 Cloudflare Workers 出站 IP 下无法通过 bot 验证（RSS/HTML 均为 403 或 JS challenge），
+    // 先保持禁用并固定返回空，不产生错误提示；后续有代理方案再恢复 fetchNyaa。
     nyaa: Promise.resolve([] as NyaaTorrent[]),
     mikan: wantTorrents && !skip.has('mikan') ? fetchMikan(keyword) : Promise.resolve([]),
     animetosho: wantTorrents && !skip.has('animetosho') ? fetchAnimeTosho(keyword) : Promise.resolve([]),
@@ -920,11 +917,11 @@ export async function searchAnime(
     }
   }
 
-  // 各源独立，不再合并
+  // 各磁力源独立返回，只在本源内按做种数排序，不跨源合并去重
   const sortedNyaa = [...nyaa].sort((a, b) => (b.seeders ?? 0) - (a.seeders ?? 0));
   const sortedAtos = [...atos].sort((a, b) => (b.seeders ?? 0) - (a.seeders ?? 0));
 
-  // ── 构建作品级归组数据 ──
+  // ── 作品级归组 ────────────────────────────────────────
   // 将四源资源统一为 AnimeUnifiedResource，按 Bangumi 作品归组
   const unifiedResources: AnimeUnifiedResource[] = [
     ...sortedNyaa.map(r => ({

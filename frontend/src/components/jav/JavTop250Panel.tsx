@@ -1,3 +1,8 @@
+/**
+ * JAV TOP250 面板：全站/有码/无码/FC2 分区叠加年份筛选，支持折叠与分页。
+ *
+ * 约束：选定具体年份时隐藏分区切换，因为年度榜本身不含分区维度；layout=page 时作为独立页面渲染。
+ */
 import React, { useEffect, useState } from 'react';
 import {
   Trophy,
@@ -24,6 +29,7 @@ interface JavTop250PanelProps {
 // 欧美榜暂不考虑：先隐藏入口，恢复时取消注释（同步脚本与 workflow 也需一并恢复）
 const SECTION_KEYS: JavTop250Section[] = ['all', 'censored', 'uncensored' /* , 'western' */, 'fc2'];
 
+/** JAV TOP250：分区/年份筛选、刷新与分页 */
 export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick, layout = 'panel' }) => {
   const { t } = useTranslation(['jav']);
   const [expanded, setExpanded] = useState(true);
@@ -40,6 +46,7 @@ export const JavTop250Panel: React.FC<JavTop250PanelProps> = ({ onCodeClick, lay
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const pageItems = items.slice((page - 1) * pageSize, page * pageSize);
 
+  // 切换分区/年份时回到第一页；数据变短导致页码越界时收敛到最后一页
   useEffect(() => { setPage(1); }, [section, year]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 

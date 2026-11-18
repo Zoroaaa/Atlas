@@ -1,3 +1,8 @@
+/**
+ * 登录页（/login）：账号密码登录 + GitHub / Google OAuth。
+ * 数据来源：authApi.login 成功后写 authStore 并跳转 /main；分析事件为旁路上报，失败不影响登录。
+ * 约束：应用壳（isAppShell）下没有门户首页，不展示返回入口。
+ */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Lock, User, ArrowLeft, Search, Github, Chrome } from 'lucide-react';
@@ -9,6 +14,7 @@ import { useNotification } from '@/hooks';
 import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
 import { isAppShell } from '@/utils/appShell';
 
+/** 登录页；OAuth 跳转前先置 loading，避免重复点击。 */
 export const LoginPage: React.FC = () => {
   const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
@@ -88,17 +94,15 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
 
-      {/* Ambient background */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
-        {/* Grid dots */}
         <div className="absolute inset-0 grid-dots opacity-50" />
       </div>
 
       <div className="w-full max-w-md relative">
 
-        {/* Back link — 应用壳内没有门户首页，不展示 */}
+        {/* 应用壳内没有门户首页，不展示返回入口 */}
         {!isAppShell() && (
           <Link to="/" className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 mb-8 transition-colors text-sm font-medium group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -106,11 +110,9 @@ export const LoginPage: React.FC = () => {
           </Link>
         )}
 
-        {/* Card */}
         <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
 
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center"
               style={{ boxShadow: '0 8px 24px rgba(212,168,83,0.35)' }}>
@@ -124,10 +126,8 @@ export const LoginPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Accent line */}
           <div className="accent-line mb-7" />
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               label={t('auth:login.identifierLabel')}
@@ -180,14 +180,12 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* OAuth 分割线 */}
           <div className="mt-5 flex items-center gap-3">
             <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
             <span className="text-xs text-stone-400 dark:text-stone-500 whitespace-nowrap">{t('auth:login.orDivider')}</span>
             <div className="flex-1 h-px bg-stone-200 dark:bg-stone-700" />
           </div>
 
-          {/* GitHub 登录按钮 */}
           <button
             type="button"
             onClick={handleGitHubLogin}
@@ -205,7 +203,6 @@ export const LoginPage: React.FC = () => {
             {isGithubLoading ? t('auth:login.redirecting') : t('auth:login.githubLogin')}
           </button>
 
-          {/* Google 登录按钮 */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -223,7 +220,6 @@ export const LoginPage: React.FC = () => {
             {isGoogleLoading ? t('auth:login.redirecting') : t('auth:login.googleLogin')}
           </button>
 
-          {/* Footer */}
           <div className="mt-6 text-center">
             {enableRegistration ? (
               <p className="text-sm text-stone-600 dark:text-stone-400">
@@ -240,7 +236,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Brand watermark */}
         <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />

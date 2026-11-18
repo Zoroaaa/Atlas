@@ -1,3 +1,7 @@
+/**
+ * JAV 推荐 API：推荐结果随搜索/收藏变化，请求带时间戳绕过浏览器与中间层缓存。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import type {
@@ -12,6 +16,7 @@ interface RecommendApiResponse {
   error?: { code?: string; message?: string };
 }
 
+/** 推荐接口：mode 区分个性化与热门；失败时返回 error 字段由调用方降级。 */
 export const recommendApi = {
   get: async (mode: 'for-you' | 'popular'): Promise<RecommendApiResponse> => {
     return apiClient.get<RecommendApiResponse>(

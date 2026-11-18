@@ -1,3 +1,8 @@
+/**
+ * 工作台通用紧凑资源行：磁力 / 种子 / 直链 / 网盘共用。
+ *
+ * 标题优先走 onTitleClick（页内动作），其次 href（外链），都没有时降级为纯文本。
+ */
 import React from 'react';
 import { clsx } from 'clsx';
 
@@ -13,7 +18,7 @@ interface ResourceRowProps {
   className?: string;
 }
 
-/** 磁力/种子/直链/网盘共用的紧凑资源行。 */
+/** 资源行；trailing 为右侧操作槽，不参与标题截断。 */
 export const ResourceRow: React.FC<ResourceRowProps> = ({
   leading,
   badges,

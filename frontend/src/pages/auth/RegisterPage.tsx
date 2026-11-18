@@ -1,3 +1,9 @@
+/**
+ * 注册页（/register）：填写资料 → 邮箱验证码 → 成功三步流程。
+ *
+ * 数据来源：authApi.sendRegistrationCode 与 authApi.register；成功后写 authStore 并延迟跳 /main。
+ * 约束：注册开关关闭时只渲染提示页，不渲染表单。
+ */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Send, ShieldCheck, CheckCircle, Search } from 'lucide-react';
@@ -11,6 +17,7 @@ import { isAppShell } from '@/utils/appShell';
 
 type Step = 'form' | 'verify' | 'success';
 
+/** 注册页；验证码固定 6 位，倒计时以服务端 expiresIn 为准。 */
 export const RegisterPage: React.FC = () => {
   const { t } = useTranslation(['auth']);
   const navigate = useNavigate();
@@ -75,6 +82,7 @@ export const RegisterPage: React.FC = () => {
       if (response.success && response.data) {
         const masked = response.data.maskedEmail || maskEmail(formData.email);
         setMaskedEmail(masked);
+        // 后端未返回有效期时按 5 分钟兜底，与验证码默认有效期一致
         setCountdown(response.data.expiresIn || 300);
         setCurrentStep('verify');
         notification.auth.emailCodeSent();
@@ -134,6 +142,7 @@ export const RegisterPage: React.FC = () => {
         setToken(response.data.token);
         setCurrentStep('success');
         notification.auth.registerSuccess();
+        // 留 2 秒展示成功态，再进入搜索主页
         setTimeout(() => navigate('/main'), 2000);
       } else {
         notification.auth.registerFailed(response.message || t('auth:register.codeInvalidOrExpired'));
@@ -381,7 +390,6 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50 dark:bg-[#0a0a0b] relative overflow-hidden">
-      {/* Ambient bg */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-amber-400/6 dark:bg-amber-500/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-rose-400/6 dark:bg-rose-500/4 rounded-full blur-[100px]" />
@@ -401,7 +409,6 @@ export const RegisterPage: React.FC = () => {
         <div className="rounded-2xl bg-white dark:bg-[#111113]/80 border border-stone-200/80 dark:border-stone-700/50 p-7 sm:p-8"
           style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)' }}>
 
-          {/* Step indicators */}
           {currentStep !== 'success' && (
             <div className="flex items-center justify-center gap-3 mb-7">
               {(['form', 'verify'] as const).map((step, index) => {
@@ -438,7 +445,6 @@ export const RegisterPage: React.FC = () => {
             )}
           </div>
 
-          {/* Accent line */}
           {currentStep !== 'success' && <div className="accent-line mb-6" />}
 
           {currentStep === 'form' && renderFormStep()}
@@ -457,7 +463,6 @@ export const RegisterPage: React.FC = () => {
           )}
         </div>
 
-        {/* Brand */}
         <div className="mt-6 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-600">
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center">
             <Search className="w-3 h-3 text-white" />

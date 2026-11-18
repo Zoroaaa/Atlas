@@ -1,3 +1,9 @@
+/**
+ * 搜索结果主页（/main）：搜索顶栏、结果工作台与源看板。
+ * 数据来源：搜索 / 建议 / JAV 详情各走对应 hook，收藏与历史走 react-query。
+ * URL 契约：tab / q / sub 决定当前视图，刷新与前进后退都必须能恢复。
+ * 断点策略：<lg 由 UnifiedNavBar + MobileTabBar 导航，≥lg 交给 AppShell 侧栏。
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import clsx from 'clsx';
 import { Search, Sparkles, Tags, Trophy, Users } from 'lucide-react';
@@ -30,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
 import { usePullToRefresh } from '@/components/layout/PullToRefresh';
 
+/** 搜索主页；自身不请求数据，只编排各类 hook 与结果视图。 */
 export const MainSearchPage: React.FC = () => {
   const { t } = useTranslation(['tabs', 'home', 'search']);
   const navigate = useNavigate();
@@ -44,7 +51,7 @@ export const MainSearchPage: React.FC = () => {
   const sourceManager = useSourceManager();
   const [javSubMode, setJavSubMode] = useState<JavSubMode>('code');
 
-  // ── URL 同步：搜索时更新 URL ──
+  // ── URL 同步 ─────────────────────────────
   const programmaticUrlRef = useRef(false);
   const handleSearchUrlSync = useCallback((keyword: string, subMode?: JavSubMode) => {
     programmaticUrlRef.current = true;
@@ -104,7 +111,7 @@ export const MainSearchPage: React.FC = () => {
     wasSearchingRef.current = searchFlow.isSearching;
   }, [searchFlow.isSearching]);
 
-  // ── URL 初始化 + 浏览器前进/后退恢复搜索 ──
+  // ── URL 初始化与前进后退恢复 ─────────────────────────────
   // 先同步 tab，再发搜索：直链/刷新时 handleSearch 闭包里的 activeTab 还是上一次的值
   useEffect(() => {
     const qParam = searchParams.get('q');
@@ -144,7 +151,7 @@ export const MainSearchPage: React.FC = () => {
   useEffect(() => { initializeProxy(); }, [initializeProxy]);
   useCacheSync();
 
-  // ── Tab 切换 ──
+  // ── Tab 切换 ─────────────────────────────
   const handleTabChange = useCallback((tab: SearchTabType) => {
     if (tab === 'community') { navigate('/community'); return; }
     setActiveTab(tab);

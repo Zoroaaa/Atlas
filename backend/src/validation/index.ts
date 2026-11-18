@@ -1,10 +1,7 @@
 /**
- * 请求参数验证模块
- * 功能：使用Zod进行请求参数schema验证
- * 说明：前后端共同遵守的契约已迁移到 @codeseek/shared/schemas（唯一事实来源）；
- *       本文件只保留「后端内部、前端没有对应输入」的 schema，以及校验中间件。
- * 作者：CodeSeek Team
- * 日期：2024
+ * zod 校验入口：共享契约直接透传 @codeseek/shared/schemas，本文件只补后端独有 schema。
+ *
+ * 约束：共享 schema 是前后端唯一事实来源，改动必须两端同步验证。
  */
 import { z } from 'zod';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -22,9 +19,7 @@ declare module 'hono' {
 
 const R = VALIDATION_RULES;
 
-// ──────────────────────────────────────────────
-// 以下 schema 仅后端使用（前端没有调用方或没有对应输入），因此留在后端
-// ──────────────────────────────────────────────
+// ── 仅后端使用的 schema（前端没有调用方或对应输入） ─────
 const backendOnlySchemas = {
   auth: {
     // smart-send-code 没有前端调用方
@@ -150,7 +145,7 @@ const backendOnlySchemas = {
   }),
 };
 
-// 共享契约 + 后端内部契约，保持原有 schemas.xxx.yyy 的访问方式
+// 同名分组以后端 schema 合并覆盖共享 schema，保持 schemas.xxx.yyy 的访问方式不变
 export const schemas = {
   ...sharedSchemas,
   auth: { ...sharedSchemas.auth, ...backendOnlySchemas.auth },
@@ -168,6 +163,7 @@ export type ValidationResult<T> =
   | { success: true; data: T }
   | { success: false; errors: string[] };
 
+/** 直接校验任意数据，返回全部 issue 的中文 message；供非 HTTP 流程复用。 */
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): ValidationResult<T> {
   try {
     const result = schema.safeParse(data);
@@ -181,6 +177,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): ValidationRe
   }
 }
 
+/** 校验 JSON 请求体并写入 c.get('validatedBody')；解析失败与校验失败都返回 400。 */
 export function validateBody<T>(schema: z.ZodSchema<T>): MiddlewareHandler {
   return async (c, next) => {
     try {
@@ -213,6 +210,7 @@ export function validateBody<T>(schema: z.ZodSchema<T>): MiddlewareHandler {
   };
 }
 
+/** 校验 query 参数并写入 c.get('validatedQuery')。 */
 export function validateQuery<T>(schema: z.ZodSchema<T>) {
   return async (c: Context<{ Bindings: Env; Variables: Record<string, unknown> }>, next: () => Promise<void>) => {
     const query = c.req.query();

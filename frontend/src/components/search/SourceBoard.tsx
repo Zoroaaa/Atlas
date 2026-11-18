@@ -1,3 +1,8 @@
+/**
+ * 源看板：浏览已收录源并按大类/分类两级分组，支持单源与批量的启停、健康检查与详情查看。
+ *
+ * 约束：本组件不参与搜索链路；启停走用户源配置接口，写入成功后仅做本地状态同步，不回改服务端数据。
+ */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -67,7 +72,7 @@ export interface SourceBoardProps {
   onBackToSearch?: () => void;
 }
 
-/** 源看板：只读浏览已收录源、按分类分组、查看详情与状态，不参与搜索链路 */
+/** 源看板：浏览已收录源并管理启用状态与健康检查，不参与搜索请求编排 */
 export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   const { t } = useTranslation(['sourceBoard', 'tabs']);
   const navigate = useNavigate();
@@ -112,6 +117,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   const [savingCustom, setSavingCustom] = useState(false);
   const [customSaved, setCustomSaved] = useState(false);
 
+  // 请求序号：分页追加与筛选并发时，只接受最后一次请求的响应，避免慢响应覆盖新列表
   const requestIdRef = useRef(0);
 
   const loadStats = useCallback(async () => {
@@ -146,6 +152,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
     };
   }, [majorCategoryId]);
 
+  // 关键词输入防抖 300ms，避免逐字触发列表请求
   useEffect(() => {
     const timer = setTimeout(() => setKeyword(keywordInput.trim()), 300);
     return () => clearTimeout(timer);
@@ -191,6 +198,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
     void fetchPage(1);
   }, [fetchPage, refreshKey]);
 
+  // 后端返回扁平分页数据，这里按「大类 → 分类」两级分组；顺序沿用接口返回，不额外排序
   const groups = useMemo<GroupedMajor[]>(() => {
     const majors = new Map<string, GroupedMajor>();
     items.forEach((item) => {
@@ -245,6 +253,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
       setDetailLoading(false);
     }
     try {
+      // 可用率取最近 24 小时、最多 50 次的检查记录，避免陈旧的探测结果长期拉低展示
       const history = await sourceApi.getSourceStatusHistory(id, 50, 24);
       if (history.success && history.data) setAvailability(history.data.summary);
     } finally {
@@ -285,6 +294,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
       try {
         const response = await sourceApi.updateUserSourceConfig(id, { isEnabled: !enabled });
         if (response.success) {
+          // 写入成功后才同步列表与详情抽屉，避免回滚时两处状态不一致
           setItems((prev) =>
             prev.map((item) =>
               item.id === id

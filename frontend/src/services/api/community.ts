@@ -1,3 +1,9 @@
+/**
+ * 社区 API：标签、帖子、评论、举报与个人中心接口。
+ *
+ * 约束：创建类写操作先经 shared zod 校验；列表响应直接解包 data，不做字段映射。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import type {
@@ -15,8 +21,9 @@ import type {
   CommentsResponse,
 } from '@/types';
 
+/** 社区接口集合；点赞/收藏返回服务端最终状态，供调用方校正乐观更新。 */
 export const communityApi = {
-  // ==================== 标签管理 ====================
+  // ── 标签管理 ────────────────────────────────────────────────
 
   getTags: async (): Promise<CommunityTag[]> => {
     const response = await apiClient.get<{ success: boolean; data: CommunityTag[] }>('/community/tags');
@@ -42,7 +49,7 @@ export const communityApi = {
     return apiClient.delete(`/community/tags/${id}`);
   },
 
-  // ==================== 帖子管理 ====================
+  // ── 帖子管理 ────────────────────────────────────────────────
 
   getPosts: async (params?: {
     page?: number;
@@ -87,7 +94,7 @@ export const communityApi = {
     return apiClient.delete(`/community/posts/${id}`);
   },
 
-  // ==================== 互动功能 ====================
+  // ── 互动功能 ────────────────────────────────────────────────
 
   toggleLike: async (postId: string): Promise<{ liked: boolean }> => {
     const response = await apiClient.post<{ success: boolean; data: { liked: boolean }; message: string }>(
@@ -105,7 +112,7 @@ export const communityApi = {
     return response.success && response.data ? response.data : { favorited: false };
   },
 
-  // ==================== 评论管理 ====================
+  // ── 评论管理 ────────────────────────────────────────────────
 
   getComments: async (postId: string): Promise<CommentsResponse> => {
     const response = await apiClient.get<{ success: boolean; data: CommentsResponse }>(`/community/posts/${postId}/comments`);
@@ -122,7 +129,7 @@ export const communityApi = {
     return apiClient.delete(`/community/comments/${id}`);
   },
 
-  // ==================== 举报功能 ====================
+  // ── 举报功能 ────────────────────────────────────────────────
 
   reportPost: async (postId: string, data: ReportRequest): Promise<{ data: { reportId: string }; message: string }> => {
     const { reportPostSchema } = await import('@codeseek/shared/schemas/community');
@@ -130,7 +137,7 @@ export const communityApi = {
     return apiClient.post(`/community/posts/${postId}/report`, payload);
   },
 
-  // ==================== 个人中心 ====================
+  // ── 个人中心 ────────────────────────────────────────────────
 
   getMyPosts: async (params?: { page?: number; pageSize?: number; status?: string }): Promise<PostsResponse> => {
     const queryParams = new URLSearchParams();
@@ -155,7 +162,7 @@ export const communityApi = {
     return response.data;
   },
 
-  // ==================== 统计数据 ====================
+  // ── 统计数据 ────────────────────────────────────────────────
 
   getUserStats: async (): Promise<CommunityUserStats> => {
     const response = await apiClient.get<{ success: boolean; data: CommunityUserStats }>('/community/user-stats');

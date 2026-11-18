@@ -46,6 +46,7 @@ export interface LibraryLookup {
   detail?: LibraryJavDetail;
 }
 
+/** 单条详情最多返回的磁力条数，超出部分截断，避免响应体过大。 */
 const MAX_MAGNETS = 20;
 
 function parseList(raw: string | null): string[] {
@@ -91,6 +92,7 @@ function pickEntityLinks(
   return links.length > 0 ? links : undefined;
 }
 
+/** 按番号读取本地库 JAV 详情与磁力；未入库或番号无法识别时 found=false。 */
 export async function getLibraryJavDetail(db: D1Database, rawCode: string): Promise<LibraryLookup> {
   const info = inspectJavCode(rawCode);
   if (!info.recognized) return { found: false, detailCompleted: false };
@@ -135,7 +137,7 @@ export async function getLibraryJavDetail(db: D1Database, rawCode: string): Prom
     }
     if (!row.source_url.startsWith('magnet:') || magnets.length >= MAX_MAGNETS) continue;
     let data: Record<string, unknown> = {};
-    try { data = JSON.parse(row.source_data || '{}'); } catch { /* 忽略 */ }
+    try { data = JSON.parse(row.source_data || '{}'); } catch { /* 旧格式或脏数据：按空对象处理 */ }
     magnets.push({
       name: typeof data.name === 'string' && data.name ? data.name : record.code,
       magnet: row.source_url,

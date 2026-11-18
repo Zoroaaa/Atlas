@@ -1,3 +1,9 @@
+/**
+ * 发现页（/discover/:section）：推荐 / 榜单 / TOP250 / 标签 / 女优各占一页。
+ *
+ * 数据来源：各面板组件自行取数，本页只做分区路由与详情弹窗编排。
+ * 断点策略：<lg 保留顶部返回栏，返回落点固定为 /main（不退历史栈）；≥lg 走 AppShell。
+ */
 import React, { useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -18,10 +24,7 @@ import {
 } from '@/components/jav';
 import { isDiscoverSection } from '@/components/home-mobile';import type { DiscoverSection } from '@/components/home-mobile';
 
-/**
- * 发现页：推荐 / 最近热播 / TOP250 / 标签 / 女优各占一个独立页面。
- * 路由为 /discover/:section，桌面端由 AppShell 承载，移动端保留返回栏。
- */
+/** 发现页；路由与 query 都合法时才用，否则回落到 recommend。 */
 export const DiscoverPage: React.FC = () => {
   const { t } = useTranslation(['home']);
   const navigate = useNavigate();

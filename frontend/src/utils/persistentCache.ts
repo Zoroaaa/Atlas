@@ -1,3 +1,9 @@
+/**
+ * 本地持久缓存：用 localStorage 前缀 cs_cache_v1: 存放带 TTL 的查询快照。
+ *
+ * 约束：只存收藏/历史等可重建数据；读写失败静默降级，不能影响页面。
+ */
+
 const PREFIX = 'cs_cache_v1:';
 
 interface Entry<T> {
@@ -5,6 +11,7 @@ interface Entry<T> {
   cachedAt: number;
 }
 
+/** 读取未过期的缓存；过期或数据损坏时删除并返回 null。 */
 export function readPersisted<T>(key: string, maxAgeMs: number): Entry<T> | null {
   try {
     const raw = localStorage.getItem(PREFIX + key);
@@ -21,6 +28,7 @@ export function readPersisted<T>(key: string, maxAgeMs: number): Entry<T> | null
   }
 }
 
+/** 写入缓存并记录当前时间戳，供读取时判断 TTL。 */
 export function writePersisted<T>(key: string, data: T): void {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify({ data, cachedAt: Date.now() } satisfies Entry<T>));

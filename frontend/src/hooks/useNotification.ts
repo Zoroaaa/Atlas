@@ -1,3 +1,7 @@
+/**
+ * 全局 Toast / 通知 Hook：把 UIStore 的 toast 能力包装成有语义的业务动作。
+ * 约束：文案统一走 NotificationTemplates；actions 用 ref 缓存以保持引用稳定，可安全进依赖数组。
+ */
 import { useRef } from 'react';
 import { useUIStore } from '@/stores';
 import type { ToastOptions, ToastType, ToastPosition } from '@/types';
@@ -5,6 +9,7 @@ import { NotificationTemplates } from '@/utils';
 
 type ShowToastOptions = Omit<ToastOptions, 'type' | 'title'>;
 
+/** 直接展示 + 按业务模板生成的两类 toast 动作。 */
 interface NotificationActions {
   show: (options: ToastOptions) => string;
   success: (title: string, message?: string, options?: ShowToastOptions) => string;
@@ -118,12 +123,15 @@ interface NotificationActions {
   };
 }
 
+/** 获取全局通知动作；返回对象在组件生命周期内保持同一引用。 */
 export function useNotification(): NotificationActions {
   const { addToast, removeToast, clearToasts, setToastConfig, setToastPosition, toastPosition } = useUIStore();
 
   const notificationRef = useRef<NotificationActions | null>(null);
 
+  // 只在首次渲染构建 actions，之后复用同一引用，避免下游 effect 反复触发
   if (!notificationRef.current) {
+    // overrides 只覆盖 duration 等展示项，模板的 type / title 不接受外部改写
     const fromTemplate = (template: { type: ToastType; title: string; message?: string; duration?: number }, overrides?: ShowToastOptions): string =>
       addToast({ type: template.type, title: template.title, message: template.message, duration: template.duration, ...overrides } as ToastOptions);
 
@@ -248,4 +256,5 @@ export function useNotification(): NotificationActions {
   return notificationRef.current;
 }
 
+/** 历史别名，与 useNotification 等价。 */
 export { useNotification as useToast };

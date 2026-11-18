@@ -1,3 +1,8 @@
+/**
+ * 社区帖子详情（/community/post/:id）。
+ * 数据来源：useCommunityStore 的 currentPost / posts；contentData 为按类型存储的 JSON 字符串。
+ * 约束：各类型渲染器只读取 JSON，不补字段；相关推荐取自已加载列表，不额外请求。
+ */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
@@ -32,6 +37,7 @@ interface PostDetailProps {
   onBack?: () => void;
 }
 
+// 类型 → 文案 key / 图标 / 配色；新增帖子类型时必须同步 renderContent 的分支
 const POST_TYPE_CONFIG = {
   jav: { labelKey: 'communityPages:postDetail.types.jav', icon: Film, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
   anime: { labelKey: 'communityPages:postDetail.types.anime', icon: Tv, color: 'text-rose-500 bg-rose-50 dark:bg-rose-900/20' },
@@ -53,13 +59,12 @@ const formatDate = (timestamp: number) => {
   });
 };
 
-// JAV 内容渲染
+// JAV 内容渲染：磁力字段在不同来源里叫 magnets 或 magnetLinks
 const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   const magnetLinks = data.magnetLinks || data.magnets;
   return (
     <div className="space-y-4">
-      {/* 基本信息 */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         {data.code && (
           <div>
@@ -99,7 +104,6 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
         )}
       </div>
 
-      {/* 演员列表 */}
       {data.actresses && Array.isArray(data.actresses) && data.actresses.length > 0 && (
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
@@ -116,7 +120,6 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
         </div>
       )}
 
-      {/* 标签 */}
       {data.tags && Array.isArray(data.tags) && data.tags.length > 0 && (
         <div>
           <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">{t('communityPages:postDetail.jav.tags')}</h4>
@@ -130,7 +133,6 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
         </div>
       )}
 
-      {/* 磁力链接列表 */}
       {magnetLinks && Array.isArray(magnetLinks) && magnetLinks.length > 0 && (
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
@@ -148,7 +150,7 @@ const JAVContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) =
   );
 };
 
-// Anime 内容渲染
+// Anime 内容渲染：四个资源源字段都可能缺失
 const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   const bgm = data.bgm?.[0];
@@ -161,7 +163,6 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
   return (
     <div className="space-y-4">
-      {/* BGM 作品信息 */}
       {bgm && (
         <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
           <div className="flex items-start gap-3">
@@ -197,7 +198,6 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </div>
       )}
 
-      {/* 资源统计 */}
       {allResources.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {data.nyaa?.length > 0 && <Badge variant="default" size="sm">Nyaa {data.nyaa.length}</Badge>}
@@ -207,7 +207,6 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </div>
       )}
 
-      {/* 资源列表 */}
       {allResources.length > 0 && (
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
@@ -228,7 +227,7 @@ const AnimeContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
   );
 };
 
-// Movie 内容渲染
+// Movie 内容渲染：results[0] 作为主影片，其余作为候选结果
 const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   const movie = data.results?.[0];
@@ -236,7 +235,6 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
 
   return (
     <div className="space-y-4">
-      {/* 影片信息 */}
       {movie && (
         <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-3">
           <div className="flex items-start gap-3">
@@ -272,7 +270,6 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </div>
       )}
 
-      {/* 其他搜索结果 */}
       {data.results?.length > 1 && (
         <div>
           <h4 className="font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">{t('communityPages:postDetail.movie.otherResultsCount', { count: data.results.length - 1 })}</h4>
@@ -288,7 +285,6 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
         </div>
       )}
 
-      {/* 下载资源 */}
       {resources.length > 0 && (
         <div>
           <h4 className="flex items-center gap-2 font-medium text-sm text-stone-700 dark:text-stone-300 mb-2">
@@ -309,7 +305,7 @@ const MovieContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
   );
 };
 
-// Manga 内容渲染
+// Manga 内容渲染：最多展示 12 条，其余只提示数量
 const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   const mangaList = data.manga || [];
@@ -346,7 +342,7 @@ const MangaContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
   );
 };
 
-// Novel 内容渲染
+// Novel 内容渲染：最多展示 10 条，其余只提示数量
 const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   const novels = data.novels || [];
@@ -379,12 +375,11 @@ const NovelContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data })
   );
 };
 
-// Actress 内容渲染
+// Actress 内容渲染：字段全部可选，缺省项不渲染
 const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data }) => {
   const { t } = useTranslation(['communityPages']);
   return (
   <div className="space-y-4">
-    {/* 姓名信息 */}
     <div className="p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl space-y-2">
       <div className="flex items-baseline gap-3">
         <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100">{data.name}</h4>
@@ -394,7 +389,6 @@ const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data 
       {data.alias && <p className="text-xs text-stone-400">{t('communityPages:postDetail.actress.alias', { alias: data.alias })}</p>}
     </div>
 
-    {/* 基本资料 */}
     <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
       {data.birthday && (
         <div>
@@ -434,7 +428,6 @@ const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data 
       )}
     </div>
 
-    {/* 身体数据 */}
     {(data.bust || data.cup || data.waist || data.hip) && (
       <div className="flex flex-wrap gap-2">
         {data.bust && (
@@ -455,7 +448,7 @@ const ActressContentRenderer: React.FC<{ data: Record<string, any> }> = ({ data 
   );
 };
 
-// 资源项（统一处理磁力链接和种子资源）
+/** 资源项：兼容「纯磁力字符串」与「带标题/做种数的对象」两种结构。 */
 const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, index }) => {
   const { t } = useTranslation(['communityPages']);
   const [copied, setCopied] = useState(false);
@@ -504,6 +497,7 @@ const ResourceItem: React.FC<{ resource: any; index: number }> = ({ resource, in
   );
 };
 
+/** 帖子详情页；contentData 解析失败时降级为空对象。 */
 export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
   const { t } = useTranslation(['communityPages']);
   const toast = useToast();
@@ -631,7 +625,6 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
 
   return (
     <div className="space-y-6 pb-10">
-      {/* 顶部导航 */}
       <div className="flex items-center gap-4">
         {onBack && (
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -645,10 +638,8 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         </div>
       </div>
 
-      {/* 帖子头部 */}
       <Card padding="lg">
         <div className="space-y-4">
-          {/* 帖子封面 */}
           {currentPost.coverImage && (
             <div className="rounded-xl overflow-hidden -mt-2 -mx-2 mb-4">
               <ProxyImage
@@ -659,19 +650,16 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
             </div>
           )}
 
-          {/* 标题 */}
           <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 leading-tight">
             {currentPost.title}
           </h1>
 
-          {/* 推荐语 */}
           {currentPost.caption && (
             <p className="text-base text-stone-600 dark:text-stone-400 leading-relaxed italic border-l-3 border-amber-400 pl-4 py-1 bg-amber-50/50 dark:bg-amber-900/10 rounded-r-lg">
               "{currentPost.caption}"
             </p>
           )}
 
-          {/* 作者信息和时间 */}
           <div className="flex items-center gap-3 pt-2">
             {currentPost.userAvatar ? (
               <img
@@ -692,7 +680,6 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
             </div>
           </div>
 
-          {/* 互动操作栏 */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-4 border-t border-stone-100 dark:border-stone-800">
             <div className="flex items-center gap-4 text-sm text-stone-500">
               <span className="flex items-center gap-1"><Eye className="w-4 h-4" />{currentPost.viewCount.toLocaleString()}</span>
@@ -743,12 +730,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         </div>
       </Card>
 
-      {/* 内容数据渲染区 */}
       <Card padding="lg">
         {renderContent()}
       </Card>
 
-      {/* 标签展示 */}
       {currentPost.tags && currentPost.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-center">
           {currentPost.tags.map((tag, idx) => (
@@ -759,10 +744,8 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         </div>
       )}
 
-      {/* 评论区 */}
       <CommentsSection postId={postId} />
 
-      {/* 相关推荐 */}
       {relatedPosts.length > 0 && (
         <div className="space-y-4 pt-6 border-t border-stone-200 dark:border-stone-800">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-lg">
@@ -782,7 +765,6 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
         </div>
       )}
 
-      {/* 举报弹窗 */}
       <Modal
         isOpen={reportModalOpen}
         onClose={() => {

@@ -1,3 +1,9 @@
+/**
+ * 认证 API：OAuth 跳转与登录态 token 的读写都收敛在这里。
+ *
+ * 约束：登录/注册/刷新成功后立即写 store 并持久化；登出无论服务端成败都要清本地态。
+ */
+
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
 import { getApiBaseUrl } from '@/constants';
@@ -29,6 +35,7 @@ function buildOAuthUrl(path: string): string {
   return url.toString();
 }
 
+/** 认证相关接口；除 OAuth 跳转外都走 apiClient 统一错误处理。 */
 export const authApi = {
   loginWithGitHub: (): void => {
     void openOAuthUrl(buildOAuthUrl('/auth/github'));
@@ -42,6 +49,7 @@ export const authApi = {
     const { loginSchema } = await import('@codeseek/shared/schemas/auth');
     const payload = await parseRequest<LoginRequest>(loginSchema, data);
     const response = await apiClient.post<AuthResponse>('/auth/login', payload);
+    // 登录成功立即写内存与 localStorage，刷新页面后仍能带上 token
     if (response.success && response.data?.token) {
       const store = useAuthStore.getState();
       store.setToken(response.data.token);
@@ -67,6 +75,7 @@ export const authApi = {
       const response = await apiClient.post<{ success: boolean; message: string }>('/auth/logout', {});
       return response;
     } finally {
+      // 服务端注销失败也要清本地登录态，避免残留可用 token
       useAuthStore.getState().logout();
     }
   },
@@ -76,6 +85,7 @@ export const authApi = {
   },
 
   verifyToken: async (token?: string): Promise<{ success: boolean; data: TokenVerifyResponse }> => {
+    // 先落 token 再校验：/auth/verify-token 依赖 Authorization 头
     if (token) {
       const store = useAuthStore.getState();
       store.setToken(token);
