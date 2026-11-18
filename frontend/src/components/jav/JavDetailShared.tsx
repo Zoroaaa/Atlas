@@ -1,8 +1,16 @@
-import React from 'react';
+/**
+ * JAV 详情共享片段：实体链接样式、可点击标签、演员列表与在线播放入口。
+ *
+ * 搜索详情（JavDetailPanel）与历史/收藏详情（LibraryDetailModal）共用，避免同一套展示逻辑写两遍。
+ */
+import React, { useState } from 'react';
 import { clsx } from 'clsx';
+import { ChevronRight, ExternalLink, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Chip } from '@/components/workbench';
+import { Modal } from '@/components/ui';
 import { FollowButton } from '@/components/follow/FollowButton';
+import { JAV_PLAY_PLATFORMS, buildJavPlayUrl } from '@/config/javPlayPlatforms';
 
 /**
  * 导演 / 制作商 / 发行商 / 系列 / 标签共用的实体链接文字样式。
@@ -66,6 +74,76 @@ export const JavActressList: React.FC<{
           <FollowButton name={name} />
         </span>
       ))}
+    </div>
+  );
+};
+
+/**
+ * 番号在线播放入口：入口横条 + 平台选择弹窗。
+ *
+ * 搜索结果详情（JavDetailPanel）与历史/收藏详情（LibraryDetailModal）共用，
+ * 番号为空时不渲染，避免生成无效链接。
+ */
+export const JavPlayOnlineEntry: React.FC<{ code?: string; className?: string }> = ({ code, className }) => {
+  const { t } = useTranslation(['jav']);
+  const [open, setOpen] = useState(false);
+  const playCode = code?.trim();
+  if (!playCode) return null;
+
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group flex w-full items-center gap-3 rounded-xl border border-surface-200 bg-surface-50 px-3.5 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-surface-700 dark:bg-surface-800/60 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success-500/10 text-success-600 dark:text-success-400">
+          <Play className="h-4 w-4 fill-current" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-surface-900 dark:text-surface-100">
+            {t('jav:detail.playOnline')}
+          </span>
+          <span className="block truncate text-[11px] text-surface-500 dark:text-surface-400">
+            {t('jav:detail.playOnlineEntryHint', {
+              platforms: JAV_PLAY_PLATFORMS.map((platform) => platform.name).join(' / '),
+            })}
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-surface-400 transition-transform group-hover:translate-x-0.5" />
+      </button>
+
+      <Modal
+        isOpen={open && !!playCode}
+        onClose={() => setOpen(false)}
+        title={t('jav:detail.playOnlineTitle')}
+        size="sm"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-surface-500 dark:text-surface-400">
+            {t('jav:detail.playOnlineHint', { code: playCode })}
+          </p>
+          <div className="space-y-1.5">
+            {JAV_PLAY_PLATFORMS.map((platform) => {
+              const url = buildJavPlayUrl(platform, playCode);
+              if (!url) return null;
+              return (
+                <a
+                  key={platform.id}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-surface-200 px-3 py-2.5 text-sm text-surface-700 transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-surface-700 dark:text-surface-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
+                >
+                  <span className="font-medium">{platform.name}</span>
+                  <ExternalLink className="h-3.5 w-3.5 text-surface-400" />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

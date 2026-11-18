@@ -1,3 +1,8 @@
+/**
+ * JAV 推荐面板：相关推荐（跟随番号种子）与「为你推荐」两种变体，共用同一套卡片栅格。
+ *
+ * 约束：未登录或无有效种子时 hook 会关闭查询，本组件直接返回 null，不渲染空面板。
+ */
 import React, { useState } from 'react';
 import { Sparkles, RefreshCw, Loader2, ChevronDown, ChevronRight, Film } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -15,8 +20,8 @@ interface JavRecommendationsPanelProps {
   seed?: JavRecommendationSeed;
   excludeCodes?: string[];
   onCodeClick: (code: string) => void;
-  /** page：作为独立页面内容渲染，不显示折叠头与面板外壳 */
-  layout?: 'panel' | 'page';
+  /** page：作为独立页面内容渲染，不显示折叠头与面板外壳；embedded：嵌入其他详情卡片内部，使用轻量标题行 */
+  layout?: 'panel' | 'page' | 'embedded';
 }
 
 function SkeletonCard() {
@@ -28,6 +33,7 @@ function SkeletonCard() {
   );
 }
 
+/** JAV 推荐：panel 折叠 / page 独立 / embedded 嵌入详情三种布局 */
 export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = ({
   variant,
   seed,
@@ -45,6 +51,7 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
   const items = data?.items ?? [];
   if (!isLoading && items.length === 0) return null;
 
+  // mode 由后端回填：related / popular / for-you 决定标题与口径说明，前端只做文案映射
   const mode = data?.mode;
   const title = mode === 'related'
     ? t('jav:recommend.titleRelated')
@@ -94,6 +101,31 @@ export const JavRecommendationsPanel: React.FC<JavRecommendationsPanelProps> = (
           >
             {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {t('jav:recommend.refresh')}
+          </button>
+        </div>
+        {grid}
+      </div>
+    );
+  }
+
+  if (layout === 'embedded') {
+    return (
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-surface-400" />
+            <span className="type-micro font-medium text-surface-500">{title}</span>
+            {items.length > 0 ? <CountBadge>{items.length}</CountBadge> : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title={t('jav:recommend.refresh')}
+            aria-label={t('jav:recommend.refresh')}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-600 disabled:opacity-60 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+          >
+            {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </button>
         </div>
         {grid}

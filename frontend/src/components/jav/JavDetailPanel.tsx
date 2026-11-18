@@ -1,8 +1,13 @@
+/**
+ * JAV 番号详情面板：封面、元数据、标签/演员、在线观看入口与磁力列表。
+ *
+ * 封面按宽高比自适应；实体点击复用 JavEntityWorksPanel；回源按钮仅在详情来自本地库时出现。
+ */
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Magnet, Film, Calendar, Clock, User, Building2,
   Tag, Star, ExternalLink, Copy, Check, Loader2,
-  AlertCircle, Search, ChevronDown, ChevronUp, ChevronRight, X,
+  AlertCircle, Search, ChevronDown, ChevronUp, X,
   Shield, Play, FileDown, Heart, RefreshCw, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -18,8 +23,7 @@ import { ShareToCommunityButton } from '@/components/community';
 import { getProxyImageUrl } from '@/utils/imageProxy';
 import { clsx } from 'clsx';
 import { JavEntityWorksPanel } from './JavEntityWorksPanel';
-import { JavActressList, JavTagButton, JAV_ENTITY_LINK_CLASS } from './JavDetailShared';
-import { JAV_PLAY_PLATFORMS, buildJavPlayUrl } from '@/config/javPlayPlatforms';
+import { JavActressList, JavPlayOnlineEntry, JavTagButton, JAV_ENTITY_LINK_CLASS } from './JavDetailShared';
 
 const resolveUrl = (relativePath: string, referenceUrl: string): string => {
   try {
@@ -319,16 +323,15 @@ const MagnetList: React.FC<{ magnets: MagnetItem[] }> = ({ magnets }) => {
 
 // ── 主组件 ─────────────────────────────────────────────────────────
 
+/** JAV 番号详情：加载/未找到/失败/成功四种状态与磁力操作 */
 export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, onClose, onRetry, onFavorite, isFavorited, isAuthenticated = true, onLoginRequired, onPullExternal, isPullingExternal = false, onCodeClick, onActressClick }) => {
   const { t } = useTranslation(['jav']);
   // 封面按真实比例自适应：横版封面独占一行完整展示，竖版封面与信息并排
   const [coverLandscape, setCoverLandscape] = useState(false);
-  const [playModalOpen, setPlayModalOpen] = useState(false);
   const [entityTarget, setEntityTarget] = useState<JavEntityTarget | null>(null);
+  // 切换番号时重置封面方向与实体弹窗，避免沿用上一条记录的展示状态
   useEffect(() => { setCoverLandscape(false); }, [detail?.cover]);
   useEffect(() => { setEntityTarget(null); }, [detail?.code]);
-  // 番号为空时不展示在线播放入口，避免生成无效链接
-  const playCode = detail?.code?.trim();
   if (status === 'idle') return null;
 
   return (
@@ -440,38 +443,6 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
           <X className="h-4 w-4" />
         </button>
       </header>
-
-      <Modal
-        isOpen={playModalOpen && !!playCode}
-        onClose={() => setPlayModalOpen(false)}
-        title={t('jav:detail.playOnlineTitle')}
-        size="sm"
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-surface-500 dark:text-surface-400">
-            {t('jav:detail.playOnlineHint', { code: playCode })}
-          </p>
-          <div className="space-y-1.5">
-            {JAV_PLAY_PLATFORMS.map((platform) => {
-              const url = buildJavPlayUrl(platform, playCode);
-              if (!url) return null;
-              return (
-                <a
-                  key={platform.id}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setPlayModalOpen(false)}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-surface-200 px-3 py-2.5 text-sm text-surface-700 transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-surface-700 dark:text-surface-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
-                >
-                  <span className="font-medium">{platform.name}</span>
-                  <ExternalLink className="h-3.5 w-3.5 text-surface-400" />
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      </Modal>
 
       {status === 'loading' ? (
         <div className="px-4 pb-4 sm:px-5 sm:pb-5">
@@ -628,28 +599,7 @@ export const JavDetailPanel: React.FC<JavDetailPanelProps> = ({ detail, status, 
             </div>
           ) : null}
 
-          {playCode ? (
-            <button
-              type="button"
-              onClick={() => setPlayModalOpen(true)}
-              className="group flex w-full items-center gap-3 rounded-xl border border-surface-200 bg-surface-50 px-3.5 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-surface-700 dark:bg-surface-800/60 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success-500/10 text-success-600 dark:text-success-400">
-                <Play className="h-4 w-4 fill-current" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold text-surface-900 dark:text-surface-100">
-                  {t('jav:detail.playOnline')}
-                </span>
-                <span className="block truncate text-[11px] text-surface-500 dark:text-surface-400">
-                  {t('jav:detail.playOnlineEntryHint', {
-                    platforms: JAV_PLAY_PLATFORMS.map((platform) => platform.name).join(' / '),
-                  })}
-                </span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-surface-400 transition-transform group-hover:translate-x-0.5" />
-            </button>
-          ) : null}
+          <JavPlayOnlineEntry code={detail.code} />
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">

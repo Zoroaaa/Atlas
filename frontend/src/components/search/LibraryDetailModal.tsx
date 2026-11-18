@@ -1,3 +1,8 @@
+/**
+ * 本地库详情卡：历史 / 收藏 / 关注动态 / 发现页点击影片的统一入口，按五个类别分派渲染。
+ *
+ * 数据只读 /api/library/record；JAV 记录无磁力时须给出回源或重新搜索出口，不能显示空详情。
+ */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, BookOpen, Building2, Calendar, Clock, ExternalLink,
@@ -14,21 +19,16 @@ import { useToast } from '@/hooks/useNotification';
 import type { LibraryRecord, LibraryRecordSource, LibraryRecordType } from '@/services/api/library';
 import type { JavEntityKind, JavEntityLink, JavEntityTarget } from '@/types';
 import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
-import { JavActressList, JavTagButton, JAV_ENTITY_LINK_CLASS } from '@/components/jav/JavDetailShared';
+import { JavRecommendationsPanel } from '@/components/jav/JavRecommendationsPanel';
+import { JavActressList, JavPlayOnlineEntry, JavTagButton, JAV_ENTITY_LINK_CLASS } from '@/components/jav/JavDetailShared';
 import { normalizeImageUrl } from '@/utils/imageProxy';
 
 /** 本地存档详情封面：始终按原图比例展示（object-contain），移动端铺满整行，PC 端限宽，高度随图片比例自适应 */
 const DETAIL_COVER_CLASS = 'w-full shrink-0 self-start rounded-[10px] bg-surface-100 object-contain dark:bg-surface-800 sm:w-[240px]';
 
-/**
- * 搜索历史 / 收藏点击后的详情卡片。
- *
- * 数据全部来自本地库（/api/library/record），按五个搜索类别分派渲染，
- * 每类沿用该类别搜索结果现有的详情展示形态（JAV 走详情面板结构，
- * 动漫/影视/漫画/小说走各自的媒体卡 + 资源行）。
- */
+/** 详情卡入参：类别提示用于在本地记录未命中时回退到对应搜索 */
 export interface LibraryDetailTarget {
-  /** 搜索类别提示：历史记录的 source */
+  /** 类别提示：来源页面传入的类别（历史记录的 source、榜单的记录类型等） */
   type?: string;
   code?: string;
   url?: string;
@@ -130,7 +130,7 @@ const findEntityPath = (links: JavEntityLink[], name?: string): string | undefin
   return (links.find((link) => name.includes(link.name)) ?? links[0])?.path;
 };
 
-// ─── 片段 ────────────────────────────────────────────────────────────
+// ── 片段 ─────────────────────────────────────────────────────────────
 
 const InfoRow: React.FC<{
   icon: React.ElementType;
@@ -207,7 +207,7 @@ const SourceRows: React.FC<{ sources: LibraryRecordSource[]; t: TFunction }> = (
   </div>
 );
 
-// ─── 类别内容 ────────────────────────────────────────────────────────
+// ── 类别内容 ─────────────────────────────────────────────────────────
 
 const JavBody: React.FC<{
   record: LibraryRecord;
@@ -221,6 +221,7 @@ const JavBody: React.FC<{
   const detailUrl = str(extra.detailUrl);
   const magnets = magnetSources(record);
   const actresses = strList(extra.actresses);
+  // 新记录演员写在 content_data.actresses，老记录只有顶层 actors，逐级回退
   const actors = actresses.length > 0 ? actresses : record.actors;
   const publisher = str(extra.publisher) ?? record.publisher;
   const directorLinks = readEntityLinks(extra, 'directorLinks');
@@ -347,6 +348,8 @@ const JavBody: React.FC<{
         </div>
       ) : null}
 
+      <JavPlayOnlineEntry code={record.code} />
+
       <div>
         <SectionLabel icon={Magnet} text={t('jav:detail.magnetsHeader', { count: magnets.length })} />
         {magnets.length > 0 ? (
@@ -357,6 +360,21 @@ const JavBody: React.FC<{
           <p className="type-micro text-surface-500">{t('jav:detail.noMagnets')}</p>
         )}
       </div>
+
+      {record.code && onCodeClick ? (
+        <JavRecommendationsPanel
+          variant="related"
+          layout="embedded"
+          seed={{
+            code: record.code,
+            actors,
+            tags: record.tags,
+            publisher: publisher ?? str(extra.maker),
+          }}
+          excludeCodes={[record.code]}
+          onCodeClick={onCodeClick}
+        />
+      ) : null}
 
       <JavEntityWorksPanel
         entity={entityTarget}
@@ -637,8 +655,9 @@ const NovelBody: React.FC<{ record: LibraryRecord; t: TFunction }> = ({ record, 
   );
 };
 
-// ─── 主组件 ──────────────────────────────────────────────────────────
+// ── 主组件 ───────────────────────────────────────────────────────────
 
+/** 本地库详情弹窗：按记录类别渲染详情，未命中/缺资源时提供回源与重新搜索入口 */
 export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, onClose, onSearch, onActressClick }) => {
   const { t } = useTranslation(['search', 'jav']);
   const toast = useToast();
@@ -771,6 +790,7 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
       );
     }
 
+    // JAV 本地记录可能只有元数据、没有磁力，直接渲染详情会像空页，先给「回源 JavBus / 重新搜索」两个出口
     if (record.recordType === 'jav' && magnetSources(record).length === 0) {
       return (
         <EmptyBlock
