@@ -765,6 +765,7 @@ dataStorageRoutes.put('/covers/settings', validateBody(schemas.dataStorage.updat
     const body = c.get('validatedBody') as z.infer<typeof schemas.dataStorage.updateCoverBackfill>;
     await setCoverBackfillSettings(c.env.DB, {
       enabled: body.enabled,
+      hourlyEnabled: body.hourlyEnabled,
       batchSize: body.batchSize,
     });
     return c.json(success(await getCoverStats(c.env), '封面回填设置已更新'));

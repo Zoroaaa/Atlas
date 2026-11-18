@@ -106,15 +106,20 @@ const backendOnlySchemas = {
   },
 
   dataStorage: {
-    // 封面回填开关与批次大小：仅管理端调用
+    // 封面回填：分钟通道（加速）、小时通道（日常）与共享批次大小，仅管理端调用
     updateCoverBackfill: z
       .object({
         enabled: z.boolean().optional(),
+        hourlyEnabled: z.boolean().optional(),
         batchSize: z.number().int().min(1).max(100).optional(),
       })
-      .refine((value) => value.enabled !== undefined || value.batchSize !== undefined, {
-        message: '至少提供 enabled 或 batchSize',
-      }),
+      .refine(
+        (value) =>
+          value.enabled !== undefined ||
+          value.hourlyEnabled !== undefined ||
+          value.batchSize !== undefined,
+        { message: '至少提供 enabled、hourlyEnabled 或 batchSize' }
+      ),
   },
 
   follows: {

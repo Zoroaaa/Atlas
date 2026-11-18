@@ -105,9 +105,11 @@ export const DB_CONFIG_KEYS = {
   COMMUNITY_ENABLED: 'community_enabled',
   /** JAV 详情批量补全：关闭后每分钟 cron 跳过推进（不删任务、不影响其他定时任务） */
   JAV_DETAIL_JOB_ENABLED: 'jav_detail_job_enabled',
-  /** 封面回填：关闭后分钟 cron 跳过推进；懒加载缓存不受影响 */
+  /** 封面回填「加速」通道：开启后每分钟推进一批，关闭时分钟 cron 直接跳过（日常保持关闭） */
   COVER_BACKFILL_ENABLED: 'cover_backfill_enabled',
-  /** 封面回填每批条数（1-100） */
+  /** 封面回填「日常」通道：每小时 :05 推进一批，与分钟通道互不影响 */
+  COVER_BACKFILL_HOURLY_ENABLED: 'cover_backfill_hourly_enabled',
+  /** 封面回填每批条数（1-100），两个通道共用 */
   COVER_BACKFILL_BATCH_SIZE: 'cover_backfill_batch_size',
 
   // 安全限制 — 安全策略需要动态调整

@@ -943,9 +943,10 @@ export const dataStorageApi = {
     return response.data;
   },
 
-  /** 更新封面回填开关 / 每分钟批次大小，返回最新统计 */
+  /** 更新封面回填两条通道的开关 / 每轮批次大小，返回最新统计 */
   updateCoverBackfill: async (params: {
     enabled?: boolean;
+    hourlyEnabled?: boolean;
     batchSize?: number;
   }): Promise<CoverStats> => {
     const response = await apiClient.put<{ success: boolean; data: CoverStats }>(

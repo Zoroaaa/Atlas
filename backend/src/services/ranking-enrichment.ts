@@ -96,7 +96,9 @@ export async function enrichPendingJavRecords(
            COALESCE(m.status, 'pending') <> 'partial'
            OR (COALESCE(m.missing_mask, 0) & ${DETAIL_FIELD_BITS.magnets}) <> 0
          )
-       ORDER BY COALESCE(m.next_retry_at, 0), d.last_updated_at ASC
+       -- 排序键只用 last_updated_at，命中 idx_data_records_jav_pending 的末列，
+       -- 避免以 join 表的 next_retry_at 为首列时被迫建 temp B-tree 排完候选集。
+       ORDER BY d.last_updated_at ASC
        LIMIT ?`
     )
     .bind(now, limit * 4)

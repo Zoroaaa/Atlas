@@ -487,7 +487,11 @@ async function selectDueRecords(
          AND COALESCE(m.status, 'pending') <> 'complete'
          AND ${MANUAL_DUE_PREDICATE}
          ${filterPredicate(filter)}
-       ORDER BY COALESCE(m.next_retry_at, 0), d.last_updated_at ASC
+       -- 只按 d.last_updated_at 排序：它是 idx_data_records_jav_pending 的末列，
+       -- 按索引顺序取满 LIMIT 即可停下；以 m.next_retry_at 为首列会强制 temp B-tree
+       -- 把整个候选集排完才能取前 N 条。到期记录的 next_retry_at 多为 0，
+       -- 排序结果与「最旧优先」基本一致。
+       ORDER BY d.last_updated_at ASC
        LIMIT ?`
     )
     .bind(Date.now(), limit)

@@ -1,8 +1,8 @@
 /**
  * 本地库封面回填：把 data_records.cover 下载到 R2，并维护 cover_assets 账本。
  *
- * 由每分钟 cron 推进（默认 20 条/批，可暂停/调批次）；先 head R2 保证幂等，
- * 与 jav-detail-job 串行执行，避免同时对 JavBus 发起两拨请求。只回填，不回写 cover 字段。
+ * 由每小时 :05 的 cron 推进（默认 50 条/批，可暂停/调批次）；先 head R2 保证幂等。
+ * 只回填 cover 到 R2 并维护账本，不回写 data_records.cover。
  */
 import type { Env } from '@/types';
 import { DB_CONFIG_KEYS } from '@/constants';
@@ -25,6 +25,12 @@ import {
 } from './media-store';
 
 const LOCK_KEY = 'cover-backfill';
+/**
+ * 默认每轮条数。回填已改为每小时一轮，稳态新增约 700 条/天（实测 24h 679 条），
+ * 50 条/轮 = 1200 条/天，留出突发导入的余量；再高则单批最坏耗时可能压到
+ * cron 的 15 分钟 wall time 上限。
+ */
+const DEFAULT_BATCH_SIZE = 50;
 /** 单条最坏耗时（10s 超时 + 限速/写入）；锁租约按批次推算，避免跑一半就过期 */
 const PER_RECORD_LOCK_MS = 12_000;
 const MIN_LOCK_TTL_MS = 55_000;
@@ -37,7 +43,10 @@ const MISSING_RETRY_MS = 30 * 24 * 60 * 60 * 1000;
 const RETRY_BACKOFF_MS = [60 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000, 3 * 24 * 60 * 60_000];
 
 export interface CoverBackfillSettings {
+  /** 分钟通道（加速）：日常关闭，批量导入时手动打开 */
   enabled: boolean;
+  /** 小时通道（日常）：每小时 :05 推进一批，与分钟通道独立 */
+  hourlyEnabled: boolean;
   batchSize: number;
 }
 
@@ -81,6 +90,8 @@ export interface CoverStats {
   byType: CoverTypeStats[];
   recentFailures: CoverFailureItem[];
   enabled: boolean;
+  /** 小时通道（日常）是否开启 */
+  hourlyEnabled: boolean;
   batchSize: number;
   r2Ready: boolean;
   publicBase: string | null;
@@ -105,7 +116,7 @@ interface ExistingAsset {
   next_retry_at: number;
 }
 
-/** 同一 isolate 内跨批次保留，避免每分钟重新起算限速间隔 */
+/** 同一 isolate 内跨批次保留，避免每轮重新起算限速间隔 */
 const hostLastFetchAt = new Map<string, number>();
 
 /** 各图源的最小请求间隔（ms）：按站点反爬强度区分，避免封面回填把源站打出限流。 */
@@ -134,28 +145,36 @@ function readBoolean(value: string | null | undefined, fallback: boolean): boole
   return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
-/** 读取回填开关与批次大小；读取失败时按「关闭 + 默认 20 条」处理。 */
+/** 读取两条通道的开关与共享批次大小；读取失败时两条通道都按关闭处理。 */
 export async function getCoverBackfillSettings(db: D1Database): Promise<CoverBackfillSettings> {
   try {
     const { results } = await db
-      .prepare('SELECT key, value FROM system_config WHERE key IN (?, ?)')
-      .bind(DB_CONFIG_KEYS.COVER_BACKFILL_ENABLED, DB_CONFIG_KEYS.COVER_BACKFILL_BATCH_SIZE)
+      .prepare('SELECT key, value FROM system_config WHERE key IN (?, ?, ?)')
+      .bind(
+        DB_CONFIG_KEYS.COVER_BACKFILL_ENABLED,
+        DB_CONFIG_KEYS.COVER_BACKFILL_HOURLY_ENABLED,
+        DB_CONFIG_KEYS.COVER_BACKFILL_BATCH_SIZE,
+      )
       .all<{ key: string; value: string | null }>();
     const map = new Map((results || []).map((row) => [row.key, row.value]));
-    const rawSize = Number(map.get(DB_CONFIG_KEYS.COVER_BACKFILL_BATCH_SIZE) ?? 20);
+    const rawSize = Number(map.get(DB_CONFIG_KEYS.COVER_BACKFILL_BATCH_SIZE) ?? DEFAULT_BATCH_SIZE);
     return {
       enabled: readBoolean(map.get(DB_CONFIG_KEYS.COVER_BACKFILL_ENABLED), false),
-      batchSize: Number.isFinite(rawSize) ? Math.min(100, Math.max(1, Math.round(rawSize))) : 20,
+      // 行缺失时默认开启：小时通道是日常兜底，配置没初始化也应该继续跑
+      hourlyEnabled: readBoolean(map.get(DB_CONFIG_KEYS.COVER_BACKFILL_HOURLY_ENABLED), true),
+      batchSize: Number.isFinite(rawSize)
+        ? Math.min(100, Math.max(1, Math.round(rawSize)))
+        : DEFAULT_BATCH_SIZE,
     };
   } catch {
-    return { enabled: false, batchSize: 20 };
+    return { enabled: false, hourlyEnabled: false, batchSize: DEFAULT_BATCH_SIZE };
   }
 }
 
-/** 更新开关/批次大小（批次限制 1-100），并清掉 ConfigService 的 60 秒缓存。 */
+/** 更新两条通道的开关 / 批次大小（批次限制 1-100），并清掉 ConfigService 的 60 秒缓存。 */
 export async function setCoverBackfillSettings(
   db: D1Database,
-  patch: { enabled?: boolean; batchSize?: number },
+  patch: { enabled?: boolean; hourlyEnabled?: boolean; batchSize?: number },
 ): Promise<CoverBackfillSettings> {
   const now = Date.now();
   const statements: D1PreparedStatement[] = [];
@@ -170,7 +189,24 @@ export async function setCoverBackfillSettings(
       ).bind(
         DB_CONFIG_KEYS.COVER_BACKFILL_ENABLED,
         patch.enabled ? '1' : '0',
-        '是否推进本地库封面回填到 R2',
+        '封面回填分钟通道：开启后每分钟推进一批，日常应保持关闭',
+        now,
+        now,
+      )
+    );
+  }
+
+  if (patch.hourlyEnabled !== undefined) {
+    statements.push(
+      db.prepare(
+        `INSERT INTO system_config
+           (key, value, description, config_type, config_group, is_public, is_sensitive, created_at, updated_at)
+         VALUES (?, ?, ?, 'boolean', 'features', 0, 0, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      ).bind(
+        DB_CONFIG_KEYS.COVER_BACKFILL_HOURLY_ENABLED,
+        patch.hourlyEnabled ? '1' : '0',
+        '封面回填小时通道：每小时 :05 推进一批，用于日常补齐',
         now,
         now,
       )
@@ -188,7 +224,7 @@ export async function setCoverBackfillSettings(
       ).bind(
         DB_CONFIG_KEYS.COVER_BACKFILL_BATCH_SIZE,
         String(size),
-        '封面回填每分钟处理条数（1-100）',
+        '封面回填每轮处理条数（1-100），分钟/小时两个通道共用',
         now,
         now,
       )
@@ -556,15 +592,30 @@ async function processRetryAsset(
   return 'failed';
 }
 
-/** cron 入口：按配额先处理待迁移记录，再用剩余额度处理到期重试项；无 MEDIA 绑定或开关关闭时直接空转。 */
-export async function runCoverBackfillBatch(env: Env): Promise<CoverBackfillBatchResult> {
+/**
+ * 封面回填的两个触发通道。
+ *
+ * - `minutely`：分钟 cron，加速用，受 cover_backfill_enabled 控制，日常应关闭；
+ * - `hourly`：每小时 :05，日常兜底，受 cover_backfill_hourly_enabled 控制。
+ *
+ * 两条通道共用同一把 cron 锁与批次大小：同时开启时分钟通道会占住锁，
+ * 小时通道那一轮直接跳过，不会重复下载同一批记录。
+ */
+export type CoverBackfillChannel = 'minutely' | 'hourly';
+
+/** cron 入口：按配额先处理待迁移记录，再用剩余额度处理到期重试项；无 MEDIA 绑定或该通道关闭时直接空转。 */
+export async function runCoverBackfillBatch(
+  env: Env,
+  channel: CoverBackfillChannel = 'minutely'
+): Promise<CoverBackfillBatchResult> {
   const empty: CoverBackfillBatchResult = {
     ran: false, processed: 0, stored: 0, skipped: 0, failed: 0, missing: 0,
   };
   if (!env.MEDIA) return empty;
 
   const settings = await getCoverBackfillSettings(env.DB);
-  if (!settings.enabled) return empty;
+  const enabled = channel === 'hourly' ? settings.hourlyEnabled : settings.enabled;
+  if (!enabled) return empty;
 
   const { pendingLimit } = resolveBatchQuota(settings.batchSize);
   const lockTtl = resolveLockTtl(settings.batchSize);
@@ -773,6 +824,7 @@ export async function getCoverStats(env: Env): Promise<CoverStats> {
       nextRetryAt: num(item.next_retry_at),
     })),
     enabled: settings.enabled,
+    hourlyEnabled: settings.hourlyEnabled,
     batchSize: settings.batchSize,
     r2Ready: Boolean(env.MEDIA),
     publicBase: env.MEDIA_PUBLIC_BASE?.trim() || null,

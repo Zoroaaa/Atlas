@@ -28,6 +28,7 @@ import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
 import { runDataRetention } from '@/services/data-retention';
+import { runPeriodicAnalyze } from '@/services/db-maintenance';
 import { withCronLock } from '@/services/cron-lock';
 import { deleteExpiredOAuthLoginCodes } from '@/repositories/oauth-login-repository';
 import { dispatchFollowUpcomingSync } from '@/services/follow-upcoming-dispatch';
@@ -208,9 +209,11 @@ export default {
       );
     }
     if (event.cron === '* * * * *') {
-      // 每分钟：先推进管理看板手动触发的 JAV 详情补全，再推进封面回填。
-      // 两者串行执行，避免同一分钟同时对 JavBus 发起两拨请求。
-      // 封面回填的内部开关关闭时只读一次配置，不产生外部请求。
+      // 每分钟：管理看板手动触发的 JAV 详情补全 + 封面回填「加速」通道。
+      // 封面回填的分钟通道只在批量导入时手动打开（cover_backfill_enabled），
+      // 日常由每小时 :05 的小时通道兜底：候选集查询要全表比对 cover 快照，
+      // 数据收敛后每轮仍固定扫 1.5 万行，按分钟跑纯属空转。
+      // 两者串行执行，避免同一分钟同时对源站发起两拨请求。
       ctx.waitUntil(
         (async () => {
           try {
@@ -221,10 +224,10 @@ export default {
           }
 
           try {
-            const r = await runCoverBackfillBatch(env);
+            const r = await runCoverBackfillBatch(env, 'minutely');
             if (r.ran && r.processed > 0) {
               console.log(
-                `[cover-backfill] processed=${r.processed} stored=${r.stored} skipped=${r.skipped} missing=${r.missing} failed=${r.failed}`
+                `[cover-backfill] channel=minutely processed=${r.processed} stored=${r.stored} skipped=${r.skipped} missing=${r.missing} failed=${r.failed}`
               );
             }
           } catch (err) {
@@ -236,6 +239,20 @@ export default {
     // 每小时第 5 分钟：清理过期会话与验证码、数据保留、榜单补全、词典同步；
     // 03:05 UTC 额外回收孤儿封面。各任务独立持锁，单个任务慢不会阻塞其余任务。
     if (event.cron === '5 * * * *') {
+      // 封面回填「小时通道」：跟榜单补全等小时任务一起，在每小时 :05 跑一批，日常兜底。
+      // 独立开关 cover_backfill_hourly_enabled；与分钟通道共用 cron 锁，
+      // 批量导入期间分钟通道占着锁，这一轮会直接跳过。
+      ctx.waitUntil(
+        runCoverBackfillBatch(env, 'hourly')
+          .then((r) => {
+            if (r.ran && r.processed > 0) {
+              console.log(
+                `[cover-backfill] channel=hourly processed=${r.processed} stored=${r.stored} skipped=${r.skipped} missing=${r.missing} failed=${r.failed}`
+              );
+            }
+          })
+          .catch((err) => console.error('[cover-backfill] cron failed:', err))
+      );
       ctx.waitUntil(
         env.DB.prepare('DELETE FROM user_sessions WHERE expires_at < ?').bind(Date.now()).run()
       );
@@ -253,6 +270,19 @@ export default {
       );
       // 过期未兑换的 OAuth 票据（正常 5 分钟过期，异常中断时靠这里兜底）
       ctx.waitUntil(deleteExpiredOAuthLoginCodes(env.DB, Date.now()));
+      // 每 7 天刷新一次查询优化器统计：未到周期时只读一行 system_config 就返回，
+      // 到期才逐表 ANALYZE（原因见 services/db-maintenance.ts 与 database/19_analyze.sql）
+      ctx.waitUntil(
+        runPeriodicAnalyze(env.DB)
+          .then((r) => {
+            if (r.ran) {
+              console.log(
+                `[db-maintenance] analyze tables=${r.tables}${r.fallback ? ` fallback=${r.fallback}` : ''}`
+              );
+            }
+          })
+          .catch((err) => console.error('[db-maintenance] analyze failed:', err))
+      );
       ctx.waitUntil(
         withCronLock(env.DB, 'data.retention', HOURLY_LOCK_TTL_MS, () => runDataRetention(env.DB))
           .then((r) => {

@@ -2,7 +2,7 @@
  * 数据存储 · 封面管理
  *
  * - R2 封面缓存覆盖率（本地库 data_records.cover）
- * - 回填开关 / 每分钟批次大小
+ * - 回填两条通道（分钟加速 / 小时日常）开关与共用批次大小
  * - 最近失败与按类型分布
  *
  * 迁移不修改 data_records.cover，只把封面复制到 R2 并记录账本；
@@ -76,9 +76,9 @@ export const CoversPage: React.FC = () => {
     load();
   }, [load]);
 
-  // 回填运行中时静默刷新统计，不打断批次输入框
+  // 任一条通道运行中时静默刷新统计，不打断批次输入框
   useEffect(() => {
-    if (!stats?.enabled) return;
+    if (!stats?.enabled && !stats?.hourlyEnabled) return;
     const timer = setInterval(async () => {
       try {
         setStats(await dataStorageApi.getCoverStats());
@@ -87,20 +87,32 @@ export const CoversPage: React.FC = () => {
       }
     }, 60000);
     return () => clearInterval(timer);
-  }, [stats?.enabled]);
+  }, [stats?.enabled, stats?.hourlyEnabled]);
 
-  const handleToggle = async () => {
+  const handleToggle = async (channel: 'minutely' | 'hourly') => {
     if (!stats) return;
     setSaving(true);
     try {
-      const next = await dataStorageApi.updateCoverBackfill({ enabled: !stats.enabled });
+      const next =
+        channel === 'hourly'
+          ? await dataStorageApi.updateCoverBackfill({ hourlyEnabled: !stats.hourlyEnabled })
+          : await dataStorageApi.updateCoverBackfill({ enabled: !stats.enabled });
       setStats(next);
       setBatchSize(next.batchSize);
-      toast.success(
-        next.enabled
-          ? t('admin:dataStorage.cover.enabledToast')
-          : t('admin:dataStorage.cover.disabledToast')
-      );
+      const on = channel === 'hourly' ? next.hourlyEnabled : next.enabled;
+      if (channel === 'hourly') {
+        toast.success(
+          on
+            ? t('admin:dataStorage.cover.hourlyEnabledToast')
+            : t('admin:dataStorage.cover.hourlyDisabledToast')
+        );
+      } else {
+        toast.success(
+          on
+            ? t('admin:dataStorage.cover.enabledToast')
+            : t('admin:dataStorage.cover.disabledToast')
+        );
+      }
     } catch {
       toast.error(t('admin:dataStorage.cover.saveFailed'));
     } finally {
@@ -200,43 +212,96 @@ export const CoversPage: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-5 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="font-semibold text-surface-900 dark:text-surface-100">{t('admin:dataStorage.cover.backfillTitle')}</h3>
-              <p className="text-xs text-surface-500 mt-1">{t('admin:dataStorage.cover.backfillDesc')}</p>
-            </div>
-            <Button
-              size="sm"
-              variant={stats.enabled ? 'secondary' : 'primary'}
-              onClick={handleToggle}
-              disabled={saving || !stats.r2Ready}
-            >
-              {stats.enabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span className="ml-1">
-                {stats.enabled
-                  ? t('admin:dataStorage.cover.pauseBackfill')
-                  : t('admin:dataStorage.cover.startBackfill')}
-              </span>
-            </Button>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-surface-900 dark:text-surface-100">{t('admin:dataStorage.cover.backfillTitle')}</h3>
+            <p className="text-xs text-surface-500 mt-1">{t('admin:dataStorage.cover.backfillDesc')}</p>
           </div>
 
+          {/* 分钟通道：批量导入时手动打开，避免日常每分钟全表扫描候选集 */}
+          <div className="rounded-lg border border-surface-200 dark:border-surface-700 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                  {t('admin:dataStorage.cover.channelAccelTitle')}
+                </span>
+                <span className={clsx(
+                  'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium',
+                  stats.enabled
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300'
+                )}>
+                  {stats.enabled
+                    ? t('admin:dataStorage.cover.channelOn')
+                    : t('admin:dataStorage.cover.channelOff')}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant={stats.enabled ? 'secondary' : 'outline'}
+                onClick={() => handleToggle('minutely')}
+                disabled={saving || !stats.r2Ready}
+              >
+                {stats.enabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                <span className="ml-1">
+                  {stats.enabled
+                    ? t('admin:dataStorage.cover.channelPause')
+                    : t('admin:dataStorage.cover.channelEnable')}
+                </span>
+              </Button>
+            </div>
+            <p className="text-xs text-surface-400 leading-relaxed mt-1.5">
+              {t('admin:dataStorage.cover.channelAccelDesc')}
+            </p>
+          </div>
+
+          {/* 小时通道：每小时 :05 跟详情补全一起跑，日常兜底 */}
+          <div className="rounded-lg border border-surface-200 dark:border-surface-700 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                  {t('admin:dataStorage.cover.channelDailyTitle')}
+                </span>
+                <span className={clsx(
+                  'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium',
+                  stats.hourlyEnabled
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300'
+                )}>
+                  {stats.hourlyEnabled
+                    ? t('admin:dataStorage.cover.channelOn')
+                    : t('admin:dataStorage.cover.channelOff')}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant={stats.hourlyEnabled ? 'secondary' : 'outline'}
+                onClick={() => handleToggle('hourly')}
+                disabled={saving || !stats.r2Ready}
+              >
+                {stats.hourlyEnabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                <span className="ml-1">
+                  {stats.hourlyEnabled
+                    ? t('admin:dataStorage.cover.channelPause')
+                    : t('admin:dataStorage.cover.channelEnable')}
+                </span>
+              </Button>
+            </div>
+            <p className="text-xs text-surface-400 leading-relaxed mt-1.5">
+              {t('admin:dataStorage.cover.channelDailyDesc')}
+            </p>
+          </div>
+
+          <p className="text-xs text-surface-400 leading-relaxed">
+            {t('admin:dataStorage.cover.channelNote')}
+          </p>
+
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={clsx(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium',
-              stats.enabled
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300'
-            )}>
-              {stats.enabled
-                ? t('admin:dataStorage.cover.statusRunning')
-                : t('admin:dataStorage.cover.statusIdle')}
-            </span>
             <span className="text-xs text-surface-400">
               {t('admin:dataStorage.cover.publicBase', { base: stats.publicBase || '—' })}
             </span>
           </div>
 
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-2 flex-wrap">
             <label className="text-xs text-surface-500">
               {t('admin:dataStorage.cover.batchSize')}
               <input
@@ -256,6 +321,9 @@ export const CoversPage: React.FC = () => {
             >
               {t('admin:dataStorage.cover.saveBatch')}
             </Button>
+            <span className="text-xs text-surface-400 pb-2">
+              {t('admin:dataStorage.cover.batchSizeHint')}
+            </span>
           </div>
 
           <div className="flex items-center justify-between gap-3 pt-1">

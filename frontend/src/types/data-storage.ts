@@ -121,6 +121,8 @@ export interface CoverStats {
   byType: CoverTypeStats[];
   recentFailures: CoverFailureItem[];
   enabled: boolean;
+  /** 小时通道（每日补齐）是否开启 */
+  hourlyEnabled: boolean;
   batchSize: number;
   r2Ready: boolean;
   publicBase: string | null;
