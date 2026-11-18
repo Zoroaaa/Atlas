@@ -74,15 +74,17 @@ export interface JavTop250 {
 }
 
 export const JAV_TOP250_PAGE_SIZE = 20;
+// 后端按东八区当前年份自动顺延年度榜上限；这里仅作为接口未返回 years 时的兜底
+const JAV_TOP250_CURRENT_YEAR = Math.max(2026, new Date().getFullYear());
 export const JAV_TOP250_YEARS: number[] = Array.from(
-  { length: 2026 - 2008 + 1 },
+  { length: JAV_TOP250_CURRENT_YEAR - 2008 + 1 },
   (_, index) => 2008 + index
 );
 
 export const JAV_TOP250_CACHE_KEY = 'jav_top250_cache_v1';
-// 与同步周期一致：总榜每月一次，年度榜每两个月一次；用户点刷新会强制重取
+// 与同步周期一致：总榜与年度榜都每月一次；用户点刷新会强制重取
 export const JAV_TOP250_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
-export const JAV_TOP250_YEAR_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
+export const JAV_TOP250_YEAR_CACHE_TTL = 31 * 24 * 60 * 60 * 1000;
 
 export const JAV_RANKINGS_PAGE_SIZE = 10;
 export const JAV_ACTRESSES_DISPLAY = 36;

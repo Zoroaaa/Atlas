@@ -354,10 +354,10 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 
 TOP250 使用 `.github/workflows/javdb-top250-sync.yml`（每天 19:30 UTC，东八区次日 03:30）：
 - 每月 1–4 日分别同步「全部 / 有码 / 无码 / FC2」总榜（欧美暂不考虑）；
-- 奇数月 5–23 日分别同步 2008–2026 年度榜（两个月一轮）；
+- 每月 5 日起分别同步 2008–当前年份年度榜（一天一个；2027 年起 24 日自动顺延 2027）；
 - 每个榜单 13 页，按 4 页一批、批间 20 秒执行；手动运行可指定 `list` / `year` / `pages`；
 - 需要先执行 `database/14_jav_ranking_archive.sql`，榜单归档与 TOP250 读取依赖新表；
-- 需要补历史快照时重新执行 `database/14_jav_ranking_archive.sql`：按作品最后出现日期回填今天以前的周榜/月榜历史，可重复执行。
+- 周榜/月榜历史补档依次执行 `database/21_jav_ranking_cycle_backfill.sql`、`database/22_jav_ranking_drop_history_fix.sql`、`database/23_jav_ranking_final_rank_fix.sql`：21 清空旧快照并按首次/最后上榜日期重建，22 把非最新快照修正为「只保留掉榜影片」并永久裁剪 TOP250 历史快照，23 把各榜单最新/终榜快照的名次重排为连续唯一的 1..N；三个脚本都可重复执行。
 
 ### 3. 即将发售同步 workflow
 

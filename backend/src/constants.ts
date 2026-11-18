@@ -184,7 +184,10 @@ export const JAV_RANKING = {
   ACTRESS_FOLLOW_WEIGHT: 2,
 } as const;
 
-// ── JavDB TOP250（总榜每月、年度榜每两月同步） ──
+// 年度榜上限按东八区当前年份自动顺延：2026 年跑 2008-2026，2027 年自动加到 2027
+const JAV_TOP250_CURRENT_YEAR = new Date(Date.now() + 8 * 3600_000).getUTCFullYear();
+
+// ── JavDB TOP250（总榜每月、年度榜每月同步） ──
 export const JAV_TOP250 = {
   /** 总的类别：来源站点的 type_value（all / 0 / 1 / 2 / 3） */
   SECTIONS: [
@@ -194,15 +197,15 @@ export const JAV_TOP250 = {
     { key: 'western', apiValue: '2', sourceName: 'JavDB:TOP250欧美' },
     { key: 'fc2', apiValue: '3', sourceName: 'JavDB:TOP250FC2' },
   ] as const,
-  /** 年度榜范围（含首尾） */
+  /** 年度榜范围（含首尾）；上限随当前年份自动顺延 */
   YEAR_START: 2008,
-  YEAR_END: 2026,
+  YEAR_END: Math.max(2026, JAV_TOP250_CURRENT_YEAR),
   /** 每个榜单固定 250 条，App API 单页最大 20 条 */
   MAX_ITEMS: 250,
   PAGE_SIZE: 20,
-  /** 总榜每月同步一次；年度榜每两个月同步一次 */
+  /** 总榜与年度榜都每月同步一次；缓存略长于同步周期，导入成功会主动失效 */
   OVERALL_CACHE_TTL_SECONDS: 30 * 24 * 60 * 60,
-  YEAR_CACHE_TTL_SECONDS: 60 * 24 * 60 * 60,
+  YEAR_CACHE_TTL_SECONDS: 31 * 24 * 60 * 60,
   MIN_IMPORT_ITEMS: 20,
 } as const;
 

@@ -49,6 +49,13 @@ function listTypeLabel(t: (key: string) => string, value: string): string {
   return label === key ? value : label;
 }
 
+/** 周期键去掉类型前缀，展示为 2026-W47 / 2026-11 / 2026 */
+function formatCycleKey(value: string | null | undefined): string {
+  if (!value) return '-';
+  const index = value.indexOf(':');
+  return index >= 0 ? value.slice(index + 1) : value;
+}
+
 const EMPTY_META: RankingArchiveMeta = {
   totals: { snapshots: 0, entries: 0, works: 0 },
   channels: [],
@@ -61,6 +68,7 @@ export const RankingsArchiveTab: React.FC = () => {
   const [listType, setListType] = useState<ListFilter>('all');
   const [section, setSection] = useState<'' | RankingArchiveSection>('');
   const [year, setYear] = useState('');
+  const [cycleKey, setCycleKey] = useState('');
   const [snapshotKey, setSnapshotKey] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -95,6 +103,7 @@ export const RankingsArchiveTab: React.FC = () => {
     try {
       const data = await dataStorageApi.getRankingArchiveEntries({
         ...filters,
+        ...(cycleKey ? { cycleKey } : {}),
         ...(snapshotKey ? { snapshotKey } : {}),
         ...(search ? { search } : {}),
         page,
@@ -112,7 +121,7 @@ export const RankingsArchiveTab: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, snapshotKey, search, page, pageSize, t]);
+  }, [filters, cycleKey, snapshotKey, search, page, pageSize, t]);
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -128,12 +137,33 @@ export const RankingsArchiveTab: React.FC = () => {
     }
   }, [filters]);
 
+  // 周期选项来自当前筛选下的快照；终榜标记取该周期内任意一条命中即可
+  const cycleOptions = useMemo(() => {
+    const map = new Map<string, { key: string; isFinal: boolean; latestAt: number }>();
+    for (const item of snapshots) {
+      if (!item.cycleKey) continue;
+      const existing = map.get(item.cycleKey);
+      if (!existing) {
+        map.set(item.cycleKey, {
+          key: item.cycleKey,
+          isFinal: item.isFinal,
+          latestAt: item.snapshotAt,
+        });
+      } else {
+        existing.isFinal = existing.isFinal || item.isFinal;
+        existing.latestAt = Math.max(existing.latestAt, item.snapshotAt);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.latestAt - a.latestAt);
+  }, [snapshots]);
+
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
 
   useEffect(() => {
     setSnapshotKey('');
+    setCycleKey('');
     setPage(1);
   }, [listType, section, year]);
 
@@ -255,15 +285,37 @@ export const RankingsArchiveTab: React.FC = () => {
           )}
 
           <select
+            value={cycleKey}
+            onChange={(e) => {
+              setCycleKey(e.target.value);
+              setSnapshotKey('');
+              setPage(1);
+            }}
+            className="rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs font-medium text-surface-700 outline-none transition-colors focus:border-amber-400 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+            aria-label={t('admin:rankingArchive.cycleLabel')}
+          >
+            <option value="">{t('admin:rankingArchive.cycleAll')}</option>
+            {cycleOptions.map((item) => (
+              <option key={item.key} value={item.key}>
+                {`${formatCycleKey(item.key)}${item.isFinal ? ` · ${t('admin:rankingArchive.finalBadge')}` : ''}`}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={snapshotKey}
-            onChange={(e) => { setSnapshotKey(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSnapshotKey(e.target.value);
+              setCycleKey('');
+              setPage(1);
+            }}
             className="min-w-[220px] rounded-lg border border-surface-200 bg-white px-2.5 py-1.5 text-xs font-medium text-surface-700 outline-none transition-colors focus:border-amber-400 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
             aria-label={t('admin:rankingArchive.snapshotLabel')}
           >
             <option value="">{t('admin:rankingArchive.snapshotAll')}</option>
             {snapshots.map((item) => (
               <option key={item.snapshotKey} value={item.snapshotKey}>
-                {`${formatDate(item.snapshotAt)} · ${item.sourceName}（${item.itemCount}）`}
+                {`${item.cycleKey ? `${formatCycleKey(item.cycleKey)} · ` : ''}${formatDate(item.snapshotAt)} · ${item.sourceName}（${item.itemCount}）${item.isFinal ? ` · ${t('admin:rankingArchive.finalBadge')}` : ''}`}
               </option>
             ))}
           </select>
@@ -321,6 +373,7 @@ export const RankingsArchiveTab: React.FC = () => {
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.rank')}</th>
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.work')}</th>
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.list')}</th>
+                  <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.cycle')}</th>
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.section')}</th>
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.year')}</th>
                   <th className="px-3 py-2.5 text-left">{t('admin:rankingArchive.col.snapshot')}</th>
@@ -343,6 +396,22 @@ export const RankingsArchiveTab: React.FC = () => {
                     <td className="px-3 py-2.5">
                       <span className="inline-flex rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
                         {listTypeLabel(t, item.listType)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="font-mono text-xs text-stone-600 dark:text-stone-300">
+                          {formatCycleKey(item.cycleKey)}
+                        </span>
+                        {item.isFinal ? (
+                          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            {t('admin:rankingArchive.finalBadge')}
+                          </span>
+                        ) : item.cycleKey ? (
+                          <span className="rounded-md bg-stone-100 px-1.5 py-0.5 text-[11px] text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+                            {t('admin:rankingArchive.historyBadge')}
+                          </span>
+                        ) : null}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-xs text-stone-500 dark:text-stone-400">

@@ -1170,7 +1170,7 @@
     },
     "rankingArchive": {
       "title": "Rankings Archive",
-      "subtitle": "Browse historical weekly, monthly, yearly, and TOP250 rankings. Filter by period, section, year, snapshot, or code. All rankings are kept per day; same-day reruns overwrite that day.",
+      "subtitle": "Weekly lists use ISO weeks, monthly lists use calendar months, and yearly lists use refresh years. Only the latest/final snapshot in each cycle is the full chart; earlier snapshots keep only works that dropped. TOP250 has no cycles: the latest snapshot is current, and older snapshots also keep only dropped works.",
       "refresh": "Refresh",
       "retry": "Retry",
       "loadFailed": "Failed to load rankings archive",
@@ -1198,6 +1198,10 @@
       },
       "yearLabel": "Year",
       "yearAll": "All years",
+      "cycleLabel": "Cycle",
+      "cycleAll": "All cycles",
+      "finalBadge": "Final",
+      "historyBadge": "History",
       "snapshotLabel": "Snapshot",
       "snapshotAll": "All snapshots",
       "searchPlaceholder": "Search code or title",
@@ -1207,6 +1211,7 @@
         "rank": "Rank",
         "work": "Work",
         "list": "List",
+        "cycle": "Cycle",
         "section": "Section",
         "year": "Year",
         "snapshot": "Snapshot",
@@ -3883,21 +3888,21 @@
       },
       "jav-top250": {
         "title": "TOP250",
-        "summary": "TOP250 lists the 250 highest-rated works on JavDB, with Overall, Censored, Uncensored, Western, and FC2 charts plus yearly charts from 2008 to 2026.",
+        "summary": "TOP250 lists the 250 highest-rated works on JavDB, with Overall, Censored, Uncensored, Western, and FC2 charts plus yearly charts from 2008 to the current year.",
         "features": [
           "Five overall charts: All, Censored, Uncensored, Western, and FC2, synced monthly.",
-          "Yearly charts cover 2008–2026 and sync every two months.",
+          "Yearly charts cover 2008 to the current year and sync monthly.",
           "Shows rank, cover, title, and code. Clicking a row searches by code."
         ],
         "steps": [
           "Open the JAV home page and find TOP250 below “Recently Hot”.",
           "Switch between All, Censored, Uncensored, Western, and FC2.",
-          "To view past years, pick 2008–2026 from the year selector on the right.",
+          "To view past years, pick a year from 2008 to the current year in the year selector on the right.",
           "Click a row to view the work; click refresh if the data has not updated yet."
         ],
         "caveats": [
           "TOP250 comes from a third-party site; ranks change with its ratings.",
-          "Overall charts update monthly and yearly charts every two months; they may be briefly empty right after a sync.",
+          "Overall and yearly charts both update monthly; they may be briefly empty right after a sync.",
           "A failed TOP250 load does not affect normal search or Recently Hot."
         ]
       },

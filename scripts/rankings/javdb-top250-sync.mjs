@@ -2,8 +2,8 @@
  * JavDB TOP250 抓取 + 导入（App API，需登录）
  *
  * 通道：
- *   - 总榜：全部 / 有码 / 无码 / FC2，每月各跑一次（按日期错开）
- *   - 年度榜：2008–2026，每两个月各跑一次（奇数月按日期错开）
+ *   - 总榜：全部 / 有码 / 无码 / FC2，每月各跑一次（1–4 日错开）
+ *   - 年度榜：2008–当前年份，每月各跑一次（5 日起按日期错开；2027 年起 24 日顺延 2027）
  *   - 欧美榜暂不考虑：相关代码已注释，恢复时一并取消注释
  *
  * 默认由 GitHub Actions 每天 19:30 UTC 触发，脚本自行判断「今天该跑哪个通道」；
@@ -20,7 +20,7 @@
  *   ATLAS_RANKING_IMPORT_URL   完整导入地址（与周/月榜共用）
  *   RANKINGS_IMPORT_SECRET
  *   可选 TOP250_LIST=all|censored|uncensored|fc2|year
- *   可选 TOP250_YEAR=2008..2026
+ *   可选 TOP250_YEAR=2008..当前年份
  *   可选 TOP250_PAGES=1..13（本地调试限制页数）
  */
 import crypto from 'node:crypto';
@@ -45,7 +45,6 @@ const AUTH_RETRY_DELAY_MS = 60_000;
 const AUTH_MAX_RETRIES = 2;
 
 const YEAR_START = 2008;
-const YEAR_END = 2026;
 // 欧美榜暂不考虑：western 通道暂停
 const ZONES = { censored: '0', uncensored: '1' /* , western: '2' */, fc2: '3' };
 
@@ -198,17 +197,18 @@ function shanghaiDate(offsetDays = 0) {
 /**
  * 今天该跑哪个通道。
  * 每月 1–4 日：全部 / 有码 / 无码 / FC2（一天一个，错开跑；欧美榜暂不考虑）。
- * 奇数月 5–23 日：年度榜 2008–2026（一天一个，两个月一轮）。
+ * 每月 5 日起：年度榜 2008–当前年份（一天一个）；2027 年起 24 日自动顺延 2027。
  */
 function dueChannels() {
+  const today = shanghaiDate();
   const overrideList = (process.env.TOP250_LIST || '').trim();
   const overrideYear = (process.env.TOP250_YEAR || '').trim();
 
   if (overrideList) {
     if (overrideList === 'year') {
       const year = parseInt(overrideYear, 10);
-      if (!Number.isInteger(year) || year < YEAR_START || year > YEAR_END) {
-        throw new Error(`TOP250_YEAR must be ${YEAR_START}-${YEAR_END}`);
+      if (!Number.isInteger(year) || year < YEAR_START || year > today.year) {
+        throw new Error(`TOP250_YEAR must be ${YEAR_START}-${today.year}`);
       }
       return [{ list: 'year', year }];
     }
@@ -218,15 +218,17 @@ function dueChannels() {
     return [{ list: overrideList }];
   }
 
-  const { month, day } = shanghaiDate();
+  const { day } = today;
   const monthly = ['all', 'censored', 'uncensored' /* 'western'（暂不考虑） */, 'fc2'];
   if (day >= 1 && day <= monthly.length) {
     return [{ list: monthly[day - 1] }];
   }
 
+  // 5 日 → 2008，…，23 日 → 2026，24 日 → 2027；上限跟随当前年份，未来年份不抓
   const yearIndex = day - (monthly.length + 1);
-  if (month % 2 === 1 && yearIndex >= 0 && YEAR_START + yearIndex <= YEAR_END) {
-    return [{ list: 'year', year: YEAR_START + yearIndex }];
+  const year = YEAR_START + yearIndex;
+  if (yearIndex >= 0 && year <= today.year) {
+    return [{ list: 'year', year }];
   }
 
   return [];

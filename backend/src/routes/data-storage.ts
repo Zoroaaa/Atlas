@@ -809,6 +809,7 @@ dataStorageRoutes.get('/rankings/snapshots', async (c) => {
         listType: c.req.query('listType'),
         section: c.req.query('section'),
         year: c.req.query('year'),
+        cycleKey: c.req.query('cycleKey'),
       },
       pagination
     );
@@ -838,6 +839,7 @@ dataStorageRoutes.get('/rankings/entries', async (c) => {
         section: c.req.query('section'),
         year: c.req.query('year'),
         snapshotKey: c.req.query('snapshotKey'),
+        cycleKey: c.req.query('cycleKey'),
         search: c.req.query('search'),
       },
       pagination

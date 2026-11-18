@@ -2,7 +2,7 @@ name: JavDB TOP250 Sync
 
 # 每天 19:30 UTC（东八区次日 03:30）检查今天该跑哪个 TOP250 通道：
 #   - 每月 1–4 日：全部 / 有码 / 无码 / FC2（一天一个，错开跑；欧美榜暂不考虑）
-#   - 奇数月 5–23 日：年度榜 2008–2026（一天一个，两个月一轮）
+#   - 每月 5 日起：年度榜 2008–当前年份（一天一个；2027 年起 24 日自动顺延 2027）
 # 脚本内部按 13 页抓取，每页间隔 10–15 秒随机；每 4 页一批，批间额外等待 20 秒；通道间等待 15 秒。
 #
 # 复用榜单同步的 Secrets：ATLAS_RANKING_IMPORT_URL、RANKINGS_IMPORT_SECRET、JAVDB_USERNAME、JAVDB_PASSWORD
@@ -18,7 +18,7 @@ on:
         required: false
         default: ''
       year:
-        description: '年度榜年份（list=year 时必填，2008-2026）'
+        description: '年度榜年份（list=year 时必填，2008-当前年份）'
         required: false
         default: ''
       pages:

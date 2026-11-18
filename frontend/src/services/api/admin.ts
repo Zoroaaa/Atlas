@@ -979,6 +979,7 @@ export const dataStorageApi = {
     if (params.listType) query.set('listType', params.listType);
     if (params.section) query.set('section', params.section);
     if (params.year) query.set('year', String(params.year));
+    if (params.cycleKey) query.set('cycleKey', params.cycleKey);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));
 
@@ -997,6 +998,7 @@ export const dataStorageApi = {
     if (params.section) query.set('section', params.section);
     if (params.year) query.set('year', String(params.year));
     if (params.snapshotKey) query.set('snapshotKey', params.snapshotKey);
+    if (params.cycleKey) query.set('cycleKey', params.cycleKey);
     if (params.search) query.set('search', params.search);
     if (params.page) query.set('page', String(params.page));
     if (params.pageSize) query.set('pageSize', String(params.pageSize));

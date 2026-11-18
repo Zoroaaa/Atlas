@@ -42,6 +42,10 @@ export interface RankingArchiveEntry {
   detailCompleted: boolean;
   detailStatus: JavDetailStatus | null;
   detailMissing: JavDetailFieldName[];
+  /** 周期标识；TOP250 不分周期时为 null */
+  cycleKey: string | null;
+  /** 是否为该周期终榜 */
+  isFinal: boolean;
 }
 
 export interface RankingArchiveSnapshot {
@@ -52,6 +56,10 @@ export interface RankingArchiveSnapshot {
   year: number | null;
   snapshotAt: number;
   itemCount: number;
+  /** 周期标识；TOP250 不分周期时为 null */
+  cycleKey: string | null;
+  /** 是否为该周期终榜 */
+  isFinal: boolean;
 }
 
 export interface RankingArchiveMeta {
@@ -72,6 +80,7 @@ export interface RankingArchiveQuery {
   section?: RankingArchiveSection;
   year?: number;
   snapshotKey?: string;
+  cycleKey?: string;
   search?: string;
   page?: number;
   pageSize?: number;

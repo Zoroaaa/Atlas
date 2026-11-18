@@ -2,10 +2,11 @@
  * 榜单归档查询：只读 jav_ranking_snapshots / jav_ranking_entries，写入方是 ranking-import。
  *
  * 服务两个场景：前台 TOP250 面板取最新一期；管理端按周期/分类/年份/快照/关键词筛选历史。
- * 迁移未执行时返回空态而不是抛错，保证页面可渲染。
+ * 周期与终榜标记在查询时按快照时间计算，不额外落库；迁移未执行时返回空态而不是抛错。
  */
 import { JAV_TOP250 } from '@/constants';
 import { missingFieldsFromMask, type JavDetailField } from './jav-detail-meta';
+import { parseRankingCycleKey, rankingCycleOf } from './ranking-cycle';
 
 /** list_type 合法值；与导入侧写入的 period 一致。 */
 const VALID_LIST_TYPES = ['weekly', 'monthly', 'top250', 'yearly'] as const;
@@ -42,7 +43,7 @@ export interface Top250Snapshot {
   total: number;
 }
 
-/** 管理端榜单归档条目：含详情补全状态与缺失字段。 */
+/** 管理端榜单归档条目：含详情补全状态、周期与缺失字段。 */
 export interface RankingArchiveEntry {
   id: string;
   snapshotKey: string;
@@ -61,6 +62,10 @@ export interface RankingArchiveEntry {
   detailCompleted: boolean;
   detailStatus: string | null;
   detailMissing: JavDetailField[];
+  /** 周期标识；TOP250 不分周期时为 null */
+  cycleKey: string | null;
+  /** 是否为该周期终榜 */
+  isFinal: boolean;
 }
 
 export interface RankingArchiveSnapshot {
@@ -71,6 +76,10 @@ export interface RankingArchiveSnapshot {
   year: number | null;
   snapshotAt: number;
   itemCount: number;
+  /** 周期标识；TOP250 不分周期时为 null */
+  cycleKey: string | null;
+  /** 是否为该周期终榜 */
+  isFinal: boolean;
 }
 
 export interface RankingArchiveMeta {
@@ -194,6 +203,7 @@ interface ArchiveFilterInput {
   section?: string;
   year?: string;
   snapshotKey?: string;
+  cycleKey?: string;
   search?: string;
 }
 
@@ -220,6 +230,14 @@ function buildFilters(input: ArchiveFilterInput): {
   if (input.snapshotKey) {
     where.push('s.snapshot_key = ?');
     params.push(input.snapshotKey);
+  }
+  // 周期筛选换算成东八区自然日范围；年度榜的周期是刷新年，与目标年份 year 字段互不影响
+  if (input.cycleKey) {
+    const range = parseRankingCycleKey(input.cycleKey);
+    if (range) {
+      where.push('s.list_type = ? AND s.snapshot_at >= ? AND s.snapshot_at < ?');
+      params.push(range.listType, range.startAt, range.endAt);
+    }
   }
 
   return {
@@ -308,15 +326,22 @@ export async function listRankingSnapshots(
       { results: Array<Record<string, unknown>> },
     ];
 
-    const items = (rowsResult.results || []).map((row) => ({
-      snapshotKey: String(row.snapshot_key),
-      sourceName: String(row.source_name),
-      listType: String(row.list_type) as RankingListType,
-      section: String(row.section),
-      year: row.year == null ? null : Number(row.year),
-      snapshotAt: Number(row.snapshot_at) || 0,
-      itemCount: Number(row.item_count) || 0,
-    }));
+    const items = (rowsResult.results || []).map((row) => {
+      const listType = String(row.list_type) as RankingListType;
+      const snapshotAt = Number(row.snapshot_at) || 0;
+      const cycle = rankingCycleOf(listType, snapshotAt);
+      return {
+        snapshotKey: String(row.snapshot_key),
+        sourceName: String(row.source_name),
+        listType,
+        section: String(row.section),
+        year: row.year == null ? null : Number(row.year),
+        snapshotAt,
+        itemCount: Number(row.item_count) || 0,
+        cycleKey: cycle.cycleKey,
+        isFinal: cycle.isFinal,
+      };
+    });
 
     return { items, total: Number(countResult.results?.[0]?.total) || 0 };
   } catch (err) {
@@ -378,25 +403,32 @@ export async function listRankingEntries(
       { results: Array<Record<string, unknown>> },
     ];
 
-    const items = (rowsResult.results || []).map((row) => ({
-      id: String(row.id),
-      snapshotKey: String(row.snapshot_key),
-      snapshotAt: Number(row.snapshot_at) || 0,
-      sourceName: String(row.source_name),
-      listType: String(row.list_type) as RankingListType,
-      section: String(row.section),
-      year: row.year == null ? null : Number(row.year),
-      rank: Number(row.rank) || 0,
-      code: String(row.code),
-      title: String(row.title || row.code),
-      cover: (row.cover as string | null) ?? null,
-      score: (row.score as string | null) ?? null,
-      url: (row.url as string | null) ?? null,
-      recordId: (row.record_id as string | null) ?? null,
-      detailCompleted: Number(row.detail_completed) === 1,
-      detailStatus: (row.detail_status as string | null) ?? null,
-      detailMissing: missingFieldsFromMask(Number(row.detail_missing_mask ?? 0)),
-    }));
+    const items = (rowsResult.results || []).map((row) => {
+      const listType = String(row.list_type) as RankingListType;
+      const snapshotAt = Number(row.snapshot_at) || 0;
+      const cycle = rankingCycleOf(listType, snapshotAt);
+      return {
+        id: String(row.id),
+        snapshotKey: String(row.snapshot_key),
+        snapshotAt,
+        sourceName: String(row.source_name),
+        listType,
+        section: String(row.section),
+        year: row.year == null ? null : Number(row.year),
+        rank: Number(row.rank) || 0,
+        code: String(row.code),
+        title: String(row.title || row.code),
+        cover: (row.cover as string | null) ?? null,
+        score: (row.score as string | null) ?? null,
+        url: (row.url as string | null) ?? null,
+        recordId: (row.record_id as string | null) ?? null,
+        detailCompleted: Number(row.detail_completed) === 1,
+        detailStatus: (row.detail_status as string | null) ?? null,
+        detailMissing: missingFieldsFromMask(Number(row.detail_missing_mask ?? 0)),
+        cycleKey: cycle.cycleKey,
+        isFinal: cycle.isFinal,
+      };
+    });
 
     return { items, total: Number(countResult.results?.[0]?.total) || 0 };
   } catch (err) {

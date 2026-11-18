@@ -21,6 +21,7 @@ import type {
 } from '@/types';
 import { compactJavCode, inspectJavCode } from '@codeseek/shared/utils';
 import { markJavDetailPending } from './jav-detail-meta';
+import { parseRankingCycleKey, rankingCycleOf } from './ranking-cycle';
 
 // D1 单条 SQL 最多 100 个绑定变量；每次 IN 查询最多 50 个 key，留足余量
 const LOOKUP_CHUNK_SIZE = 50;
@@ -168,6 +169,87 @@ async function loadRecordIdsByKey(
   return idByKey;
 }
 
+/**
+ * 历史快照只保留「当天掉榜」的影片。
+ *
+ * 新一期榜单写入后，把更早快照里仍出现在最新榜单的影片删掉，剩下的就是
+ * 最后一次上榜、之后掉榜的影片；最新一期快照保持完整。
+ * 周榜/月榜只在当前周期内裁剪，年度榜只在当前刷新年内裁剪；
+ * TOP250 没有周期，所有更早的 TOP250 快照永久参与裁剪。
+ */
+async function pruneHistoricalSnapshots(
+  db: D1Database,
+  channelName: string,
+  payload: RankingImportPayload,
+  snapshotKey: string,
+  fetchedAt: number
+): Promise<void> {
+  let where: string;
+  let params: (string | number)[];
+
+  if (payload.period === 'top250') {
+    // TOP250 无周期：每次新快照都裁剪此前全部历史快照
+    where =
+      `source_name = ? AND list_type = 'top250' AND section = ? ` +
+      `AND snapshot_key <> ? AND snapshot_at < ?`;
+    params = [channelName, payload.section, snapshotKey, fetchedAt];
+  } else {
+    const cycle = rankingCycleOf(payload.period, fetchedAt);
+    if (!cycle.cycleKey) return;
+    const range = parseRankingCycleKey(cycle.cycleKey);
+    if (!range) return;
+    where =
+      `source_name = ? AND list_type = ? AND section = ? AND COALESCE(year, 0) = ? ` +
+      `AND snapshot_key <> ? AND snapshot_at >= ? AND snapshot_at < ?`;
+    params = [
+      channelName,
+      payload.period,
+      payload.section,
+      payload.year ?? 0,
+      snapshotKey,
+      range.startAt,
+      fetchedAt,
+    ];
+  }
+
+  const rows = await db
+    .prepare(
+      `SELECT snapshot_key FROM jav_ranking_snapshots
+       WHERE ${where}
+       ORDER BY snapshot_at ASC`
+    )
+    .bind(...params)
+    .all<{ snapshot_key: string }>();
+
+  const earlierKeys = (rows.results || []).map((row) => row.snapshot_key);
+  if (earlierKeys.length === 0) return;
+
+  // 分块处理，避免 TOP250 长期累积后单条 SQL 绑定变量超过 D1 上限
+  for (let i = 0; i < earlierKeys.length; i += LOOKUP_CHUNK_SIZE) {
+    const slice = earlierKeys.slice(i, i + LOOKUP_CHUNK_SIZE);
+    const placeholders = slice.map(() => '?').join(',');
+    await db.batch([
+      db
+        .prepare(
+          `DELETE FROM jav_ranking_entries
+           WHERE snapshot_key IN (${placeholders})
+             AND code IN (SELECT code FROM jav_ranking_entries WHERE snapshot_key = ?)`
+        )
+        .bind(...slice, snapshotKey),
+      db
+        .prepare(
+          `UPDATE jav_ranking_snapshots
+           SET item_count = (
+             SELECT COUNT(*) FROM jav_ranking_entries e
+              WHERE e.snapshot_key = jav_ranking_snapshots.snapshot_key
+           )
+           WHERE snapshot_key IN (${placeholders})`
+        )
+        .bind(...slice),
+    ]);
+  }
+}
+
 /** 导入一份榜单：校验通道、占位入库、写名次来源并归档快照。 */
 export async function importRankingSnapshot(
   db: D1Database,
@@ -215,6 +297,15 @@ export async function importRankingSnapshot(
   const minItems = payload.period === 'top250' || payload.period === 'yearly'
     ? JAV_TOP250.MIN_IMPORT_ITEMS
     : JAV_RANKING.MIN_IMPORT_ITEMS;
+
+  // 归档名次统一重排为 1..N：来源榜单缺名次或并列时，终榜仍保证名次连续唯一。
+  // 只影响归档快照，data_record_sources 仍保留来源原始名次。
+  const archiveRankByCode = new Map(
+    items
+      .slice()
+      .sort((a, b) => a.rank - b.rank || a.code.localeCompare(b.code))
+      .map((item, index) => [item.code, index + 1])
+  );
 
   if (items.length === 0 || items.length < minItems) {
     return {
@@ -373,7 +464,7 @@ export async function importRankingSnapshot(
           item.code,
           item.title,
           item.cover,
-          item.rank,
+          archiveRankByCode.get(item.code) ?? item.rank,
           item.rating,
           item.url ?? null,
           payload.period,
@@ -409,6 +500,9 @@ export async function importRankingSnapshot(
       .bind(...staleParams),
     db.prepare(`DELETE FROM jav_ranking_snapshots WHERE ${staleWhere}`).bind(...staleParams),
   ]);
+
+  // 更早的历史快照只保留当天掉榜的影片，保证只有最新/终榜快照是完整榜单
+  await pruneHistoricalSnapshots(db, channel.name, payload, snapshotKey, fetchedAt);
 
   // 新入库的占位记录显式标记「详情不完整 + 缺哪些字段」；
   // 已有 meta 行（包括已补全）不会被覆盖。

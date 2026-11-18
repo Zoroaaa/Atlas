@@ -409,7 +409,7 @@ javRoutes.get('/rankings', async (c) => {
   }
 });
 
-// ── TOP250：总榜按大类月度，年度榜按双月 ─────────────────
+// ── TOP250：总榜与年度榜均按月同步 ─────────────────────
 javRoutes.get('/top250', async (c) => {
   const rawSection = (c.req.query('section') ?? 'all').trim().toLowerCase();
   const rawYear = (c.req.query('year') ?? '').trim();
