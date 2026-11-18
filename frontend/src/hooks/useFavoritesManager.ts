@@ -11,30 +11,13 @@ import { useFavoriteIndex, useFavoritesPage, useAddFavorite, useRemoveFavorite, 
 import { userApi } from '@/services/api';
 import { useToast } from '@/hooks/useNotification';
 import i18next from '@/i18n';
+import { isSameFavoriteUrl, javFavoriteUrl, mangaFavoriteUrl, movieFavoriteUrl } from '@/utils/favoriteUrl';
 import type { JavDetail } from '@/types/jav';
 import type { BangumiSubject, TMDBResult, MangaEnrichedData, NovelItem } from '@/types/search';
 import type { SearchResultItem } from './useSearchFlow';
 
 interface UseFavoritesManagerOptions {
   keyword: string;
-}
-
-/**
- * 判断收藏 URL 是否指向同一资源。
- * 不能用 includes(id)：短 id 会命中更长 id（123 命中 1234），导致误删他人收藏。
- * 比较 origin + pathname，忽略 query/hash 与末尾斜杠差异。
- */
-function isSameFavoriteUrl(favoriteUrl: string | undefined, targetUrl: string): boolean {
-  if (!favoriteUrl) return false;
-  if (favoriteUrl === targetUrl) return true;
-  try {
-    const a = new URL(favoriteUrl);
-    const b = new URL(targetUrl, window.location.origin);
-    const normalize = (p: string) => p.replace(/\/+$/, '');
-    return a.origin === b.origin && normalize(a.pathname) === normalize(b.pathname);
-  } catch {
-    return false;
-  }
 }
 
 /** 收藏管理：各类内容的收藏切换、分页面板与导出 */
@@ -98,7 +81,8 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
 
   const handleFavoriteJavDetail = async (detail: JavDetail) => {
     if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const detailUrl = detail.detailUrl || `https://javdb.com/search?q=${detail.code}&f=all`;
+    const detailUrl = javFavoriteUrl(detail.detailUrl, detail.code);
+    if (!detailUrl) { toast.error(i18next.t('errors:hooks.favorites.addFailedTitle'), i18next.t('errors:hooks.favorites.retryDefault')); return; }
     const existingFavoriteId = getFavoriteId(detailUrl);
     if (existingFavoriteId) {
       try {
@@ -151,7 +135,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
 
   const handleToggleFavoriteMovie = async (item: TMDBResult) => {
     if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const url = `https://www.themoviedb.org/${item.mediaType}/${item.id}`;
+    const url = movieFavoriteUrl(item.mediaType, item.id);
     const existingFavoriteId = getFavoriteId(url);
     if (existingFavoriteId) {
       try {
@@ -176,7 +160,7 @@ export function useFavoritesManager({ keyword }: UseFavoritesManagerOptions) {
 
   const handleToggleFavoriteManga = async (item: MangaEnrichedData['manga'][0]) => {
     if (!isAuthenticated) { toast.warning(i18next.t('errors:hooks.favorites.loginRequired')); navigate('/login'); return; }
-    const url = `https://mangadex.org/title/${item.id}`;
+    const url = mangaFavoriteUrl(item.id);
     const existingFavoriteId = favorites.find(f => isSameFavoriteUrl(f.url, url))?.id;
     if (existingFavoriteId) {
       try {

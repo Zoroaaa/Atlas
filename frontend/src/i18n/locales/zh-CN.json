@@ -433,6 +433,8 @@
       "usernamePlaceholder": "请输入用户名",
       "usernameRequired": "请输入用户名",
       "usernameFormat": "用户名只能包含字母、数字和下划线",
+      "usernameTaken": "用户名已被注册",
+      "emailTaken": "该邮箱已被注册",
       "usernameMinLength": "用户名至少{{count}}个字符",
       "usernameMaxLength": "用户名最多{{count}}个字符",
       "emailLabel": "邮箱",
@@ -3564,6 +3566,9 @@
       "studio": "制作公司",
       "resources": "下载资源",
       "noResources": "本地库暂无下载资源",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "favorited": "已收藏",
       "releaseDate": "发行时间",
       "description": "简介"
     }

@@ -14,6 +14,8 @@ interface ModalProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   footer?: React.ReactNode;
+  /** 标题栏右侧操作（在关闭按钮左侧）：详情卡收藏等需要常驻可见的入口 */
+  headerExtra?: React.ReactNode;
 }
 
 const sizeStyles = {
@@ -35,6 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   footer,
+  headerExtra,
 }) => {
   const { t } = useTranslation(['common']);
   const [dragY, setDragY] = useState(0);
@@ -144,20 +147,23 @@ export const Modal: React.FC<ModalProps> = ({
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-surface-200 dark:border-surface-700 shrink-0">
             {title && (
-              <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+              <h2 className="min-w-0 text-lg font-semibold text-surface-900 dark:text-surface-100">
                 {title}
               </h2>
             )}
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                aria-label={t('buttons.close')}
-                title={t('buttons.close')}
-                className="p-2 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 dark:hover:text-surface-300 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {headerExtra}
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  aria-label={t('buttons.close')}
+                  title={t('buttons.close')}
+                  className="p-2 rounded-lg text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700 dark:hover:text-surface-300 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
         <div className="min-h-0 px-4 sm:px-6 py-4 overflow-y-auto">{children}</div>

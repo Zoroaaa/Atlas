@@ -242,7 +242,8 @@ export class ApiClient {
         const errorData = await response.json().catch(() => ({}));
         // 后端返回的 errorData.message 原样透传给用户（不翻译）
         const errorMessage = errorData.message || errorData.error?.message || `HTTP error! status: ${response.status}`;
-        throw new ApiError(errorMessage, response.status, errorData);
+        // 业务 code 必须透传：调用方要靠它把错误定位到具体字段（如 USERNAME_TAKEN → 用户名输入框）
+        throw new ApiError(errorMessage, response.status, errorData, errorData?.error?.code || errorData?.code);
 
       } catch (error) {
         lastError = error as Error;

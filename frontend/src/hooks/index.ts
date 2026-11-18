@@ -23,6 +23,7 @@ export { useMajorCategories, useCategories, useSourcesWithUserConfig, sourcesKey
 export { useSearchFlow } from './useSearchFlow';
 export type { SearchResultItem } from './useSearchFlow';
 export { useFavoritesManager } from './useFavoritesManager';
+export { useLibraryFavorite } from './useLibraryFavorite';
 export { useSearchHistoryManager } from './useSearchHistoryManager';
 export { useJavSearchFlow } from './useJavSearchFlow';
 export { useSourceManager } from './useSourceManager';

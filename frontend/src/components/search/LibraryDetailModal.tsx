@@ -16,6 +16,7 @@ import { CopyButton } from '@/components/ui/CopyButton';
 import { Chip, CountBadge, EmptyBlock, ResourceRow } from '@/components/workbench';
 import { libraryApi, apiClient } from '@/services/api';
 import { useToast } from '@/hooks/useNotification';
+import { useLibraryFavorite } from '@/hooks/useLibraryFavorite';
 import type { LibraryRecord, LibraryRecordSource, LibraryRecordType } from '@/services/api/library';
 import type { JavEntityKind, JavEntityLink, JavEntityTarget } from '@/types';
 import { JavEntityWorksPanel } from '@/components/jav/JavEntityWorksPanel';
@@ -665,6 +666,7 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
   const [record, setRecord] = useState<LibraryRecord | null>(null);
   const [isPulling, setIsPulling] = useState(false);
   const requestIdRef = useRef(0);
+  const favorite = useLibraryFavorite(record);
 
   const load = useCallback(async () => {
     if (!target) return;
@@ -855,8 +857,33 @@ export const LibraryDetailModal: React.FC<LibraryDetailModalProps> = ({ target, 
     }
   };
 
+  // 收藏入口放在标题栏：五类详情布局各不相同，逐类插入会把同一段交互写五遍；
+  // 放标题栏还能在长内容滚动时保持可见
+  const favoriteButton = status === 'success' && favorite.available ? (
+    <button
+      type="button"
+      onClick={() => void favorite.toggle()}
+      disabled={favorite.isPending}
+      aria-label={favorite.isFavorited ? t('search:libraryDetail.unfavorite') : t('search:libraryDetail.favorite')}
+      className={`inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors disabled:opacity-60 ${
+        favorite.isFavorited
+          ? 'bg-error-50 text-error-500 dark:bg-error-900/20'
+          : 'text-surface-500 hover:bg-error-50 hover:text-error-500 dark:text-surface-400 dark:hover:bg-error-900/20'
+      }`}
+    >
+      {favorite.isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Heart className={`h-3.5 w-3.5 ${favorite.isFavorited ? 'fill-current' : ''}`} />
+      )}
+      <span className="whitespace-nowrap">
+        {favorite.isFavorited ? t('search:libraryDetail.favorited') : t('search:libraryDetail.favorite')}
+      </span>
+    </button>
+  ) : null;
+
   return (
-    <Modal isOpen={!!target} onClose={onClose} title={title} size="full">
+    <Modal isOpen={!!target} onClose={onClose} title={title} size="full" headerExtra={favoriteButton}>
       {renderBody()}
     </Modal>
   );

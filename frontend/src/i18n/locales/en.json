@@ -433,6 +433,8 @@
       "usernamePlaceholder": "Enter username",
       "usernameRequired": "Please enter username",
       "usernameFormat": "Username can only contain letters, numbers, and underscores",
+      "usernameTaken": "Username is already taken",
+      "emailTaken": "This email is already registered",
       "usernameMinLength": "Username must be at least {{count}} characters",
       "usernameMaxLength": "Username can be at most {{count}} characters",
       "emailLabel": "Email",
@@ -3564,6 +3566,9 @@
       "studio": "Studio",
       "resources": "Download resources",
       "noResources": "No download resources in the local library",
+      "favorite": "Favorite",
+      "unfavorite": "Remove from favorites",
+      "favorited": "Favorited",
       "releaseDate": "Release date",
       "description": "Description"
     }

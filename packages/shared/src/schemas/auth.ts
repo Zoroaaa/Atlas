@@ -12,11 +12,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, '请输入密码'),
 });
 
+// 用户名规则单点定义：注册终检与发码预检必须用同一套限制，否则会出现
+// 「发码时通过、注册时被格式校验拦下」的矛盾提示
+const usernameSchema = z.string()
+  .min(R.USERNAME.MIN_LENGTH, `用户名至少${R.USERNAME.MIN_LENGTH}个字符`)
+  .max(R.USERNAME.MAX_LENGTH, `用户名最多${R.USERNAME.MAX_LENGTH}个字符`)
+  .regex(VALIDATION_PATTERNS.USERNAME, '用户名只能包含字母、数字和下划线');
+
 export const registerSchema = z.object({
-  username: z.string()
-    .min(R.USERNAME.MIN_LENGTH, `用户名至少${R.USERNAME.MIN_LENGTH}个字符`)
-    .max(R.USERNAME.MAX_LENGTH, `用户名最多${R.USERNAME.MAX_LENGTH}个字符`)
-    .regex(VALIDATION_PATTERNS.USERNAME, '用户名只能包含字母、数字和下划线'),
+  username: usernameSchema,
   email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
   password: z.string()
     .min(R.PASSWORD.MIN_LENGTH, `密码至少${R.PASSWORD.MIN_LENGTH}个字符`)
@@ -53,8 +57,11 @@ export const deleteAccountSchema = z.object({
   confirmText: z.string().min(1, '请输入确认文字'),
 });
 
+// username 可选：新版注册页在发码前就带上用户名做占用预检；
+// 旧客户端只传 email，仍能发码（重名要到注册时才报），所以不能改成必填
 export const sendRegistrationCodeSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
+  username: usernameSchema.optional(),
 });
 
 export const verifyCurrentEmailSchema = z.object({

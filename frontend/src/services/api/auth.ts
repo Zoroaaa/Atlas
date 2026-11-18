@@ -17,6 +17,7 @@ import type {
   ChangePasswordRequest,
   DeleteAccountRequest,
   SendVerificationCodeRequest,
+  SendRegistrationCodeRequest,
   VerificationStatusResponse,
   EmailChangeRequest,
   SendEmailChangeCodeRequest,
@@ -151,13 +152,14 @@ export const authApi = {
     return apiClient.delete<{ success: boolean; message: string }>('/auth/account', payload);
   },
 
-  sendRegistrationCode: async (email: string): Promise<{ 
+  // username 可选：带上时后端在发码前就拦下重名；不传则退回注册时校验（兼容旧调用方）
+  sendRegistrationCode: async (email: string, username?: string): Promise<{ 
     success: boolean; 
     data?: { maskedEmail: string; expiresIn: number };
     message?: string;
   }> => {
     const { sendRegistrationCodeSchema } = await import('@codeseek/shared/schemas/auth');
-    const payload = await parseRequest<{ email: string }>(sendRegistrationCodeSchema, { email });
+    const payload = await parseRequest<SendRegistrationCodeRequest>(sendRegistrationCodeSchema, { email, username });
     return apiClient.post<{ 
       success: boolean; 
       data?: { maskedEmail: string; expiresIn: number };

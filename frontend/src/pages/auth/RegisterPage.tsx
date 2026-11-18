@@ -3,13 +3,14 @@
  *
  * 数据来源：authApi.sendRegistrationCode 与 authApi.register；成功后写 authStore 并延迟跳 /main。
  * 约束：注册开关关闭时只渲染提示页，不渲染表单。
+ * 约束：用户名/邮箱占用由发码接口预检，注册接口的冲突校验只用于兜住发码后被抢注的竞态。
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Send, ShieldCheck, CheckCircle, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores';
-import { authApi } from '@/services/api';
+import { authApi, ApiError } from '@/services/api';
 import { Input } from '@/components/ui';
 import { useNotification } from '@/hooks';
 import { useValidationRules, useAppInfo, useFeatureFlags } from '@/contexts';
@@ -74,11 +75,26 @@ export const RegisterPage: React.FC = () => {
     return Object.keys(newErrors).length === 0 && agreed;
   };
 
+  // 占用校验已前移到发码阶段，后端返回 USERNAME_TAKEN / EMAIL_TAKEN：
+  // 按 code 把错误落到对应输入框，比弹一个全局提示更容易定位，也避免用户白等一封邮件
+  const applyConflictError = (error: unknown): boolean => {
+    if (!(error instanceof ApiError)) return false;
+    if (error.code === 'USERNAME_TAKEN') {
+      setErrors((prev) => ({ ...prev, username: t('auth:register.usernameTaken') }));
+      return true;
+    }
+    if (error.code === 'EMAIL_TAKEN') {
+      setErrors((prev) => ({ ...prev, email: t('auth:register.emailTaken') }));
+      return true;
+    }
+    return false;
+  };
+
   const handleSendCode = async () => {
     if (!validateForm()) return;
     setIsLoading(true);
     try {
-      const response = await authApi.sendRegistrationCode(formData.email);
+      const response = await authApi.sendRegistrationCode(formData.email, formData.username);
       if (response.success && response.data) {
         const masked = response.data.maskedEmail || maskEmail(formData.email);
         setMaskedEmail(masked);
@@ -90,6 +106,7 @@ export const RegisterPage: React.FC = () => {
         notification.auth.emailCodeFailed(t('auth:register.codeSendFailed'));
       }
     } catch (error: any) {
+      if (applyConflictError(error)) return;
       notification.auth.emailCodeFailed(error.message);
     } finally {
       setIsLoading(false);
@@ -100,12 +117,17 @@ export const RegisterPage: React.FC = () => {
     if (countdown > 0) return;
     setIsLoading(true);
     try {
-      const response = await authApi.sendRegistrationCode(formData.email);
+      const response = await authApi.sendRegistrationCode(formData.email, formData.username);
       if (response.success && response.data) {
         setCountdown(response.data.expiresIn || 300);
         notification.auth.emailCodeResent();
       }
     } catch (error: any) {
+      // 等待期间用户名/邮箱可能被别人占走：退回表单让用户改，比停在验证码页无从下手好
+      if (applyConflictError(error)) {
+        setCurrentStep('form');
+        return;
+      }
       notification.auth.emailCodeFailed(error.message);
     } finally {
       setIsLoading(false);
@@ -148,6 +170,11 @@ export const RegisterPage: React.FC = () => {
         notification.auth.registerFailed(response.message || t('auth:register.codeInvalidOrExpired'));
       }
     } catch (error: any) {
+      // 发码后用户名被抢注的竞态：退回表单改名字，验证码未消耗可继续用
+      if (applyConflictError(error)) {
+        setCurrentStep('form');
+        return;
+      }
       notification.auth.registerFailed(error.message);
     } finally {
       setIsLoading(false);
@@ -174,7 +201,11 @@ export const RegisterPage: React.FC = () => {
         type="text"
         placeholder={t('auth:register.usernamePlaceholder')}
         value={formData.username}
-        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+        onChange={(e) => {
+          setFormData({ ...formData, username: e.target.value });
+          // 占用提示来自服务端，用户改名后必须清掉，否则旧错误会一直挂着
+          if (errors.username) setErrors((prev) => ({ ...prev, username: '' }));
+        }}
         error={errors.username}
         leftIcon={<User className="w-5 h-5" />}
         fullWidth
@@ -184,7 +215,10 @@ export const RegisterPage: React.FC = () => {
         type="email"
         placeholder={t('auth:register.emailPlaceholder')}
         value={formData.email}
-        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        onChange={(e) => {
+          setFormData({ ...formData, email: e.target.value });
+          if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+        }}
         error={errors.email}
         leftIcon={<Mail className="w-5 h-5" />}
         fullWidth

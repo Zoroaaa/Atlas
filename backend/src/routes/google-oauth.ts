@@ -20,6 +20,7 @@ import {
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from '@/services';
 import { issueOAuthLoginCode } from '@/services/oauth-login';
+import { resolveOAuthUsername } from '@/services/oauth-username';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 
 export const googleOAuthRoutes = new Hono<{ Bindings: Env }>();
@@ -70,22 +71,6 @@ async function fetchGoogleUser(accessToken: string): Promise<{
   });
   if (!res.ok) throw new Error(`Google userinfo 接口错误: ${res.status}`);
   return res.json();
-}
-
-/** 构造不重复的用户名（基于 name/email 前缀，冲突则追加随机后缀） */
-async function resolveUsername(db: D1Database, baseName: string): Promise<string> {
-  // 清理：只保留字母、数字、下划线，长度 3-20
-  let candidate = baseName.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 16);
-  if (candidate.length < 3) candidate = `g_${candidate}`;
-
-  const existing = await db
-    .prepare('SELECT id FROM users WHERE username = ?')
-    .bind(candidate)
-    .first();
-  if (!existing) return candidate;
-
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${candidate}_${suffix}`.slice(0, 20);
 }
 
 // ── 发起授权 ─────────────────────────────────────────────
@@ -274,8 +259,11 @@ googleOAuthRoutes.get('/google/callback', async (c) => {
         return c.redirect(`${callbackBase}?error=registration_disabled`, 302);
       }
 
-      const baseName = gUser.name || gUser.given_name || email.split('@')[0];
-      const username = await resolveUsername(c.env.DB, baseName);
+      const username = await resolveOAuthUsername(c.env.DB, {
+        displayName: gUser.name || gUser.given_name,
+        email,
+        prefix: 'g',
+      });
       const userId = generateId();
       // OAuth 用户不需要密码，存储随机不可逆哈希占位
       const randomPasswordHash = await hashPassword(generateId() + generateId());

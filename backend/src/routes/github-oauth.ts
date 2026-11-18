@@ -20,6 +20,7 @@ import {
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { ConfigService } from '@/services';
 import { issueOAuthLoginCode } from '@/services/oauth-login';
+import { resolveOAuthUsername } from '@/services/oauth-username';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 
 export const githubOAuthRoutes = new Hono<{ Bindings: Env }>();
@@ -66,22 +67,6 @@ async function fetchGitHubPrimaryEmail(accessToken: string): Promise<string | nu
   const emails: Array<{ email: string; primary: boolean; verified: boolean }> = await res.json();
   const primary = emails.find((e) => e.primary && e.verified);
   return primary?.email ?? null;
-}
-
-/** 构造不重复的用户名（github_login，冲突则追加随机后缀） */
-async function resolveUsername(db: D1Database, baseLogin: string): Promise<string> {
-  // 清理：只保留字母、数字、下划线，长度 3-20
-  let candidate = baseLogin.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 16);
-  if (candidate.length < 3) candidate = `gh_${candidate}`;
-
-  const existing = await db
-    .prepare('SELECT id FROM users WHERE username = ?')
-    .bind(candidate)
-    .first();
-  if (!existing) return candidate;
-
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${candidate}_${suffix}`.slice(0, 20);
 }
 
 // ── 发起授权 ─────────────────────────────────────────────
@@ -250,7 +235,11 @@ githubOAuthRoutes.get('/github/callback', async (c) => {
         email = `github_${githubId}@noreply.github.com`;
       }
 
-      const username = await resolveUsername(c.env.DB, ghUser.login);
+      const username = await resolveOAuthUsername(c.env.DB, {
+        displayName: ghUser.login,
+        email,
+        prefix: 'gh',
+      });
       const userId = generateId();
       // OAuth 用户不需要密码，存储随机不可逆哈希占位
       const randomPasswordHash = await hashPassword(generateId() + generateId());

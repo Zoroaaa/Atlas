@@ -65,23 +65,28 @@ export async function findUsernameById(db: D1Database, id: string): Promise<stri
   return row?.username ?? null;
 }
 
-/** 用户名或邮箱是否已被占用 */
-export async function existsUserByUsernameOrEmail(
-  db: D1Database,
-  username: string,
-  email: string
-): Promise<boolean> {
-  const row = await db
-    .prepare('SELECT id FROM users WHERE username = ? OR email = ?')
-    .bind(username, email)
-    .first();
-  return !!row;
-}
+/** 注册时被占用的字段；调用方据此把错误准确落到对应用户名/邮箱输入框 */
+export type RegistrationConflict = 'username' | 'email' | null;
 
-/** 邮箱是否已注册 */
-export async function existsUserByEmail(db: D1Database, email: string): Promise<boolean> {
-  const row = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
-  return !!row;
+/**
+ * 检测注册所需的用户名 / 邮箱是否已被占用。
+ *
+ * 约束：username 允许为 undefined —— 旧客户端发码请求只带 email，此时退化为只查邮箱。
+ * 分两次查而不是 `username = ? OR email = ?`：OR 查询只能取回一行，
+ * 两个字段分别被不同用户占用时无法判断到底哪个冲突。
+ */
+export async function findRegistrationConflict(
+  db: D1Database,
+  username: string | undefined,
+  email: string
+): Promise<RegistrationConflict> {
+  if (username) {
+    const byUsername = await db.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
+    if (byUsername) return 'username';
+  }
+
+  const byEmail = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  return byEmail ? 'email' : null;
 }
 
 /** 邮箱是否被其他用户占用 */

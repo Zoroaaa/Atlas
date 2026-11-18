@@ -14,7 +14,7 @@ import { EmailVerificationService, emailVerificationUtils, ConfigService } from 
 import { VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
-import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, existsUserByUsernameOrEmail, existsUserByEmail, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
+import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, findRegistrationConflict, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
 import { findVerificationByCode, findLatestVerificationByEmailType, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
 
 const R = VALIDATION_RULES;
@@ -229,10 +229,16 @@ authRoutes.post('/register', validateBody(schemas.auth.register), async (c) => {
   }
 
   try {
-    const exists = await existsUserByUsernameOrEmail(c.env.DB, username, normalizedEmail);
+    // 只区分是哪个字段冲突：给用户明确指向，避免改错地方再试一次
+    const conflict = await findRegistrationConflict(c.env.DB, username, normalizedEmail);
 
-    if (exists) {
-      return c.json(error('VALIDATION_ERROR', '用户名或邮箱已被注册'), 400);
+    if (conflict) {
+      return c.json(
+        conflict === 'username'
+          ? error('USERNAME_TAKEN', '用户名已被注册')
+          : error('EMAIL_TAKEN', '该邮箱已被注册'),
+        400
+      );
     }
 
     // 注册必须完成邮箱验证：验证码为必填项（schema 层强制），此处校验其有效性
@@ -621,9 +627,10 @@ authRoutes.post('/refresh', authMiddleware, async (c) => {
   }
 });
 
+/** 发送注册验证码：发信前先做用户名/邮箱占用预检，避免用户收码填码后才知道重名。 */
 authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistrationCode), async (c) => {
   const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendRegistrationCode>;
-  const { email } = body;
+  const { email, username } = body;
 
   const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
 
@@ -633,10 +640,16 @@ authRoutes.post('/send-registration-code', validateBody(schemas.auth.sendRegistr
   }
 
   try {
-    const exists = await existsUserByEmail(c.env.DB, normalizedEmail);
+    // 占用预检必须放在 createEmailVerification 之前：验证码一旦发出就消耗邮件配额，
+    // 用户还要等邮件、填验证码，最后才被告知重名，是纯粹的浪费
+    const conflict = await findRegistrationConflict(c.env.DB, username, normalizedEmail);
 
-    if (exists) {
-      return c.json(error('VALIDATION_ERROR', '该邮箱已被注册'), 400);
+    if (conflict === 'username') {
+      return c.json(error('USERNAME_TAKEN', '用户名已被注册'), 400);
+    }
+
+    if (conflict === 'email') {
+      return c.json(error('EMAIL_TAKEN', '该邮箱已被注册'), 400);
     }
 
     const emailService = new EmailVerificationService(c.env);
