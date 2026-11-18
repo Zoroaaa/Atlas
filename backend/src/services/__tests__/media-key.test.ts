@@ -42,6 +42,13 @@ describe('media-key host 与 namespace', () => {
     expect(isAllowedCoverHost('www.minnano-av.com')).toBe(true);
   });
 
+  it('放行 JAV 官方图源，拒绝未登记的通用图床', () => {
+    expect(isAllowedCoverHost('pics.dmm.co.jp')).toBe(true);
+    expect(isAllowedCoverHost('image.mgstage.com')).toBe(true);
+    expect(isAllowedCoverHost('www.qishuxia.com')).toBe(true);
+    expect(isAllowedCoverHost('i.imgur.com')).toBe(false);
+  });
+
   it('按 host 归类', () => {
     expect(coverNamespaceForHost('www.javbus.com')).toBe('jav');
     expect(coverNamespaceForHost('lain.bgm.tv')).toBe('anime');
@@ -50,6 +57,9 @@ describe('media-key host 与 namespace', () => {
     expect(coverNamespaceForHost('zh.annas-archive.gl')).toBe('novel');
     expect(coverNamespaceForHost('www.minnano-av.com')).toBe('person');
     expect(coverNamespaceForHost('www.xqishuta.org')).toBe('misc');
+    expect(coverNamespaceForHost('pics.dmm.co.jp')).toBe('jav');
+    expect(coverNamespaceForHost('image.mgstage.com')).toBe('jav');
+    expect(coverNamespaceForHost('www.qishuxia.com')).toBe('misc');
   });
 });
 

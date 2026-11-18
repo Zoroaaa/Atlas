@@ -48,7 +48,10 @@ const ALLOWED_IMAGE_HOSTS = new Set([
   'covers.z-lib.org',
   'covers1.z-lib.sk',
   'www.xqishuta.org',
+  'www.qishuxia.com',
   'www.minnano-av.com',
+  'pics.dmm.co.jp',
+  'image.mgstage.com',
 ]);
 
 export function isAllowedCoverHost(hostname: string): boolean {
@@ -67,6 +70,8 @@ export function coverNamespaceForHost(hostname: string): CoverNamespace {
     || host === 'javdb.com' || host.endsWith('.javdb.com')
     || host === 'jdbstatic.com' || host.endsWith('.jdbstatic.com')
     || host === 'tp.spfcas.com'
+    || host === 'pics.dmm.co.jp'
+    || host === 'image.mgstage.com'
   ) return 'jav';
   if (host === 'lain.bgm.tv') return 'anime';
   if (host === 'image.tmdb.org') return 'movie';

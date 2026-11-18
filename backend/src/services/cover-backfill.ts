@@ -90,6 +90,13 @@ interface RetryAsset {
   attempts: number;
 }
 
+interface ExistingAsset {
+  status: 'ready' | 'missing' | 'failed';
+  attempts: number;
+  retry_exhausted: number;
+  next_retry_at: number;
+}
+
 /** 同一 isolate 内跨批次保留，避免每分钟重新起算限速间隔 */
 const hostLastFetchAt = new Map<string, number>();
 
@@ -229,6 +236,17 @@ function assetKeyForRetry(asset: RetryAsset): CoverObjectRef | null {
     namespace,
     objectKey: asset.object_key,
   };
+}
+
+async function getExistingAsset(db: D1Database, urlHash: string): Promise<ExistingAsset | null> {
+  return await db
+    .prepare(
+      `SELECT status, attempts, retry_exhausted, next_retry_at
+       FROM cover_assets
+       WHERE url_hash = ?`
+    )
+    .bind(urlHash)
+    .first<ExistingAsset>();
 }
 
 async function upsertRecordCover(
@@ -426,6 +444,14 @@ async function processPendingRecord(
   }
 
   if (await markReadyFromR2(env, env.DB, ref, now)) {
+    await upsertRecordCover(env.DB, record.id, record.cover, ref.hash, now);
+    return 'skipped';
+  }
+
+  // URL 已在失败/缺失账本中：只补记录映射，抓取与 attempts 交给重试队列推进。
+  // 否则新记录复用同一失败 URL 会立即重新抓取，并把 attempts 重置为 1、retry_exhausted 清零。
+  const existing = await getExistingAsset(env.DB, ref.hash);
+  if (existing && existing.status !== 'ready') {
     await upsertRecordCover(env.DB, record.id, record.cover, ref.hash, now);
     return 'skipped';
   }
