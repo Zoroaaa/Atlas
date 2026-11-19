@@ -28,19 +28,7 @@ import { Button } from '@/components/ui';
 import { useToast } from '@/hooks/useNotification';
 import { formatRelativeTime, StatCard, StatsGrid } from '../shared';
 import type { CoverStats } from '@/types';
-import { StoragePageHeader, TYPE_META } from './shared';
-
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let index = 0;
-  while (value >= 1024 && index < units.length - 1) {
-    value /= 1024;
-    index += 1;
-  }
-  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
+import { StoragePageHeader, TYPE_META, formatBytes } from './shared';
 
 function hostOf(url: string): string {
   try {

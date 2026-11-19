@@ -13,6 +13,7 @@ export { configRoutes } from './config';
 export { javRoutes } from './jav';
 export { libraryRoutes } from './library';
 export { dataStorageRoutes } from './data-storage';
+export { r2AdminRoutes } from './r2-admin';
 export { recommendRoutes } from './recommend';
 export { rankingsRoutes } from './rankings';
 export { notificationRoutes } from './notifications';

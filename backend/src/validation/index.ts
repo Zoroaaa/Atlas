@@ -142,6 +142,20 @@ const backendOnlySchemas = {
     }),
   },
 
+  r2Admin: {
+    // 回收预览：只统计不删，days 上限放宽到 10 年（历史遗留对象可能很老）
+    previewReclaim: z.object({
+      days: z.number().int().min(1).max(3650),
+      namespace: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'person', 'misc']).optional(),
+    }),
+    // 执行回收：limit 单独给上限，避免单次请求删太多
+    reclaim: z.object({
+      days: z.number().int().min(1).max(3650),
+      namespace: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'person', 'misc']).optional(),
+      limit: z.number().int().min(1).max(1000).optional(),
+    }),
+  },
+
   pagination: z.object({
     page: z.string().regex(/^\d+$/).optional(),
     pageSize: z.string().regex(/^\d+$/).optional(),
@@ -161,6 +175,7 @@ export const schemas = {
   rankings: backendOnlySchemas.rankings,
   dataStorage: backendOnlySchemas.dataStorage,
   follows: backendOnlySchemas.follows,
+  r2Admin: backendOnlySchemas.r2Admin,
   pagination: backendOnlySchemas.pagination,
 };
 

@@ -237,6 +237,7 @@
         "dataStorageOverview": "统计概览",
         "dataStorageDetail": "详情补全",
         "dataStorageCovers": "封面管理",
+        "dataStorageR2": "R2 管理看板",
         "dataStorageRecords": "数据浏览",
         "rankingsArchive": "榜单归档",
         "reports": "举报处理",
@@ -1859,6 +1860,114 @@
         "requeueConfirm": "确定把所有失败封面重新入队？会立刻开始重新抓取。",
         "requeueSuccess": "已重新入队失败封面",
         "requeueFailed": "重新入队失败封面失败"
+      }
+    },
+    "r2": {
+      "title": "R2 管理看板",
+      "desc": "R2 实际对象、账本登记与业务引用三口径对账；数字基于最近一轮扫描，不是实时值。",
+      "loadFailed": "加载 R2 统计失败",
+      "scanNow": "立即扫描",
+      "scanning": "扫描中",
+      "rateLimited": "操作太频繁，请 1 分钟后再试",
+      "scanStatus": {
+        "idle": "待扫描",
+        "running": "扫描中",
+        "completed": "已完成",
+        "failed": "扫描失败"
+      },
+      "scan": {
+        "title": "扫描状态",
+        "pages": "已扫页数",
+        "objects": "本轮对象数",
+        "startedAt": "本轮开始",
+        "completedAt": "上轮完成",
+        "nextScanAt": "下次扫描",
+        "neverScanned": "尚未完成",
+        "note": "R2 列表按 key 字典序分片推进，一轮扫完才更新统计与差额。",
+        "noteIncremental": "本轮是增量登记：只记录新出现的对象；对象消失检测在每周的全量校验轮次里做。",
+        "snapshotAt": "统计截至 {{time}}，以最近一轮扫描为准",
+        "hintFirstRun": "还没有统计快照：完整跑完一轮扫描后才会出现数字。点「立即扫描」只推进一批，首轮全量校验需要多次分片。",
+        "triggered": "已触发扫描",
+        "triggerFailed": "触发扫描失败"
+      },
+      "stat": {
+        "r2Objects": "R2 实际对象",
+        "ledgerReady": "账本已登记",
+        "business": "业务引用记录",
+        "businessSub": "去重封面 {{total}} 张",
+        "unregistered": "未登记对象",
+        "ledgerMissing": "账本标记缺失",
+        "ledgerMissingSub": "可修复 {{repairable}} / 孤儿 {{orphan}}",
+        "reclaimable": "可回收空间",
+        "reclaimableSub": "超 {{days}} 天 · {{size}}"
+      },
+      "diff": {
+        "title": "按类别分布",
+        "hint": "绿色是账本已登记的对象，琥珀色是只在 R2 存在的对象（含用户浏览触发的懒加载封面）。",
+        "empty": "还没有扫描到对象",
+        "registered": "已登记",
+        "unregistered": "未登记",
+        "unparsed": "{{total}} 个 key 命名不合规"
+      },
+      "objects": {
+        "title": "对象浏览",
+        "total": "共 {{total}} 个",
+        "allNamespaces": "全部类别",
+        "registered": {
+          "all": "登记状态：全部",
+          "yes": "仅已登记",
+          "no": "仅未登记"
+        },
+        "status": {
+          "live": "现存对象",
+          "reclaimed": "已回收",
+          "all": "全部状态"
+        },
+        "minAge": "最小年龄（天）",
+        "pageSize": "{{size}} 条/页",
+        "sort": {
+          "uploaded": "按上传时间",
+          "size": "按体积"
+        },
+        "pageLimit": "已到翻页上限，请用筛选缩小范围",
+        "colKey": "对象 key",
+        "colNamespace": "类别",
+        "colSize": "体积",
+        "colUploaded": "上传时间",
+        "colLastSeen": "最近扫描到",
+        "colRegistered": "登记状态",
+        "registeredYes": "已登记",
+        "registeredNo": "未登记",
+        "unparsed": "未解析",
+        "empty": "没有符合条件的对象",
+        "loadFailed": "加载对象列表失败"
+      },
+      "reclaim": {
+        "title": "回收懒加载封面",
+        "desc": "只删除「账本没有、也没有任何记录引用」且超过指定天数的对象。",
+        "days": "早于（天）",
+        "namespace": "类别",
+        "preview": "预览",
+        "previewing": "处理中",
+        "previewResult": "将删除 {{total}} 个对象，释放约 {{size}}",
+        "previewOldest": "最早上传于 {{date}}",
+        "hasMore": "单次最多处理 {{limit}} 个，可重复执行",
+        "execute": "执行回收",
+        "confirmTitle": "确认回收 R2 对象",
+        "confirmBody": "即将删除 {{total}} 个对象（约 {{size}}）。删除后用户首次访问会重新回源，最长 1 小时内可能看到占位图。",
+        "confirmHint": "此操作不可撤销，请输入 RECLAIM 确认。",
+        "confirmPlaceholder": "输入 RECLAIM",
+        "success": "已删除 {{total}} 个对象，释放 {{size}}",
+        "failed": "删除失败，已保留快照等待下次重试",
+        "none": "没有符合条件的对象",
+        "previewFailed": "回收预览失败",
+        "forbidden": "回收需要超级管理员权限"
+      },
+      "note": {
+        "title": "口径说明",
+        "body": "对象 key 为 covers/v1/orig/<类别>/<hash 前两位>/<sha256>，尾段就是账本里的 url_hash。",
+        "scope": "扫描只覆盖 covers/v1/orig/，失败墓碑（covers/v1/miss/）不计入对象数。",
+        "recover": "回收后对象会在下次访问时自动回源重建，因此这一步可恢复，但会多一次上游请求。"
       }
     },
     "trends": {

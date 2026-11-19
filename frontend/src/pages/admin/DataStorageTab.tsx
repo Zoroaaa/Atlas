@@ -6,13 +6,14 @@
  */
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { CoversPage, DetailCompletionPage, OverviewPage, RecordsPage } from './data-storage';
+import { CoversPage, DetailCompletionPage, OverviewPage, R2Page, RecordsPage } from './data-storage';
 
 export const DataStorageTab: React.FC = () => {
   const { pathname } = useLocation();
 
   if (pathname.includes('/data-storage/detail')) return <DetailCompletionPage />;
   if (pathname.includes('/data-storage/covers')) return <CoversPage />;
+  if (pathname.includes('/data-storage/r2')) return <R2Page />;
   if (pathname.includes('/data-storage/records')) return <RecordsPage />;
   return <OverviewPage />;
 };

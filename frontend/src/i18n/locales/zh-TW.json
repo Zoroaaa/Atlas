@@ -237,6 +237,7 @@
         "dataStorageOverview": "統計概覽",
         "dataStorageDetail": "詳情補全",
         "dataStorageCovers": "封面管理",
+        "dataStorageR2": "R2 管理看板",
         "dataStorageRecords": "資料瀏覽",
         "rankingsArchive": "榜單歸檔",
         "reports": "檢舉處理",
@@ -1859,6 +1860,114 @@
         "requeueConfirm": "確定把所有失敗封面重新入隊？會立刻開始重新抓取。",
         "requeueSuccess": "已重新入隊失敗封面",
         "requeueFailed": "重新入隊失敗封面失敗"
+      }
+    },
+    "r2": {
+      "title": "R2 管理看板",
+      "desc": "R2 實際物件、帳本登記與業務引用三種口徑對帳；數字基於最近一輪掃描，不是即時值。",
+      "loadFailed": "載入 R2 統計失敗",
+      "scanNow": "立即掃描",
+      "scanning": "掃描中",
+      "rateLimited": "操作太頻繁，請 1 分鐘後再試",
+      "scanStatus": {
+        "idle": "待掃描",
+        "running": "掃描中",
+        "completed": "已完成",
+        "failed": "掃描失敗"
+      },
+      "scan": {
+        "title": "掃描狀態",
+        "pages": "已掃頁數",
+        "objects": "本輪物件數",
+        "startedAt": "本輪開始",
+        "completedAt": "上輪完成",
+        "nextScanAt": "下次掃描",
+        "neverScanned": "尚未完成",
+        "note": "R2 列表按 key 字典序分片推進，一輪掃完才更新統計與差額。",
+        "noteIncremental": "本輪是增量登記：只記錄新出現的物件；物件消失偵測在每週的全量校驗輪次裡做。",
+        "snapshotAt": "統計截至 {{time}}，以最近一輪掃描為準",
+        "hintFirstRun": "還沒有統計快照：完整跑完一輪掃描後才會出現數字。點「立即掃描」只推進一批，首輪全量校驗需要多次分片。",
+        "triggered": "已觸發掃描",
+        "triggerFailed": "觸發掃描失敗"
+      },
+      "stat": {
+        "r2Objects": "R2 實際物件",
+        "ledgerReady": "帳本已登記",
+        "business": "業務引用記錄",
+        "businessSub": "去重封面 {{total}} 張",
+        "unregistered": "未登記物件",
+        "ledgerMissing": "帳本標記缺失",
+        "ledgerMissingSub": "可修復 {{repairable}} / 孤兒 {{orphan}}",
+        "reclaimable": "可回收空間",
+        "reclaimableSub": "超 {{days}} 天 · {{size}}"
+      },
+      "diff": {
+        "title": "按類別分佈",
+        "hint": "綠色是帳本已登記的物件，琥珀色是只在 R2 存在的物件（含使用者瀏覽觸發的懶載入封面）。",
+        "empty": "還沒有掃描到物件",
+        "registered": "已登記",
+        "unregistered": "未登記",
+        "unparsed": "{{total}} 個 key 命名不合規"
+      },
+      "objects": {
+        "title": "物件瀏覽",
+        "total": "共 {{total}} 個",
+        "allNamespaces": "全部類別",
+        "registered": {
+          "all": "登記狀態：全部",
+          "yes": "僅已登記",
+          "no": "僅未登記"
+        },
+        "status": {
+          "live": "現存物件",
+          "reclaimed": "已回收",
+          "all": "全部狀態"
+        },
+        "minAge": "最小年齡（天）",
+        "pageSize": "{{size}} 筆/頁",
+        "sort": {
+          "uploaded": "按上傳時間",
+          "size": "按體積"
+        },
+        "pageLimit": "已到翻頁上限，請用篩選縮小範圍",
+        "colKey": "物件 key",
+        "colNamespace": "類別",
+        "colSize": "體積",
+        "colUploaded": "上傳時間",
+        "colLastSeen": "最近掃描到",
+        "colRegistered": "登記狀態",
+        "registeredYes": "已登記",
+        "registeredNo": "未登記",
+        "unparsed": "未解析",
+        "empty": "沒有符合條件的物件",
+        "loadFailed": "載入物件列表失敗"
+      },
+      "reclaim": {
+        "title": "回收懶載入封面",
+        "desc": "只刪除「帳本沒有、也沒有任何記錄引用」且超過指定天數的物件。",
+        "days": "早於（天）",
+        "namespace": "類別",
+        "preview": "預覽",
+        "previewing": "處理中",
+        "previewResult": "將刪除 {{total}} 個物件，釋放約 {{size}}",
+        "previewOldest": "最早上傳於 {{date}}",
+        "hasMore": "單次最多處理 {{limit}} 個，可重複執行",
+        "execute": "執行回收",
+        "confirmTitle": "確認回收 R2 物件",
+        "confirmBody": "即將刪除 {{total}} 個物件（約 {{size}}）。刪除後使用者首次存取會重新回源，最長 1 小時內可能看到佔位圖。",
+        "confirmHint": "此操作不可撤銷，請輸入 RECLAIM 確認。",
+        "confirmPlaceholder": "輸入 RECLAIM",
+        "success": "已刪除 {{total}} 個物件，釋放 {{size}}",
+        "failed": "刪除失敗，已保留快照等待下次重試",
+        "none": "沒有符合條件的物件",
+        "previewFailed": "回收預覽失敗",
+        "forbidden": "回收需要超級管理員權限"
+      },
+      "note": {
+        "title": "口徑說明",
+        "body": "物件 key 為 covers/v1/orig/<類別>/<hash 前兩位>/<sha256>，尾段就是帳本裡的 url_hash。",
+        "scope": "掃描只涵蓋 covers/v1/orig/，失敗墓碑（covers/v1/miss/）不計入物件數。",
+        "recover": "回收後物件會在下一次存取時自動回源重建，因此這一步可恢復，但會多一次上游請求。"
       }
     },
     "trends": {

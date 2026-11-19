@@ -136,3 +136,110 @@ export interface CoverStats {
   r2Ready: boolean;
   publicBase: string | null;
 }
+
+// ── R2 管理看板（第二真相源） ────────────────────────────
+
+export type R2ScanStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+export interface R2ScanSummary {
+  status: R2ScanStatus;
+  scanId: string | null;
+  pagesDone: number;
+  objectsSeen: number;
+  skippedKeys: number;
+  startedAt: number | null;
+  completedAt: number | null;
+  nextScanAt: number;
+  trigger: string;
+  /** full = 全量校验轮次（会检测对象消失）；incremental = 只登记新对象 */
+  mode: 'full' | 'incremental';
+  lastError: string | null;
+  /** 最近一次完整扫描的开始时间；没有完整轮次时为 null，此时账本差异不可用 */
+  baselineAt: number | null;
+}
+
+export interface R2NamespaceStat {
+  namespace: string;
+  objects: number;
+  bytes: number;
+  registered: number;
+  unregistered: number;
+}
+
+export interface R2AgeBucket {
+  namespace: string;
+  b0_30: number;
+  b31_90: number;
+  b91_180: number;
+  b180p: number;
+}
+
+export interface R2DashboardStats {
+  r2: { objects: number; bytes: number; unparsed: number };
+  ledger: { ready: number; bytes: number };
+  business: { recordsWithCover: number; distinctCoverHashes: number };
+  diff: {
+    unregistered: { count: number; bytes: number };
+    ledgerMissing: { count: number; repairable: number; orphan: number };
+    reclaimable: { days: number; count: number; bytes: number };
+  };
+  byNamespace: R2NamespaceStat[];
+  ageBuckets: R2AgeBucket[];
+  scan: R2ScanSummary | null;
+  reclaim: { enabled: boolean; days: number };
+  /** 快照生成时间；0 表示还没有快照 */
+  snapshotAt: number;
+  /** true = 还没有快照，统计数字不可用 */
+  stale: boolean;
+  generatedAt: number;
+}
+
+export interface R2ObjectRow {
+  objectKey: string;
+  /** null 表示 key 不符合命名规则，无法与账本关联 */
+  urlHash: string | null;
+  namespace: string;
+  byteSize: number;
+  uploadedAt: number;
+  firstSeenAt: number;
+  lastSeenAt: number;
+  reclaimedAt: number | null;
+  registered: boolean;
+  ledgerStatus: string | null;
+}
+
+export interface R2ObjectsQuery {
+  page?: number;
+  pageSize?: number;
+  namespace?: string;
+  registered?: 'all' | 'yes' | 'no';
+  status?: 'live' | 'reclaimed' | 'all';
+  minAgeDays?: number;
+  sort?: 'uploaded' | 'size';
+}
+
+/** 对象分页响应：total 为 null 表示后端本次没有计算（翻页时省一次全表扫描） */
+export interface R2ObjectsPage {
+  items: R2ObjectRow[];
+  total: number | null;
+  page: number;
+  pageSize: number;
+  totalPages: number | null;
+  pageLimitHit: boolean;
+}
+
+export interface R2ReclaimPreview {
+  days: number;
+  namespace: string | null;
+  candidates: number;
+  bytes: number;
+  oldestUploadedAt: number | null;
+  hasMore: boolean;
+}
+
+export interface R2ReclaimResult {
+  deleted: number;
+  failed: number;
+  bytesFreed: number;
+  hasMore: boolean;
+}

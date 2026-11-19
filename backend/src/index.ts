@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { Env } from '@/types';
-import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, oauthExchangeRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, followsInternalRoutes, emailUnsubscribeRoutes } from '@/routes';
+import { authRoutes, githubOAuthRoutes, googleOAuthRoutes, oauthExchangeRoutes, userRoutes, sourceRoutes, communityRoutes, systemRoutes, searchRoutes, adminRoutes, configRoutes, javRoutes, libraryRoutes, dataStorageRoutes, r2AdminRoutes, recommendRoutes, rankingsRoutes, notificationRoutes, followRoutes, followsInternalRoutes, emailUnsubscribeRoutes } from '@/routes';
 import { feedbackRoutes } from '@/routes/feedback';
 import { announcementRoutes } from '@/routes/announcement';
 import { CONFIG } from '@/constants';
@@ -24,6 +24,8 @@ import { novelProvider } from '@/providers/novel-provider';
 import { enrichPendingJavRecords } from '@/services/ranking-enrichment';
 import { runJavDetailJobBatch } from '@/services/jav-detail-job';
 import { gcOrphanCoverAssets, runCoverBackfillBatch } from '@/services/cover-backfill';
+import { runR2ScanTickSafe } from '@/services/r2-scan';
+import { runR2AutoReclaim } from '@/services/r2-reclaim';
 import { runWatchCheck } from '@/services/follow-service';
 import { runEmailDigest } from '@/services/email-notification';
 import { syncGenreDictionary } from '@/services/genre-dictionary';
@@ -116,6 +118,7 @@ app.route('/api/email', emailUnsubscribeRoutes);
 app.route('/api/internal/rankings', rankingsRoutes);
 app.route('/api/internal/follows', followsInternalRoutes);
 app.route('/api/admin/data-storage', dataStorageRoutes);
+app.route('/api/admin/r2', r2AdminRoutes);
 app.route('/api/feedback', feedbackRoutes);
 app.route('/api/announcements', announcementRoutes);
 app.route('/api', systemRoutes);
@@ -169,7 +172,8 @@ export default {
   fetch: app.fetch,
   scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     // 三类触发器错开分钟：*/30 落在 :00/:30，小时任务在 :05，
-    // 每分钟任务只推进手动触发的详情补全，不参与关注/邮件链路。
+    // 每分钟任务只跑轻量的增量任务（详情补全、封面回填加速通道、R2 扫描分片），
+    // 不参与关注/邮件链路。
     if (event.cron === '*/30 * * * *') {
       // 每 30 分钟：关注女优新作检测 + 邮件通知合并发送。
       // 两个任务串行执行：关注检测按 5 个一批、批间 10 秒限速；邮件排在后面发送，
@@ -209,11 +213,13 @@ export default {
       );
     }
     if (event.cron === '* * * * *') {
-      // 每分钟：管理看板手动触发的 JAV 详情补全 + 封面回填「加速」通道。
+      // 每分钟：管理看板手动触发的 JAV 详情补全 + 封面回填「加速」通道 + R2 对象扫描。
       // 封面回填的分钟通道只在批量导入时手动打开（cover_backfill_enabled），
       // 日常由每小时 :05 的小时通道兜底：候选集查询要全表比对 cover 快照，
       // 数据收敛后每轮仍固定扫 1.5 万行，按分钟跑纯属空转。
-      // 两者串行执行，避免同一分钟同时对源站发起两拨请求。
+      // R2 扫描是分片任务：受 r2_scan_pages_per_tick 与 next_scan_at 控制，
+      // 一轮扫完后 24 小时内每个 tick 只读一次状态行就退出。
+      // 三者串行执行，避免同一分钟同时对源站与 R2 发起多批请求。
       ctx.waitUntil(
         (async () => {
           try {
@@ -232,6 +238,17 @@ export default {
             }
           } catch (err) {
             console.error('[cover-backfill] cron failed:', err);
+          }
+
+          // R2 对象扫描：分片推进一轮，本 tick 只列 1-5 页（r2_scan_pages_per_tick）。
+          // 放在最后：与回填共用 R2 配额，回填优先级更高。
+          try {
+            const r = await runR2ScanTickSafe(env);
+            if (r.ran) {
+              console.log(`[r2-scan] pages=${r.pages} objects=${r.objects} done=${r.done}`);
+            }
+          } catch (err) {
+            console.error('[r2-scan] cron failed:', err);
           }
         })()
       );
@@ -312,6 +329,19 @@ export default {
               }
             })
             .catch((err) => console.error('[cover-gc] cron failed:', err))
+        );
+      }
+      // 懒加载封面回收：每天 04:05 UTC 跑一次，与 03:05 的 GC 差一个整小时，
+      // 避免两次 R2 批量删除挤在同一分钟。只删「无账本 + 无引用 + 超期」的对象。
+      if (new Date(event.scheduledTime).getUTCHours() === 4) {
+        ctx.waitUntil(
+          withCronLock(env.DB, 'r2.reclaim', HOURLY_LOCK_TTL_MS, () => runR2AutoReclaim(env))
+            .then((r) => {
+              if (r && (r.deleted > 0 || r.purged > 0)) {
+                console.log(`[r2-reclaim] deleted=${r.deleted} bytes=${r.bytesFreed} purged=${r.purged}`);
+              }
+            })
+            .catch((err) => console.error('[r2-reclaim] cron failed:', err))
         );
       }
     }

@@ -237,6 +237,7 @@
         "dataStorageOverview": "Statistics",
         "dataStorageDetail": "Detail Completion",
         "dataStorageCovers": "Cover Management",
+        "dataStorageR2": "R2 Dashboard",
         "dataStorageRecords": "Browse Records",
         "rankingsArchive": "Rankings Archive",
         "reports": "Report Handling",
@@ -1461,7 +1462,7 @@
         "typePlaceholder": "Error type (e.g. javascript)",
         "searchPlaceholder": "Search message/stack/URL",
         "clear": "Clear",
-        "total": "{{count}} total"
+        "total": "{{total}} total"
       },
       "listTable": {
         "colSource": "Source",
@@ -1859,6 +1860,114 @@
         "requeueConfirm": "Requeue all failed covers? They will be fetched again immediately.",
         "requeueSuccess": "Failed covers requeued",
         "requeueFailed": "Failed to requeue covers"
+      }
+    },
+    "r2": {
+      "title": "R2 Dashboard",
+      "desc": "Reconciles R2 objects, ledger entries and business references. Numbers come from the last full scan, not live.",
+      "loadFailed": "Failed to load R2 stats",
+      "scanNow": "Scan now",
+      "scanning": "Scanning",
+      "rateLimited": "Too many requests, try again in a minute",
+      "scanStatus": {
+        "idle": "Idle",
+        "running": "Scanning",
+        "completed": "Completed",
+        "failed": "Failed"
+      },
+      "scan": {
+        "title": "Scan status",
+        "pages": "Pages listed",
+        "objects": "Objects seen",
+        "startedAt": "Round started",
+        "completedAt": "Last completed",
+        "nextScanAt": "Next scan",
+        "neverScanned": "Not yet completed",
+        "note": "R2 listing advances in key order across ticks; stats and diffs update only after a full round.",
+        "noteIncremental": "This round only registers new objects; disappearance checks run in the weekly full round.",
+        "snapshotAt": "Stats as of {{time}}, based on the latest scan round",
+        "hintFirstRun": "No stats snapshot yet. Numbers appear after one full scan round. \"Scan now\" only advances one batch; the first full round takes several ticks.",
+        "triggered": "Scan triggered",
+        "triggerFailed": "Failed to trigger scan"
+      },
+      "stat": {
+        "r2Objects": "R2 objects",
+        "ledgerReady": "Ledger registered",
+        "business": "Referenced records",
+        "businessSub": "{{total}} unique covers",
+        "unregistered": "Unregistered",
+        "ledgerMissing": "Ledger says missing",
+        "ledgerMissingSub": "Repairable {{repairable}} / orphan {{orphan}}",
+        "reclaimable": "Reclaimable",
+        "reclaimableSub": "Older than {{days}}d · {{size}}"
+      },
+      "diff": {
+        "title": "Distribution by category",
+        "hint": "Green is registered in the ledger; amber exists only in R2 (includes lazy-loaded covers from user views).",
+        "empty": "No objects scanned yet",
+        "registered": "Registered",
+        "unregistered": "Unregistered",
+        "unparsed": "{{total}} keys with unexpected naming"
+      },
+      "objects": {
+        "title": "Objects",
+        "total": "{{total}} total",
+        "allNamespaces": "All categories",
+        "registered": {
+          "all": "Registration: all",
+          "yes": "Registered only",
+          "no": "Unregistered only"
+        },
+        "status": {
+          "live": "Live",
+          "reclaimed": "Reclaimed",
+          "all": "All statuses"
+        },
+        "minAge": "Min age (days)",
+        "pageSize": "{{size}} / page",
+        "sort": {
+          "uploaded": "By upload time",
+          "size": "By size"
+        },
+        "pageLimit": "Page limit reached, narrow the filters to go deeper",
+        "colKey": "Object key",
+        "colNamespace": "Category",
+        "colSize": "Size",
+        "colUploaded": "Uploaded",
+        "colLastSeen": "Last seen",
+        "colRegistered": "Registration",
+        "registeredYes": "Registered",
+        "registeredNo": "Unregistered",
+        "unparsed": "Unparsed",
+        "empty": "No objects match the filters",
+        "loadFailed": "Failed to load objects"
+      },
+      "reclaim": {
+        "title": "Reclaim lazy-loaded covers",
+        "desc": "Deletes only objects that are absent from the ledger, referenced by no record, and older than the given days.",
+        "days": "Older than (days)",
+        "namespace": "Category",
+        "preview": "Preview",
+        "previewing": "Working",
+        "previewResult": "{{total}} objects, about {{size}} to free",
+        "previewOldest": "Oldest uploaded {{date}}",
+        "hasMore": "Up to {{limit}} per run; run again for the rest",
+        "execute": "Reclaim",
+        "confirmTitle": "Confirm R2 reclaim",
+        "confirmBody": "{{total}} objects (about {{size}}) will be deleted. The proxy refetches them on next access, so a placeholder may appear for up to one hour.",
+        "confirmHint": "This cannot be undone. Type RECLAIM to confirm.",
+        "confirmPlaceholder": "Type RECLAIM",
+        "success": "Deleted {{total}} objects, freed {{size}}",
+        "failed": "Delete failed; snapshots kept for the next retry",
+        "none": "Nothing to reclaim",
+        "previewFailed": "Preview failed",
+        "forbidden": "Reclaim requires super admin"
+      },
+      "note": {
+        "title": "How the numbers are counted",
+        "body": "Object keys are covers/v1/orig/<category>/<hash prefix>/<sha256>; the trailing segment is the ledger url_hash.",
+        "scope": "Scanning only covers the covers/v1/orig/ prefix; failure tombstones (covers/v1/miss/) are excluded.",
+        "recover": "Reclaimed objects are refetched on next access, so this is recoverable at the cost of one upstream request."
       }
     },
     "trends": {

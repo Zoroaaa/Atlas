@@ -27,6 +27,12 @@ import type {
   RankingArchiveMeta,
   RankingArchiveQuery,
   CoverStats,
+  R2DashboardStats,
+  R2ObjectsPage,
+  R2ObjectsQuery,
+  R2ReclaimPreview,
+  R2ReclaimResult,
+  R2ScanStatus,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -1007,6 +1013,103 @@ export const dataStorageApi = {
       success: boolean;
       data: PaginatedResponse<RankingArchiveEntry>;
     }>(`/admin/data-storage/rankings/entries?${query.toString()}`);
+    return response.data;
+  },
+};
+
+/**
+ * R2 管理看板：R2 真实对象与账本/业务引用的对账、对象浏览、扫描与回收。
+ *
+ * 与 dataStorageApi 分开：这里的读接口大多带 no-store，且回收是不可逆操作，
+ * 混在一起容易在调用处误用。
+ */
+export const r2AdminApi = {
+  getStats: async (): Promise<R2DashboardStats> => {
+    const response = await apiClient.get<{ success: boolean; data: R2DashboardStats }>(
+      '/admin/r2/stats'
+    );
+    return response.data;
+  },
+
+  getScanState: async (): Promise<{
+    status: R2ScanStatus;
+    pagesDone: number;
+    objectsSeen: number;
+    skippedKeys: number;
+    startedAt: number | null;
+    completedAt: number | null;
+    nextScanAt: number;
+    trigger: string;
+    lastError: string | null;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        status: R2ScanStatus;
+        pagesDone: number;
+        objectsSeen: number;
+        skippedKeys: number;
+        startedAt: number | null;
+        completedAt: number | null;
+        nextScanAt: number;
+        trigger: string;
+        lastError: string | null;
+      };
+    }>('/admin/r2/scan/state');
+    return response.data;
+  },
+
+  /** 立即扫描：后端会当场推进一个分片（1-5 页），返回本轮进度 */
+  triggerScan: async (): Promise<{
+    tick: { ran: boolean; pages: number; objects: number; done: boolean };
+    state: unknown;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { tick: { ran: boolean; pages: number; objects: number; done: boolean }; state: unknown };
+    }>('/admin/r2/scan', {});
+    return response.data;
+  },
+
+  /** 对象分页；后端只在第一页算总数，total 可能为 null，调用方沿用上一次的值 */
+  getObjects: async (query: R2ObjectsQuery = {}): Promise<R2ObjectsPage> => {
+    const params = new URLSearchParams();
+    if (query.page) params.set('page', String(query.page));
+    if (query.pageSize) params.set('pageSize', String(query.pageSize));
+    if (query.namespace) params.set('namespace', query.namespace);
+    if (query.registered) params.set('registered', query.registered);
+    if (query.status) params.set('status', query.status);
+    if (query.minAgeDays) params.set('minAgeDays', String(query.minAgeDays));
+    if (query.sort) params.set('sort', query.sort);
+
+    const response = await apiClient.get<{ success: boolean; data: R2ObjectsPage }>(
+      `/admin/r2/objects?${params.toString()}`
+    );
+    return response.data;
+  },
+
+  /** 预览可回收对象：只统计，不删除 */
+  previewReclaim: async (params: {
+    days: number;
+    namespace?: string;
+  }): Promise<R2ReclaimPreview> => {
+    const response = await apiClient.post<{ success: boolean; data: R2ReclaimPreview }>(
+      '/admin/r2/reclaim/preview',
+      params
+    );
+    return response.data;
+  },
+
+  /** 执行回收：需要超级管理员；删除后对象由代理在下次访问时自动重建 */
+  reclaim: async (params: {
+    days: number;
+    namespace?: string;
+    limit?: number;
+  }): Promise<R2ReclaimResult> => {
+    const response = await apiClient.post<{ success: boolean; data: R2ReclaimResult }>(
+      '/admin/r2/reclaim',
+      params
+    );
     return response.data;
   },
 };

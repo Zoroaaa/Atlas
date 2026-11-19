@@ -8,6 +8,15 @@ import { normalizeJavdbCover } from './javdb-cover';
 
 export type CoverNamespace = 'jav' | 'anime' | 'movie' | 'manga' | 'novel' | 'person' | 'misc';
 
+/**
+ * 封面对象前缀。R2 扫描只覆盖 orig，墓碑（covers/v1/miss/）属于失败负缓存，
+ * 计入统计会让「对象数」多出一批本来就不是封面的东西。
+ */
+export const COVER_ORIG_PREFIX = 'covers/v1/orig/';
+
+/** 64 位小写 hex；账本与 key 尾段都按这个形态生成 */
+const HASH_PATTERN = /^[0-9a-f]{64}$/;
+
 export interface CoverObjectRef {
   /** 归一化后的完整 URL，也是 cover_assets.url 的值 */
   normalizedUrl: string;
@@ -177,4 +186,37 @@ export async function invalidCoverObjectRef(raw: string): Promise<CoverObjectRef
     namespace,
     objectKey: `covers/v1/orig/${namespace}/${hash.slice(0, 2)}/${hash}`,
   };
+}
+
+/**
+ * 从 R2 对象 key 反解 namespace 与 url_hash，供扫描器登记对象。
+ *
+ * hash 直接取 key 尾段，不重算 sha256 —— 原始 URL 没有存在 R2 里，也算不出来。
+ * 三段都校验（段数、64hex、分片目录与 hash 前两位一致），任一项不符返回 null：
+ * 这类 key 仍会被登记，但 url_hash 为空，不参与账本对账，避免拿错 hash 去比。
+ */
+export function parseCoverObjectKey(
+  key: string,
+): { namespace: string; urlHash: string } | null {
+  if (!key.startsWith(COVER_ORIG_PREFIX)) return null;
+
+  const segments = key.slice(COVER_ORIG_PREFIX.length).split('/');
+  if (segments.length !== 3) return null;
+
+  const [namespace, shard, hash] = segments;
+  if (!namespace) return null;
+  if (!HASH_PATTERN.test(hash)) return null;
+  if (shard !== hash.slice(0, 2)) return null;
+
+  return { namespace, urlHash: hash };
+}
+
+/**
+ * 命名不合规的 key 归到哪个分类展示。
+ * 取第 4 段（prefix 后的 namespace 位），空值落到 misc：
+ * 这些对象仍要能在看板上被看见与回收，不能因为解析失败就消失。
+ */
+export function fallbackCoverNamespace(key: string): string {
+  const segment = key.slice(COVER_ORIG_PREFIX.length).split('/')[0];
+  return segment || 'misc';
 }

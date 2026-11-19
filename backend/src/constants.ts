@@ -111,6 +111,14 @@ export const DB_CONFIG_KEYS = {
   COVER_BACKFILL_HOURLY_ENABLED: 'cover_backfill_hourly_enabled',
   /** 封面回填每批条数（1-100），两个通道共用 */
   COVER_BACKFILL_BATCH_SIZE: 'cover_backfill_batch_size',
+  /** R2 对象扫描：关闭后看板数字停在上一轮，不影响取图 */
+  R2_SCAN_ENABLED: 'r2_scan_enabled',
+  /** 每个 tick 最多列几页 R2 对象（1 页 = 1000 个），1-5 */
+  R2_SCAN_PAGES_PER_TICK: 'r2_scan_pages_per_tick',
+  /** 是否允许每日自动回收超期懒加载封面 */
+  R2_RECLAIM_ENABLED: 'r2_reclaim_enabled',
+  /** 自动回收的天数阈值（30-3650） */
+  R2_RECLAIM_DAYS: 'r2_reclaim_days',
 
   // 安全限制 — 安全策略需要动态调整
   MAX_LOGIN_ATTEMPTS: 'max_login_attempts',

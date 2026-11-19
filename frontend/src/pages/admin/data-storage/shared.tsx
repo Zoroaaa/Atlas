@@ -262,6 +262,19 @@ export function mergeJobView(prev: JavDetailJobView | null, patch: JobViewPatch 
 
 // ─── 共用小部件 ──────────────────────────────────────────────────────
 
+/** 字节数转可读体积；封面页与 R2 看板共用，避免两处各写一份精度不一致 */
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
 export const StoragePageHeader: React.FC<{
   title: string;
   description?: string;
