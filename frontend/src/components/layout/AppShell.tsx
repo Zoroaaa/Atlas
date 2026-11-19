@@ -14,16 +14,12 @@ import {
   ChevronDown,
   Clapperboard,
   Clock,
-  Cloud,
   Download,
   Film,
-  FolderOpen,
   Github,
   Globe,
   Heart,
   HelpCircle,
-  Image as ImageIcon,
-  ListChecks,
   LogOut,
   MoreHorizontal,
   PanelLeftClose,
@@ -49,7 +45,7 @@ import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { DropdownMenu, LanguageSwitcher, Modal } from '@/components/ui';
 import { UserAccountMenu } from './UserAccountMenu';
-import { isNavItemActive } from './workspaceNav';
+import { adminNavGroups, isNavItemActive } from './workspaceNav';
 
 interface AppShellProps {
   onSearchTabChange?: (tab: SearchTabType) => void;
@@ -254,34 +250,24 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
     }
 
     if (isAdmin) {
+      // 管理后台导航从 workspaceNav 派生，不再本地硬编码：
+      // 两处各存一份时，加菜单漏改一处会让桌面端看不到入口（已实际发生过）
       list.push({
         id: 'admin',
         label: t('nav:adminPanel.title'),
         icon: <Shield className="h-[16px] w-[16px]" />,
-        items: [
-          { id: 'overview', label: t('nav:adminPanel.items.overview'), icon: <LayoutIcon />, active: isNavItemActive('/admin-panel', pathname), to: '/admin-panel', sectionLabel: t('nav:adminSections.overview') },
-          { id: 'users', label: t('nav:adminPanel.items.users'), icon: <Users className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/users', pathname), to: '/admin-panel/users', sectionLabel: t('nav:adminSections.users') },
-          { id: 'sessions', label: t('nav:adminPanel.items.sessions'), icon: <ServerIcon />, active: isNavItemActive('/admin-panel/sessions', pathname), to: '/admin-panel/sessions' },
-          { id: 'roles', label: t('nav:adminPanel.items.roles'), icon: <Shield className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/roles', pathname), to: '/admin-panel/roles' },
-          { id: 'reports', label: t('nav:adminPanel.items.reports'), icon: <AlertIcon />, active: isNavItemActive('/admin-panel/reports', pathname), to: '/admin-panel/reports', sectionLabel: t('nav:adminSections.content') },
-          { id: 'feedback', label: t('nav:adminPanel.items.feedback'), icon: <FeedbackIcon />, active: isNavItemActive('/admin-panel/feedback', pathname), to: '/admin-panel/feedback' },
-          { id: 'announcements', label: t('nav:adminPanel.items.announcements'), icon: <MegaphoneIcon />, active: isNavItemActive('/admin-panel/announcements', pathname), to: '/admin-panel/announcements' },
-          { id: 'aliases', label: t('nav:adminPanel.items.aliases'), icon: <LanguagesIcon />, active: isNavItemActive('/admin-panel/aliases', pathname), to: '/admin-panel/aliases' },
-          { id: 'analytics', label: t('nav:adminPanel.items.analytics'), icon: <BarChartIcon />, active: isNavItemActive('/admin-panel/analytics', pathname), to: '/admin-panel/analytics', sectionLabel: t('nav:adminSections.data') },
-          { id: 'trends', label: t('nav:adminPanel.items.trends'), icon: <TrendingIcon />, active: isNavItemActive('/admin-panel/trends', pathname), to: '/admin-panel/trends' },
-          { id: 'activity-ranking', label: t('nav:adminPanel.items.activityRanking'), icon: <Trophy className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/activity-ranking', pathname), to: '/admin-panel/activity-ranking' },
-          { id: 'rankings-archive', label: t('nav:adminPanel.items.rankingsArchive'), icon: <Trophy className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/rankings-archive', pathname), to: '/admin-panel/rankings-archive' },
-          { id: 'cleanup', label: t('nav:adminPanel.items.cleanup'), icon: <TrashIcon />, active: isNavItemActive('/admin-panel/cleanup', pathname), to: '/admin-panel/cleanup' },
-          { id: 'storage-overview', label: t('nav:adminPanel.items.dataStorageOverview'), icon: <DatabaseIcon />, active: isNavItemActive('/admin-panel/data-storage', pathname), to: '/admin-panel/data-storage', sectionLabel: t('nav:adminSections.storage') },
-          { id: 'storage-detail', label: t('nav:adminPanel.items.dataStorageDetail'), icon: <ListChecks className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/data-storage/detail', pathname), to: '/admin-panel/data-storage/detail' },
-          { id: 'storage-covers', label: t('nav:adminPanel.items.dataStorageCovers'), icon: <ImageIcon className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/data-storage/covers', pathname), to: '/admin-panel/data-storage/covers' },
-          { id: 'storage-r2', label: t('nav:adminPanel.items.dataStorageR2'), icon: <Cloud className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/data-storage/r2', pathname), to: '/admin-panel/data-storage/r2' },
-          { id: 'storage-records', label: t('nav:adminPanel.items.dataStorageRecords'), icon: <FolderOpen className="h-[16px] w-[16px]" />, active: isNavItemActive('/admin-panel/data-storage/records', pathname), to: '/admin-panel/data-storage/records' },
-          { id: 'actions', label: t('nav:adminPanel.items.actions'), icon: <ActivityIcon />, active: isNavItemActive('/admin-panel/actions', pathname), to: '/admin-panel/actions', sectionLabel: t('nav:adminSections.system') },
-          { id: 'email-logs', label: t('nav:adminPanel.items.emailLogs'), icon: <MailIcon />, active: isNavItemActive('/admin-panel/email-logs', pathname), to: '/admin-panel/email-logs' },
-          { id: 'observability', label: t('nav:adminPanel.items.observability'), icon: <BugIcon />, active: isNavItemActive('/admin-panel/observability', pathname), to: '/admin-panel/observability' },
-          { id: 'config', label: t('nav:adminPanel.items.config'), icon: <SettingsIcon />, active: isNavItemActive('/admin-panel/config', pathname), to: '/admin-panel/config' },
-        ],
+        items: adminNavGroups.flatMap((group) =>
+          group.items.map((item, index) => ({
+            id: item.id,
+            label: t(item.labelKey),
+            // 桌面侧栏统一 16px；workspaceNav 里的图标按 17px 定义（移动端菜单用）
+            icon: <span className="inline-flex shrink-0 [&>svg]:h-4 [&>svg]:w-4">{item.icon}</span>,
+            active: isNavItemActive(item.path, pathname),
+            to: item.path,
+            // 分组标题只挂在首项，与原硬编码的 sectionLabel 行为一致
+            sectionLabel: index === 0 && group.labelKey ? t(group.labelKey) : undefined,
+          }))
+        ),
       });
     }
 
@@ -581,40 +567,14 @@ function SettingsIcon() {
 function LayoutIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></svg>;
 }
-function ServerIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="7" rx="2" /><rect x="3" y="13" width="18" height="7" rx="2" /><path d="M7 7.5h.01M7 16.5h.01" /></svg>;
-}
 function ActivityIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>;
 }
-function MailIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
-}
 function BarChartIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
-}
-function BugIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="7" width="8" height="12" rx="4" /><path d="M12 3v4M4 9h4M16 9h4M4 15h4M16 15h4M5 21l3-3M19 21l-3-3" /></svg>;
-}
-function TrendingIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 17 6-6 4 4 8-8" /><path d="M15 7h6v6" /></svg>;
 }
 function FolderTreeIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /></svg>;
 }
 function DatabaseIcon() {  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></svg>;
-}
-function LanguagesIcon() {  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h8M8 5c0 4-2 7-5 9M6 9c1 2 3 4 6 5" /><path d="m13 20 4-10 4 10M15 16h4" /></svg>;
-}
-function AlertIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4 2 21h20L12 4z" /><path d="M12 10v4M12 18h.01" /></svg>;
-}
-function TrashIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>;
-}
-function FeedbackIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a3 3 0 0 1-3 3H8l-5 3V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v9z" /><path d="M8 9h8M8 13h5" /></svg>;
-}
-function MegaphoneIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1z" /><path d="M15 8a4 4 0 0 1 0 8" /></svg>;
 }

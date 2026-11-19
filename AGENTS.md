@@ -82,6 +82,7 @@ npm run deploy --workspace=backend
 - 表单与 URL 状态需要可刷新、可分享时，写入 query 参数（例如 JAV 搜索的 `sub`）。
 - i18n 三种语言（`zh-CN` / `zh-TW` / `en`）必须同步新增 key，禁止只改中文。
 - 组件优先复用 `components/workbench`、`components/jav/JavDetailShared` 等既有实现；同一逻辑不要在两处各写一份。
+- 侧栏导航只有 `components/layout/workspaceNav.tsx` 一处数据源：桌面 `AppShell` 与移动端 `AdminPanelLayout` 都从它派生。新增菜单只改这一处，禁止在组件内另存同语义列表（历史上因双份数据导致桌面端漏掉入口）。
 - 样式使用 Tailwind 原子类与既有设计 token；不要用 `overflow: hidden` 掩盖布局问题。
 
 ## 5. 代码风格

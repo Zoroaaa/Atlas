@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import i18next from '@/i18n';
+import { adminNavGroups } from '../workspaceNav';
 import { AppShell } from '../AppShell';
 
 const toggleSidebar = vi.fn();
@@ -61,6 +63,28 @@ describe('AppShell 桌面工作区', () => {
     renderShell('/admin-panel/users');
 
     expect(screen.getByRole('link', { name: '用户管理' })).toBeInTheDocument();
+  });
+
+  // 回归守卫：桌面侧栏的管理菜单必须与 workspaceNav 单一数据源逐项一致。
+  // 历史上这里另存过一份硬编码，新增菜单只改了 workspaceNav，桌面端就看不到入口。
+  it('管理后台菜单项与 workspaceNav 定义逐项一致', () => {
+    renderShell('/admin-panel/users');
+
+    for (const group of adminNavGroups) {
+      for (const item of group.items) {
+        const link = screen.getByRole('link', { name: i18next.t(item.labelKey) });
+        expect(link).toHaveAttribute('href', item.path);
+      }
+    }
+  });
+
+  it('管理后台菜单包含 R2 看板入口', () => {
+    renderShell('/admin-panel/data-storage/r2');
+
+    expect(screen.getByRole('link', { name: 'R2 管理看板' })).toHaveAttribute(
+      'href',
+      '/admin-panel/data-storage/r2'
+    );
   });
 
   it('折叠按钮调用侧栏开关', () => {
