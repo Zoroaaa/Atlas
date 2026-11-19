@@ -41,6 +41,35 @@ import { getCoverStats, requeueCoverFailures, setCoverBackfillSettings } from '@
 /** 看板统计的缓存 TTL（缓存 key 由请求 origin 推导，见 /stats 处理函数） */
 const STATS_CACHE_TTL_SECONDS = 300;
 
+/** 封面统计缓存 TTL：5 分钟，与看板 /stats 一致；前端轮询间隔短于此值，避免每次都撞上过期边界 */
+const COVER_STATS_CACHE_TTL_SECONDS = 300;
+
+/**
+ * 封面统计缓存 key：Cache API 只接受本 zone URL，必须从请求 origin 推导。
+ * 统计是全局数据（不含用户维度），管理员共用一份。
+ */
+function coverStatsCacheKey(url: string): Request | null {
+  if (typeof caches === 'undefined') return null;
+  const keyUrl = new URL(url);
+  keyUrl.pathname = '/__edge-cache/admin-cover-stats-v1';
+  keyUrl.search = '';
+  return new Request(keyUrl.toString());
+}
+
+/** 回填设置与重新入队会改变统计响应，写后必须立即失效，不能等 TTL 自然过期 */
+async function invalidateCoverStatsCache(url: string, ctx?: ExecutionContext): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  const key = coverStatsCacheKey(url);
+  if (!key) return;
+  const drop = caches.default.delete(key).catch(() => undefined);
+  try {
+    ctx?.waitUntil(drop);
+  } catch {
+    // 非 Worker 运行时（测试）没有 waitUntil，直接放弃本次失效
+    void drop;
+  }
+}
+
 export const dataStorageRoutes = new Hono<{ Bindings: Env }>();
 
 dataStorageRoutes.use('*', authMiddleware);
@@ -752,8 +781,37 @@ dataStorageRoutes.post('/detail-jobs/resume', async (c) => {
 // ── 封面管理：覆盖率统计 + 回填开关 ──────────────────────
 
 dataStorageRoutes.get('/covers/stats', async (c) => {
+  // 统计要对 data_records 与两张封面表做全表 join（单次约 4.6 万行读取），
+  // 而封面页在回填开启时按固定间隔静默轮询；缓存后一轮内只需算一次。
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = cache ? coverStatsCacheKey(c.req.url) : null;
+  if (cache && cacheKey) {
+    const hit = await cache.match(cacheKey);
+    if (hit) {
+      return c.json((await hit.json()) as Record<string, unknown>, 200, {
+        'X-Cover-Stats-Cache': 'HIT',
+      });
+    }
+  }
+
   try {
-    return c.json(success(await getCoverStats(c.env)));
+    const payload = success(await getCoverStats(c.env));
+    if (cache && cacheKey) {
+      const cacheable = new Response(JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `max-age=${COVER_STATS_CACHE_TTL_SECONDS}`,
+        },
+      });
+      const put = cache.put(cacheKey, cacheable).catch(() => undefined);
+      try {
+        c.executionCtx.waitUntil(put);
+      } catch {
+        // 非 Worker 运行时（测试）没有 waitUntil，直接丢弃本次写入
+        void put;
+      }
+    }
+    return c.json(payload, 200, { 'X-Cover-Stats-Cache': 'MISS' });
   } catch (err) {
     console.error('[data-storage] cover stats error:', err);
     return c.json(error('SERVER_ERROR', '获取封面统计失败'), 500);
@@ -768,6 +826,7 @@ dataStorageRoutes.put('/covers/settings', validateBody(schemas.dataStorage.updat
       hourlyEnabled: body.hourlyEnabled,
       batchSize: body.batchSize,
     });
+    await invalidateCoverStatsCache(c.req.url, c.executionCtx);
     return c.json(success(await getCoverStats(c.env), '封面回填设置已更新'));
   } catch (err) {
     console.error('[data-storage] cover settings error:', err);
@@ -778,6 +837,7 @@ dataStorageRoutes.put('/covers/settings', validateBody(schemas.dataStorage.updat
 dataStorageRoutes.post('/covers/requeue', async (c) => {
   try {
     const result = await requeueCoverFailures(c.env.DB);
+    await invalidateCoverStatsCache(c.req.url, c.executionCtx);
     return c.json(success(await getCoverStats(c.env), `已重新入队 ${result.requeued} 个失败封面`));
   } catch (err) {
     console.error('[data-storage] cover requeue error:', err);

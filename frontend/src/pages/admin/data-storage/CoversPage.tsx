@@ -76,18 +76,21 @@ export const CoversPage: React.FC = () => {
     load();
   }, [load]);
 
-  // 任一条通道运行中时静默刷新统计，不打断批次输入框
+  // 只有分钟通道开启时才轮询：它每分钟推进，2 分钟看一次进度才有意义。
+  // hourly 是每小时 :05 的兜底通道，开关默认就开着，不能拿它当「正在推进」的依据，
+  // 否则关掉分钟推进后页面仍会反复查全库统计。它的进度由页面打开时和手动刷新获取。
+  // 120 秒短于后端 /covers/stats 的 5 分钟缓存 TTL，避免每轮轮询都撞上过期边界。
   useEffect(() => {
-    if (!stats?.enabled && !stats?.hourlyEnabled) return;
+    if (!stats?.enabled) return;
     const timer = setInterval(async () => {
       try {
         setStats(await dataStorageApi.getCoverStats());
       } catch {
         /* 静默轮询失败不提示，手动刷新可恢复 */
       }
-    }, 60000);
+    }, 120000);
     return () => clearInterval(timer);
-  }, [stats?.enabled, stats?.hourlyEnabled]);
+  }, [stats?.enabled]);
 
   const handleToggle = async (channel: 'minutely' | 'hourly') => {
     if (!stats) return;
