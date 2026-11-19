@@ -237,7 +237,17 @@ export const R2Page: React.FC = () => {
     setter(value);
   };
 
-  const diff = stats?.diff ?? EMPTY_DIFF_STATS;
+  // 逐段兜底而不是整份替换：后端快照可能是旧格式（缺 unparsed 等新字段），
+  // 直接读 stats.diff.unparsed.count 会抛 TypeError（线上已发生过一次）
+  const diff = useMemo<R2DashboardStats['diff']>(
+    () => ({
+      unregistered: stats?.diff?.unregistered ?? EMPTY_DIFF_STATS.unregistered,
+      unparsed: stats?.diff?.unparsed ?? EMPTY_DIFF_STATS.unparsed,
+      ledgerMissing: stats?.diff?.ledgerMissing ?? EMPTY_DIFF_STATS.ledgerMissing,
+      reclaimable: stats?.diff?.reclaimable ?? EMPTY_DIFF_STATS.reclaimable,
+    }),
+    [stats?.diff]
+  );
   const namespaceStats = useMemo<R2NamespaceStat[]>(
     () => (stats?.byNamespace ?? []).filter((row) => row.objects > 0),
     [stats?.byNamespace]

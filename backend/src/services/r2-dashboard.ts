@@ -207,8 +207,82 @@ export async function refreshStatsSnapshot(
 }
 
 /**
+ * 把快照 JSON 归一化成完整结构。
+ *
+ * 为什么必须逐字段补：payload 是历史代码写进数据库的，升级后新字段一定缺失。
+ * 直接透传会让前端在 `diff.unparsed.count` 上抛 TypeError —— 线上已发生一次。
+ * 缺字段补 0 而不是整份作废，是因为其余字段仍然准确，且下一轮扫描会自动补齐。
+ */
+export function normalizePayload(raw: unknown): R2SnapshotPayload | null {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  // 没有 byNamespace 说明不是本模块写入的格式，按未初始化处理
+  if (!Array.isArray(obj.byNamespace)) return null;
+
+  const num = (value: unknown): number => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const record = (value: unknown): Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  /** 统一的 { count, bytes } 二元组；旧快照缺整段时给 0 */
+  const pair = (value: unknown): { count: number; bytes: number } => {
+    const row = record(value);
+    return { count: num(row.count), bytes: num(row.bytes) };
+  };
+  const list = (value: unknown): Record<string, unknown>[] =>
+    Array.isArray(value) ? value.map(record) : [];
+
+  const r2 = record(obj.r2);
+  const ledger = record(obj.ledger);
+  const business = record(obj.business);
+  const diff = record(obj.diff);
+  const ledgerMissing = record(diff.ledgerMissing);
+  const reclaimable = record(diff.reclaimable);
+
+  return {
+    r2: { objects: num(r2.objects), bytes: num(r2.bytes), unparsed: num(r2.unparsed) },
+    ledger: { ready: num(ledger.ready), bytes: num(ledger.bytes) },
+    business: {
+      recordsWithCover: num(business.recordsWithCover),
+      distinctCoverHashes: num(business.distinctCoverHashes),
+    },
+    diff: {
+      unregistered: pair(diff.unregistered),
+      unparsed: pair(diff.unparsed),
+      ledgerMissing: {
+        count: num(ledgerMissing.count),
+        repairable: num(ledgerMissing.repairable),
+        orphan: num(ledgerMissing.orphan),
+      },
+      reclaimable: { days: num(reclaimable.days), ...pair(reclaimable) },
+    },
+    byNamespace: list(obj.byNamespace).map((row) => {
+      const objects = num(row.objects);
+      const registered = num(row.registered);
+      return {
+        namespace: String(row.namespace ?? ''),
+        objects,
+        bytes: num(row.bytes),
+        registered,
+        unregistered: Math.max(0, objects - registered),
+      };
+    }),
+    ageBuckets: list(obj.ageBuckets).map((row) => ({
+      namespace: String(row.namespace ?? ''),
+      b0_30: num(row.b0_30),
+      b31_90: num(row.b31_90),
+      b91_180: num(row.b91_180),
+      b180p: num(row.b180p),
+    })),
+  };
+}
+
+/**
  * 读快照并按当前扫描状态组装看板响应。
- * 解析失败（历史格式变化）按无快照处理，让前端提示重扫，而不是抛 500。
+ * 解析失败或格式不认时按无快照处理，让前端提示重扫，而不是抛 500。
  */
 export async function getR2DashboardStats(env: Env): Promise<R2DashboardStats> {
   const now = Date.now();
@@ -221,9 +295,7 @@ export async function getR2DashboardStats(env: Env): Promise<R2DashboardStats> {
   let payload: R2SnapshotPayload | null = null;
   if (snapshot?.payload) {
     try {
-      const parsed = JSON.parse(snapshot.payload) as R2SnapshotPayload;
-      // 只认有 byNamespace 的完整格式；空快照视为未初始化
-      if (Array.isArray(parsed.byNamespace)) payload = parsed;
+      payload = normalizePayload(JSON.parse(snapshot.payload));
     } catch {
       payload = null;
     }

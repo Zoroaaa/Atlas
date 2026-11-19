@@ -152,6 +152,20 @@ describe('R2 管理看板', () => {
     await waitFor(() => expect(executeButton).toBeEnabled());
   });
 
+  // 回归守卫：快照 payload 是历史代码写进数据库的，升级后新字段必然缺失。
+  // 之前直接读 diff.unparsed.count，旧快照让整页抛 TypeError。
+  it('快照是旧格式、缺少 unparsed 段时不崩溃', async () => {
+    const legacyDiff = { ...stats.diff } as Record<string, unknown>;
+    delete legacyDiff.unparsed;
+    mocks.api.getStats.mockResolvedValue({ ...stats, diff: legacyDiff });
+
+    render(<R2Page />);
+
+    expect((await screen.findAllByText('198,234')).length).toBeGreaterThanOrEqual(1);
+    // 统计卡与回收范围按钮都叫「超期未登记」，这里只关心渲染没有抛错
+    expect(screen.getAllByText('超期未登记').length).toBeGreaterThanOrEqual(1);
+  });
+
   it('没有统计快照时提示数字不可用', async () => {
     mocks.api.getStats.mockResolvedValue({
       ...stats,
