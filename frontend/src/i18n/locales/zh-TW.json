@@ -1898,8 +1898,8 @@
         "unregistered": "未登記物件",
         "ledgerMissing": "帳本標記缺失",
         "ledgerMissingSub": "可修復 {{repairable}} / 孤兒 {{orphan}}",
-        "reclaimable": "可回收空間",
-        "reclaimableSub": "超 {{days}} 天 · {{size}}"
+        "stale": "超期未登記",
+        "staleSub": "超 {{days}} 天 · {{size}}"
       },
       "diff": {
         "title": "按類別分佈",
@@ -1943,8 +1943,15 @@
         "loadFailed": "載入物件列表失敗"
       },
       "reclaim": {
-        "title": "回收懶載入封面",
-        "desc": "只刪除「帳本沒有、也沒有任何記錄引用」且超過指定天數的物件。",
+        "title": "清理 R2 物件",
+        "desc": "兩種範圍風險不同：未解析 key 可以放心刪，超期物件刪除後使用者下次存取會回源。",
+        "scopeUnparsed": "未解析 key",
+        "scopeUnparsedHint": "{{total}} 個 · {{size}}",
+        "scopeExpired": "超期未登記",
+        "scopeExpiredHint": "{{total}} 個 · {{size}}",
+        "unparsedNote": "key 命名不合規、算不出 url_hash，代理永遠不會命中它們，刪除零影響。",
+        "expiredNote": "這些物件仍可能被搜尋頁、收藏、榜單反覆複用。刪除只是把快取命中退回成回源；若上游圖已失效，就是永久遺失。",
+        "executeUnparsed": "清理",
         "days": "早於（天）",
         "namespace": "類別",
         "preview": "預覽",

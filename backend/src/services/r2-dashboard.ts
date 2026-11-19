@@ -63,8 +63,12 @@ export interface R2SnapshotPayload {
   ledger: { ready: number; bytes: number };
   business: { recordsWithCover: number; distinctCoverHashes: number };
   diff: {
+    /** 未登记但在保护期内：正常现象，主体是用户浏览带进来的封面 */
     unregistered: { count: number; bytes: number };
+    /** key 命名不合规、url_hash 为空：代理永远算不出来，可安全清理 */
+    unparsed: { count: number; bytes: number };
     ledgerMissing: { count: number; repairable: number; orphan: number };
+    /** 超期未登记：仅统计不自动删，是否还需人判断 */
     reclaimable: { days: number; count: number; bytes: number };
   };
   byNamespace: R2NamespaceStat[];
@@ -88,6 +92,7 @@ function emptyPayload(days: number): R2SnapshotPayload {
     business: { recordsWithCover: 0, distinctCoverHashes: 0 },
     diff: {
       unregistered: { count: 0, bytes: 0 },
+      unparsed: { count: 0, bytes: 0 },
       ledgerMissing: { count: 0, repairable: 0, orphan: 0 },
       reclaimable: { days, count: 0, bytes: 0 },
     },
@@ -143,6 +148,10 @@ export async function computeStatsPayload(env: Env): Promise<R2SnapshotPayload> 
       unregistered: {
         count: sumCount(unregistered.protected),
         bytes: sumBytes(unregistered.protected),
+      },
+      unparsed: {
+        count: sumCount(unregistered.unparsed),
+        bytes: sumBytes(unregistered.unparsed),
       },
       ledgerMissing: {
         count: sumCount(ledgerLies),

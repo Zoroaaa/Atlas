@@ -29,6 +29,7 @@ const stats = {
   business: { recordsWithCover: 90321, distinctCoverHashes: 85112 },
   diff: {
     unregistered: { count: 35934, bytes: 32_000_000 },
+    unparsed: { count: 3, bytes: 5120 },
     ledgerMissing: { count: 210, repairable: 198, orphan: 12 },
     reclaimable: { days: 90, count: 9120, bytes: 15_000_000 },
   },
@@ -97,6 +98,7 @@ beforeEach(() => {
   mocks.api.getObjects.mockResolvedValue(objectsPage);
   mocks.api.getScanState.mockResolvedValue({ status: 'completed' });
   mocks.api.previewReclaim.mockResolvedValue({
+    scope: 'unparsed',
     days: 90,
     namespace: null,
     candidates: 9120,
@@ -130,17 +132,21 @@ describe('R2 管理看板', () => {
     );
   });
 
-  it('预览后才允许执行回收，并展示候选数量', async () => {
+  it('默认范围是未解析 key，预览后才允许清理', async () => {
     render(<R2Page />);
 
     const previewButton = await screen.findByRole('button', { name: '预览' });
-    const executeButton = screen.getByRole('button', { name: /执行回收/ });
+    const executeButton = screen.getByRole('button', { name: '清理' });
     expect(executeButton).toBeDisabled();
 
     fireEvent.click(previewButton);
 
     await waitFor(() => {
-      expect(mocks.api.previewReclaim).toHaveBeenCalledWith({ days: 90, namespace: undefined });
+      expect(mocks.api.previewReclaim).toHaveBeenCalledWith({
+        scope: 'unparsed',
+        days: 90,
+        namespace: undefined,
+      });
     });
     expect(await screen.findByText(/将删除 9,120 个对象/)).toBeInTheDocument();
     await waitFor(() => expect(executeButton).toBeEnabled());

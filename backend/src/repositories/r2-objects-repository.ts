@@ -414,18 +414,39 @@ export async function countBusinessCovers(
 }
 
 /**
- * 差额 1：R2 有、账本无的对象，按「是否超过回收阈值」拆成可回收与保护期两档。
+ * 差额 1：R2 有、账本无的对象，拆成三档。
+ *
+ * - unparsed    key 命名不合规，url_hash 为空。代理的 key 是 URL 的纯函数，
+ *               这类 key 永远算不出来，也永远不会被命中 —— 唯一可以安全删除的类别
+ * - protected   未超期，正常现象（用户浏览带进来的）
+ * - reclaimable 超期未登记。**不代表没人用**：代理命中后是 302 到 CDN，
+ *               Worker 看不到访问，uploaded_at 只是首次缓存时间。这里只统计不自动删
+ *
  * 用 EXISTS 而不是 JOIN：同一 hash 若出现多行异常 key，JOIN 会把统计放大。
  */
 export async function groupUnregisteredObjects(
   db: D1Database,
   params: { cutoff: number },
-): Promise<{ reclaimable: R2NamespaceCount[]; protected: R2NamespaceCount[] }> {
+): Promise<{
+  unparsed: R2NamespaceCount[];
+  protected: R2NamespaceCount[];
+  reclaimable: R2NamespaceCount[];
+}> {
+  const unparsedQuery = db.prepare(
+    `SELECT o.namespace AS namespace, COUNT(*) AS cnt, COALESCE(SUM(o.byte_size), 0) AS bytes
+       FROM r2_objects o
+      WHERE o.deleted_at IS NULL AND o.reclaimed_at IS NULL
+        AND o.url_hash IS NULL
+      GROUP BY o.namespace ORDER BY bytes DESC`,
+  );
+
+  // url_hash IS NOT NULL：未解析 key 单独归到上一栏，不混进「超期未登记」的统计
   const reclaimableQuery = db
     .prepare(
       `SELECT o.namespace AS namespace, COUNT(*) AS cnt, COALESCE(SUM(o.byte_size), 0) AS bytes
          FROM r2_objects o
         WHERE o.deleted_at IS NULL AND o.reclaimed_at IS NULL
+          AND o.url_hash IS NOT NULL
           AND o.uploaded_at < ?
           AND (o.protect_until IS NULL OR o.protect_until < ?)
           AND NOT EXISTS (SELECT 1 FROM cover_assets a WHERE a.url_hash = o.url_hash)
@@ -446,8 +467,13 @@ export async function groupUnregisteredObjects(
     )
     .bind(params.cutoff);
 
-  const [reclaimable, protectedRows] = await db.batch([reclaimableQuery, protectedQuery]);
+  const [unparsedRows, reclaimable, protectedRows] = await db.batch([
+    unparsedQuery,
+    reclaimableQuery,
+    protectedQuery,
+  ]);
   return {
+    unparsed: (unparsedRows.results || []) as unknown as R2NamespaceCount[],
     reclaimable: (reclaimable.results || []) as unknown as R2NamespaceCount[],
     protected: (protectedRows.results || []) as unknown as R2NamespaceCount[],
   };
@@ -666,18 +692,36 @@ export async function listR2Objects(
 
 // ── 回收 ─────────────────────────────────────────────────
 
+/** 回收范围：unparsed = 命名不合规的 key（永远无法命中，可安全删）；expired = 超期未登记 */
+export type R2ReclaimScope = 'unparsed' | 'expired';
+
 /**
- * 选回收候选：只碰「无账本 + 无记录引用 + 超期 + 保护期已过」的对象。
+ * 选回收候选。
  *
- * 注意：url_hash 为空的未解析 key 也会命中（NOT EXISTS 对 NULL 恒真），
- * 这是期望行为 —— 这类 key 代理永远算不出来，留在 R2 里也取不到。
+ * unparsed：只挑 url_hash 为空的 key。代理的 key 是 URL 的纯函数，这类 key
+ * 永远算不出来，删掉零误伤 —— 这是唯一适合无人值守自动清理的类别。
+ *
+ * expired：无账本 + 无记录引用 + 超期。**不代表没人用**，只代表最近一次写入很久以前；
+ * 代理命中后 302 到 CDN，Worker 看不到访问，所以必须人工确认后再执行。
  */
 export async function selectReclaimCandidates(
   db: D1Database,
-  params: { uploadedBefore: number; namespace?: string; limit: number },
+  params: { scope: R2ReclaimScope; uploadedBefore: number; namespace?: string; limit: number },
 ): Promise<R2ReclaimCandidate[]> {
   const namespaceSql = params.namespace ? 'AND o.namespace = ?' : '';
-  const binds: unknown[] = [params.uploadedBefore, params.uploadedBefore];
+  const binds: unknown[] = [];
+  let scopeSql: string;
+
+  if (params.scope === 'unparsed') {
+    scopeSql = 'AND o.url_hash IS NULL';
+  } else {
+    scopeSql = `AND o.url_hash IS NOT NULL
+          AND o.uploaded_at < ?
+          AND (o.protect_until IS NULL OR o.protect_until < ?)
+          AND NOT EXISTS (SELECT 1 FROM cover_assets a WHERE a.url_hash = o.url_hash)
+          AND NOT EXISTS (SELECT 1 FROM data_record_covers c WHERE c.url_hash = o.url_hash)`;
+    binds.push(params.uploadedBefore, params.uploadedBefore);
+  }
   if (params.namespace) binds.push(params.namespace);
   binds.push(params.limit);
 
@@ -686,11 +730,8 @@ export async function selectReclaimCandidates(
       `SELECT o.object_key, o.url_hash, o.byte_size
          FROM r2_objects o
         WHERE o.deleted_at IS NULL AND o.reclaimed_at IS NULL
-          AND o.uploaded_at < ?
-          AND (o.protect_until IS NULL OR o.protect_until < ?)
+          ${scopeSql}
           ${namespaceSql}
-          AND NOT EXISTS (SELECT 1 FROM cover_assets a WHERE a.url_hash = o.url_hash)
-          AND NOT EXISTS (SELECT 1 FROM data_record_covers c WHERE c.url_hash = o.url_hash)
         ORDER BY o.uploaded_at ASC
         LIMIT ?`,
     )
@@ -699,13 +740,25 @@ export async function selectReclaimCandidates(
   return result.results || [];
 }
 
-/** 计算候选总量与体积；多取一条用于判断是否还有剩余 */
+/** 计算候选总量与体积；与 selectReclaimCandidates 用同一套谓词，避免预览与执行对不上 */
 export async function summarizeReclaimCandidates(
   db: D1Database,
-  params: { uploadedBefore: number; namespace?: string },
+  params: { scope: R2ReclaimScope; uploadedBefore: number; namespace?: string },
 ): Promise<{ count: number; bytes: number; oldest: number | null }> {
   const namespaceSql = params.namespace ? 'AND o.namespace = ?' : '';
-  const binds: unknown[] = [params.uploadedBefore, params.uploadedBefore];
+  const binds: unknown[] = [];
+  let scopeSql: string;
+
+  if (params.scope === 'unparsed') {
+    scopeSql = 'AND o.url_hash IS NULL';
+  } else {
+    scopeSql = `AND o.url_hash IS NOT NULL
+          AND o.uploaded_at < ?
+          AND (o.protect_until IS NULL OR o.protect_until < ?)
+          AND NOT EXISTS (SELECT 1 FROM cover_assets a WHERE a.url_hash = o.url_hash)
+          AND NOT EXISTS (SELECT 1 FROM data_record_covers c WHERE c.url_hash = o.url_hash)`;
+    binds.push(params.uploadedBefore, params.uploadedBefore);
+  }
   if (params.namespace) binds.push(params.namespace);
 
   const row = await db
@@ -713,11 +766,8 @@ export async function summarizeReclaimCandidates(
       `SELECT COUNT(*) AS cnt, COALESCE(SUM(o.byte_size), 0) AS bytes, MIN(o.uploaded_at) AS oldest
          FROM r2_objects o
         WHERE o.deleted_at IS NULL AND o.reclaimed_at IS NULL
-          AND o.uploaded_at < ?
-          AND (o.protect_until IS NULL OR o.protect_until < ?)
-          ${namespaceSql}
-          AND NOT EXISTS (SELECT 1 FROM cover_assets a WHERE a.url_hash = o.url_hash)
-          AND NOT EXISTS (SELECT 1 FROM data_record_covers c WHERE c.url_hash = o.url_hash)`,
+          ${scopeSql}
+          ${namespaceSql}`,
     )
     .bind(...binds)
     .first<{ cnt: number; bytes: number; oldest: number | null }>();

@@ -1,8 +1,14 @@
 /**
- * 懒加载封面的回收：删除「无账本、无记录引用、超期」的 R2 对象。
+ * R2 对象回收。
  *
- * 这些对象是用户浏览代理接口时写进 R2 的，账本里没有记录，现有 GC
- * （gcOrphanCoverAssets）只处理有账本行的对象，它们永远不会被回收。
+ * 两种 scope，风险完全不同：
+ *   unparsed  key 命名不合规、url_hash 为空。代理的 key 是 URL 的纯函数，
+ *             这类 key 永远算不出来，删掉零误伤 —— 唯一适合无人值守清理的类别。
+ *   expired   无账本 + 无记录引用 + 超期。**不代表没人用**：代理命中后是 302 到 CDN，
+ *             Worker 看不到访问，uploaded_at 只是「首次缓存时间」。删除会让用户
+ *             下次访问回源重建；若上游图已失效，就永久丢失。只能人工确认后执行。
+ *
+ * 因此每日 cron 只跑 unparsed；expired 只提供手动入口。
  *
  * 约束：只删对象、不写墓碑 —— 墓碑是上游抓取失败的负缓存，回收后我们希望
  * 下一次访问立即回源重建，写墓碑反而会抑制重建，还会污染对象计数。
@@ -16,18 +22,20 @@ import {
   recheckReclaimCandidates,
   selectReclaimCandidates,
   summarizeReclaimCandidates,
+  type R2ReclaimScope,
 } from '@/repositories/r2-objects-repository';
 import { getR2Settings } from './r2-settings';
 import { refreshStatsSnapshot } from './r2-dashboard';
 
 /** R2 批量删除单次上限（官方 1000）；取 500 留余量，失败时损失面更小 */
 const DELETE_CHUNK_KEYS = 500;
-/** 自动回收单次上限：每天 500 个，删错了也不会一次抹掉大片 */
+/** 无人值守清理的单次上限：只删未解析 key，量本来就小 */
 const AUTO_RECLAIM_LIMIT = 500;
 /** 回收记录保留 30 天供排障，之后物理删除，避免表只增不减 */
 const PURGE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface ReclaimPreview {
+  scope: R2ReclaimScope;
   days: number;
   namespace: string | null;
   candidates: number;
@@ -37,6 +45,7 @@ export interface ReclaimPreview {
 }
 
 export interface ReclaimResult {
+  scope: R2ReclaimScope;
   deleted: number;
   failed: number;
   bytesFreed: number;
@@ -54,20 +63,22 @@ async function deleteObjectKeys(env: Env, keys: string[]): Promise<void> {
 }
 
 /**
- * 预览：只统计，不删。前端必须先把这三个数字展示给管理员再确认。
- * limit 用 summarize 内部不带 LIMIT 的聚合，准确反映总量。
+ * 预览：只统计，不删。前端必须先把数量与体积展示给管理员再确认。
+ * unparsed 不使用天数条件：这类 key 没有任何被命中的可能。
  */
 export async function previewReclaim(
   env: Env,
-  params: { days: number; namespace?: string; limit: number },
+  params: { scope: R2ReclaimScope; days: number; namespace?: string; limit: number },
 ): Promise<ReclaimPreview> {
   const uploadedBefore = Date.now() - params.days * 24 * 60 * 60 * 1000;
   const summary = await summarizeReclaimCandidates(env.DB, {
+    scope: params.scope,
     uploadedBefore,
     namespace: params.namespace,
   });
 
   return {
+    scope: params.scope,
     days: params.days,
     namespace: params.namespace ?? null,
     candidates: summary.count,
@@ -81,21 +92,29 @@ export async function previewReclaim(
  * 执行回收。
  *
  * 三步闸门，任何一步不过都不删：
- *   1. SQL 侧：无账本行 + 无记录引用 + 保护期已过 + 超过天数
+ *   1. SQL 侧：按 scope 过滤（unparsed 只认 url_hash IS NULL；
+ *      expired 还要求无账本、无引用、超期、保护期已过）
  *   2. 删之前按 key 再复核一遍（预览到执行之间回填器可能刚写入账本）
  *   3. R2 删除失败则整批不标记账，对象与快照保持一致
  */
-export async function reclaimLazyCovers(
+export async function reclaimR2Objects(
   env: Env,
-  params: { days: number; namespace?: string; limit: number },
+  params: { scope: R2ReclaimScope; days: number; namespace?: string; limit: number },
 ): Promise<ReclaimResult> {
-  const empty: ReclaimResult = { deleted: 0, failed: 0, bytesFreed: 0, hasMore: false };
+  const empty: ReclaimResult = {
+    scope: params.scope,
+    deleted: 0,
+    failed: 0,
+    bytesFreed: 0,
+    hasMore: false,
+  };
   if (!env.MEDIA) return empty;
 
   const now = Date.now();
   const uploadedBefore = now - params.days * 24 * 60 * 60 * 1000;
 
   const candidates = await selectReclaimCandidates(env.DB, {
+    scope: params.scope,
     uploadedBefore,
     namespace: params.namespace,
     limit: params.limit,
@@ -127,9 +146,8 @@ export async function reclaimLazyCovers(
     // 删除失败不标记：下一轮扫描仍能看到对象，重试是安全的
     console.error('[r2-reclaim] 删除 R2 对象失败:', err);
     return {
-      deleted: 0,
+      ...empty,
       failed: safeKeys.length,
-      bytesFreed: 0,
       hasMore: candidates.length === params.limit,
     };
   }
@@ -146,6 +164,7 @@ export async function reclaimLazyCovers(
   }
 
   return {
+    scope: params.scope,
     deleted: safeKeys.length,
     failed: candidates.length - safeKeys.length,
     bytesFreed,
@@ -154,14 +173,27 @@ export async function reclaimLazyCovers(
 }
 
 /**
- * 每日自动回收：受 r2_reclaim_enabled / r2_reclaim_days 控制。
+ * 每日自动清理：只删未解析 key，不碰任何可能被复用的对象。
+ *
+ * 为什么不再按天数自动删「超期未登记」：那些对象是用户浏览过的封面，
+ * 搜索页、收藏、历史、榜单都会反复请求同一批 URL。命中走 CDN，Worker 看不到，
+ * 所以无法判断它们是否还在被用；删了只是把命中退回成回源，
+ * 省下的存储费远小于上游压力与延迟，且上游已失效的图会永久丢失。
+ *
  * 顺带清理 30 天前已标记删除的快照行。
  */
 export async function runR2AutoReclaim(
   env: Env,
   limit = AUTO_RECLAIM_LIMIT,
 ): Promise<ReclaimResult & { purged: number }> {
-  const empty = { deleted: 0, failed: 0, bytesFreed: 0, hasMore: false, purged: 0 };
+  const empty: ReclaimResult & { purged: number } = {
+    scope: 'unparsed',
+    deleted: 0,
+    failed: 0,
+    bytesFreed: 0,
+    hasMore: false,
+    purged: 0,
+  };
   if (!env.MEDIA) return empty;
 
   const settings = await getR2Settings(env.DB);
@@ -175,7 +207,8 @@ export async function runR2AutoReclaim(
 
   if (!settings.reclaimEnabled) return { ...empty, purged };
 
-  const result = await reclaimLazyCovers(env, {
+  const result = await reclaimR2Objects(env, {
+    scope: 'unparsed',
     days: settings.reclaimDays,
     limit,
   });

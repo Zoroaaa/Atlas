@@ -1898,8 +1898,8 @@
         "unregistered": "未登记对象",
         "ledgerMissing": "账本标记缺失",
         "ledgerMissingSub": "可修复 {{repairable}} / 孤儿 {{orphan}}",
-        "reclaimable": "可回收空间",
-        "reclaimableSub": "超 {{days}} 天 · {{size}}"
+        "stale": "超期未登记",
+        "staleSub": "超 {{days}} 天 · {{size}}"
       },
       "diff": {
         "title": "按类别分布",
@@ -1943,8 +1943,15 @@
         "loadFailed": "加载对象列表失败"
       },
       "reclaim": {
-        "title": "回收懒加载封面",
-        "desc": "只删除「账本没有、也没有任何记录引用」且超过指定天数的对象。",
+        "title": "清理 R2 对象",
+        "desc": "两种范围风险不同：未解析 key 可以放心删，超期对象删除后用户下次访问会回源。",
+        "scopeUnparsed": "未解析 key",
+        "scopeUnparsedHint": "{{total}} 个 · {{size}}",
+        "scopeExpired": "超期未登记",
+        "scopeExpiredHint": "{{total}} 个 · {{size}}",
+        "unparsedNote": "key 命名不合规、算不出 url_hash，代理永远不会命中它们，删除零影响。",
+        "expiredNote": "这些对象仍可能被搜索页、收藏、榜单反复复用。删除只是把缓存命中退回成回源；若上游图已失效，就是永久丢失。",
+        "executeUnparsed": "清理",
         "days": "早于（天）",
         "namespace": "类别",
         "preview": "预览",

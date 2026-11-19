@@ -36,6 +36,7 @@ import type {
   R2NamespaceStat,
   R2ObjectRow,
   R2ReclaimPreview,
+  R2ReclaimScope,
   R2ScanStatus,
 } from '@/types';
 import { StoragePageHeader, formatBytes } from './shared';
@@ -54,6 +55,7 @@ const SCAN_STATUS_STYLE: Record<R2ScanStatus, string> = {
 
 const EMPTY_DIFF_STATS: R2DashboardStats['diff'] = {
   unregistered: { count: 0, bytes: 0 },
+  unparsed: { count: 0, bytes: 0 },
   ledgerMissing: { count: 0, repairable: 0, orphan: 0 },
   reclaimable: { days: 90, count: 0, bytes: 0 },
 };
@@ -80,6 +82,8 @@ export const R2Page: React.FC = () => {
   const [minAgeDays, setMinAgeDays] = useState('');
   const [sort, setSort] = useState<'uploaded' | 'size'>('uploaded');
 
+  // 默认落在「未解析 key」：它零误伤，超期回收需要人工判断
+  const [reclaimScope, setReclaimScope] = useState<R2ReclaimScope>('unparsed');
   const [reclaimDays, setReclaimDays] = useState(90);
   const [reclaimNamespace, setReclaimNamespace] = useState('');
   const [preview, setPreview] = useState<R2ReclaimPreview | null>(null);
@@ -182,6 +186,7 @@ export const R2Page: React.FC = () => {
     setPreviewing(true);
     try {
       const result = await r2AdminApi.previewReclaim({
+        scope: reclaimScope,
         days: reclaimDays,
         namespace: reclaimNamespace || undefined,
       });
@@ -197,6 +202,7 @@ export const R2Page: React.FC = () => {
     setReclaiming(true);
     try {
       const result = await r2AdminApi.reclaim({
+        scope: reclaimScope,
         days: reclaimDays,
         namespace: reclaimNamespace || undefined,
       });
@@ -345,10 +351,10 @@ export const R2Page: React.FC = () => {
         />
         <StatCard
           icon={Trash2}
-          label={t('admin:r2.stat.reclaimable')}
+          label={t('admin:r2.stat.stale')}
           value={diff.reclaimable.count}
           color="teal"
-          subLabel={t('admin:r2.stat.reclaimableSub', {
+          subLabel={t('admin:r2.stat.staleSub', {
             days: diff.reclaimable.days,
             size: formatBytes(diff.reclaimable.bytes),
           })}
@@ -457,7 +463,7 @@ export const R2Page: React.FC = () => {
             )}
           </div>
 
-          {/* 回收卡片：预览 → 输入确认词 → 执行 */}
+          {/* 回收卡片：范围决定风险，未解析 key 可直接清理，超期对象必须人工确认 */}
           <div className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-5 space-y-3">
             <div>
               <h3 className="font-semibold text-surface-900 dark:text-surface-100">
@@ -465,22 +471,78 @@ export const R2Page: React.FC = () => {
               </h3>
               <p className="text-xs text-surface-500 mt-1">{t('admin:r2.reclaim.desc')}</p>
             </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReclaimScope('unparsed');
+                  setPreview(null);
+                }}
+                className={clsx(
+                  'flex-1 rounded-lg border px-2 py-1.5 text-xs text-left transition-colors',
+                  reclaimScope === 'unparsed'
+                    ? 'border-green-400 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400'
+                    : 'border-surface-200 text-surface-500 dark:border-surface-700'
+                )}
+              >
+                <span className="block font-medium">{t('admin:r2.reclaim.scopeUnparsed')}</span>
+                <span className="block text-[11px] opacity-80">
+                  {t('admin:r2.reclaim.scopeUnparsedHint', {
+                    total: diff.unparsed.count.toLocaleString(),
+                    size: formatBytes(diff.unparsed.bytes),
+                  })}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReclaimScope('expired');
+                  setPreview(null);
+                }}
+                className={clsx(
+                  'flex-1 rounded-lg border px-2 py-1.5 text-xs text-left transition-colors',
+                  reclaimScope === 'expired'
+                    ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                    : 'border-surface-200 text-surface-500 dark:border-surface-700'
+                )}
+              >
+                <span className="block font-medium">{t('admin:r2.reclaim.scopeExpired')}</span>
+                <span className="block text-[11px] opacity-80">
+                  {t('admin:r2.reclaim.scopeExpiredHint', {
+                    total: diff.reclaimable.count.toLocaleString(),
+                    size: formatBytes(diff.reclaimable.bytes),
+                  })}
+                </span>
+              </button>
+            </div>
+
+            {reclaimScope === 'unparsed' ? (
+              <p className="text-[11px] text-surface-500">{t('admin:r2.reclaim.unparsedNote')}</p>
+            ) : (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                {t('admin:r2.reclaim.expiredNote')}
+              </p>
+            )}
+
             <div className="flex flex-wrap items-end gap-2">
-              <label className="text-xs text-surface-500 space-y-1">
-                <span className="block">{t('admin:r2.reclaim.days')}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={3650}
-                  value={reclaimDays}
-                  onChange={(e) => {
-                    const next = Number(e.target.value);
-                    setReclaimDays(Number.isFinite(next) ? next : 0);
-                    setPreview(null);
-                  }}
-                  className="w-24"
-                />
-              </label>
+              {reclaimScope === 'expired' && (
+                <label className="text-xs text-surface-500 space-y-1">
+                  <span className="block">{t('admin:r2.reclaim.days')}</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={reclaimDays}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      setReclaimDays(Number.isFinite(next) ? next : 0);
+                      setPreview(null);
+                    }}
+                    className="w-24"
+                  />
+                </label>
+              )}
               <label className="text-xs text-surface-500 space-y-1">
                 <span className="block">{t('admin:r2.reclaim.namespace')}</span>
                 <select
@@ -497,19 +559,29 @@ export const R2Page: React.FC = () => {
                   ))}
                 </select>
               </label>
-              <Button variant="outline" size="sm" onClick={handlePreview} disabled={previewing || reclaimDays < 1}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreview}
+                disabled={previewing || (reclaimScope === 'expired' && reclaimDays < 1)}
+              >
                 {previewing ? t('admin:r2.reclaim.previewing') : t('admin:r2.reclaim.preview')}
               </Button>
               <Button
-                variant="danger"
+                variant={reclaimScope === 'unparsed' ? 'outline' : 'danger'}
                 size="sm"
                 onClick={() => setConfirmOpen(true)}
                 disabled={!preview || preview.candidates === 0 || reclaiming}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="ml-1">{t('admin:r2.reclaim.execute')}</span>
+                <span className="ml-1">
+                  {reclaimScope === 'unparsed'
+                    ? t('admin:r2.reclaim.executeUnparsed')
+                    : t('admin:r2.reclaim.execute')}
+                </span>
               </Button>
             </div>
+
             {preview && (
               <div className="rounded-lg bg-surface-50 dark:bg-surface-900/50 p-3 text-xs space-y-1">
                 {preview.candidates > 0 ? (
@@ -534,7 +606,6 @@ export const R2Page: React.FC = () => {
                 )}
               </div>
             )}
-            <p className="text-[11px] text-surface-400">{t('admin:r2.note.recover')}</p>
           </div>
         </div>
       </div>
@@ -692,6 +763,7 @@ export const R2Page: React.FC = () => {
         <p className="font-medium text-surface-700 dark:text-surface-300">{t('admin:r2.note.title')}</p>
         <p>{t('admin:r2.note.body')}</p>
         <p>{t('admin:r2.note.scope')}</p>
+        <p>{t('admin:r2.note.recover')}</p>
       </div>
 
       <Modal

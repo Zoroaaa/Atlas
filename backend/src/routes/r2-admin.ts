@@ -16,7 +16,7 @@ import { validateBody, schemas } from '@/validation';
 import { getStatsVersion, listR2Objects, getScanState, requestManualScan } from '@/repositories/r2-objects-repository';
 import { getR2DashboardStats } from '@/services/r2-dashboard';
 import { runR2ScanTickSafe } from '@/services/r2-scan';
-import { previewReclaim, reclaimLazyCovers } from '@/services/r2-reclaim';
+import { previewReclaim, reclaimR2Objects } from '@/services/r2-reclaim';
 
 /** 统计缓存 TTL：与封面页一致 5 分钟；前端轮询间隔短于此值也不会打穿 */
 const STATS_CACHE_TTL_SECONDS = 300;
@@ -217,6 +217,7 @@ r2AdminRoutes.post(
     const body = c.get('validatedBody') as z.infer<typeof schemas.r2Admin.previewReclaim>;
     try {
       return c.json(success(await previewReclaim(c.env, {
+        scope: body.scope,
         days: body.days,
         namespace: body.namespace,
         limit: DEFAULT_RECLAIM_LIMIT,
@@ -249,7 +250,8 @@ r2AdminRoutes.post(
 
     const body = c.get('validatedBody') as z.infer<typeof schemas.r2Admin.reclaim>;
     try {
-      const result = await reclaimLazyCovers(c.env, {
+      const result = await reclaimR2Objects(c.env, {
+        scope: body.scope,
         days: body.days,
         namespace: body.namespace,
         limit: body.limit ?? DEFAULT_RECLAIM_LIMIT,

@@ -1898,8 +1898,8 @@
         "unregistered": "Unregistered",
         "ledgerMissing": "Ledger says missing",
         "ledgerMissingSub": "Repairable {{repairable}} / orphan {{orphan}}",
-        "reclaimable": "Reclaimable",
-        "reclaimableSub": "Older than {{days}}d · {{size}}"
+        "stale": "Stale, unregistered",
+        "staleSub": "Older than {{days}}d · {{size}}"
       },
       "diff": {
         "title": "Distribution by category",
@@ -1943,8 +1943,15 @@
         "loadFailed": "Failed to load objects"
       },
       "reclaim": {
-        "title": "Reclaim lazy-loaded covers",
-        "desc": "Deletes only objects that are absent from the ledger, referenced by no record, and older than the given days.",
+        "title": "Clean up R2 objects",
+        "desc": "Two scopes with different risk: unparsed keys are safe to delete; expired objects fall back to origin on next view.",
+        "scopeUnparsed": "Unparsed keys",
+        "scopeUnparsedHint": "{{total}} · {{size}}",
+        "scopeExpired": "Stale, unregistered",
+        "scopeExpiredHint": "{{total}} · {{size}}",
+        "unparsedNote": "Keys that do not match the naming rule, so url_hash cannot be derived. The proxy can never hit them; deleting has no impact.",
+        "expiredNote": "These objects may still be reused by search, favorites and rankings. Deleting only turns a cache hit into an origin fetch; if the upstream image is gone, it is lost for good.",
+        "executeUnparsed": "Clean up",
         "days": "Older than (days)",
         "namespace": "Category",
         "preview": "Preview",

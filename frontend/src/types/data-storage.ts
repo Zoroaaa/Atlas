@@ -179,8 +179,12 @@ export interface R2DashboardStats {
   ledger: { ready: number; bytes: number };
   business: { recordsWithCover: number; distinctCoverHashes: number };
   diff: {
+    /** 未登记但在保护期内：正常现象，主体是用户浏览带进来的封面 */
     unregistered: { count: number; bytes: number };
+    /** key 命名不合规、url_hash 为空：代理永远算不出来，可安全清理 */
+    unparsed: { count: number; bytes: number };
     ledgerMissing: { count: number; repairable: number; orphan: number };
+    /** 超期未登记：仍可能被复用，只统计不自动删 */
     reclaimable: { days: number; count: number; bytes: number };
   };
   byNamespace: R2NamespaceStat[];
@@ -228,7 +232,10 @@ export interface R2ObjectsPage {
   pageLimitHit: boolean;
 }
 
+export type R2ReclaimScope = 'unparsed' | 'expired';
+
 export interface R2ReclaimPreview {
+  scope: R2ReclaimScope;
   days: number;
   namespace: string | null;
   candidates: number;
@@ -238,6 +245,7 @@ export interface R2ReclaimPreview {
 }
 
 export interface R2ReclaimResult {
+  scope: R2ReclaimScope;
   deleted: number;
   failed: number;
   bytesFreed: number;

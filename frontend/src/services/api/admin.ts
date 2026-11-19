@@ -32,6 +32,7 @@ import type {
   R2ObjectsQuery,
   R2ReclaimPreview,
   R2ReclaimResult,
+  R2ReclaimScope,
   R2ScanStatus,
 } from '@/types';
 
@@ -1090,6 +1091,7 @@ export const r2AdminApi = {
 
   /** 预览可回收对象：只统计，不删除 */
   previewReclaim: async (params: {
+    scope: R2ReclaimScope;
     days: number;
     namespace?: string;
   }): Promise<R2ReclaimPreview> => {
@@ -1102,6 +1104,7 @@ export const r2AdminApi = {
 
   /** 执行回收：需要超级管理员；删除后对象由代理在下次访问时自动重建 */
   reclaim: async (params: {
+    scope: R2ReclaimScope;
     days: number;
     namespace?: string;
     limit?: number;
