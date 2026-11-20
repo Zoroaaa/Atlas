@@ -3139,6 +3139,7 @@
       "colorLabel": "Color",
       "parentMajor": "Parent Major Category",
       "selectMajor": "Select a major category",
+      "selectMajorRequired": "Please select a parent major category",
       "defaultSearchable": "Searchable by default",
       "siteType": "Site Type",
       "customizeTitle": "Customize System Source",

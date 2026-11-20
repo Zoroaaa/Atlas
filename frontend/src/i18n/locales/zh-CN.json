@@ -3139,6 +3139,7 @@
       "colorLabel": "颜色",
       "parentMajor": "所属大类",
       "selectMajor": "选择大类",
+      "selectMajorRequired": "请选择所属大类",
       "defaultSearchable": "默认可搜索",
       "siteType": "站点类型",
       "customizeTitle": "自定义系统源",

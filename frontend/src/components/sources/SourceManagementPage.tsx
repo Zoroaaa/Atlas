@@ -351,8 +351,12 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
   };
 
   const saveCategory = async () => {
-    if (!categoryForm.name.trim() || !categoryForm.majorCategoryId) {
+    if (!categoryForm.name.trim()) {
       toast.error(t('dashboard:categories.categoryNameRequired'));
+      return;
+    }
+    if (!categoryForm.majorCategoryId) {
+      toast.error(t('dashboard:mySources.selectMajorRequired'));
       return;
     }
     try {
@@ -378,6 +382,8 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
           ? t('dashboard:categories.createSuccess')
           : t('dashboard:categories.updateSuccess'));
         setCategoryModal({ open: false, mode: 'create', item: null, majorCategoryId: '' });
+        // 从系统源 Tab 新建个人分类后切回「我的源」，让用户能继续在分类下建源
+        if (isUserScope && categoryModal.mode === 'create') setTab('mine');
         invalidate();
       }
     } catch {
@@ -705,7 +711,16 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
             <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-stone-400">{major.description}</p>
           )}
         </div>
-        {mode !== 'system' && (
+        {mode === 'system' && isUserScope ? (
+          <button
+            type="button"
+            onClick={() => openCreateCategory(major.id)}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            {t('dashboard:mySources.addCategory')}
+          </button>
+        ) : mode !== 'system' && (
           <div className="flex items-center gap-1">
             <IconButton title={t('dashboard:mySources.addCategory')} onClick={() => openCreateCategory(major.id)}>
               <FolderPlus className="h-3.5 w-3.5" />
@@ -760,9 +775,19 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isUserScope && (
-            <Button variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={() => exportSources('json')}>
-              {t('dashboard:sources.export')}
-            </Button>
+            <>
+              <Button variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={() => exportSources('json')}>
+                {t('dashboard:sources.export')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<FolderPlus className="h-4 w-4" />}
+                onClick={() => openCreateCategory('')}
+              >
+                {t('dashboard:mySources.addCategory')}
+              </Button>
+            </>
           )}
           <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreateMajor}>
             {t('dashboard:mySources.addMajor')}
@@ -798,9 +823,14 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
               title={t('dashboard:mySources.emptyMineTitle')}
               description={t('dashboard:mySources.emptyMineDesc')}
               action={
-                <Button variant="primary" onClick={openCreateMajor} leftIcon={<Plus className="h-4 w-4" />}>
-                  {t('dashboard:mySources.addMajor')}
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="primary" onClick={openCreateMajor} leftIcon={<Plus className="h-4 w-4" />}>
+                    {t('dashboard:mySources.addMajor')}
+                  </Button>
+                  <Button variant="secondary" onClick={() => openCreateCategory('')} leftIcon={<FolderPlus className="h-4 w-4" />}>
+                    {t('dashboard:mySources.addCategory')}
+                  </Button>
+                </div>
               }
             />
           ) : (
