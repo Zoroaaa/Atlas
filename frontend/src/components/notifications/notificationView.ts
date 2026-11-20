@@ -4,6 +4,8 @@ import type { NotificationItem } from '@/types';
 export interface NotificationView {
   title: string;
   body: string;
+  /** 关注对象 key：新作/发售类通知跳关注动态并筛选到该对象 */
+  followKey?: string;
   /** 点击后跳转搜索的番号 */
   code?: string;
   /** 社区互动通知对应的帖子 ID（供跳转帖子详情使用） */
@@ -19,6 +21,7 @@ export function describeNotification(item: NotificationItem, t: TFunction): Noti
     return {
       title: t('notify:newWork', { name, count }),
       body: works.slice(0, 3).map((w) => w.code).join('、') + (count > 3 ? '…' : ''),
+      followKey: item.payload.key,
       code: works[0]?.code,
     };
   }
@@ -50,5 +53,26 @@ export function describeNotification(item: NotificationItem, t: TFunction): Noti
       postId: item.payload.postId,
     };
   }
-  return { title: item.title, body: item.body, code: undefined };
+  // 发售提醒等后续关注类通知复用同一落地页；带 key 才跳，避免旧数据跳到空筛选
+  if (item.type.startsWith('follow.') && item.payload.key) {
+    return { title: item.title, body: item.body, followKey: item.payload.key };
+  }
+  return { title: item.title, body: item.body };
+}
+
+/** 番号搜索落地页：必须走 `/main`，`/` 是落地介绍页，不解析 q/tab 参数。 */
+export function searchPathForCode(code: string): string {
+  return `/main?tab=jav&q=${encodeURIComponent(code)}&sub=code`;
+}
+
+/**
+ * 通知点击后的落地页。优先级按「最具体 → 最宽泛」：
+ * 帖子详情 → 关注动态（筛到该关注对象）→ 番号搜索。
+ * 公告没有独立页面，返回 null 由调用方留在通知中心看详情。
+ */
+export function notificationTargetPath(view: NotificationView): string | null {
+  if (view.postId) return `/community/post/${encodeURIComponent(view.postId)}`;
+  if (view.followKey) return `/dashboard/follow-feed?entity=${encodeURIComponent(view.followKey)}`;
+  if (view.code) return searchPathForCode(view.code);
+  return null;
 }

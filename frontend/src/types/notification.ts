@@ -17,6 +17,8 @@ export interface NotificationItem {
     name?: string;
     count?: number;
     works?: NotificationWork[];
+    /** 关注类通知：被关注的实体类型与 watch key，用于跳关注动态并按对象筛选 */
+    entityType?: string;
     /** 社区互动事件 */
     postId?: string;
     postTitle?: string;

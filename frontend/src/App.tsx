@@ -84,6 +84,7 @@ const GuardRoute: React.FC<GuardRouteProps> = ({ children, requiredRole, require
 
 const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
+  const location = useLocation();
   
   if (isLoading) {
     return (
@@ -94,7 +95,10 @@ const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
   
   if (isAuthenticated) {
-    return <Navigate to="/main" replace />;
+    // 旧链接把搜索参数挂在 `/` 上（通知、关注管理、热门关键词），
+    // 直接跳 /main 会丢掉 q/tab/sub，用户落到空白搜索页
+    const search = location.pathname === '/' ? location.search : '';
+    return <Navigate to={`/main${search}`} replace />;
   }
   
   return <>{children}</>;

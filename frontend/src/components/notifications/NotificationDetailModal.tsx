@@ -1,24 +1,23 @@
 import React from 'react';
-import { ExternalLink, Search } from 'lucide-react';
+import { ExternalLink, Rss, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button, Modal } from '@/components/ui';
 import { formatRelativeTime } from '@/utils/relativeTime';
 import type { NotificationItem } from '@/types';
-import { describeNotification } from './notificationView';
+import { describeNotification, notificationTargetPath, searchPathForCode } from './notificationView';
 
 interface NotificationDetailModalProps {
   item: NotificationItem | null;
   onClose: () => void;
-  onOpenPost: (postId: string) => void;
-  onSearchCode: (code: string) => void;
+  /** 统一跳转出口；传 null 表示该通知没有独立落地页（如公告） */
+  onNavigate: (path: string) => void;
 }
 
 /** 通知/公告详情：列表保持摘要，完整内容在这里换行展示 */
 export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = ({
   item,
   onClose,
-  onOpenPost,
-  onSearchCode,
+  onNavigate,
 }) => {
   const { t, i18n } = useTranslation(['notify']);
 
@@ -28,22 +27,20 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
   const body = item.body || view.body;
   const works = item.type === 'follow.new_work' ? item.payload.works ?? [] : [];
   const relatedPostTitle = item.type.startsWith('community.') ? item.payload.postTitle : undefined;
+  const target = notificationTargetPath(view);
 
-  const footer = view.postId ? (
+  // 按钮文案跟落地页一一对应，避免「查看帖子」点到搜索页这类误导
+  const footer = target ? (
     <Button
       size="sm"
-      leftIcon={<ExternalLink className="h-4 w-4" />}
-      onClick={() => onOpenPost(view.postId!)}
+      leftIcon={view.postId
+        ? <ExternalLink className="h-4 w-4" />
+        : view.followKey ? <Rss className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+      onClick={() => onNavigate(target)}
     >
-      {t('notify:detail.viewPost')}
-    </Button>
-  ) : view.code ? (
-    <Button
-      size="sm"
-      leftIcon={<Search className="h-4 w-4" />}
-      onClick={() => onSearchCode(view.code!)}
-    >
-      {t('notify:detail.searchCode')}
+      {view.postId
+        ? t('notify:detail.viewPost')
+        : view.followKey ? t('notify:detail.viewFollowFeed') : t('notify:detail.searchCode')}
     </Button>
   ) : undefined;
 
@@ -71,7 +68,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
                 <li key={work.code}>
                   <button
                     type="button"
-                    onClick={() => onSearchCode(work.code)}
+                    onClick={() => onNavigate(searchPathForCode(work.code))}
                     className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm text-surface-700 transition-colors hover:bg-surface-50 dark:text-surface-300 dark:hover:bg-surface-800/60"
                   >
                     <span className="shrink-0 font-mono text-xs text-primary-600 dark:text-primary-400">{work.code}</span>

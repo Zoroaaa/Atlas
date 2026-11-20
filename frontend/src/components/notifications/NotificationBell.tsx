@@ -8,7 +8,7 @@ import { Pagination } from '@/components/workbench';
 import { useUnreadCount, useNotificationInbox, useMarkNotificationsRead } from '@/hooks';
 import type { NotificationItem } from '@/types';
 import { registerBackHandler } from '@/utils/backStack';
-import { describeNotification } from './notificationView';
+import { describeNotification, notificationTargetPath } from './notificationView';
 
 const PAGE_SIZE = 10;
 /** 顶部导航高度（h-16），移动端面板从这里展开 */
@@ -80,15 +80,13 @@ export const NotificationBell: React.FC = () => {
 
   const close = () => setOpen(false);
 
-  const handleItemClick = (item: NotificationItem, code?: string, postId?: string) => {
+  const handleItemClick = (item: NotificationItem, target: string | null) => {
     if (!item.isRead) markRead.mutate([item.id]);
-    if (code) {
+    if (target) {
       close();
-      navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
-    } else if (postId) {
-      close();
-      navigate(`/community/post/${postId}`);
+      navigate(target);
     } else if (item.source === 'announcement' || item.type.startsWith('community.')) {
+      // 公告没有独立页面，社区通知缺帖子 ID 时也回落到收件箱看详情
       close();
       navigate('/dashboard/notifications');
     }
@@ -173,7 +171,7 @@ export const NotificationBell: React.FC = () => {
                           <li key={item.id}>
                             <button
                               type="button"
-                              onClick={() => handleItemClick(item, view.code, view.postId)}
+                              onClick={() => handleItemClick(item, notificationTargetPath(view))}
                               className="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/50"
                             >
                               <span className={clsx('mt-1.5 h-2 w-2 shrink-0 rounded-full', item.isRead ? 'bg-transparent' : 'bg-rose-500')} />

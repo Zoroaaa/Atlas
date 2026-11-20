@@ -9,7 +9,7 @@ import {
   useNotificationInbox, useMarkNotificationsRead, useRemoveNotifications,
   useNotificationPreferences, useNotificationPreferenceActions, useToast,
 } from '@/hooks';
-import { describeNotification } from '@/components/notifications/notificationView';
+import { describeNotification, notificationTargetPath } from '@/components/notifications/notificationView';
 import { NotificationDetailModal } from '@/components/notifications/NotificationDetailModal';
 import { formatRelativeTime } from '@/utils/relativeTime';
 import type { NotificationItem } from '@/types';
@@ -90,6 +90,7 @@ const Inbox: React.FC = () => {
           <ul className="divide-y divide-surface-100 dark:divide-surface-800">
             {items.map((item) => {
               const view = describeNotification(item, t);
+              const target = notificationTargetPath(view);
               return (
                 <li key={item.id} className="flex items-start gap-3 px-2 py-3">
                   <span className={clsx('mt-2 h-2 w-2 shrink-0 rounded-full', item.isRead ? 'bg-transparent' : 'bg-rose-500')} />
@@ -109,12 +110,12 @@ const Inbox: React.FC = () => {
                     </button>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    {view.code ? (
+                    {target ? (
                       <button
                         type="button"
                         onClick={() => {
                           if (!item.isRead) markRead.mutate([item.id]);
-                          navigate(`/?q=${encodeURIComponent(view.code!)}&tab=jav&sub=code`);
+                          navigate(target);
                         }}
                         className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800"
                         title={t('notify:page.open')} aria-label={t('notify:page.open')}
@@ -156,13 +157,9 @@ const Inbox: React.FC = () => {
       <NotificationDetailModal
         item={detailItem}
         onClose={() => setDetailItem(null)}
-        onOpenPost={(postId) => {
+        onNavigate={(path) => {
           setDetailItem(null);
-          navigate(`/community/post/${postId}`);
-        }}
-        onSearchCode={(code) => {
-          setDetailItem(null);
-          navigate(`/?q=${encodeURIComponent(code)}&tab=jav&sub=code`);
+          navigate(path);
         }}
       />
     </div>

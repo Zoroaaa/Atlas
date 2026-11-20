@@ -66,9 +66,9 @@ export const FollowsManager: React.FC = () => {
     void runBatch((key) => followApi.unfollow(key));
   };
 
-  const openActress = (name: string) => navigate(`/?q=${encodeURIComponent(name)}&tab=jav&sub=actress`);
+  const openActress = (name: string) => navigate(`/main?tab=jav&sub=actress&q=${encodeURIComponent(name)}`);
 
-  const openEntity = (name: string) => navigate(`/?q=${encodeURIComponent(name)}&tab=jav`);
+  const openEntity = (name: string) => navigate(`/main?tab=jav&q=${encodeURIComponent(name)}`);
 
   if (isLoading) {
     return (

@@ -537,7 +537,7 @@ export const StatsManager: React.FC = () => {
               <div
                 key={kw.keyword}
                 className="flex min-w-0 items-center gap-3 p-3 rounded-xl bg-surface-50 dark:bg-surface-800/50 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer group"
-                onClick={() => navigate(`/?q=${encodeURIComponent(kw.keyword)}`)}
+                onClick={() => navigate(`/main?tab=jav&q=${encodeURIComponent(kw.keyword)}`)}
               >
                 <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                   i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'

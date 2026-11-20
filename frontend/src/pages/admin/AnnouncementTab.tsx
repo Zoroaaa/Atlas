@@ -264,14 +264,26 @@ export const AnnouncementTab: React.FC = () => {
         <span className="text-xs text-stone-400">{t('admin:announcement.totalCount', { count: total })}</span>
       </div>
 
-      {/* 表格 */}
+      {/* 表格：固定列宽。公告摘要是长文本，自动布局下 td 的 max-w 无效、内容会把
+          状态/日期列挤到重叠，因此这里用 table-fixed + colgroup 锁死次要列。 */}
       <TableWrapper>
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col />
+            <col className="w-[76px]" />
+            <col className="w-[76px]" />
+            <col className="w-[128px]" />
+            <col className="w-[192px]" />
+            <col className="w-[104px]" />
+          </colgroup>
           <thead className="bg-surface-50 dark:bg-surface-900">
             <tr>
-              {['admin:announcement.colTypeTitle', 'admin:announcement.colStatus', 'admin:announcement.colPinned', 'admin:announcement.colPublisher', 'admin:announcement.colCreated', 'admin:announcement.colActions'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t(h)}</th>
-              ))}
+              <th className="px-4 py-3 text-left text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colTypeTitle')}</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colStatus')}</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colPinned')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colPublisher')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colCreated')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wide">{t('admin:announcement.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-100 dark:divide-surface-700">
@@ -284,32 +296,36 @@ export const AnnouncementTab: React.FC = () => {
               const TypeIcon = tc.icon;
               return (
                 <tr key={item.id} className="hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
-                  <td className="px-4 py-3 max-w-[280px]">
-                    <div className="flex items-center gap-2">
-                      <TypeIcon className={clsx('w-4 h-4 flex-shrink-0', tc.color)} />
-                      <div>
-                        <div className="font-medium text-stone-900 dark:text-stone-100 truncate" title={item.title}>{item.title}</div>
-                        <div className="text-xs text-stone-500 truncate mt-0.5 line-clamp-1">{item.content}</div>
+                  <td className="px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                      <TypeIcon className={clsx('mt-[3px] w-4 h-4 shrink-0', tc.color)} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 truncate font-medium text-stone-900 dark:text-stone-100" title={item.title}>{item.title}</span>
+                          <span className={clsx('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium', TYPE_BADGE[item.type])}>{t(tc.label)}</span>
+                        </div>
+                        <p className="mt-1 truncate text-xs leading-4 text-stone-500 dark:text-stone-400" title={item.content}>{item.content}</p>
                       </div>
-                      <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', TYPE_BADGE[item.type])}>{t(tc.label)}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <button onClick={() => handleToggleActive(item)} title={item.is_active ? t('admin:announcement.clickDisable') : t('admin:announcement.clickEnable')}>
                       {item.is_active === 1
                         ? <Eye className="w-4 h-4 text-green-500" />
                         : <EyeOff className="w-4 h-4 text-stone-400" />}
                     </button>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <button onClick={() => handleTogglePin(item)} title={item.is_pinned ? t('admin:announcement.unpin') : t('admin:announcement.pinnedLabel')}>
                       {item.is_pinned === 1
                         ? <Pin className="w-4 h-4 text-red-500" />
                         : <PinOff className="w-4 h-4 text-stone-400" />}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-xs text-stone-500">{item.admin_username || '-'}</td>
-                  <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">{formatDate(item.created_at)}</td>
+                  <td className="px-4 py-3 text-xs text-stone-500">
+                    <span className="block truncate" title={item.admin_username || undefined}>{item.admin_username || '-'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap tabular-nums">{formatDate(item.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <Button variant="outline" size="sm" onClick={() => setFormModal({ open: true, editItem: item })}>

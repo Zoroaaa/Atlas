@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCheck, Heart, RefreshCw, Rss } from 'lucide-react';
 import { Button, Card, EmptyState, Loading, Tabs } from '@/components/ui';
@@ -19,8 +19,11 @@ import type { FollowEntityType, FollowFeedTab } from '@/types';
 export const FollowFeedManager: React.FC = () => {
   const { t } = useTranslation(['follow']);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // 新作通知跳转时带 ?entity=<watch key>，落地即筛到该关注对象
+  const entityParam = searchParams.get('entity') ?? '';
   const [tab, setTab] = useState<FollowFeedTab>('new');
-  const [entity, setEntity] = useState('');
+  const [entity, setEntity] = useState(entityParam);
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState('');
   const [activeKeyword, setActiveKeyword] = useState('');
@@ -51,14 +54,17 @@ export const FollowFeedManager: React.FC = () => {
   const searchTotalPages = Math.max(1, Math.ceil(searchTotal / FOLLOW_FEED_PAGE_SIZE));
 
   useEffect(() => { setPage(1); }, [tab, entity]);
+  useEffect(() => { setEntity(entityParam); }, [entityParam]);
   useEffect(() => { setSearchPage(1); }, [activeKeyword]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
   useEffect(() => {
     if (searchPage > searchTotalPages) setSearchPage(searchTotalPages);
   }, [searchPage, searchTotalPages]);
   useEffect(() => {
+    // 关注列表未加载时 follows 为空，不能据此判定 key 失效，否则会清掉通知带进来的筛选
+    if (!followsData) return;
     if (entity && !follows.some((f) => f.key === entity)) setEntity('');
-  }, [follows, entity]);
+  }, [followsData, follows, entity]);
 
   const [detail, setDetail] = useState<LibraryDetailTarget | null>(null);
   const openCode = (code: string) => setDetail({ code });

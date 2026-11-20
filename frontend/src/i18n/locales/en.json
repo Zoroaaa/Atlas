@@ -3835,6 +3835,7 @@
       "works": "Works",
       "relatedPost": "Related post: {{title}}",
       "viewPost": "View post",
+      "viewFollowFeed": "View follow feed",
       "searchCode": "Search this code"
     },
     "page": {
@@ -4569,7 +4570,7 @@
         "summary": "The bell at the top right shows recent notifications; Dashboard → Notifications has the full inbox and settings.",
         "features": [
           "The bell shows the unread count, loads recent notifications page by page, and can mark everything read.",
-          "Notifications with a code open that work; community notifications with a post open the post; announcements and others open the notification center.",
+          "New-release notifications open Follow Feed filtered to that author; community notifications with a post open the post; other notifications with a code open search; announcements open their details in the inbox.",
           "The page has two tabs, Inbox and Notification settings, with no separate community notification entry.",
           "The inbox supports unread-only, pagination, deleting single items, and clearing read items.",
           "Site announcements are merged with personal notifications rather than copied into the inbox."
