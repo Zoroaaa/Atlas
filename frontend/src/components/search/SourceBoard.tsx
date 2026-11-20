@@ -810,7 +810,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
                                 )}
                               </div>
                               <a
-                                href={item.homepageUrl || item.urlTemplate.replace('{keyword}', '')}
+                                href={item.homepageUrl || item.urlTemplate?.replace('{keyword}', '') || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title={t('sourceBoard:actions.open')}
@@ -1094,7 +1094,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
                   <a
                     href={
                       detail.source.homepageUrl ||
-                      detail.source.urlTemplate.replace('{keyword}', '')
+                      detail.source.urlTemplate?.replace('{keyword}', '') || ''
                     }
                     target="_blank"
                     rel="noopener noreferrer"

@@ -230,7 +230,7 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                     </button>
                                     <button
                                       onClick={() => {
-                                        const homepageUrl = source.homepageUrl || source.urlTemplate.replace('{keyword}', '');
+                                        const homepageUrl = source.homepageUrl || source.urlTemplate?.replace('{keyword}', '') || '#';
                                         window.open(isProxyEnabled ? convertToProxyUrl(homepageUrl) : homepageUrl, '_blank');
                                       }}
                                       className="p-1 rounded-lg text-stone-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"

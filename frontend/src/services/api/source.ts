@@ -75,6 +75,33 @@ interface RawUserConfig {
   notes: string | null;
 }
 
+/** 源详情接口原始行：后端已按 camelCase DTO 返回 */
+interface RawSourceDetail {
+  id: string;
+  categoryId: string;
+  name: string;
+  subtitle?: string | null;
+  description?: string | null;
+  icon?: string | null;
+  urlTemplate: string;
+  homepageUrl?: string | null;
+  siteType: string;
+  searchable: boolean;
+  searchPriority: number;
+  displayOrder: number;
+  isSystem: boolean;
+  ownerId?: string | null;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+  categoryName?: string | null;
+  categoryIcon?: string | null;
+  categoryColor?: string | null;
+  majorCategoryId?: string | null;
+  majorCategoryName?: string | null;
+}
+
 /** 用户源配置映射；null 表示该用户没有对这条源做自定义。 */
 function mapUserConfig(config: RawUserConfig | null): UserSourceConfig | null {
   if (!config) return null;
@@ -605,7 +632,7 @@ export const sourceApi = {
     const response = await apiClient.get<{
       success: boolean;
       data: {
-        source: RawCatalogItem & { is_active: number };
+        source: RawSourceDetail;
         categoryPath: Array<{ id: string; name: string; type: 'major' | 'category' }>;
         enabled: boolean;
         userConfig: RawUserConfig | null;
@@ -620,22 +647,23 @@ export const sourceApi = {
         data: {
           source: {
             id: source.id,
-            categoryId: source.category_id,
+            categoryId: source.categoryId,
             name: source.name,
             subtitle: source.subtitle || undefined,
             description: source.description || undefined,
             icon: source.icon || undefined,
-            urlTemplate: source.url_template,
-            homepageUrl: source.homepage_url || undefined,
-            siteType: source.site_type as 'search' | 'browse' | 'reference',
-            searchable: source.searchable === 1,
-            searchPriority: 0,
-            isSystem: source.is_system === 1,
-            isActive: source.is_active === 1,
-            usageCount: source.usage_count,
-            displayOrder: 0,
-            createdAt: '',
-            updatedAt: '',
+            urlTemplate: source.urlTemplate || '',
+            homepageUrl: source.homepageUrl || undefined,
+            siteType: source.siteType as 'search' | 'browse' | 'reference',
+            searchable: source.searchable,
+            searchPriority: source.searchPriority,
+            isSystem: source.isSystem,
+            ownerId: source.ownerId ?? null,
+            isActive: source.isActive,
+            usageCount: source.usageCount,
+            displayOrder: source.displayOrder,
+            createdAt: source.createdAt,
+            updatedAt: source.updatedAt,
             status: 'active',
             categoryName: source.categoryName || undefined,
             categoryIcon: source.categoryIcon || undefined,
