@@ -14,8 +14,12 @@ export interface JavPlayPlatform {
 }
 
 export const JAV_PLAY_PLATFORMS: JavPlayPlatform[] = [
-  { id: 'missav', name: 'MissAV', urlTemplate: 'https://missav.ws/ja/{code}' },
-  { id: 'jable', name: 'Jable', urlTemplate: 'https://jable.tv/videos/{code}', trailingSlash: true },
+  { id: 'missav', name: 'MissAV', urlTemplate: 'https://missav.ws/cn/search/{code}' },
+  { id: 'supjav', name: 'SupJav', urlTemplate: 'https://supjav.com/zh/?s={code}' },
+  { id: 'njavtv', name: 'NJAVTV', urlTemplate: 'https://njavtv.com/cn/search/{code}' },
+  { id: '123av', name: '123AV', urlTemplate: 'https://123av.com/cn/search?keyword={code}' },
+  { id: 'javguru', name: 'JavGuru', urlTemplate: 'https://jav.guru/?s={code}' },
+  { id: 'jable', name: 'Jable', urlTemplate: 'https://jable.tv/search/{code}/', trailingSlash: true },
 ];
 
 /** 在查询参数/hash 之前补齐路径结尾的 /，并折叠多余的斜杠 */

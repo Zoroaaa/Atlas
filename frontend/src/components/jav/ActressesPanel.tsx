@@ -6,7 +6,8 @@ import { useActresses } from '@/hooks';
 import { JAV_ACTRESSES_DISPLAY } from '@/types';
 import { FollowButton } from '@/components/follow/FollowButton';
 import { PanelSection, PanelHeader, IconAction, CountBadge } from '@/components/workbench';
-import { Tooltip } from '@/components/ui';
+import { Tooltip, ProxyImage } from '@/components/ui';
+import { normalizeImageUrl } from '@/utils/imageProxy';
 import { pageActionClass } from './JavRankingsPanel';
 
 interface ActressesPanelProps {
@@ -38,11 +39,18 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick, 
             className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             title={t('jav:actresses.viewWorksTitle', { name: actress.name })}
           >
-            <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-100 text-[13px] font-semibold text-surface-500 dark:bg-surface-800 dark:text-surface-300"
-              aria-hidden="true"
-            >
-              {actress.name.trim().charAt(0) || index + 1}
+            {/* 头像统一走 proxy-image：R2 命中直接出图，未命中回源并异步写入 R2；失败时保留首字母占位 */}
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-100 text-[13px] font-semibold text-surface-500 dark:bg-surface-800 dark:text-surface-300">
+              <span aria-hidden="true">{actress.name.trim().charAt(0) || index + 1}</span>
+              {actress.cover ? (
+                <ProxyImage
+                  src={normalizeImageUrl(actress.cover)}
+                  alt=""
+                  loading="lazy"
+                  zoomable={false}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : null}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-semibold text-surface-800 dark:text-surface-200">
@@ -55,7 +63,7 @@ export const ActressesPanel: React.FC<ActressesPanelProps> = ({ onActressClick, 
               </span>
             </span>
           </button>
-          <FollowButton name={actress.name} variant="icon" className="shrink-0" />
+          <FollowButton name={actress.name} avatar={actress.cover} variant="icon" className="shrink-0" />
         </div>
       ))}
     </div>

@@ -40,6 +40,8 @@ export interface JavRankings {
 
 export interface HotActressItem {
   name: string;
+  /** 女优头像 URL；取不到时展示首字母占位 */
+  cover?: string;
   /** 关注这位女优的用户数 */
   followers: number;
   works: number;
@@ -93,7 +95,7 @@ export const JAV_CACHE_KEY = 'jav_rankings_cache_v5';
 // 「最近热播」每天凌晨同步一次，缓存与同步周期一致（24 小时）；用户点刷新会强制重取
 export const JAV_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v6';
+export const ACTRESSES_CACHE_KEY = 'jav_actresses_cache_v7';
 export const ACTRESSES_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 // ── 推荐标签 ───────────────────────────────────────────────────────────

@@ -46,9 +46,9 @@ export interface ResolvedStar {
 }
 
 /** 按名字在 JavBus 查女优 key；未匹配返回 null，资料源异常时抛出 */
-export async function resolveStar(name: string): Promise<ResolvedStar | null> {
+export async function resolveStar(name: string, timeoutMs = 15000): Promise<ResolvedStar | null> {
   const normalized = normalizeActressKeyword(name);
-  const html = await getHtml(`${JAVBUS_BASE}/searchstar/${encodeURIComponent(normalized)}`, 15000);
+  const html = await getHtml(`${JAVBUS_BASE}/searchstar/${encodeURIComponent(normalized)}`, timeoutMs);
   if (!html) throw new Error('女优资料源无响应');
   if (html.length < 500 || !/id="waterfall"/.test(html)) throw new Error('女优资料源返回异常内容');
 

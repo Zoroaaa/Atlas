@@ -819,7 +819,7 @@ function base32ToHexPublic(base32: string): string {
 javRoutes.get('/actresses', async (c) => {
   const forceRefresh = c.req.query('refresh') === '1';
   // 版本号参与缓存键：聚合口径调整时必须升版，否则旧缓存会继续返回旧榜单
-  const cacheKey = new Request('https://internal/jav-hot-actresses-v6');
+  const cacheKey = new Request('https://internal/jav-hot-actresses-v7');
   const cache = caches.default;
 
   if (!forceRefresh) {
