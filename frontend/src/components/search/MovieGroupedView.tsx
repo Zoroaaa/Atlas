@@ -12,6 +12,7 @@ import type {
 } from '@/types/search';
 import type { FavoriteRef } from '@/types';
 import { getProxyImageUrl } from '@/utils';
+import { sizeToBytes } from '@/utils/size';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ProxyImage } from '@/components/ui';
 import {
@@ -140,7 +141,7 @@ function GroupedMovieCard({
     switch (sortBy) {
       case 'seeders': sorted.sort((a, b) => (b.seeders ?? -1) - (a.seeders ?? -1)); break;
       case 'date': sorted.sort((a, b) => (b.date || '').localeCompare(a.date || '')); break;
-      case 'size': sorted.sort((a, b) => parseFloat(b.size) - parseFloat(a.size)); break;
+      case 'size': sorted.sort((a, b) => sizeToBytes(b.size) - sizeToBytes(a.size)); break;
     }
     return sorted;
   }, [resources, sortBy, filterQuality]);

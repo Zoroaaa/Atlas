@@ -15,6 +15,7 @@ import type { FavoriteRef } from '@/types';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { ProxyImage } from '@/components/ui';
 import { getProxyImageUrl } from '@/utils/imageProxy';
+import { sizeToBytes } from '@/utils/size';
 import { convertToProxyUrl } from '@/services/proxy';
 import {
   GroupedHeader,
@@ -65,6 +66,9 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
   const quality = extractQuality(item.title);
   const sourceTone = (source: string): ChipTone =>
     source === 'mikan' ? 'success' : source === 'animetosho' ? 'accent' : source === 'dmhy' ? 'warning' : 'source';
+  // Mikan 超出磁力解析预算的条目没有 magnet：不能渲染成 href="" 的空链接，
+  // 也不能给复制空串的按钮，只能引导去原站详情页。
+  const hasMagnet = Boolean(item.magnet && item.magnet.startsWith('magnet:'));
 
   return (
     <ResourceRow
@@ -77,9 +81,21 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
       }
       quality={quality ? <Chip tone={quality === '4K' ? 'warning' : 'source'} size="xs">{quality}</Chip> : undefined}
       title={
-        <a href={item.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={t('search:anime.btDownloadHint', { title: item.title })}>
-          {item.title}
-        </a>
+        hasMagnet ? (
+          <a href={item.magnet} className="block truncate text-[12px] text-primary-600 hover:underline dark:text-primary-400" title={t('search:anime.btDownloadHint', { title: item.title })}>
+            {item.title}
+          </a>
+        ) : (
+          <a
+            href={item.detailUrl || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block truncate text-[12px] text-surface-500 hover:underline dark:text-surface-400"
+            title={t('search:anime.noMagnetItemHint')}
+          >
+            {item.title}
+          </a>
+        )
       }
       meta={[item.size, item.date].filter(Boolean) as React.ReactNode[]}
       trailing={
@@ -93,7 +109,9 @@ function UnifiedResourceCard({ item }: { item: AnimeUnifiedResource }) {
           ) : (
             <Chip tone="neutral" size="xs" className="mr-1">DHT</Chip>
           )}
-          <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
+          {hasMagnet
+            ? <CopyButton text={item.magnet} label={t('search:anime.copyMagnet')} />
+            : <Chip tone="neutral" size="xs">{t('search:anime.noMagnet')}</Chip>}
         </>
       }
     />
@@ -134,7 +152,7 @@ function GroupedSubjectCard({
     switch (sortBy) {
       case 'seeders': sorted.sort((a, b) => b.seeders - a.seeders); break;
       case 'date': sorted.sort((a, b) => (b.date || '').localeCompare(a.date || '')); break;
-      case 'size': sorted.sort((a, b) => parseFloat(b.size) - parseFloat(a.size)); break;
+      case 'size': sorted.sort((a, b) => sizeToBytes(b.size) - sizeToBytes(a.size)); break;
     }
     return sorted;
   }, [resources, sortBy, filterSource, filterQuality]);

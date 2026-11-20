@@ -27,7 +27,7 @@ export class NovelProvider implements SearchProvider {
 
   /** 小说搜索 + 注入跳转卡片；total 保持小说条数，不被卡片数量覆盖。 */
   async search(keyword: string, page: number, ctx: SearchContext): Promise<SearchResultBase> {
-    const result = (await searchNovel(keyword, page)) as unknown as SearchResultBase & {
+    const result = (await searchNovel(keyword, page, { db: ctx.db })) as unknown as SearchResultBase & {
       results?: SearchSourceCard[];
     };
 

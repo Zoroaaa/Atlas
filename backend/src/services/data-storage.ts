@@ -146,6 +146,8 @@ interface NovelItem {
   language?: string;
   size?: string;
   detailUrl?: string;
+  /** 跨站合并后的其他下载入口 */
+  mirrors?: Array<{ source: string; detailUrl: string; size?: string; format?: string }>;
 }
 
 interface JavDetail {
@@ -373,7 +375,8 @@ function mediaResourcesToSources(resources: MediaResourceLike[], limit = 30): So
 // 优先取 grouped 中首条作品的关联磁力（精准归属），无归组时 fallback 到全部磁力前 20 条
 function animeResourcesToSources(
   result: Record<string, unknown>,
-  firstBgmId: number
+  firstBgmId: number,
+  warnIfMissing = true,
 ): SourceEntry[] {
   const grouped = result.grouped as AnimeGrouped | undefined;
   const nyaa = (result.nyaa as Array<{ title: string; magnet: string; size?: string; date?: string; seeders?: number; leechers?: number; trusted?: boolean }> | undefined) || [];
@@ -388,8 +391,10 @@ function animeResourcesToSources(
     return mediaResourcesToSources(firstGroup.resources, 30);
   }
 
+  // 只有本次搜索的首条作品值得告警：后面几条没有归组资源是正常现象（同一关键词下的次要作品），
+  // 每条都警告会把日志刷满，反而看不到真正的问题。
   const dropped = nyaa.length + mikan.length + animetosho.length + dmhy.length;
-  if (dropped > 0) {
+  if (warnIfMissing && dropped > 0) {
     console.warn(`[data-storage] anime 资源无法归属到 bgm:${firstBgmId}，丢弃 ${dropped} 条磁力`);
   }
   return [];
@@ -424,8 +429,11 @@ export async function persistDataRecord(
     const resultType = result.resultType as string | undefined;
     if (!resultType) return;
 
-    let payload: RecordPayload | null = null;
-    let sources: SourceEntry[] = [];
+    // 一次搜索写入整页结果，而不是只写首条。
+    // 只写首条会让本地库永远等于"历史搜过的关键词数"，四类库存长期停在几百条，
+    // 本地优先检索也就无从谈起；整页写入后每次搜索的入库量提升一个数量级。
+    // 上限按类别设：单次搜索最多写这么多条，避免 D1 写放大。
+    const writes: Array<{ payload: RecordPayload; sources: SourceEntry[] }> = [];
 
     switch (resultType) {
       case 'jav': {
@@ -444,176 +452,200 @@ export async function persistDataRecord(
           });
           return;
         }
-        // JAV 女优搜索：result.actresses[] 列表，采首条
+        // JAV 女优搜索：result.actresses[] 列表
         const actresses = result.actresses as ActressItem[] | undefined;
-        const first = actresses?.[0];
-        if (first && first.id && first.name) {
-          payload = {
-            recordType: 'actress',
-            dedupKey: `actress:${first.id}`,
-            title: first.name,
-            cover: first.cover,
-            code: first.id,
-            actors: first.name,
-            tags: first.tags,
-            contentData: {
-              id: first.id,
-              name: first.name,
+        for (const first of (actresses ?? []).slice(0, 10)) {
+          if (!first?.id || !first.name) continue;
+          writes.push({
+            payload: {
+              recordType: 'actress',
+              dedupKey: `actress:${first.id}`,
+              title: first.name,
               cover: first.cover,
-              ruby: first.ruby,
-              romaji: first.romaji,
+              code: first.id,
+              actors: first.name,
               tags: first.tags,
+              contentData: {
+                id: first.id,
+                name: first.name,
+                cover: first.cover,
+                ruby: first.ruby,
+                romaji: first.romaji,
+                tags: first.tags,
+              },
+              detailCompleted: 0,
             },
-            detailCompleted: 0,
-          };
+            sources: [],
+          });
         }
         break;
       }
       case 'anime': {
         const bgm = result.bgm as BgmItem[] | undefined;
-        const first = bgm?.[0];
-        if (first && first.id) {
-          sources = animeResourcesToSources(result, first.id);
-
-          payload = {
-            recordType: 'anime',
-            dedupKey: `anime:bgm:${first.id}`,
-            title: first.nameCN || first.name,
-            cover: first.cover,
-            code: `bgm:${first.id}`,
-            publisher: first.studio,
-            tags: first.tags,
-            rating: first.rating != null ? `${first.rating} 分` : undefined,
-            contentData: {
-              // 完整 bgm 元数据（含 url/type/status/collection 等明细字段）
-              ...first,
-              // 磁力资源摘要（详情进 sources 表，这里存摘要供前端快速预览）
-              magnetCount: sources.length,
-              magnets: sources.slice(0, 10).map((s) => ({
-                name: (s.sourceData as { name?: string }).name,
-                source: s.sourceName,
-                size: (s.sourceData as { size?: string }).size,
-              })),
+        for (const [index, subject] of (bgm ?? []).slice(0, 5).entries()) {
+          if (!subject?.id) continue;
+          // 只写「该作品名下」的归组资源：拿全部磁力兜底会把别的作品的种子挂过来
+          const sources = animeResourcesToSources(result, subject.id, index === 0);
+          writes.push({
+            payload: {
+              recordType: 'anime',
+              dedupKey: `anime:bgm:${subject.id}`,
+              title: subject.nameCN || subject.name,
+              cover: subject.cover,
+              code: `bgm:${subject.id}`,
+              publisher: subject.studio,
+              tags: subject.tags,
+              rating: subject.rating != null ? `${subject.rating} 分` : undefined,
+              contentData: {
+                // 完整 bgm 元数据（含 url/type/status/collection 等明细字段）
+                ...subject,
+                // 磁力资源摘要（详情进 sources 表，这里存摘要供前端快速预览）
+                magnetCount: sources.length,
+                magnets: sources.slice(0, 10).map((s) => ({
+                  name: (s.sourceData as { name?: string }).name,
+                  source: s.sourceName,
+                  size: (s.sourceData as { size?: string }).size,
+                })),
+              },
+              detailCompleted: 0,
             },
-            detailCompleted: 0,
-          };
+            sources,
+          });
         }
         break;
       }
       case 'movie': {
         const results = result.results as MovieItem[] | undefined;
-        const first = results?.find((r) => r && typeof r.id === 'number');
-        if (first) {
-          const release = first.releaseDate || first.release_date || first.first_air_date;
+        for (const item of (results ?? []).slice(0, 5)) {
+          if (!item || typeof item.id !== 'number') continue;
+          const release = item.releaseDate || item.release_date || item.first_air_date;
           // 只用归组中「当前作品」的资源：全部资源兜底会把别的作品磁力错挂过来
-          sources = movieResourcesToSources(result, first.id);
-
-          payload = {
-            recordType: 'movie',
-            dedupKey: `movie:tmdb:${first.id}`,
-            title: first.title,
-            cover: first.poster || undefined,
-            code: `tmdb:${first.id}`,
-            releaseDate: release,
-            rating: (first.rating ?? first.vote_average) != null
-              ? `${first.rating ?? first.vote_average} 分`
-              : undefined,
-            contentData: {
-              // 完整 TMDB 元数据（含 overview/originalTitle/backdrop/voteCount 等明细）
-              ...first,
-              magnetCount: sources.length,
-              magnets: sources.slice(0, 10).map((s) => ({
-                name: (s.sourceData as { name?: string }).name,
-                source: s.sourceName,
-                size: (s.sourceData as { size?: string }).size,
-              })),
+          const sources = movieResourcesToSources(result, item.id);
+          writes.push({
+            payload: {
+              recordType: 'movie',
+              dedupKey: `movie:tmdb:${item.id}`,
+              title: item.title,
+              cover: item.poster || undefined,
+              code: `tmdb:${item.id}`,
+              releaseDate: release,
+              rating: (item.rating ?? item.vote_average) != null
+                ? `${item.rating ?? item.vote_average} 分`
+                : undefined,
+              contentData: {
+                // 完整 TMDB 元数据（含 overview/originalTitle/backdrop/voteCount 等明细）
+                ...item,
+                magnetCount: sources.length,
+                magnets: sources.slice(0, 10).map((s) => ({
+                  name: (s.sourceData as { name?: string }).name,
+                  source: s.sourceName,
+                  size: (s.sourceData as { size?: string }).size,
+                })),
+              },
+              detailCompleted: 0,
             },
-            detailCompleted: 0,
-          };
+            sources,
+          });
         }
         break;
       }
       case 'manga': {
         const manga = result.manga as MangaItem[] | undefined;
-        const first = manga?.[0];
-        if (first && first.id) {
+        for (const item of (manga ?? []).slice(0, 10)) {
+          if (!item?.id) continue;
           // MangaDex 详情页作为唯一来源：否则 source_count=0 会在 180 天后被清理
-          sources = [{
+          const sources: SourceEntry[] = [{
             sourceName: 'MangaDex',
             sourceType: 'detail',
-            sourceUrl: `https://mangadex.org/title/${first.id}`,
-            sourceData: { title: first.title },
+            sourceUrl: `https://mangadex.org/title/${item.id}`,
+            sourceData: { title: item.title },
           }];
-          payload = {
-            recordType: 'manga',
-            dedupKey: `manga:${first.id}`,
-            title: first.title,
-            cover: first.cover,
-            code: first.id,
-            tags: first.tags,
-            contentData: {
-              id: first.id,
-              title: first.title,
-              cover: first.cover,
-              status: first.status,
-              tags: first.tags,
+          writes.push({
+            payload: {
+              recordType: 'manga',
+              dedupKey: `manga:${item.id}`,
+              title: item.title,
+              cover: item.cover,
+              code: item.id,
+              tags: item.tags,
+              contentData: {
+                // 可读性字段一并入库，详情卡与本地检索都要用
+                ...item,
+              },
+              detailCompleted: 0,
             },
-            detailCompleted: 0,
-          };
+            sources,
+          });
         }
         break;
       }
       case 'novel': {
         const novels = result.novels as NovelItem[] | undefined;
-        if (!novels || novels.length === 0) break;
+        for (const first of (novels ?? []).slice(0, 10)) {
+          if (!first?.id || !first.title) continue;
+          const tags = [first.format, first.year, first.category].filter(Boolean) as string[];
+          const sources: SourceEntry[] = [];
 
-        // 抓取源：知轩藏书 + 奇书网；多源跳转卡片由 search_sources 表注入，不在此处理
-        const first = novels.find((n) => n && n.id) || novels[0];
-        if (!first) break;
+          // 详情/下载链接作为来源；跨站合并后的镜像站也是来源，一起落库，
+          // 否则「另一站也有这本书」的信息在库里丢失，详情页只能显示一个入口。
+          if (first.detailUrl) {
+            sources.push({
+              sourceName: first.source || '知轩藏书',
+              sourceType: 'download',
+              sourceUrl: first.detailUrl,
+              sourceData: {
+                title: first.title,
+                format: first.format,
+                size: first.size,
+                source: first.source,
+              },
+            });
+          }
+          for (const mirror of first.mirrors ?? []) {
+            if (!mirror.detailUrl || mirror.detailUrl === first.detailUrl) continue;
+            sources.push({
+              sourceName: mirror.source,
+              sourceType: 'download',
+              sourceUrl: mirror.detailUrl,
+              sourceData: {
+                title: first.title,
+                format: mirror.format ?? first.format,
+                size: mirror.size ?? first.size,
+                source: mirror.source,
+              },
+            });
+          }
 
-        const tags = [first.format, first.year, first.category].filter(Boolean) as string[];
-
-        // 详情/下载链接作为来源
-        if (first.detailUrl) {
-          sources.push({
-            sourceName: first.source || '知轩藏书',
-            sourceType: 'download',
-            sourceUrl: first.detailUrl,
-            sourceData: {
+          // 两个站点 id 都是纯数字，必须带站点前缀，否则跨站碰撞会合并成同一条记录
+          const siteKey = first.source === '奇书网' ? 'qishu' : 'zxcs';
+          writes.push({
+            payload: {
+              recordType: 'novel',
+              dedupKey: `novel:${siteKey}:${first.id}`,
               title: first.title,
-              format: first.format,
-              size: first.size,
-              source: first.source,
+              cover: first.cover,
+              code: first.id,
+              actors: first.author,
+              publisher: first.publisher,
+              tags,
+              contentData: {
+                // 完整小说元数据（含 description/detailUrl/language/size 等明细）
+                ...first,
+              },
+              detailCompleted: 0,
             },
+            sources,
           });
         }
-
-        // 两个站点 id 都是纯数字，必须带站点前缀，否则跨站碰撞会合并成同一条记录
-        const siteKey = first.source === '奇书网' ? 'qishu' : 'zxcs';
-        payload = {
-          recordType: 'novel',
-          dedupKey: `novel:${siteKey}:${first.id}`,
-          title: first.title,
-          cover: first.cover,
-          code: first.id,
-          actors: first.author,
-          publisher: first.publisher,
-          tags,
-          contentData: {
-            // 完整小说元数据（含 description/detailUrl/language/size 等明细）
-            ...first,
-          },
-          detailCompleted: 0,
-        };
         break;
       }
     }
 
-    if (!payload) return;
-
-    const recordId = await upsertRecord(db, payload);
-    if (recordId && sources.length) {
-      await insertSources(db, recordId, sources);
+    for (const write of writes) {
+      const recordId = await upsertRecord(db, write.payload);
+      if (recordId && write.sources.length) {
+        await insertSources(db, recordId, write.sources);
+      }
     }
   } catch (err) {
     console.error('[data-storage] persistDataRecord error:', err);

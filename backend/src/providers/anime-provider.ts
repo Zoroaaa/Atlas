@@ -40,7 +40,7 @@ export class AnimeProvider implements SearchProvider {
     if (ctx.waitUntil) {
       const variants = await lookupQueryVariants(ctx.db, keyword, 'work').catch(() => []);
       const hasDbAliases = variants.some(variant => variant.transform.startsWith('db:'));
-      const bgm = (result as { bgm?: Array<{ id: number; name: string; nameCN: string }> }).bgm ?? [];
+      const bgm = (result as { bgm?: Array<{ id: number; name: string; nameCN: string; aliases?: string[] }> }).bgm ?? [];
       if (!hasDbAliases && bgm.length > 0) {
         ctx.waitUntil(ingestBangumiSubjects(ctx.db, bgm).catch(() => 0));
       }

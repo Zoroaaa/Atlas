@@ -207,6 +207,10 @@ export interface ResourceItem {
   seeders?: number;
   /** 下载者数（TPB/EZTV 提供） */
   leechers?: number;
+  /** 季号（EZTV 直接返回；TPB 无） */
+  season?: number;
+  /** 集号（同上） */
+  episode?: number;
 }
 
 export interface MovieEnrichedData {
@@ -289,12 +293,22 @@ export interface MangaEnrichedData {
   manga: Array<{
     id: string;
     title: string;
+    /** 源站原始主标题，用于排查「为什么显示这个名字」 */
+    rawTitle?: string;
     cover: string;
     status: string;
     tags: string[];
     year?: string;
     rating?: number;
     description?: string;
+    /** 可读语言标签（MangaDex availableTranslatedLanguages） */
+    readableLanguages?: string[];
+    /** 已知章节数；0 表示源站没有章节 */
+    chapterCount?: number;
+    /** 没有中文译本：前端应提示，而不是让用户点进去空手而归 */
+    noChineseChapters?: boolean;
+    lastUpdated?: string;
+    officialLinks?: Array<{ label: string; url: string }>;
     source?: 'mangadex' | 'mangaupdates';
     detailUrl?: string;
   }>;
@@ -329,6 +343,8 @@ export interface NovelItem {
   detailUrl: string;
   /** 源站书籍详情页（与 detailUrl 的 txt 直链区分） */
   siteUrl?: string;
+  /** 跨站合并后的其他下载入口 */
+  mirrors?: Array<{ source: string; detailUrl: string; size?: string; format?: string }>;
 }
 
 export interface NovelEnrichedData {

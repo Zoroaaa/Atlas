@@ -3410,6 +3410,8 @@
       "btDownloadHint": "Click to invoke BT client download: {{title}}",
       "subgroupResource": "Subgroup Resource",
       "copyMagnet": "Copy magnet link",
+      "noMagnet": "No magnet",
+      "noMagnetItemHint": "No magnet resolved for this item; open the source page",
       "resourceCount": "{{count}} resources",
       "unfavorite": "Unfavorite",
       "favorite": "Favorite",
@@ -3481,6 +3483,7 @@
         "cancelled": "Cancelled"
       },
       "proxyAccessible": "Proxy accessible",
+      "noChinese": "No Chinese translation",
       "unfavorite": "Unfavorite",
       "favorite": "Favorite",
       "totalResults": "{{count}} results",
@@ -4329,7 +4332,8 @@
           "Anime: aggregated by work or listed by source; shows subtitling group, size, and release date.",
           "Movies: aggregated and source views, with resolution, size, and release date.",
           "Open and favorite: open a source from the result row, or favorite after signing in.",
-          "Covers go through the proxy cache, so revisits load faster after the first fetch."
+          "Covers go through the proxy cache, so revisits load faster after the first fetch.",
+          "Resources without a resolved magnet are marked \"No magnet\" and link to the source page instead of showing a dead link."
         ],
         "steps": [
           "Choose the anime or movie category.",
@@ -4340,15 +4344,17 @@
         "caveats": [
           "The same work may differ between sources.",
           "Source view lists more entries; aggregated view is easier to compare.",
-          "Browsing works without signing in, but favoriting requires an account."
+          "Browsing works without signing in, but favoriting requires an account.",
+          "Each search has a total time budget: slow sources are skipped and flagged in the results, while finished sources still return.",
+          "Some sources do not report seeders, so they sort after sources that do."
         ]
       },
       "manga-novel": {
         "title": "Manga and novel categories",
         "summary": "Manga and novels show chapters or bibliographic details so you can keep reading or save them.",
         "features": [
-          "Manga: chapters, update status, and source links.",
-          "Novels: author, publisher, category, chapters, and source links.",
+          "Manga: readable languages, update status, and source links; titles without a Chinese translation are marked \"No Chinese translation\".",
+          "Novels: the same book found on several sites is merged into one entry listing every download source.",
           "Favorites: save after signing in and manage everything in the Account Center."
         ],
         "steps": [
@@ -4359,7 +4365,9 @@
         ],
         "caveats": [
           "Chapters and update status come from third-party sources and may lag.",
-          "Different sources may split chapters differently."
+          "Different sources may split chapters differently.",
+          "Readable languages and the \"No Chinese translation\" mark come from the source site and may lag behind.",
+          "Novel download links come from each site; if one stops working, use another link on the same entry."
         ]
       },
       "sources": {

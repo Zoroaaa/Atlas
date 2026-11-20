@@ -27,6 +27,8 @@ export interface BangumiSubject {
   tags?: string[];
   collection?: { wish: number; collect: number; doing: number; dropped: number };
   status?: string;
+  /** 全语种别名（v0 的 infobox「别名」）：归组候选，解决罗马音资源归不进去 */
+  aliases?: string[];
 }
 
 export interface NyaaTorrent {
@@ -127,12 +129,19 @@ export interface AnimeSearchResult {
     groups: AnimeGroupedItem[];
     ungrouped: AnimeUnifiedResource[];
   };
+  /** 诊断指标：耗时、预算、各源状态、可操作率。前端不渲染 */
+  diagnostics?: SearchDiagnostics;
 }
 
 import { fetchWithRetry } from '@/utils/fetch';
 import { formatBytes } from '@/utils/format';
 import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
+import { createDeadline, budgetFor } from '@/utils';
+import { buildDiagnostics, logSearchDiagnostics, type SearchDiagnostics, type SourceStat } from '@/utils/search-metrics';
+import { isAnimeResourceActionable } from '@/services/search-actionable';
 import { groupResourcesBySubject } from '@/utils/title-grouping';
+import { groupResourcesBySubjectV2, USE_SCORED_MATCHER } from '@/utils/subject-resolver';
+import { compareGrouping, logMatcherShadow } from '@/services/matcher-shadow';
 
 // ── Nyaa RSS ─────────────────────────────────────────────
 
@@ -763,7 +772,157 @@ async function fetchDmhy(keyword: string): Promise<DmhyItem[]> {
 /** Bangumi 每页条数（与分页偏移一起构成真实分页） */
 const BGM_PAGE_SIZE = 10;
 
-async function fetchBangumi(keyword: string, page: number): Promise<{ items: BangumiSubject[]; total: number }> {
+/** v0 搜索返回的单个条目（只声明用到的字段） */
+export interface BgmV0Subject {
+  id: number;
+  name?: string;
+  name_cn?: string;
+  date?: string;
+  platform?: string;
+  images?: { large?: string; common?: string; medium?: string };
+  summary?: string;
+  rating?: { rank?: number; score?: number; total?: number };
+  collection?: { wish?: number; collect?: number; doing?: number; dropped?: number };
+  eps?: number;
+  total_episodes?: number;
+  tags?: Array<{ name?: string; count?: number }>;
+  /** infobox 的 value 形态不固定：字符串或 [{ v: '...' }] 数组，必须两种都兼容 */
+  infobox?: Array<{ key?: string; value?: unknown }>;
+}
+
+interface BgmV0Response {
+  data?: BgmV0Subject[];
+  total?: number;
+}
+
+/** infobox 的 value 统一成字符串数组 */
+function toTextList(value: unknown): string[] {
+  if (typeof value === 'string') {
+    const text = value.trim();
+    return text ? [text] : [];
+  }
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === 'string') {
+      if (item.trim()) out.push(item.trim());
+    } else if (item && typeof item === 'object' && 'v' in item) {
+      const text = String((item as { v?: unknown }).v ?? '').trim();
+      if (text) out.push(text);
+    }
+  }
+  return out;
+}
+
+/** platform 转成前端 typeLabel 能识别的形态；旧实现传的是 subject type（恒为 2），等于没显示类型 */
+function platformToType(platform: string | undefined): string {
+  const value = (platform || '').trim();
+  if (!value) return '';
+  if (/^tv$/i.test(value)) return 'TV';
+  if (/^web$/i.test(value)) return 'Web';
+  if (/ova/i.test(value)) return 'OVA';
+  if (/剧场|movie|电影/i.test(value)) return 'movie';
+  return value;
+}
+
+/** 由放送日期与收藏数推断连载状态（v0 不返回 status 字段） */
+function inferStatus(date: string | undefined, doing: number): string | undefined {
+  const airDate = date ? new Date(date) : null;
+  if (airDate && !Number.isNaN(airDate.getTime())) {
+    if (new Date() < airDate) return '未开播';
+  }
+  if (doing > 0) return '连载中';
+  return undefined;
+}
+
+/**
+ * Bangumi v0 搜索（主通道）。
+ *
+ * 为什么必须用 v0：旧版 /search/subject 的 infobox 是空数组，拿不到「别名」，
+ * 归组只能靠中文名和日文名，罗马音资源（Sousou no Frieren）永远归不进去。
+ * v0 同一次请求即返回 infobox，10 条约 20KB，与旧版同量级。
+ * 实测 v0 无 air_weekday（前端未使用）、rank 在 rating.rank。
+ */
+async function fetchBangumiV0(keyword: string, page: number): Promise<{ items: BangumiSubject[]; total: number }> {
+  const offset = Math.max(0, (page - 1) * BGM_PAGE_SIZE);
+  const url = `https://api.bgm.tv/v0/search/subjects?limit=${BGM_PAGE_SIZE}&offset=${offset}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'codeseek/1.0 (https://github.com/Zoroaaa)',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ keyword, filter: { type: [2] } }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error(`bangumi_v0 HTTP ${r.status}`);
+  const data = await r.json() as BgmV0Response;
+  const list = data.data ?? [];
+  const total = typeof data.total === 'number' ? data.total : list.length;
+  if (list.length === 0) return { items: [], total };
+
+  return { items: list.map(mapBgmV0Subject), total };
+}
+
+/**
+ * v0 条目 → BangumiSubject。抽成纯函数便于用真实响应做夹具测试（不依赖网络）。
+ *
+ * 三个易错点：infobox 的 value 可能是字符串或 [{v}] 数组；rank 在 rating.rank；
+ * 没有 air_weekday，type 要由 platform 推导（旧实现传的是恒为 2 的 subject type）。
+ */
+export function mapBgmV0Subject(s: BgmV0Subject): BangumiSubject {
+  const infobox = new Map<string, string[]>();
+  for (const row of s.infobox ?? []) {
+    if (!row?.key) continue;
+    infobox.set(row.key, toTextList(row.value));
+  }
+  const aliases = [
+    ...(infobox.get('别名') ?? []),
+    ...(infobox.get('別名') ?? []),
+  ].filter((alias) => alias && alias !== s.name_cn && alias !== s.name);
+  const studio = (infobox.get('动画制作') ?? infobox.get('Studio') ?? [])[0] ?? '';
+  const doing = s.collection?.doing ?? 0;
+  const tags = [...(s.tags ?? [])]
+    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+    .slice(0, 5)
+    .map((t) => t.name)
+    .filter((name): name is string => Boolean(name));
+
+  return {
+    id: s.id,
+    name: s.name || '',
+    nameCN: s.name_cn || s.name || '',
+    cover: s.images?.large || s.images?.common || s.images?.medium || '',
+    summary: (s.summary || '').slice(0, 300),
+    airDate: s.date || '',
+    airWeekday: -1,
+    rating: s.rating?.score ?? 0,
+    ratingCount: s.rating?.total ?? 0,
+    rank: s.rating?.rank ?? 0,
+    eps: s.eps ?? s.total_episodes ?? 0,
+    url: `https://bgm.tv/subject/${s.id}`,
+    type: platformToType(s.platform),
+    studio,
+    tags: tags.length ? tags : undefined,
+    collection: s.collection ? {
+      wish: s.collection.wish ?? 0,
+      collect: s.collection.collect ?? 0,
+      doing,
+      dropped: s.collection.dropped ?? 0,
+    } : undefined,
+    status: inferStatus(s.date, doing),
+    aliases: aliases.length ? aliases : undefined,
+  };
+}
+
+/**
+ * Bangumi 旧版搜索（降级通道）：v0 不可用时保住可用性。
+/**
+ * Bangumi 旧版搜索（降级通道）：v0 不可用时保住可用性。
+ * 该通道没有别名，罗马音资源会退化为 ungrouped —— 这是降级代价，不是 bug。
+ */
+async function fetchBangumiLegacy(keyword: string, page: number): Promise<{ items: BangumiSubject[]; total: number }> {
   const start = Math.max(0, (page - 1) * BGM_PAGE_SIZE);
   const url = `https://api.bgm.tv/search/subject/${encodeURIComponent(keyword)}?type=2&responseGroup=large&max_results=${BGM_PAGE_SIZE}&start=${start}`;
   const r = await fetch(url, {
@@ -771,59 +930,68 @@ async function fetchBangumi(keyword: string, page: number): Promise<{ items: Ban
       'User-Agent': 'codeseek/1.0 (https://github.com/Zoroaaa)',
       'Accept': 'application/json',
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(8000),
   });
   if (!r.ok) throw new Error(`bangumi HTTP ${r.status}`);
-  const data = await r.json() as { list?: any[]; results?: number };
+  const data = await r.json() as { list?: Array<Record<string, unknown>>; results?: number };
   const total = typeof data.results === 'number' ? data.results : (data.list?.length ?? 0);
   if (!data.list?.length) return { items: [], total };
 
-  const items = data.list.map((s: any) => {
-    const studio = s.infobox?.find((i: any) => i.key === '动画制作' || i.key === 'Studio')?.value
-      || s.staff?.find((st: any) => st.position === '动画制作')?.person?.name
-      || '';
-    const tagsRaw = s.tags?.sort((a: any, b: any) => (b.count || 0) - (a.count || 0)) || [];
-    const tags = tagsRaw.slice(0, 5).map((t: any) => t.name);
-    let status = '';
-    if (s.eps_count > 0 && s.air_date) {
-      const airDate = new Date(s.air_date);
-      status = new Date() < airDate ? '未开播' : '已完结';
-    }
-    if ((s.collection?.doing || 0) > 0 && !status.includes('已完结')) status = '连载中';
+  const items: BangumiSubject[] = data.list.map((raw) => {
+    const s = raw as {
+      id?: number; name?: string; name_cn?: string; air_date?: string; air_weekday?: number;
+      images?: { large?: string; common?: string; medium?: string }; summary?: string;
+      rating?: { score?: number; total?: number }; rank?: number; eps_count?: number;
+      type?: number; tags?: Array<{ name?: string; count?: number }>;
+      collection?: { wish?: number; collect?: number; doing?: number; dropped?: number };
+    };
+    const tags = [...(s.tags ?? [])]
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+      .slice(0, 5)
+      .map((t) => t.name)
+      .filter((name): name is string => Boolean(name));
 
     return {
-      id:          s.id,
-      name:        s.name || '',
-      nameCN:      s.name_cn || s.name || '',
-      cover:       s.images?.large || s.images?.common || s.images?.medium || '',
-      summary:     (s.summary || '').slice(0, 300),
-      airDate:     s.air_date || '',
-      airWeekday:  s.air_weekday ?? -1,
-      rating:      s.rating?.score ?? 0,
+      id: s.id ?? 0,
+      name: s.name || '',
+      nameCN: s.name_cn || s.name || '',
+      cover: s.images?.large || s.images?.common || s.images?.medium || '',
+      summary: (s.summary || '').slice(0, 300),
+      airDate: s.air_date || '',
+      airWeekday: s.air_weekday ?? -1,
+      rating: s.rating?.score ?? 0,
       ratingCount: s.rating?.total ?? 0,
-      rank:        s.rank ?? 0,
-      eps:         s.eps_count ?? s.eps ?? 0,
-      url:         `https://bgm.tv/subject/${s.id}`,
-      type:        s.type || '',
-      studio:      studio || '',
-      tags:        tags.length ? tags : undefined,
-      collection:  s.collection ? {
-        wish:    s.collection.wish    || 0,
-        collect: s.collection.collect || 0,
-        doing:   s.collection.doing   || 0,
-        dropped: s.collection.dropped || 0,
+      rank: s.rank ?? 0,
+      eps: s.eps_count ?? 0,
+      url: `https://bgm.tv/subject/${s.id}`,
+      type: s.type ? String(s.type) : '',
+      tags: tags.length ? tags : undefined,
+      collection: s.collection ? {
+        wish: s.collection.wish ?? 0,
+        collect: s.collection.collect ?? 0,
+        doing: s.collection.doing ?? 0,
+        dropped: s.collection.dropped ?? 0,
       } : undefined,
-      status: status || undefined,
     };
   });
 
   return { items, total };
 }
 
+/** Bangumi 主入口：v0 优先，失败回落旧版 */
+async function fetchBangumi(keyword: string, page: number): Promise<{ items: BangumiSubject[]; total: number }> {
+  try {
+    return await fetchBangumiV0(keyword, page);
+  } catch (err) {
+    console.warn('[anime-search] bangumi v0 failed, fallback to legacy:', err instanceof Error ? err.message : err);
+    return await fetchBangumiLegacy(keyword, page);
+  }
+}
+
 // ── 主入口 ───────────────────────────────────────────────
 
-/** 动漫搜索总超时（ms），超时后返回已有结果 + 标记未完成的源 */
-const ANIME_SEARCH_TIMEOUT_MS = 20_000;
+/** 动漫搜索总预算（ms），超时后返回已有结果 + 标记未完成的源 */
+const ANIME_SEARCH_TIMEOUT_MS = budgetFor('anime_sources');
 
 /**
  * 动漫搜索主入口：并发抓取元数据与磁力源，整体超时时保留已完成源的结果。
@@ -836,6 +1004,7 @@ export async function searchAnime(
   skip: Set<string> = new Set(),
 ): Promise<AnimeSearchResult> {
   const safePage = Math.max(1, page);
+  const deadline = createDeadline(ANIME_SEARCH_TIMEOUT_MS);
   const sourceKeys = ['bangumi', 'nyaa', 'mikan', 'animetosho', 'dmhy'] as const;
   type SourceKey = typeof sourceKeys[number];
 
@@ -943,11 +1112,72 @@ export async function searchAnime(
   ];
 
   const bgmForGrouping = bgm;
-  const groupedResult = groupResourcesBySubject(bgmForGrouping, unifiedResources, {
-    subjectTitles: (s) => [s.nameCN, s.name],
+  const subjectTitles = (s: BangumiSubject) => [s.nameCN, s.name, ...(s.aliases ?? [])];
+  const legacyGrouped = groupResourcesBySubject(bgmForGrouping, unifiedResources, {
+    subjectTitles,
     resourceTitle: (r) => r.title,
     resourceId: (r) => r.magnet,
   });
+  const scoredGrouped = groupResourcesBySubjectV2(bgmForGrouping, unifiedResources, {
+    subjectId: (s) => `bangumi:${s.id}`,
+    subjectTitles,
+    // Bangumi 的 airDate 是 YYYY-MM-DD；只取年份，用于同名不同季的取舍
+    subjectYear: (s) => (s.airDate ? s.airDate.slice(0, 4) : undefined),
+    subjectTotalEpisodes: (s) => (s.eps > 0 ? s.eps : undefined),
+    resourceTitle: (r) => r.title,
+    // 空磁力的 Mikan 条目磁力为 ''，不能当 key（会全部撞成一条）
+    resourceId: (r) => `${r.source}|${r.title}`,
+  });
+  // 两套实现都跑：只为了拿差异数据，返回哪一套由 USE_SCORED_MATCHER 决定
+  const shadow = compareGrouping(
+    legacyGrouped,
+    scoredGrouped,
+    (s) => `bangumi:${s.id}`,
+    (r) => `${r.source}|${r.title}`,
+  );
+  logMatcherShadow('anime', keyword, shadow);
+  const groupedResult = USE_SCORED_MATCHER ? scoredGrouped : legacyGrouped;
+
+  // ── 源状态 ────────────────────────────────────────────
+  const countOf: Record<SourceKey, number> = {
+    bangumi: bgm.length,
+    nyaa: nyaa.length,
+    mikan: mikan.length,
+    animetosho: atos.length,
+    dmhy: dmhy.length,
+  };
+  const sourceStats: Record<string, SourceStat> = {};
+  for (const key of sourceKeys) {
+    const s = settled[key];
+    // nyaa 是主动禁用（Workers 出口被拦），不是失败也不是空结果
+    if (key === 'nyaa') {
+      sourceStats[key] = { state: 'skipped', count: 0 };
+      continue;
+    }
+    if (!s) { sourceStats[key] = { state: 'timeout', count: 0 }; continue; }
+    if (s.status === 'rejected') { sourceStats[key] = { state: 'failed', count: 0 }; continue; }
+    sourceStats[key] = { state: countOf[key] > 0 ? 'ok' : 'empty', count: countOf[key] };
+  }
+  // Mikan 返回了条目但一条磁力都没解析出来：这是降级（.torrent 下载失败/超预算），
+  // 不是「没有资源」，否则「点不动」会被算成成功。
+  if (sourceStats.mikan?.state === 'ok' && mikan.every(m => !m.magnet)) {
+    sourceStats.mikan.state = 'degraded';
+  }
+
+  const diagnostics: SearchDiagnostics = buildDiagnostics({
+    category: 'anime_sources',
+    keyword,
+    page: safePage,
+    elapsedMs: deadline.elapsed(),
+    budgetMs: ANIME_SEARCH_TIMEOUT_MS,
+    deadlineHit: timedOut.length > 0,
+    works: bgm.length,
+    resources: unifiedResources.length,
+    actionable: unifiedResources.filter(isAnimeResourceActionable).length,
+    ungrouped: groupedResult.ungrouped.length,
+    sources: sourceStats,
+  });
+  logSearchDiagnostics(diagnostics);
 
   return {
     keyword,
@@ -969,5 +1199,6 @@ export async function searchAnime(
       })),
       ungrouped: groupedResult.ungrouped,
     },
+    diagnostics,
   };
 }

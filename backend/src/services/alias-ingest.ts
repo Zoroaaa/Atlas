@@ -9,7 +9,7 @@ import {
   type EntityAliasInput,
   type EntityType,
 } from '@/repositories/entity-alias-repository';
-import { toSourceSearchText, toVariantLang } from '@/services/query-normalizer';
+import { toSourceSearchText, toVariantLang, detectScript } from '@/services/query-normalizer';
 
 const UA = 'Atlas/1.0 (alias-ingest)';
 const TIMEOUT_MS = 8000;
@@ -122,10 +122,15 @@ export async function ingestBangumiByKeyword(
   return ingestBangumiSubjects(db, data.list);
 }
 
-/** 直接使用搜索结果写库，避免为灌入别名重复请求 Bangumi */
+/**
+ * 直接使用搜索结果写库，避免为灌入别名重复请求 Bangumi。
+ *
+ * 必须写入 infobox 的「别名」：只写 name/name_cn 时，别名表里没有罗马音，
+ * 归组读库也补不上 "Sousou no Frieren" 这类写法（v0 已同请求返回，这里只做落库）。
+ */
 export async function ingestBangumiSubjects(
   db: D1Database,
-  subjects: Array<{ id?: number; name?: string; name_cn?: string; nameCN?: string }>
+  subjects: Array<{ id?: number; name?: string; name_cn?: string; nameCN?: string; aliases?: string[] }>
 ): Promise<number> {
   const inputs: EntityAliasInput[] = [];
   for (const item of subjects.slice(0, 3)) {
@@ -151,6 +156,21 @@ export async function ingestBangumiSubjects(
         alias: nameCn.trim(),
         source: 'bangumi',
         confidence: 0.9,
+      });
+    }
+    // 别名没有语言标注，按字形判断：假名→ja、汉字→zh、其余→en
+    for (const alias of item.aliases ?? []) {
+      const value = alias.trim();
+      if (!value || value.length < 2) continue;
+      const script = detectScript(value);
+      const lang = script === 'ja' ? 'ja' : script === 'han' ? 'zh' : 'en';
+      inputs.push({
+        entityType: 'work',
+        canonicalId,
+        lang,
+        alias: value,
+        source: 'bangumi',
+        confidence: 0.8,
       });
     }
   }

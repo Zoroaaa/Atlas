@@ -24,6 +24,11 @@ interface MangaItem {
   cover: string;
   status: string;
   tags: string[];
+  readableLanguages?: string[];
+  chapterCount?: number;
+  noChineseChapters?: boolean;
+  lastUpdated?: string;
+  officialLinks?: Array<{ label: string; url: string }>;
   year?: string;
   rating?: number;
   description?: string;
@@ -146,6 +151,16 @@ export const MangaSearchResultPanel: React.FC<MangaSearchResultPanelProps> = ({
                         </span>
                       ) : null}
                       {item.source === 'mangaupdates' ? <Chip tone="source" size="xs">MangaUpdates</Chip> : null}
+                      {/* 没有中文译本是最常见的「点进去空手而归」，必须提前告知 */}
+                      {item.noChineseChapters === true ? (
+                        <Chip tone="warning" size="xs">{t('search:manga.noChinese')}</Chip>
+                      ) : null}
+                      {item.readableLanguages && item.readableLanguages.length > 0 && item.noChineseChapters !== true ? (
+                        <Chip tone="neutral" size="xs">
+                          {item.readableLanguages.slice(0, 3).join('/')}
+                          {item.readableLanguages.length > 3 ? `+${item.readableLanguages.length - 3}` : ''}
+                        </Chip>
+                      ) : null}
                       {isProxyEnabled ? (
                         <Chip tone="proxy" size="xs">
                           <ShieldCheck className="h-2.5 w-2.5" />

@@ -164,6 +164,11 @@ function safeConvert(kind: 'trad' | 'simp' | 'jp', text: string): string {
   }
 }
 
+/** 繁体 → 简体。MangaDex 的中文标题多落在 zh-hk（繁体），简体用户需要转换后才能读 */
+export function toSimplifiedChinese(text: string): string {
+  return safeConvert('simp', text);
+}
+
 /** 简体/繁体 → 日文新字体（OpenCC t2jp 属实验特性，仅作兜底，不保证正确） */
 export function toJapaneseShinjitai(text: string): string {
   return safeConvert('jp', text);

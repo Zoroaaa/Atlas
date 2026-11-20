@@ -10,6 +10,11 @@ import { fetchWithRetry } from '@/utils/fetch';
 import { sanitizeError, classifySearchError, type SearchErrorKind } from '@/utils/error';
 import { decodeGbk, encodeGbkQuery } from '@/utils/gbk';
 import { mapWithConcurrency } from '@/utils';
+import { createDeadline, budgetFor } from '@/utils';
+import { isCircuitOpen, recordCircuitFailure, recordCircuitSuccess } from '@/utils/breaker';
+import { buildDiagnostics, logSearchDiagnostics, type SearchDiagnostics, type SourceStat } from '@/utils/search-metrics';
+import { isNovelActionable } from '@/services/search-actionable';
+import type { Deadline } from '@/utils/search-budget';
 
 // ── 常量 ─────────────────────────────────────────────────
 
@@ -77,6 +82,8 @@ export interface NovelItem {
   detailUrl: string;
   /** 源站书籍详情页（与 detailUrl 的 txt 直链区分） */
   siteUrl?: string;
+  /** 同书在其他站点的下载入口（跨站合并后填充） */
+  mirrors?: Array<{ source: string; detailUrl: string; size?: string; format?: string }>;
 }
 
 export interface NovelSearchResult {
@@ -101,6 +108,8 @@ export interface NovelSearchResult {
     category: string;
     description?: string;
   }>;
+  /** 诊断指标：耗时、预算、各源状态、可操作率。前端不渲染 */
+  diagnostics?: SearchDiagnostics;
 }
 
 // ── HTML 解析工具 ────────────────────────────────────────
@@ -128,11 +137,67 @@ function firstMatch(html: string, re: RegExp): string {
 const NOVEL_PAGE_SIZE = 10;
 /** 详情页抓取并发上限 */
 const DETAIL_CONCURRENCY = 3;
+/**
+ * 详情解析缓存 TTL。
+ * TXT 书籍的标题/作者/简介/大小几乎不变，而详情页是 N+1 的主要成本；
+ * 7 天足够摊薄，又不至于让「新书补简介」长期不生效。
+ */
+const DETAIL_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+// ── 详情缓存（Cache API）─────────────────────────────────
+
+/**
+ * 详情解析结果缓存。
+ *
+ * 用 Cache API 而不是 D1：详情是纯读、可丢弃、按 URL 天然分片的数据，
+ * 写 D1 会放大写压力（搜索是最高频路径）。本地/单测环境没有 caches 时静默跳过。
+ */
+async function readDetailCache(key: string): Promise<NovelItem | null> {
+  if (typeof caches === 'undefined') return null;
+  try {
+    const hit = await caches.default.match(new Request(key));
+    if (!hit) return null;
+    return await hit.json() as NovelItem;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDetailCache(key: string, item: NovelItem): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  try {
+    await caches.default.put(
+      new Request(key),
+      new Response(JSON.stringify(item), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${DETAIL_CACHE_TTL_SECONDS}`,
+        },
+      }),
+    );
+  } catch {
+    // 缓存失败不影响结果
+  }
+}
+
+/** 站点内书籍详情：先查缓存，未命中才抓详情页 */
+async function loadNovelDetail(
+  site: 'zxcs' | 'qishu',
+  bookId: string,
+  loader: () => Promise<NovelItem | null>,
+): Promise<NovelItem | null> {
+  const key = `https://internal/novel-detail/${site}/${bookId}`;
+  const cached = await readDetailCache(key);
+  if (cached) return cached;
+  const item = await loader();
+  if (item) await writeDetailCache(key, item);
+  return item;
+}
 
 /** 带超时的 HTML 请求：搜索页/详情页共用，避免每处重复写 AbortController */
-async function fetchHtml(url: string, headers: Record<string, string>): Promise<Response> {
+async function fetchHtml(url: string, headers: Record<string, string>, timeoutMs = FETCH_TIMEOUT): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetchWithRetry(url, { headers, signal: controller.signal });
   } finally {
@@ -147,6 +212,10 @@ interface NovelSourceResult {
   errorKind?: SearchErrorKind;
   /** 搜索结果里是否还有下一页 */
   hasMore: boolean;
+  /** 是否因总预算耗尽而提前收工（此时结果不完整，但不是失败） */
+  truncated?: boolean;
+  /** 因熔断被跳过：不是失败，也不该显示为「没有结果」 */
+  breakerOpen?: boolean;
 }
 
 // ── 知轩藏书（zxcs.zip）────────────────────────────────
@@ -159,6 +228,19 @@ interface NovelSourceResult {
  *
  * 与可乐小说不同：zxcs 是明文 HTML + 直链下载，无 AES 加密、无字体反混淆。
  */
+
+/**
+ * 清洗知轩书名：搜索页标题形如
+ *   《书名》（整理未校对精校版全本）作者：某某
+ * 直接展示会把版本说明和作者一起塞进书名。书名号存在时只取书名号内内容，
+ * 没有书名号时退化为剥掉「作者：…」后缀。
+ */
+export function cleanZxcsTitle(raw: string): string {
+  const title = raw.trim();
+  const quoted = /《([^》]+)》/.exec(title);
+  if (quoted?.[1]?.trim()) return quoted[1].trim();
+  return title.replace(/作者\s*[:：].*$/, '').trim() || title;
+}
 
 /** 从搜索页 HTML 提取全部书籍（保持页面顺序，按 URL 去重） */
 function parseZxcsSearchResults(html: string): Array<{ title: string; bookUrl: string }> {
@@ -173,7 +255,7 @@ function parseZxcsSearchResults(html: string): Array<{ title: string; bookUrl: s
     seen.add(match[1]);
     results.push({
       bookUrl: match[1],
-      title: decodeEntities(match[2].trim()),
+      title: cleanZxcsTitle(decodeEntities(match[2].trim())),
     });
   }
   return results;
@@ -250,11 +332,11 @@ function hasZxcsNextPage(html: string, page: number): boolean {
 }
 
 /** 知轩藏书搜索：站点按 &page=N 分页，每页最多抓 NOVEL_PAGE_SIZE 本详情 */
-async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSourceResult> {
+async function searchZxcsNovel(keyword: string, page: number, deadline: Deadline): Promise<NovelSourceResult> {
   try {
     // 1. 抓取搜索页（实测：&page=N 生效，第 1/2/3 页结果不同）
     const searchUrl = `https://${ZXCS_DOMAIN}/search?q=${encodeURIComponent(keyword)}&page=${page}`;
-    const r = await fetchHtml(searchUrl, ZXCS_HEADERS);
+    const r = await fetchHtml(searchUrl, ZXCS_HEADERS, deadline.slice(FETCH_TIMEOUT));
     if (!r.ok) return { items: [], error: sanitizeError(`zxcs_http_${r.status}`), errorKind: classifySearchError(`zxcs_http_${r.status}`) ?? undefined, hasMore: false };
     const searchHtml = await r.text();
 
@@ -264,12 +346,20 @@ async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSour
     const slice = all.slice(0, NOVEL_PAGE_SIZE);
     const hasMore = hasZxcsNextPage(searchHtml, page);
 
-    // 3. 有限并发抓详情页；单本失败只丢该本
+    // 3. 有限并发抓详情页；单本失败只丢该本，预算耗尽则停止发起新请求
+    let truncated = false;
     const items = await mapWithConcurrency(slice, DETAIL_CONCURRENCY, async (entry) => {
+      if (deadline.expired()) {
+        truncated = true;
+        return null;
+      }
       try {
-        const dr = await fetchHtml(`https://${ZXCS_DOMAIN}${entry.bookUrl}`, ZXCS_HEADERS);
-        if (!dr.ok) return null;
-        return parseZxcsDetailPage(await dr.text(), entry);
+        const bookId = entry.bookUrl.match(/\/book\/(\d+)\.html/)?.[1] ?? entry.bookUrl;
+        return await loadNovelDetail('zxcs', bookId, async () => {
+          const dr = await fetchHtml(`https://${ZXCS_DOMAIN}${entry.bookUrl}`, ZXCS_HEADERS, deadline.slice(FETCH_TIMEOUT));
+          if (!dr.ok) return null;
+          return parseZxcsDetailPage(await dr.text(), entry);
+        });
       } catch {
         return null;
       }
@@ -278,9 +368,11 @@ async function searchZxcsNovel(keyword: string, page: number): Promise<NovelSour
     const found = items.filter((item): item is NovelItem => item !== null);
     return {
       items: found,
-      error: found.length ? null : '详情页解析失败',
-      errorKind: found.length ? undefined : 'PARSE_FAILED',
+      // 预算截断导致条数不足不算解析失败：否则会被误判为「源挂了」
+      error: found.length || truncated ? null : '详情页解析失败',
+      errorKind: found.length || truncated ? undefined : 'PARSE_FAILED',
       hasMore,
+      truncated,
     };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'unknown';
@@ -305,13 +397,13 @@ interface QsxSearchRow {
 }
 
 /** GBK 页面请求：处理「403 + Set-Cookie」反爬门，第二次带 cookie 重放 */
-async function fetchGbkHtml(url: string, init: RequestInit = {}): Promise<string> {
+async function fetchGbkHtml(url: string, init: RequestInit = {}, timeoutMs = FETCH_TIMEOUT): Promise<string> {
   let cookie = '';
   let lastStatus = 0;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const r = await fetchWithRetry(url, {
         ...init,
@@ -410,13 +502,13 @@ function parseQsxDetailPage(html: string, row: QsxSearchRow): NovelItem {
  * 奇书网搜索：搜索页一次返回全部命中（无分页参数），这里按页切片后再抓详情，
  * 让 hasMore / page 契约与知轩藏书一致，同时避免每页重复抓取全部详情。
  */
-async function searchQishuNovel(keyword: string, page: number): Promise<NovelSourceResult> {
+async function searchQishuNovel(keyword: string, page: number, deadline: Deadline): Promise<NovelSourceResult> {
   try {
     const searchHtml = await fetchGbkHtml(`${QSX_ORIGIN}/modules/article/search.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `searchkey=${encodeGbkQuery(keyword)}`,
-    });
+    }, deadline.slice(FETCH_TIMEOUT));
 
     const all = parseQsxSearchResults(searchHtml);
     if (!all.length) return { items: [], error: null, hasMore: false };
@@ -425,9 +517,17 @@ async function searchQishuNovel(keyword: string, page: number): Promise<NovelSou
     const slice = all.slice(start, start + NOVEL_PAGE_SIZE);
     const hasMore = all.length > start + NOVEL_PAGE_SIZE;
 
+    let truncated = false;
     const items = await mapWithConcurrency(slice, DETAIL_CONCURRENCY, async (row) => {
+      if (deadline.expired()) {
+        truncated = true;
+        return null;
+      }
       try {
-        return parseQsxDetailPage(await fetchGbkHtml(row.bookUrl), row);
+        return await loadNovelDetail('qishu', row.bookId, async () => parseQsxDetailPage(
+          await fetchGbkHtml(row.bookUrl, {}, deadline.slice(FETCH_TIMEOUT)),
+          row,
+        ));
       } catch {
         return null;
       }
@@ -436,9 +536,10 @@ async function searchQishuNovel(keyword: string, page: number): Promise<NovelSou
     const found = items.filter((item): item is NovelItem => item !== null);
     return {
       items: found,
-      error: found.length ? null : '详情页解析失败',
-      errorKind: found.length ? undefined : 'PARSE_FAILED',
+      error: found.length || truncated ? null : '详情页解析失败',
+      errorKind: found.length || truncated ? undefined : 'PARSE_FAILED',
       hasMore,
+      truncated,
     };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'unknown';
@@ -454,13 +555,217 @@ async function searchQishuNovel(keyword: string, page: number): Promise<NovelSou
 
 // ── 搜索入口 ─────────────────────────────────────────────
 
+// ── 跨站合并与封面补齐 ───────────────────────────────────
+
+/**
+ * 书名归一化（仅用于跨站合并）。
+ * 只处理确定性差异：全半角、大小写、标点与空白。不做同义词/繁简转换 —— 那会把
+ * 《三体》和《三体Ⅱ》这类续作错误合并。
+ */
+export function novelTitleKey(title: string): string {
+  return title
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s·・:：\-–—_.,!?()[\]{}'"“”‘’「」『』、。，《》<>/\\|]/g, '');
+}
+
+/**
+ * 跨站合并：同一本书只保留一条，其余站点作为下载镜像。
+ *
+ * 合并条件要求「书名 + 作者」同时非空且相等：只有书名时会把同名不同作者的书并掉，
+ * 这是小说场景里最常见的误合并来源。
+ */
+export function mergeNovelItems(items: NovelItem[]): NovelItem[] {
+  const byKey = new Map<string, NovelItem>();
+  const out: NovelItem[] = [];
+
+  for (const item of items) {
+    const authorKey = novelTitleKey(item.author || '');
+    const titleKey = novelTitleKey(item.title || '');
+    if (!titleKey || !authorKey) {
+      out.push(item);
+      continue;
+    }
+    const key = `${titleKey}|${authorKey}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+      out.push(item);
+      continue;
+    }
+    // 主条目补齐缺失字段，另一站挂成镜像
+    existing.cover = existing.cover || item.cover;
+    existing.description = existing.description || item.description;
+    existing.size = existing.size || item.size;
+    existing.year = existing.year || item.year;
+    const mirrors = existing.mirrors ?? [];
+    if (item.detailUrl && item.detailUrl !== existing.detailUrl) {
+      mirrors.push({
+        source: item.source || '未知来源',
+        detailUrl: item.detailUrl,
+        size: item.size || undefined,
+        format: item.format || undefined,
+      });
+    }
+    existing.mirrors = mirrors.length ? mirrors : undefined;
+  }
+
+  return out;
+}
+
+/** 豆瓣图书 suggest 返回项（只声明用到的字段） */
+interface DoubanBookSuggestion {
+  title?: string;
+  pic?: string;
+  author_name?: string;
+  year?: string;
+}
+
+/**
+ * 一次请求补齐整页封面。
+ *
+ * 为什么不是「每本查一次」：详情页已经是 N+1，再按书查豆瓣会把请求数翻倍。
+ * suggest 接口支持按关键词取多条（实测 613B / 3~10 条），一次就能覆盖本页大部分书名。
+ */
+async function fetchDoubanCovers(keyword: string, timeoutMs: number): Promise<Map<string, DoubanBookSuggestion>> {
+  const map = new Map<string, DoubanBookSuggestion>();
+  try {
+    const r = await fetch(`https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(keyword)}`, {
+      headers: {
+        'User-Agent': UA,
+        'Referer': 'https://book.douban.com/',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) return map;
+    const list = await r.json() as DoubanBookSuggestion[];
+    for (const item of Array.isArray(list) ? list : []) {
+      const key = novelTitleKey(item.title || '');
+      if (key && !map.has(key)) map.set(key, item);
+    }
+  } catch {
+    // 封面是增强项，失败不影响搜索结果
+  }
+  return map;
+}
+
+/** 用豆瓣结果补封面/年份；已有封面或未命中的条目保持原样 */
+export function applyDoubanCovers(
+  items: NovelItem[],
+  suggestions: Map<string, DoubanBookSuggestion>,
+): NovelItem[] {
+  if (suggestions.size === 0) return items;
+  return items.map(item => {
+    const hit = suggestions.get(novelTitleKey(item.title));
+    if (!hit) return item;
+    return {
+      ...item,
+      cover: item.cover || hit.pic || '',
+      year: item.year || hit.year || '',
+    };
+  });
+}
+
+// ── 本地库兜底 ───────────────────────────────────────────
+
+/**
+ * 两站都拿不到结果时，回查本地库。
+ *
+ * 只在「全部源为空/失败」时触发，不做「本地优先」：本地记录里的 txt 直链会失效，
+ * 拿它顶替远端最新结果会把「能下载」换成「看着能下载」，反而降低成功率。
+ * 作为兜底，它把「源站全挂 → 零结果」变成「源站全挂 → 仍有历史可读」。
+ */
+export async function searchLocalNovels(
+  db: D1Database,
+  keyword: string,
+  limit = 10,
+): Promise<NovelItem[]> {
+  const pattern = `%${keyword.replace(/[%_]/g, '')}%`;
+  try {
+    const rows = await db
+      .prepare(
+        `SELECT dedup_key, title, cover, actors, content_data
+           FROM data_records
+          WHERE record_type = 'novel'
+            AND status = 'active'
+            AND title LIKE ?
+          ORDER BY last_updated_at DESC
+          LIMIT ?`
+      )
+      .bind(pattern, limit)
+      .all<{ dedup_key: string; title: string; cover: string | null; actors: string | null; content_data: string }>();
+
+    const items: NovelItem[] = [];
+    for (const row of rows.results ?? []) {
+      let content: Record<string, unknown> = {};
+      try {
+        content = JSON.parse(row.content_data) as Record<string, unknown>;
+      } catch {
+        content = {};
+      }
+      const detailUrl = typeof content.detailUrl === 'string' ? content.detailUrl : '';
+      if (!detailUrl) continue;
+      // dedup_key 形如 novel:zxcs:12345 / novel:qishu:9000
+      const parts = row.dedup_key.split(':');
+      items.push({
+        id: parts[2] ?? row.dedup_key,
+        title: row.title,
+        cover: row.cover ?? '',
+        author: row.actors ?? '',
+        description: typeof content.description === 'string' ? content.description : '',
+        publisher: typeof content.publisher === 'string' ? content.publisher : '',
+        format: typeof content.format === 'string' ? content.format : 'TXT',
+        language: typeof content.language === 'string' ? content.language : '中文',
+        size: typeof content.size === 'string' ? content.size : '',
+        year: typeof content.year === 'string' ? content.year : '',
+        category: typeof content.category === 'string' ? content.category : '',
+        source: typeof content.source === 'string' ? content.source : '本地库',
+        detailUrl,
+        siteUrl: typeof content.siteUrl === 'string' ? content.siteUrl : undefined,
+      });
+    }
+    return items;
+  } catch (err) {
+    console.error('[novel-search] local fallback failed:', err);
+    return [];
+  }
+}
+
 /** 小说搜索主入口：两站并发抓取，任一源失败只记录该源错误。 */
-export async function searchNovel(keyword: string, page: number): Promise<NovelSearchResult> {
+export async function searchNovel(
+  keyword: string,
+  page: number,
+  options: { db?: D1Database } = {},
+): Promise<NovelSearchResult> {
   const safePage = Math.max(1, page);
-  const [zxcsResult, qishuResult] = await Promise.all([
-    searchZxcsNovel(keyword, safePage),
-    searchQishuNovel(keyword, safePage),
+  const budgetMs = budgetFor('novel_sources');
+  const deadline = createDeadline(budgetMs);
+
+  // 熔断：连续失败的站点在冷却期内直接跳过，不再让整次搜索陪它等超时
+  const [zxcsOpen, qishuOpen] = await Promise.all([
+    isCircuitOpen('novel:zxcs'),
+    isCircuitOpen('novel:qishu'),
   ]);
+
+  // 封面请求与站点抓取并行：一次 600B 的请求，比「先抓完再补封面」省的尾部延迟更值
+  const [zxcsResult, qishuResult, covers] = await Promise.all([
+    zxcsOpen
+      ? Promise.resolve<NovelSourceResult>({ items: [], error: null, hasMore: false, breakerOpen: true })
+      : searchZxcsNovel(keyword, safePage, deadline),
+    qishuOpen
+      ? Promise.resolve<NovelSourceResult>({ items: [], error: null, hasMore: false, breakerOpen: true })
+      : searchQishuNovel(keyword, safePage, deadline),
+    fetchDoubanCovers(keyword, deadline.slice(3000)),
+  ]);
+
+  // 结果决定熔断状态：失败累计、成功清零
+  if (!zxcsOpen) {
+    void (zxcsResult.error ? recordCircuitFailure('novel:zxcs') : recordCircuitSuccess('novel:zxcs'));
+  }
+  if (!qishuOpen) {
+    void (qishuResult.error ? recordCircuitFailure('novel:qishu') : recordCircuitSuccess('novel:qishu'));
+  }
 
   const errors: Record<string, string | null> = {};
   if (zxcsResult.error) errors.zxcs = zxcsResult.error;
@@ -470,9 +775,50 @@ export async function searchNovel(keyword: string, page: number): Promise<NovelS
   if (zxcsResult.errorKind) errorKinds.zxcs = zxcsResult.errorKind;
   if (qishuResult.errorKind) errorKinds.qishu = qishuResult.errorKind;
 
-  // 两站 id 空间不同（zxcs 用站内书籍 ID，奇书网用数字 ID），这里不做跨站去重；
-  // 落库时 data-storage 的 dedupKey 按 novel:zxcs / novel:qishu 前缀区分。
-  const novels = [...zxcsResult.items, ...qishuResult.items];
+  // 两站 id 空间不同（zxcs 用站内书籍 ID，奇书网用数字 ID），落库 dedupKey 按站点前缀区分；
+  // 但展示层要合并：同一本书在两站各出现一次，用户会以为有两本。
+  let novels = applyDoubanCovers(
+    mergeNovelItems([...zxcsResult.items, ...qishuResult.items]),
+    covers,
+  );
+
+  // 全源为空/失败时的兜底：宁可给历史记录，也不要给一片空白
+  let fromLibrary = 0;
+  if (novels.length === 0 && options.db) {
+    const local = await searchLocalNovels(options.db, keyword);
+    if (local.length > 0) {
+      novels = local;
+      fromLibrary = local.length;
+    }
+  }
+
+  const toStat = (r: NovelSourceResult): SourceStat => ({
+    state: r.breakerOpen ? 'skipped'
+      : r.error ? 'failed'
+      : r.truncated ? 'timeout'
+      : r.items.length > 0 ? 'ok'
+      : 'empty',
+    count: r.items.length,
+  });
+  const sources: Record<string, SourceStat> = { zxcs: toStat(zxcsResult), qishu: toStat(qishuResult) };
+
+  const diagnostics: SearchDiagnostics = buildDiagnostics({
+    category: 'novel_sources',
+    keyword,
+    page: safePage,
+    elapsedMs: deadline.elapsed(),
+    budgetMs,
+    deadlineHit: deadline.expired(),
+    works: novels.length,
+    resources: novels.length,
+    actionable: novels.filter(isNovelActionable).length,
+    sources,
+  });
+  if (fromLibrary > 0) {
+    // 单独一行：区分「远端抓到」与「本地兜底」，否则成功率会被历史记录虚高
+    console.log(`[search-metrics] novel local-fallback keyword=${keyword} items=${fromLibrary}`);
+  }
+  logSearchDiagnostics(diagnostics);
 
   return {
     resultType: 'novel',
@@ -483,6 +829,7 @@ export async function searchNovel(keyword: string, page: number): Promise<NovelS
     errors,
     errorKinds,
     novels,
+    diagnostics,
   };
 }
 

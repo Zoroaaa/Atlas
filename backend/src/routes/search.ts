@@ -123,6 +123,9 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
         // ── 搜索结果缓存 ─────────────────────────────────────
         // 10 分钟：搜索热点集中，TTL 过长会让源开关/子模式切换迟迟不生效
         const SEARCH_CACHE_TTL = 10 * 60;
+        // 响应体结构版本：新增字段/改判定逻辑时递增，避免 TTL 内继续返回旧结构。
+        // 只在「旧结构会让前端或少字段、或判定结果已变」时递增，不要为了改文案而刷。
+        const SEARCH_CACHE_VERSION = 3;
 
         // JAV / Novel 的响应体含「按用户过滤的搜索源列表」（用户启用项 + 用户私有源），
         // 属于用户态数据，必须按用户隔离缓存键，否则不同用户会互相串源列表。
@@ -139,7 +142,7 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
         // 只靠禁用集合无法感知源定义变化，会把旧源列表缓存到 TTL 结束。
         const revisionKey = `&sr=${sourceState.userRevision}&gsr=${sourceState.systemRevision}`;
         const cacheKey = new Request(
-          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}${sourceKey}${revisionKey}`
+          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}${sourceKey}${revisionKey}&v=${SEARCH_CACHE_VERSION}`
         );
         // 用户态响应不得声明为 public：真实请求 URL /api/search 不含用户标识，
         // 一旦被中间层按公共 URL 缓存就会跨用户泄露。
