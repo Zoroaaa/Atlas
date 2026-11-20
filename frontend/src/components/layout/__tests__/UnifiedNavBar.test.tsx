@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 describe('UnifiedNavBar 移动端入口', () => {
-  it('移动端页头保留 5 个搜索分类入口，窄屏次要入口收进“更多”抽屉', () => {
+  it('移动端页头保留 5 个搜索分类入口，源站收录移出“更多”抽屉', () => {
     render(
       <UnifiedNavBar
         activeTab="jav"
@@ -81,7 +81,8 @@ describe('UnifiedNavBar 移动端入口', () => {
     fireEvent.click(screen.getByLabelText('更多'));
 
     const dialog = screen.getByRole('dialog', { name: '更多' });
-    expect(within(dialog).getByText('源站收录')).toBeInTheDocument();
+    // 源站收录已移到首页「发现」区，更多抽屉不再重复入口
+    expect(within(dialog).queryByText('源站收录')).not.toBeInTheDocument();
     expect(within(dialog).getByText('帮助中心')).toBeInTheDocument();
     expect(within(dialog).getByText('GitHub')).toBeInTheDocument();
     // 通知/语言常驻顶栏，抽屉内不得重复；<sm 顶栏放不下的主题/下载才进抽屉
@@ -90,8 +91,7 @@ describe('UnifiedNavBar 移动端入口', () => {
     expect(within(dialog).getByText('主题切换')).toBeInTheDocument();
     expect(within(dialog).getByText('下载 App')).toBeInTheDocument();
 
-    fireEvent.click(within(dialog).getByText('源站收录'));
-    expect(onTabChange).toHaveBeenCalledWith('sources');
+    fireEvent.click(within(dialog).getByLabelText('关闭'));
     expect(screen.queryByRole('dialog', { name: '更多' })).not.toBeInTheDocument();
   });
 

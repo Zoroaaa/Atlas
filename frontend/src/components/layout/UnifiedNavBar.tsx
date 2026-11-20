@@ -393,26 +393,7 @@ export const UnifiedNavBar: React.FC<UnifiedNavBarProps> = memo(({
               </button>
             </div>
             <div className="p-2">
-              <button
-                onClick={() => {
-                  setIsMoreOpen(false);
-                  handleTabChange('sources');
-                }}
-                className={clsx(
-                  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
-                  activeTab === 'sources'
-                    ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
-                    : 'text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800'
-                )}
-              >
-                <span className="text-lg leading-none">{SEARCH_TABS.sources.icon}</span>
-                <span>{t('nav:mobileMore.sources')}</span>
-                {activeTab === 'sources' ? (
-                  <span className="ml-auto rounded bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-800/50 dark:text-teal-300">
-                    {t('nav:mobileMore.active')}
-                  </span>
-                ) : null}
-              </button>
+              {/* 源站收录已移到首页「发现」区，更多抽屉不再重复入口 */}
               {/* 通知/主题/下载/语言常驻顶栏，抽屉内不再重复；主题/下载/代理按宽度只在“更多”出现一次 */}
               <button
                 onClick={() => {

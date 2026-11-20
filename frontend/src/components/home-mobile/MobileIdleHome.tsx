@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Clock, Heart, Rss, Sparkles, Tags, Trophy, Users } from 'lucide-react';
+import { Clock, Globe, Heart, Rss, Sparkles, Tags, Trophy, Users } from 'lucide-react';
 import { useFollows } from '@/hooks';
 import type { DiscoverSection } from './types';
 
@@ -71,7 +71,7 @@ export const MobileIdleHome: React.FC<MobileIdleHomeProps> = ({
   favoritesTotal,
   historyTotal,
 }) => {
-  const { t } = useTranslation(['home', 'search']);
+  const { t } = useTranslation(['home', 'search', 'nav']);
   const navigate = useNavigate();
   const { data: follows } = useFollows();
   const unread = follows?.unread ?? 0;
@@ -115,6 +115,11 @@ export const MobileIdleHome: React.FC<MobileIdleHomeProps> = ({
           <DiscoverItem icon={Trophy} label={t('home:mobileHome.discoverPage.sections.top250')} onClick={() => onOpenDiscover('top250')} />
           <DiscoverItem icon={Tags} label={t('home:mobileHome.discoverPage.sections.genres')} onClick={() => onOpenDiscover('genres')} />
           <DiscoverItem icon={Users} label={t('home:mobileHome.discoverPage.sections.actresses')} onClick={() => onOpenDiscover('actresses')} />
+          <DiscoverItem
+            icon={Globe}
+            label={t('nav:mobileMore.sources')}
+            onClick={() => navigate('/main?tab=sources')}
+          />
         </div>
       </section>
     </div>
