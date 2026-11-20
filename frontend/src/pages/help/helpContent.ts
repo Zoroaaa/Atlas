@@ -7,6 +7,7 @@ import {
   Users,
   UserCheck,
   Bell,
+  User,
   ShieldCheck,
   AlertTriangle,
   LifeBuoy,
@@ -29,12 +30,12 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
   {
     id: 'start',
     icon: Rocket,
-    sections: ['overview', 'first-steps'],
+    sections: ['overview', 'navigation', 'first-steps', 'app-client'],
   },
   {
     id: 'discover',
     icon: Compass,
-    sections: ['for-you', 'jav-rankings', 'jav-top250', 'trending-actresses'],
+    sections: ['discover-page', 'for-you', 'jav-rankings', 'jav-top250', 'genres', 'trending-actresses'],
   },
   {
     id: 'search',
@@ -49,7 +50,7 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
   {
     id: 'detail',
     icon: FileText,
-    sections: ['detail-page'],
+    sections: ['detail-page', 'library-detail', 'play-online'],
   },
   {
     id: 'community',
@@ -67,6 +68,11 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
     sections: ['notification-center', 'email-verification', 'email-preferences', 'unsubscribe'],
   },
   {
+    id: 'workspace',
+    icon: User,
+    sections: ['personal-center', 'dashboard-stats', 'settings'],
+  },
+  {
     id: 'account',
     icon: ShieldCheck,
     sections: ['register-login', 'oauth', 'email-password', 'reset-password', 'delete-account'],
@@ -79,7 +85,7 @@ export const HELP_CATEGORIES: HelpCategoryDef[] = [
   {
     id: 'faq',
     icon: LifeBuoy,
-    sections: ['faq-search', 'faq-access', 'faq-account'],
+    sections: ['faq-search', 'faq-access', 'faq-account', 'faq-feedback'],
   },
 ];
 

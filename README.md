@@ -316,12 +316,12 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Multi-Source Data**: Support multi-source data aggregation display
 - **Login Required**: Need user login authentication to access
 
-### 7. Help Center (v1.6.0)
+### 7. Help Center (added in v1.6.0, kept in sync with features)
 
 - **Route**: `/help`, linked from the main navigation
-- **Categories**: Getting started, discovery (for-you / Recently Hot / TOP250 / trending actresses), search basics & tab differences, category guides, detail page, community, actress follows, notifications & email, account security, general notices, FAQ
-- **Structure**: Every section follows “feature overview + step-by-step guide + caveats”, plus a standalone general notices chapter
-- **Consistency**: Content is kept in sync with shipped behavior; JAV search is named “JAV search” everywhere instead of “JAV code search”
+- **Categories**: Getting started (overview / interface & navigation / first steps / clients), Discover (Discover pages / For You / Recently Hot / TOP250 / tags / actresses), search & browse, content categories (including the Sources Catalog), item details (local library card / online playback), community, follows, notifications & email, Account Center (overview / statistics / settings), account security, general notices, FAQ & troubleshooting
+- **Structure**: Every section follows “feature overview + step-by-step guide + caveats”; FAQ sections focus on troubleshooting steps
+- **Consistency**: User-facing changes must update all three languages in the same change, guarded by `frontend/src/pages/help/__tests__/helpContent.test.ts`; see `AGENTS.md` section 7
 
 ## Technology Stack Overview
 

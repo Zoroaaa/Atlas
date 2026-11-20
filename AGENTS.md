@@ -54,6 +54,7 @@ npm run deploy --workspace=backend
 | `frontend/src/components/jav` | JAV 详情、榜单、女优、推荐等专用组件 | 复用共享片段，不复制详情逻辑 |
 | `frontend/src/components/workbench` | 工作台通用原子组件（Panel / Chip / MediaCard 等） | 保持无业务耦合 |
 | `frontend/src/components/layout` | 全局壳层、导航、布局 | 不写业务请求 |
+| `frontend/src/pages/help` | 帮助中心页面与章节结构（`helpContent.ts`） | 章节结构只在这里定义，文案在 i18n `help` 命名空间且三语同步 |
 | `frontend/src/hooks` | 跨组件状态与数据编排（react-query 封装） | 不直接写 SQL 或 DOM 结构 |
 | `frontend/src/services/api` | 后端 API 封装、类型、zod 请求校验 | 不包含 UI 状态 |
 | `frontend/src/stores` | Zustand 全局状态 | 只存客户端状态，服务端数据优先 react-query |
@@ -177,21 +178,54 @@ await invalidateSourceCache(sourceId);
 await invalidateSourceCache(sourceId);
 ```
 
-## 7. 测试与验收
+## 7. 帮助中心同步（强制）
+
+`/help` 是用户侧唯一的功能说明入口。章节结构只有 `frontend/src/pages/help/helpContent.ts` 一处数据源，文案在 `i18n/locales/{zh-CN,zh-TW,en}.json` 的 `help` 命名空间。
+
+### 7.1 触发条件
+
+以下改动必须在**同一次改动内**同步帮助中心，不允许「先上功能、文档后补」：
+
+- 新增用户可见功能、入口或页面；
+- 入口位置、导航分组、按钮位置发生变化（例如从首页移到发现页、从卡片移到标题栏）；
+- 影响用户判断的数值或行为变化：上限、频率、分页大小、默认值、同步周期、配额档位；
+- 交互流程调整或功能下线；
+- 用户可见的报错与限制条件变化。
+
+只改性能、索引、内部管理后台、日志的改动不需要写帮助；但一旦它改变了用户能看到的结果（榜单条数、封面加载方式、入口是否存在），就要写。
+
+### 7.2 写法
+
+- 沿用「功能介绍 / 使用步骤 / 注意事项」三段式；FAQ 类章节可以只用「注意事项」承载排查步骤。
+- 写用户实际看到的名字，用「」引用界面文案；不写表名、接口名、变量名、文件路径。
+- 一句话说清「是什么 + 有什么约束」，不复述代码，不写变更历史。
+- 新增章节先挂到 `helpContent.ts` 的合适分类，再补三语文案；三语缺一视为未完成。
+
+### 7.3 自检顺序
+
+1. 这次改动用户会看到什么不同？
+2. 现有哪一节描述了这个功能？没有就新增，有就改到与当前页面一致。
+3. 三语是否都改了？新章节的 id 是否已加入 `helpContent.ts`？
+4. 运行 `npm run test:run --workspace=frontend -- helpContent`。
+
+守卫测试 `frontend/src/pages/help/__tests__/helpContent.test.ts` 会校验章节集合与三语完整性；新增章节时它先失败属于预期，补齐文案后通过。
+
+## 8. 测试与验收
 
 - 修改前端 / 后端后至少运行对应的 `typecheck` 与 `lint`。
 - 涉及接口、状态、缓存、权限、搜索链路的改动，补充或更新测试，并运行相关测试文件。
+- 用户可见行为变更必须同步帮助中心，并运行 `helpContent` 守卫测试。
 - 提交前运行完整验证：前后端 `typecheck` / `lint`、前端 `build`、相关 `test`。
 - 不允许删除、跳过或弱化测试来让流程通过；测试失败先定位根因。
 
-## 8. Git 工作流
+## 9. Git 工作流
 
 - 用户未明确要求时，不执行 `git commit`、`git push`、分支操作。
 - 一个任务全部完成并经用户确认后，再做一条提交并统一推送；不要中途提交、拆分提交。
 - 提交信息说明「为什么改」，一个提交只表达一个目的。
 - 需要强推时只能使用 `--force-with-lease`，禁止 `--force`。
 
-## 9. 边界与禁止事项
+## 10. 边界与禁止事项
 
 - 不修改 `node_modules/`、`dist/`、`.wrangler/`、构建产物与缓存目录。
 - 不读取、不写入、不提交任何密钥：`.dev.vars`、`.env*`、token、证书。
@@ -200,7 +234,7 @@ await invalidateSourceCache(sourceId);
 - 不顺手重构、不扩项、不修与当前任务无关的问题；发现风险先报告。
 - 不提交调试代码、临时日志、`.tmp` / `.screenshots` 等本地产物。
 
-## 10. 常见坑
+## 11. 常见坑
 
 - 子目录单独 `npm install` 会让 `@codeseek/shared` 解析失败；依赖统一在根目录安装。
 - Worker 部署前未构建 `frontend/dist`，线上静态资源会缺失或停留在旧版本。

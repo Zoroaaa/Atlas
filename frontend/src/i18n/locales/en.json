@@ -3901,537 +3901,687 @@
       "saveFailed": "Couldn't save, please try again"
     }
   },
-  "help":   {
+  "help": {
     "page": {
       "badge": "Help Center",
       "title": "Atlas Help Center",
-      "subtitle": "Browse feature guides, steps, and things to note by topic. You can also search directly, for example “for you”, “rankings”, “email verification”, or “report”.",
-      "searchPlaceholder": "Search help, e.g. for you, sources, email verification, reporting",
+      "subtitle": "Find feature overviews, step-by-step instructions, and caveats by topic. You can also search directly, for example “For You”, “Sources Catalog”, “email verification”, or “online playback”.",
+      "searchPlaceholder": "Search help, e.g. For You, Sources Catalog, online playback, report",
       "clearSearch": "Clear search",
       "searchResultCount": "{{total}} matching sections",
-      "noResultsTitle": "No help articles found",
+      "noResultsTitle": "No matching help found",
       "noResultsDesc": "Nothing matches “{{query}}”. Try a shorter keyword or browse the categories on the left.",
       "toc": "Contents",
       "openToc": "Open contents",
       "closeToc": "Close contents",
-      "features": "Features",
-      "steps": "Steps",
-      "caveats": "Things to note",
+      "features": "What it does",
+      "steps": "How to use it",
+      "caveats": "Things to know",
       "sectionCount": "{{total}} sections"
     },
     "categories": {
       "start": {
         "title": "Getting started",
-        "description": "What Atlas does and where to begin."
+        "description": "What Atlas does, how the interface works, and where to begin."
       },
       "discover": {
-        "title": "Discover & recommendations",
-        "description": "For You, Recently Hot, and trending actresses on the home page."
+        "title": "Discover and recommendations",
+        "description": "Recommendations, Recently Hot, TOP250, tags, and actresses on the Discover pages."
       },
       "search": {
-        "title": "Search & browsing",
-        "description": "Keywords, Tab differences, filters, result actions, history, and favorites."
+        "title": "Search and browse",
+        "description": "Keywords, Tab differences, filters and sorting, result actions, history, and favorites."
       },
       "categories": {
         "title": "Content categories",
         "description": "What each category searches, what results look like, and where sources come from."
       },
       "detail": {
-        "title": "Entry details",
-        "description": "What the detail page contains and how to explore further."
+        "title": "Item details",
+        "description": "What the detail pages contain and how to keep exploring from them."
       },
       "community": {
         "title": "Community",
-        "description": "Posts, comments, likes, favorites, reports, and community rules."
+        "description": "Posting, comments, likes, favorites, reports, and community rules."
       },
       "follow": {
-        "title": "Follows & subscriptions",
-        "description": "Follow actresses, view the feed, and manage alerts."
+        "title": "Follows and subscriptions",
+        "description": "Follow actresses and entities, read the feed, and manage alerts."
       },
       "notifications": {
-        "title": "Notifications & email",
+        "title": "Notifications and email",
         "description": "Inbox, notification settings, email verification, and unsubscribe."
       },
+      "workspace": {
+        "title": "Account Center",
+        "description": "Overview, statistics, activity, and settings."
+      },
       "account": {
-        "title": "Account & security",
-        "description": "Sign up, sign in, OAuth, change email, reset password, and delete your account."
+        "title": "Account and security",
+        "description": "Sign-up and sign-in, OAuth, changing email, password reset, and deletion."
       },
       "notices": {
         "title": "General notices",
-        "description": "Content sources and disclaimer, account security, email delivery, and data retention."
+        "description": "Content sources and disclaimers, account safety, email delivery, and data retention."
       },
       "faq": {
-        "title": "FAQ & troubleshooting",
-        "description": "Start here when searches fail, links do not open, or emails do not arrive."
+        "title": "FAQ and troubleshooting",
+        "description": "Start here when searches return nothing, sites fail to open, or email does not arrive."
       }
     },
     "sections": {
       "overview": {
         "title": "Site overview",
-        "summary": "Atlas is an aggregated search and discovery platform that brings results from multiple sources together, with rankings, recommendations, community, and follows.",
+        "summary": "Atlas is an aggregated search and discovery platform that brings results from multiple sources together, with Discover pages, rankings, community, and follows.",
         "features": [
-          "One search box covers five content categories: JAV, anime, movies, manga, and novels.",
-          "The JAV home page includes the follow feed, For You, Recently Hot, and trending actresses.",
-          "After signing in, search history, favorites, follows, notifications, and community content sync with your account.",
-          "The top-right corner lets you switch the proxy and theme/language, and open this Help Center at any time."
+          "One search box covers five content types: JAV, anime, movies, manga, and novels. “Sources” is not a search category; it lists indexed sites.",
+          "On desktop the left sidebar switches between Search, Discover, Dashboard, Community, and Admin; accordion groups expand one at a time.",
+          "On mobile the bottom navigation (Home, Community, Dashboard, Me) switches workspaces, and Dashboard and Community use a menu page plus content pages.",
+          "Discover splits For You, Recently Hot, TOP250, Tags, and Actresses into separate pages for browsing without a specific keyword.",
+          "After signing in, search history, favorites, follows, notifications, and community content sync with your account; searching and browsing work without signing in.",
+          "The top bar always has notifications, proxy, client download, language, and More (Help Center / GitHub)."
         ],
         "steps": [
-          "Choose a category in the top navigation, or enter a keyword on the home page.",
-          "Sign in when you need synced data; browsing and searching also work without signing in.",
-          "Open a source from the results, view details, or favorite works you like.",
-          "Manage history, favorites, follows, and notifications from the Account Center."
+          "Opening the site root shows the landing page. Click “Create account” or “Sign in”, or go straight to `/main` to search.",
+          "Pick a category in the Search group of the left sidebar, or type a keyword on the home page and press Enter.",
+          "Open Discover in the sidebar to browse, or Dashboard to manage your data.",
+          "Use the bell for notifications and the avatar menu for profile, account settings, and sign-out."
         ],
         "caveats": [
           "Some features depend on site configuration, such as whether registration or the community is enabled. If an entry point is missing, the feature is probably turned off.",
-          "Content comes from third-party sources. Atlas only aggregates and indexes it and is not responsible for the content itself."
+          "Content comes from third-party sources. Atlas only aggregates and indexes it and is not responsible for the content itself.",
+          "When the sidebar is collapsed only group icons remain; hover to see the group name, and click an icon to expand again."
+        ]
+      },
+      "navigation": {
+        "title": "Interface and navigation",
+        "summary": "Desktop uses a collapsible left sidebar with grouped navigation; mobile uses bottom navigation and menu pages. The entry points match, only their position differs.",
+        "features": [
+          "The desktop sidebar has five groups: Search, Discover, Dashboard, Community, and Admin. Only one expands at a time, and navigating opens the matching group.",
+          "The sidebar collapses to a 72px icon rail; clicking a group icon expands the sidebar and opens that group.",
+          "The top bar runs left to right: group breadcrumb, page title, notification bell, proxy, client download, language, More (Help Center / GitHub), and the avatar menu.",
+          "Mobile bottom navigation is Home, Community, Dashboard, and Me, and is hidden when signed out.",
+          "The mobile Me page groups settings, the admin panel (admins only), the Help Center, GitHub, and sign-out.",
+          "The mobile home page keeps only the search box, three account entries, and the Discover grid; full lists live on the Discover pages."
+        ],
+        "steps": [
+          "On desktop, click a group title to expand or collapse it, and click an item to switch pages.",
+          "Need more room for content? Use the collapse button at the top of the sidebar, or click a group icon to expand it again.",
+          "On mobile, use the bottom navigation to switch workspaces. Dashboard and Community open a menu page first; the back arrow returns to it.",
+          "If you cannot find a feature, locate it by group: rankings and recommendations under Discover, favorites and history under Dashboard, account and security under Settings."
+        ],
+        "caveats": [
+          "Community and the admin panel only appear when the feature flag is on or the account has permission; a missing entry is not a bug.",
+          "Theme and language can be changed from the avatar menu or Settings → Appearance, and the two stay in sync.",
+          "The current category, keyword, and search mode live in the URL (for example `/main?tab=jav&q=SONE-520&sub=code`), so refresh and shared links restore the view."
         ]
       },
       "first-steps": {
-        "title": "Get started in three steps",
-        "summary": "Sign in, choose a category, and enter a keyword to complete your first search.",
+        "title": "Three steps to start",
+        "summary": "Sign in, pick a category, and type a keyword to complete your first search.",
         "features": [
-          "Sign up with email and sign in with a password, or use GitHub / Google sign-in.",
-          "The JAV category offers code, actress, and title search modes.",
-          "Open a source directly from the results, or enter the detail page to see magnet links and related information."
+          "Sign up with email and sign in with a password, or use GitHub / Google.",
+          "The JAV category offers code, actress, and title modes; the input hint changes with the mode.",
+          "Results can open the source directly or lead to a detail page with magnets, online playback, and related information."
         ],
         "steps": [
-          "Sign up or sign in. Registration requires an email verification code.",
-          "Choose a category at the top, such as JAV, anime, or movies.",
-          "Enter a keyword and press Enter. Open a source, favorite an entry, or continue to the detail page."
+          "Sign up or sign in. Registration needs an email code, and a taken username is reported before any code is sent.",
+          "Choose a category in the Search group of the left sidebar (on mobile, at the top of the page), such as JAV, anime, or movies.",
+          "Type a keyword and press Enter, then open a source, favorite an item, or view details."
         ],
         "caveats": [
-          "Registration requires email verification. If the email does not arrive, check spam first.",
-          "JAV codes usually follow the “letters-numbers” format. If a code search finds nothing, try title or actress mode.",
-          "Search has a quota by account tier. See “Usage limits and quotas” for windows and upgrade rules."
+          "First-time registration requires the email code; check spam if it does not arrive.",
+          "JAV codes usually look like “letters-numbers”. If a code search fails, try title or actress mode.",
+          "Search is quota-limited; repeated searches use it up faster. See “Usage limits and quotas” for tiers and windows."
+        ]
+      },
+      "app-client": {
+        "title": "Clients and installation",
+        "summary": "Besides the browser, Atlas ships a Windows client, an Android package, and a PWA. All three load the same site, and your account data is shared.",
+        "features": [
+          "The download icon in the top bar and the “Client” link in the landing-page footer both point to GitHub Releases for Windows and Android builds.",
+          "The Android client shows the current version on the Me page, can check for updates manually, and offers “Update” when a new build exists.",
+          "Browsers that support “Add to Home Screen” can install Atlas as a standalone app with a launch placeholder and update prompt.",
+          "The site caches images and the last signed-in state, so cached favorites and search history remain visible offline.",
+          "Client and web share the same account, so favorites, follows, and notifications stay in sync."
+        ],
+        "steps": [
+          "Click the download icon in the top bar to open Releases, then pick the package for your system.",
+          "After installing on Android, check the version on the Me page and tap “Update” when a new build appears.",
+          "To use Atlas as an app in the browser, open the site and accept “Add to Home Screen”.",
+          "When an update prompt appears, click “Update now” and the page reloads on the new version."
+        ],
+        "caveats": [
+          "The client is only a shell; features match the website, so site updates do not require a new download.",
+          "Only install packages from the official Releases page. Unknown builds may be blocked by the system or carry risk.",
+          "Offline mode only shows cached content; new searches and details still need a connection.",
+          "Clearing browser or site data also deletes the offline cache."
+        ]
+      },
+      "discover-page": {
+        "title": "Discover pages",
+        "summary": "Discover splits For You, Recently Hot, TOP250, Tags, and Actresses into five pages for browsing by popularity or genre when you have no keyword in mind.",
+        "features": [
+          "Open it from the Discover group in the desktop sidebar, or from the Discover grid on the mobile home page.",
+          "Each section has its own header (icon, title, description) and refresh button, with content in a single card.",
+          "Recommendations and tags use grids of up to 6 columns; Recently Hot shows 15 items per page and TOP250 shows 20.",
+          "The last item in the mobile Discover grid is “Sources Catalog”, which opens the source list directly.",
+          "Clicking any work card first checks the local library and opens the local library detail card."
+        ],
+        "steps": [
+          "Open Discover and pick a section.",
+          "When there is more content, use the pagination at the bottom or “Load more”.",
+          "To change the selection, click refresh in the section header.",
+          "Open a card for details, then keep exploring by actress, tag, or publisher."
+        ],
+        "caveats": [
+          "Recommendations and tags depend on account activity and may be empty when signed out or when there is little data.",
+          "Rankings, TOP250, and actresses come from third-party sites or site statistics, so syncing may lag.",
+          "Discover only presents content; it never changes your favorites or history."
         ]
       },
       "for-you": {
-        "title": "“For You” on the home page",
-        "summary": "“For You” picks works on the site based on your favorites and search history. It only appears on the JAV home page after you sign in.",
+        "title": "For You",
+        "summary": "For You picks works from the local library based on your favorites and search history. It only appears after signing in, under Discover → Recommended.",
         "features": [
-          "Cards show the cover, code, site rank, and a recommendation reason such as same actress, same tag, same publisher, recent popular, weekly chart, or monthly chart.",
-          "Favorites are the main signal; repeated searches for the same actress or tag also count.",
-          "Supports refresh and collapse. The module may be hidden when there is not enough data or loading fails.",
-          "Clicking a card starts a search by its code."
+          "Cards show the cover, code, site rank, and the reason, such as same actress, same tag, same publisher, recently popular, weekly rank, or monthly rank.",
+          "Favorites are the main signal; repeatedly searching the same actress or tag also counts.",
+          "You can refresh it; with too little data or a failed request the whole module may be hidden.",
+          "Clicking a card opens the local library detail card instead of jumping to an external site."
         ],
         "steps": [
-          "Sign in and open the JAV category home page.",
-          "Browse the cards and recommendation reasons under “For You”.",
-          "Click a card to search by code. Favorite more works to make recommendations fit you better.",
-          "Click the refresh button in the module header for a new batch."
+          "Sign in and open Discover → Recommended.",
+          "Browse the cards and their reasons.",
+          "Click a card to view details; favoriting more works makes recommendations fit better.",
+          "Click refresh in the module header to get a new batch."
         ],
         "caveats": [
-          "“For You” is not shown when you are signed out.",
-          "Recommendations mix site popularity with your behavior and are not a quality rating.",
-          "The more you favorite, the closer recommendations get to your taste. Clearing favorites changes them noticeably."
+          "For You is not shown when signed out.",
+          "Recommendations mix site popularity with personal behavior and are not a quality rating.",
+          "More favorites means closer recommendations; clearing favorites visibly changes the results."
         ]
       },
       "jav-rankings": {
         "title": "Recently Hot",
-        "summary": "Recently Hot is grouped by weekly / monthly and censored / uncensored. Data syncs from JavDB and shows the update time.",
+        "summary": "Recently Hot groups weekly / monthly rankings by censored / uncensored, syncs from JavDB, and shows the update time.",
         "features": [
-          "Two periods (weekly, monthly) × two types (censored, uncensored), for four lists in total.",
-          "Shows rank, NEW or up/down markers, cover, title, and code. Click a cover to enlarge it.",
-          "Supports pagination and manual refresh.",
-          "Clicking an entry starts a search by its code."
+          "Two periods (monthly, weekly) times two types (censored, uncensored) make four rankings, 15 items per page.",
+          "Shows rank, NEW or up/down markers, cover, title, and code; covers can be enlarged.",
+          "The page header shows the data source and update time, with a manual refresh.",
+          "Clicking an item opens the local library detail card."
         ],
         "steps": [
-          "Open the JAV home page and scroll to “Recently Hot”.",
-          "Choose weekly or monthly, then censored or uncensored.",
-          "Click an entry to view the work; use the bottom pager for more.",
-          "If data is not updated yet, click refresh or wait for the next early-morning sync."
+          "Open Discover → Recently Hot.",
+          "Pick monthly or weekly, then censored or uncensored.",
+          "Click an item to view the work; use the pagination for more.",
+          "If the data looks stale, refresh or wait for the next early-morning sync."
         ],
         "caveats": [
-          "Rankings sync from third-party data, usually in the early morning. They may be briefly empty right after a sync.",
-          "Rank reflects popularity on the source site, not a rating on Atlas.",
-          "A failed ranking load does not affect normal search. Try refreshing later."
+          "Rankings sync from third-party data, usually early each morning, and may be briefly empty right after a sync.",
+          "Ranks reflect popularity on the source site, not ratings on Atlas.",
+          "A failed ranking load does not affect normal search; try refreshing later."
         ]
       },
       "jav-top250": {
         "title": "TOP250",
-        "summary": "TOP250 lists the 250 highest-rated works on JavDB, with Overall, Censored, Uncensored, Western, and FC2 charts plus yearly charts from 2008 to the current year.",
+        "summary": "TOP250 collects the 250 highest-rated works on JavDB, with all / censored / uncensored / FC2 overall lists plus yearly lists from 2008 onward.",
         "features": [
-          "Five overall charts: All, Censored, Uncensored, Western, and FC2, synced monthly.",
-          "Yearly charts cover 2008 to the current year and sync monthly.",
-          "Shows rank, cover, title, and code. Clicking a row searches by code."
+          "Four overall lists: all, censored, uncensored, and FC2; the Western list is hidden for now.",
+          "Yearly lists cover 2008 to the current year, and the year range extends automatically.",
+          "Shows rank, cover, title, and code, 20 items per page; clicking an item opens the local library detail card.",
+          "Overall and yearly lists sync once a month, and the header shows the update time."
         ],
         "steps": [
-          "Open the JAV home page and find TOP250 below “Recently Hot”.",
-          "Switch between All, Censored, Uncensored, Western, and FC2.",
-          "To view past years, pick a year from 2008 to the current year in the year selector on the right.",
-          "Click a row to view the work; click refresh if the data has not updated yet."
+          "Open Discover → TOP250.",
+          "Switch between all, censored, uncensored, and FC2.",
+          "To view earlier years, pick a year from 2008 onward in the dropdown.",
+          "Click refresh when the data has not updated."
         ],
         "caveats": [
-          "TOP250 comes from a third-party site; ranks change with its ratings.",
-          "Overall and yearly charts both update monthly; they may be briefly empty right after a sync.",
+          "TOP250 comes from a third-party site, so ranks change with its ratings.",
+          "The Western category is not open yet; missing it from the list is expected.",
           "A failed TOP250 load does not affect normal search or Recently Hot."
+        ]
+      },
+      "genres": {
+        "title": "Browsing by tag",
+        "summary": "The Tags page recommends genre tags from your favorites and search habits, and opening a tag browses similar works. It requires signing in.",
+        "features": [
+          "Recommended tags come from favorites and search history; “Frequent” marks tags you keep returning to.",
+          "New accounts with no activity get a random batch of tags so the page is never empty.",
+          "Clicking a tag expands its work grid in place; click again to collapse it.",
+          "Work cards show code, title, date, and a “Favorited” badge, and open the local library detail card.",
+          "“New tag batch” and “New work batch” load more; each tag loads at most 30 batches and then reports “No more”."
+        ],
+        "steps": [
+          "Sign in and open Discover → Tags.",
+          "Click a tag to view its works.",
+          "If the results are not enough, click refresh above the grid for another batch.",
+          "Click “New tag batch” to change direction."
+        ],
+        "caveats": [
+          "The tag bar is not rendered when signed out.",
+          "Tag order changes with your activity, so the same account may see a different order at different times.",
+          "Tag works come from third-party sources, so the count depends on what they index."
         ]
       },
       "trending-actresses": {
         "title": "Trending actresses",
-        "summary": "The trending actress list ranks actresses by a combination of ranked works and follower count.",
+        "summary": "The trending actress list ranks by works on the four rankings plus follower count, and shows avatars for the most followed actresses on the site.",
         "features": [
-          "Each actress shows rank, name, follower count, and number of ranked works.",
-          "The follow button in the top-right corner of each card follows or unfollows directly.",
-          "Clicking a name starts an actress search to view her works.",
-          "Supports refresh. The whole block is hidden when there is no data or loading fails."
+          "Each actress shows rank, avatar, name, follower count, and ranked-work count.",
+          "You can follow or unfollow directly from the card.",
+          "Clicking a name starts an actress-mode search for her works.",
+          "You can refresh it; with no data or a failed request the block is hidden."
         ],
         "steps": [
-          "Find “Trending actresses” on the JAV home page.",
-          "Browse the ranking and click follow to subscribe to actresses you like.",
+          "Open Discover → Actresses.",
+          "Browse the ranking and follow actresses you care about.",
           "Click a name to open her works in search results.",
-          "Check new and upcoming releases later under Account Center → Follow feed."
+          "Check the Dashboard follow feed later for new and upcoming releases."
         ],
         "caveats": [
-          "The ranking combines ranked works across all four lists with follower counts, so it changes over time.",
-          "You can follow up to 100 actresses.",
-          "The list is visible when signed out, but following requires signing in."
+          "Ranking uses “ranked works × 5 plus followers × 2” and changes over time.",
+          "You can follow up to 100 entities.",
+          "Browsing works without signing in, but following requires an account."
         ]
       },
       "search-basics": {
         "title": "Keywords and search modes",
-        "summary": "All categories share one search box; the JAV category adds code, actress, and title modes.",
+        "summary": "All five content types share one search box; JAV also offers code, actress, and title modes.",
         "features": [
-          "Keywords work with titles, codes, and actress names. Press Enter or click Search.",
-          "Chinese, Japanese, English and romanized titles resolve to the same work, so searching in the language you know still finds the right result.",
-          "JAV modes: code (e.g. SONE-520), actress, and title. The input hint changes with the mode.",
-          "A suggestion dropdown appears as you type; click a suggestion to search immediately.",
-          "The current quota is shown near the search box. If it runs out, wait for the reset as prompted."
+          "Keywords can be titles, codes, or actress names; press Enter or click the search button.",
+          "Chinese, Japanese, English, and romanized titles resolve to the same work, so search in whichever language you prefer.",
+          "JAV modes: code (for example SONE-520), actress, and title; the input hint changes with the mode.",
+          "Typing shows suggestions; click one to search immediately.",
+          "The current tier and this-minute usage sit next to the search box; click the question mark for every window."
         ],
         "steps": [
-          "Choose a category at the top.",
+          "Choose a category in the Search group of the left sidebar.",
           "Under JAV, choose code, actress, or title mode.",
-          "Enter a keyword and press Enter to see results.",
-          "Use filters, sorting, or pagination to adjust the results."
+          "Type a keyword and press Enter to see results.",
+          "Refine with filters, sorting, or pagination."
         ],
         "caveats": [
-          "Codes usually follow the “letters-numbers” format. If a code search finds nothing, try title or actress mode.",
-          "When the quota is exhausted, wait for it to reset instead of repeating searches.",
-          "Suggestions and quota status follow what the page actually shows."
+          "Codes usually look like “letters-numbers”; if a code search fails, try title or actress mode.",
+          "Search quotas depend on your account tier; see “Usage limits and quotas” for windows and upgrade rules.",
+          "Suggestions and quota display follow what the page actually shows."
         ]
       },
       "tabs-diff": {
         "title": "How search Tabs differ",
-        "summary": "The top Tabs decide what kind of content you search. “Sources” is not a keyword search but a source directory, and the community is now a separate page.",
+        "summary": "The category decides what you search. “Sources Catalog” is a source directory rather than a keyword search, and the community is a separate page.",
         "features": [
-          "JAV: code, actress, and title modes; results lead to details, magnets, and sources.",
+          "JAV: code, actress, and title modes; results lead to details, magnets, online playback, and sources.",
           "Anime: aggregates by work and shows subtitling group, size, and release date.",
           "Movies: aggregates by work and shows resolution, size, and release date.",
           "Manga: shows chapters and update status.",
           "Novels: shows author, publisher, category, and chapters.",
-          "Sources: shows the source directory, supports health checks and opening sites, and does not run a keyword search."
+          "Sources Catalog: shows the source directory with filters, health checks, and site links, and does not run a keyword search."
         ],
         "steps": [
-          "Choose the Tab that matches the content you want.",
-          "Switching Tabs keeps the current keyword and searches again.",
+          "Choose the category that matches the content you want.",
+          "Switching categories keeps the current keyword and searches again.",
           "To visit source sites directly, switch to “Sources”.",
-          "To browse community content, open the separate “Community” page from the top."
+          "To browse community content, open Community from the sidebar or the mobile bottom navigation."
         ],
         "caveats": [
-          "The community is not a search Tab. The old `?tab=community` link redirects to `/community`.",
-          "Anime and movies support aggregated and source views. Aggregated view merges the same work across sources.",
-          "Tab visibility depends on site configuration."
+          "The community is not a search category. The old `?tab=community` link redirects to `/community`.",
+          "Anime and movies support aggregated and source views; aggregated view merges the same work across sources.",
+          "Category visibility depends on site configuration."
         ]
       },
       "filters-sort": {
         "title": "Filters, sorting, and pagination",
-        "summary": "Use categories and views to filter results, then sort and paginate to control browsing order.",
+        "summary": "Use categories and views to filter results, and sorting plus pagination to control the order.",
         "features": [
-          "Category filter: the top Tab is the first filter. Switching re-runs the current keyword.",
-          "Source view: anime and movie results can switch between “aggregated” and “by source”.",
-          "Sorting: results follow the aggregated order by default. Community lists support “Latest / Hottest”.",
-          "Pagination: when there are many results, use the bottom pager or Previous / Next."
+          "Category filter: the Search group in the sidebar is the first filter and re-runs the current keyword.",
+          "Source view: anime and movie results switch between aggregated and by-source views.",
+          "Sorting: results use the aggregated order by default; community lists support “Latest / Hottest”.",
+          "Pagination: use the bottom pagination or “Previous / Next” when there are many results.",
+          "The Sources Catalog supports combined filters by major category, subcategory, site type, scope, and sort order."
         ],
         "steps": [
           "Confirm the category and keyword first.",
           "Switch to source view when comparing different sources.",
-          "Use sorting and pagination to adjust browsing order.",
-          "Click refresh in the results header to fetch results again."
+          "Adjust sorting and pagination to change the order.",
+          "Click refresh in the title bar to fetch results again."
         ],
         "caveats": [
-          "Sorting options differ by category; some categories only offer the default order.",
-          "Aggregated view merges the same work, while source view expands every source record.",
-          "Pagination may reset after you change filters."
+          "Sort options vary by category; some only offer the default order.",
+          "Aggregated view merges the same work, while source view lists every source record.",
+          "Pagination may reset after changing filters."
         ]
       },
       "result-actions": {
-        "title": "Actions on the results page",
-        "summary": "Every result can open its source directly; after signing in you can also favorite or share to the community.",
+        "title": "Actions on results",
+        "summary": "Every result can open its source directly; after signing in you can also favorite, view details, or share to the community.",
         "features": [
           "Open source: click “Go” or the external-link button to open the original site in a new tab.",
-          "Favorite: after signing in, click the heart to favorite; click again to remove it.",
-          "Proxy access: with the proxy enabled, sources open through the proxy and the button color changes.",
-          "Share to community: JAV detail pages and similar pages offer “Share to community”, where you can add a recommendation and tags."
+          "Favorite: after signing in, click the heart; click again to remove it. The detail card header also has a favorite button.",
+          "Proxy: with the top-bar proxy on, sources and images are fetched through it, and the button color changes.",
+          "Share to community: JAV detail pages, the favorites panel, and the follow feed all offer sharing with a comment and tags.",
+          "Details and playback: JAV results open the local library detail card, where you can pick an online playback platform."
         ],
         "steps": [
-          "Find the entry you want in the results.",
-          "Open its source or enter the detail page.",
+          "Find the item you want in the results.",
+          "Open the source or the detail page.",
           "After signing in, click the heart to favorite it.",
-          "To share, choose “Share to community” on the detail page."
+          "To share, choose “Share to community” from the detail page or the favorites panel."
         ],
         "caveats": [
           "The favorite button is unavailable when signed out.",
-          "You need to judge the content and safety risk of third-party sources yourself.",
-          "Pages may load more slowly when the proxy is enabled; this is normal."
+          "Judge content and safety risks yourself for third-party sources.",
+          "With the proxy on, loading may be slower; this is expected.",
+          "Shares from the follow feed carry summary information only; share from the detail page for full data."
         ]
       },
       "history-favorites": {
         "title": "Search history and favorites",
-        "summary": "After signing in, the home right rail and the Account Center record search history and favorites, with bulk management.",
+        "summary": "After signing in, the Account Center and home entries record search history and favorites, with bulk management and export.",
         "features": [
-          "Search history is grouped by Today / Yesterday / date and shows covers and basic information.",
-          "Supports selecting individual items, selecting a whole day, bulk deletion, clearing all history, and pagination.",
-          "Favorites support “Want to watch / Watched” status switching, pagination, deletion, and export.",
-          "Favorite entries can open the original source; with the proxy enabled they open through it.",
-          "The Account Center History and Favorites pages offer the same management."
+          "Search history is grouped by today / yesterday / date, shows covers and basic information, and opens the local library detail card.",
+          "Supports per-item selection, select-all by day, bulk delete, clearing history, and pagination.",
+          "Favorites support “Want to watch / Watched” status, pagination, deletion, and JSON export.",
+          "Favorite items open the original source directly, or through the proxy when it is on.",
+          "Every JAV work in the favorites panel can be shared to the community directly."
         ],
         "steps": [
-          "Sign in and run a search; history is recorded automatically.",
-          "Click an entry in the home right rail or Account Center → History to fill in the keyword again.",
+          "Run a search after signing in; history records automatically.",
+          "Click an item in Dashboard → History or the overview to view details.",
           "Click the heart on a result or detail page to favorite a work.",
-          "Use the Favorites page to switch status, export, or delete."
+          "On the Favorites page, switch status, export, or delete."
         ],
         "caveats": [
-          "Search history and favorites are account data; deleting your account removes them.",
-          "History is not recorded when signed out, and the favorite button is unavailable.",
-          "Exported files contain work information, so store them safely."
+          "History and favorites belong to your account and are deleted with it; each holds up to 1,000 entries.",
+          "History is not recorded and favorites are unavailable when signed out.",
+          "Exported files contain work information, so store them carefully."
         ]
       },
       "jav": {
         "title": "JAV category",
-        "summary": "Search by code, actress, or title, with details, rankings, recommendations, and a follow feed.",
+        "summary": "The JAV category supports code, actress, and title searches, plus details, rankings, recommendations, tags, and the follow feed.",
         "features": [
-          "Code search: enter a code to find a work; matches show details, magnet links, and source entry points.",
-          "Library first: code searches use details and magnets already collected on this site and open instantly. Use “External source” on the detail card to pull the latest data from JavBus.",
-          "Actress search: enter an actress name to see her works and follow her directly.",
-          "Title search: find works by title or keyword.",
-          "Home modules: follow feed, For You, Recently Hot, and trending actresses.",
-          "Detail fields: code, release date, duration, studio, series, tags, actresses, magnet links, and more."
+          "Code search: enter a code to query the work; results show details, magnets, online playback, and sources.",
+          "Local library first: code searches prefer indexed details and magnets and open instantly; use “External source” on the detail card to refresh from JavBus.",
+          "Actress search: enter an actress name to list her works and follow her directly.",
+          "Title search: search by title or keyword; titles in different languages resolve to the same work.",
+          "Discover modules: For You, Recently Hot, TOP250, Tags, and Trending actresses.",
+          "Detail fields: code, release date, duration, studio, series, tags, actresses, online playback, and magnets."
         ],
         "steps": [
-          "Choose the JAV category.",
-          "Choose code, actress, or title mode and enter your input.",
-          "Open a work detail or source from the results.",
-          "Favorite, follow actresses, or share to the community on the detail page."
+          "Choose the JAV category in the left sidebar.",
+          "Pick code, actress, or title mode and enter your query.",
+          "Open the work details or a source from the results.",
+          "On the detail page, favorite, follow actresses, play online, or share to the community."
         ],
         "caveats": [
-          "An invalid code format leads directly to no results.",
-          "Some works have no magnet links; the detail page explains this.",
-          "Rankings, recommendations, and the follow feed rely on third-party data or background checks and may be temporarily unavailable."
+          "A malformed code returns no results.",
+          "Some works have no magnets; the detail page says so and offers a refresh from the external source.",
+          "Rankings, recommendations, and the follow feed depend on third-party data or background checks and may be briefly unavailable."
         ]
       },
       "anime-movie": {
         "title": "Anime and movie categories",
-        "summary": "Anime and movie results group different sources of the same work together, and you can also view them by source.",
+        "summary": "Anime and movie results aggregate different sources for the same work, and you can switch to a by-source view.",
         "features": [
-          "Anime: view works in aggregated mode or switch to a source list; subtitling group, size, and release date are shown.",
-          "Movies: aggregated and source views are available, showing resolution, size, and release date.",
-          "Open and favorite: open a source directly from the result row, or sign in to favorite it."
+          "Anime: aggregated by work or listed by source; shows subtitling group, size, and release date.",
+          "Movies: aggregated and source views, with resolution, size, and release date.",
+          "Open and favorite: open a source from the result row, or favorite after signing in.",
+          "Covers go through the proxy cache, so revisits load faster after the first fetch."
         ],
         "steps": [
           "Choose the anime or movie category.",
-          "Enter the work title and press Enter.",
+          "Enter a title and press Enter.",
           "View results in aggregated or source view.",
-          "Open a source or favorite an entry."
+          "Open a source or favorite the item."
         ],
         "caveats": [
-          "Information for the same work may differ across sources.",
-          "Source view has more entries; aggregated view is better for comparison.",
-          "Browsing works when signed out, but favoriting requires signing in."
+          "The same work may differ between sources.",
+          "Source view lists more entries; aggregated view is easier to compare.",
+          "Browsing works without signing in, but favoriting requires an account."
         ]
       },
       "manga-novel": {
         "title": "Manga and novel categories",
-        "summary": "Manga and novels are shown by chapter or bibliographic information, making it easy to continue reading or favorite.",
+        "summary": "Manga and novels show chapters or bibliographic details so you can keep reading or save them.",
         "features": [
           "Manga: chapters, update status, and source links.",
           "Novels: author, publisher, category, chapters, and source links.",
-          "Favorites: sign in to favorite entries and manage them from the Account Center."
+          "Favorites: save after signing in and manage everything in the Account Center."
         ],
         "steps": [
           "Choose the manga or novel category.",
           "Enter a title, author, or keyword.",
-          "Open a source to continue reading.",
-          "After signing in, favorite entries for later."
+          "Open a source to keep reading.",
+          "Sign in and favorite items to find them later."
         ],
         "caveats": [
-          "Chapters and update status come from third-party sources and may lag behind.",
-          "Different sources may divide chapters differently."
+          "Chapters and update status come from third-party sources and may lag.",
+          "Different sources may split chapters differently."
         ]
       },
       "sources": {
         "title": "Search sources",
-        "summary": "The “Sources” Tab shows every source site indexed by Atlas; the Account Center Sources page lets you enable, test, and manage sources.",
+        "summary": "The Sources Catalog browses and tests indexed sites; “My Sources” maintains your own major categories, categories, and sources, and personal sources join searches for their category.",
         "features": [
-          "Expand by major category → category → source to see the source name, site type, and enabled status.",
-          "Run a health check on a single source; results show online, restricted, timeout, offline, or error with response time.",
-          "Run a check on all sources, check one source, or open the source site externally.",
-          "The Account Center Sources page supports enabling/disabling by source, category, or major category, adding custom sources, editing or deleting custom sources, and exporting JSON / CSV / OPML.",
-          "Disabled sources are not used in later searches."
+          "Sources Catalog (`/main?tab=sources`): grouped by major category → category, showing source name, site type, and enabled status.",
+          "Filters and sorting: keyword, major category, subcategory, site type, scope (all / my sources / enabled / searchable only), and sort by name or exposure.",
+          "Health checks: test a single source and get online, restricted, timeout, offline, or error with response time; the detail drawer shows 24-hour availability.",
+          "Source details: view the URL template, homepage, and description, set a custom name, subtitle, and notes for system sources, and visit the site.",
+          "My Sources (Dashboard → Sources): create major categories, categories, and sources; a personal category can also sit under a system major category and join its searches.",
+          "System sources can only be enabled, disabled, or customized; personal sources have no separate switch and stop participating once deleted.",
+          "The management page exports JSON / CSV / OPML for backup and migration."
         ],
         "steps": [
-          "Switch to “Sources” at the top of the home page to view the directory.",
-          "Expand major categories and categories to find the target source.",
-          "Click the check button for a health check, or the external-link icon to open the site.",
-          "To change which sources participate in search, use the Account Center Sources page."
+          "Browse and test: open the Sources page, expand categories, click check for a health check, or follow the link to visit a site.",
+          "Manage your own sources: open Dashboard → Sources, click “New major category” or “New category” under My Sources, then add a source inside it.",
+          "To add sources under a system category, switch to the System Sources tab and click new category on that major category; it returns to My Sources afterwards.",
+          "Disabling or deleting a source takes effect immediately, and caches are invalidated by source version."
         ],
         "caveats": [
           "Availability is controlled by third-party sites; restricted or timed-out does not necessarily mean permanently down.",
-          "Disabling sources reduces search results. When troubleshooting, confirm the source is enabled first.",
-          "Custom sources require a category and URL template; mistakes will lead to no results."
+          "Disabling system sources reduces search results. When troubleshooting, confirm the source is enabled first.",
+          "A new source needs a category and a URL template using `{keyword}` as the placeholder; mistakes lead to no results.",
+          "Deleting a major category or category also deletes its categories and sources, and cannot be undone."
         ]
       },
       "detail-page": {
-        "title": "Entry detail page",
-        "summary": "The detail page collects work information, magnet links, source entry points, and community sharing.",
+        "title": "Item detail page",
+        "summary": "The detail page combines work information, magnets, online playback, related recommendations, and community sharing.",
         "features": [
-          "Basic information: release date, duration, director, studio, publisher, series, and tags.",
-          "Actresses and follows: click an actress to view her works, or follow her directly.",
-          "Magnet links: expand the magnet list to copy a link or open WebTor. A hint appears when no magnet is available.",
-          "Recommendations: other works are suggested based on the current work’s tags, actresses, and studio.",
-          "Favorite and share: favorite the current work or share it to the community.",
-          "Local library and external source: when a collected code with magnets is found, the local record is shown immediately. Click “External source” at the top-right of the detail card to pull the latest data from JavBus; the result is written back to the local library."
+          "Basics: release date, duration, director, studio, publisher, series, and tags.",
+          "Actresses and follows: click an actress to see her works, or follow her directly.",
+          "Magnets: expand the list to copy a link or open WebTor; when none exist, a hint and an external-source entry appear.",
+          "Online playback: click “Play online” and choose among JavGuru, MissAV, SupJav, NJAVTV, 123AV, and Jable.",
+          "Related recommendations: works recommended by the current title's tags, actresses, and studio.",
+          "Favorite and share: favorite from the header, share to the community inside the details.",
+          "Local library and external source: indexed works with magnets render from the local library; “External source” refreshes from JavBus and merges only non-empty fields, so existing data is never wiped."
         ],
         "steps": [
           "Click a code or work in JAV results, notifications, the follow feed, or a community post.",
-          "View basic information and magnet links.",
+          "Review the basics, magnets, and online playback.",
           "Click an actress to view her works or follow her.",
-          "Favorite the current work or share it to the community."
+          "Favorite the work or share it to the community."
         ],
         "caveats": [
-          "If details fail to load, use the retry button or go back and open another source.",
-          "Recommendations are based on the current work’s attributes and do not mean similar content is available.",
-          "Sharing to the community makes your recommendation and selected tags public."
+          "If details fail to load, use retry or go back and try another source.",
+          "Online playback opens third-party sites; availability is up to them.",
+          "Recommendations follow the current work's attributes and do not guarantee similar content is available.",
+          "Sharing to the community publishes your comment and selected tags."
+        ]
+      },
+      "library-detail": {
+        "title": "Local library detail card",
+        "summary": "Clicking a work in history, favorites, the follow feed, or Discover opens the local library detail card, which reads indexed data and never contacts external sites.",
+        "features": [
+          "Renders separately for JAV, anime, movies, manga, and novels, with cover, title, sources, and download resources.",
+          "The header has a favorite button that stays visible while long content scrolls.",
+          "JAV works include the online playback entry and the related recommendations panel.",
+          "With magnets you can copy links or expand the list; without them a clear hint offers “Search” and “Pull external source”.",
+          "When no local record exists it reports “No local archive” and offers a jump to search."
+        ],
+        "steps": [
+          "Click any work in history, favorites, the follow feed, or Discover.",
+          "Review the local archive information and resources.",
+          "For the latest data, use “External source”, or click “Search” to try another source."
+        ],
+        "caveats": [
+          "The card reads local data whose freshness depends on background indexing and completion, so it may lag behind the source site.",
+          "The favorite button is unavailable when signed out.",
+          "Missing magnets do not mean the work does not exist; pull from the external source or search directly."
+        ]
+      },
+      "play-online": {
+        "title": "Online playback platforms",
+        "summary": "“Play online” on the detail card lists six third-party platforms that build a search link from the code and open in a new tab.",
+        "features": [
+          "Six platforms: JavGuru, MissAV, SupJav, NJAVTV, 123AV, and Jable.",
+          "Links are built from the code automatically, with no keyword typing.",
+          "The entry row lists the platform names so you can spot one you already use.",
+          "Search result detail cards and the local library detail card share the same entry."
+        ],
+        "steps": [
+          "Open any JAV detail with a code.",
+          "Click “Play online”.",
+          "Pick a platform from the list, and the browser opens that site in a new tab.",
+          "Repeat to switch platforms."
+        ],
+        "caveats": [
+          "Playback, availability, and quality are up to the third-party platform; Atlas stores and proxies no video.",
+          "Some platforms block regions or require sign-in; try another if one fails.",
+          "The entry is hidden when the code is empty, to avoid invalid links."
         ]
       },
       "community-browse-post": {
-        "title": "Browse, filter, and post",
+        "title": "Browsing, filtering, and posting",
         "summary": "The community is a separate page with type filters, search, sorting, and sharing from search results or detail pages.",
         "features": [
-          "Browse: search posts on the discovery page and filter by All, JAV, Anime, Movies, Manga, Novels, or Actresses.",
-          "Sorting and view: “Latest / Hottest” sorting plus grid and list views.",
-          "Posting: from a JAV detail page, click “Share to community”, add a recommendation (up to 200 characters), and choose tags.",
-          "My posts: view and manage your own posts under “My posts”.",
+          "Browse: search posts and filter by all, JAV, anime, movies, manga, novels, or actress.",
+          "Sorting and view: “Latest / Hottest” plus grid or list view.",
+          "Posting: click “Share to community” on a JAV detail page, write a comment (up to 200 characters), and pick tags.",
+          "My shares: review and manage your own posts.",
+          "My favorites: saved posts live here, separate from work favorites.",
           "Tags: browse popular tags and their posts on the Tags page."
         ],
         "steps": [
-          "Open the “Community” page from the top.",
+          "Open Community from the sidebar or the mobile bottom navigation.",
           "Use type filters, search, and sorting to find posts.",
-          "Open a post to view details and interact.",
-          "To publish, share from a work detail page or manage posts under My posts."
+          "Open a post to read and interact.",
+          "To publish, share from a work detail page or manage it under My shares."
         ],
         "caveats": [
-          "Whether the community entry appears depends on the site feature flag.",
-          "The community is not a search Tab. The old `?tab=community` link redirects to `/community`.",
-          "Guests cannot post, comment, or like."
+          "Whether the community entry appears depends on the feature flag.",
+          "The community is not a search category; the old `?tab=community` link redirects to `/community`.",
+          "Posting, commenting, and liking require an account."
         ]
       },
       "community-interact": {
         "title": "Comments, likes, and favorites",
-        "summary": "After signing in you can like, favorite, and comment on posts. Comments are limited to 500 characters.",
+        "summary": "After signing in you can like, favorite, and comment on posts; comments allow up to 1,000 characters.",
         "features": [
-          "Like: click the heart on a post; click again to remove the like.",
-          "Favorite: save posts you like and find them under “My favorites”.",
-          "Comment: enter a comment at the bottom of a post; press Ctrl / Cmd + Enter to send quickly.",
-          "Delete comments: you can delete your own comments after a confirmation.",
-          "Share link: copy a share link from the post detail page."
+          "Like: click the heart on a post; click again to remove it.",
+          "Favorite: save posts and find them under “My favorites”.",
+          "Comment: type at the bottom of a post; Ctrl / Cmd + Enter sends quickly.",
+          "Delete comments: remove your own comments after a confirmation.",
+          "Share link: post details support copying a share link."
         ],
         "steps": [
-          "Sign in and open a post detail page.",
+          "Sign in and open a post.",
           "Like, favorite, or comment.",
-          "View saved posts under “My favorites”.",
+          "Find saved posts under “My favorites”.",
           "Copy the post link when you want to share it."
         ],
         "caveats": [
-          "Comments are public. Do not include sensitive personal information.",
+          "Comments are public; do not include sensitive personal information.",
           "Deleted comments cannot be restored.",
-          "Reported or rule-breaking posts may be handled by moderators."
+          "Reported or rule-breaking posts may be handled by admins."
         ]
       },
       "community-rules-report": {
-        "title": "Reports and community rules",
-        "summary": "Report inappropriate content and moderators will review it and notify you of the outcome.",
+        "title": "Reporting and community rules",
+        "summary": "Report rule-breaking content, and admins handle it and notify you of the result.",
         "features": [
-          "Report entry: the report button at the top-right of a post detail page.",
-          "Reasons: inappropriate content, false information, copyright issues, spam, or other.",
-          "Details: add an explanation to help moderators review the report.",
-          "Outcome: after the report is handled, you receive an in-app or email notification depending on your settings."
+          "Where to report: the report button at the top right of a post.",
+          "Reasons: rule violation, false information, copyright, spam, or other.",
+          "Details: add an explanation to help admins judge.",
+          "Outcome: after handling you get an in-app or email notification, depending on your settings."
         ],
         "steps": [
-          "Open the post detail page.",
-          "Click the report button and choose a reason.",
+          "Open the offending post.",
+          "Click report and choose a reason.",
           "Add details and submit.",
           "Check the notification center for the outcome."
         ],
         "caveats": [
-          "Do not abuse reporting. Malicious reports may affect your account.",
-          "Reports take time to process, and the outcome may not match your expectation.",
+          "Do not abuse reporting; malicious reports can affect your account.",
+          "Handling takes time and the outcome may differ from expectations.",
           "For copyright issues, provide verifiable information."
         ]
       },
       "follow-actress": {
-        "title": "Follow entities",
-        "summary": "Follow actresses, directors, studios, publishers, series and tags from cards, detail pages, or Account Center → My follows.",
+        "title": "What you can follow",
+        "summary": "Follow actresses, directors, studios, publishers, series, and tags from actress lists, entity cards, work details, or Dashboard → My follows.",
         "features": [
-          "Where to follow: the follow button on actress lists, entity cards and work detail pages, or add an actress name manually in the Account Center.",
-          "Entity types: actress, director, studio, publisher, series and tag.",
-          "Limit: follows are capped at 100.",
-          "View works: click a name or tag to open its work list.",
-          "Unfollow: remove one follow on the management page, or select several and remove them in bulk."
+          "Entry points: actress lists, entity cards on detail pages, work details, or adding an actress name manually in the Account Center.",
+          "Follow types: actress, director, studio, publisher, series, and tag.",
+          "Limit: up to 100 entities.",
+          "View works: click a name or tag to open its works.",
+          "Unfollow: remove entries individually or select several and unfollow in bulk."
         ],
         "steps": [
-          "Open an actress list, an entity card or a work detail page.",
+          "Open an actress list, an entity card, or a work detail page.",
           "Click follow to subscribe.",
-          "Review and adjust follows under Account Center → My follows.",
-          "Click a name or tag to view its works."
+          "Review and adjust under Dashboard → My follows.",
+          "Click a name or tag to see its works."
         ],
         "caveats": [
           "Following requires signing in.",
-          "Manual entry only accepts actress names; check the spelling or works may not match.",
-          "Follows are capped at 100."
+          "Manual entry only supports actress names; check the spelling or no works will match.",
+          "The limit is 100 entities."
         ]
       },
       "follow-feed": {
         "title": "Follow feed and alerts",
-        "summary": "The follow feed collects new releases and upcoming works for everything you follow, with filters, keyword search, mute and mark-as-read.",
+        "summary": "The follow feed collects new and upcoming releases for everything you follow, with entity filters, keyword search, mute, and mark-as-read.",
         "features": [
-          "Where to find it: “Follow feed” on the JAV home page and in the Account Center.",
-          "Feed types: new releases and upcoming releases.",
-          "Filter by entity: narrow the feed to actresses, directors, studios, publishers, series or tags.",
-          "Keyword search: search everything you follow by code, title, tag or entity name.",
-          "Unread badge: shows the unread count; mark everything as read in one click.",
+          "Where to find it: Dashboard → Follow feed, or the “Follow updates” entry on the mobile home page.",
+          "Feed types: new releases and upcoming releases, with separate unread counts.",
+          "Filter by entity: show only actresses, directors, studios, publishers, series, or tags.",
+          "Keyword search: match codes, titles, tags, and entity names across everything you follow.",
           "Per-entity alerts: mute or restore alerts under “My follows”; this applies to in-app and email at once.",
           "Bulk actions: mute, restore alerts, or unfollow several entities at once."
         ],
         "steps": [
           "Follow at least one entity.",
-          "Open “Follow feed” on the JAV home page or in the Account Center.",
+          "Open Follow feed in the Account Center.",
           "Filter by entity type or search by keyword.",
           "Switch between new and upcoming releases, and mute entities when you want fewer alerts."
         ],
         "caveats": [
-          "The follow feed relies on scheduled source checks. If a check fails, retry later.",
+          "The feed relies on scheduled source checks every 30 minutes; retry later if a check fails.",
           "Muting only affects alerts, not the follow relationship.",
           "Whether a new work is available depends on the source site."
         ]
       },
       "notification-center": {
         "title": "Notification center",
-        "summary": "Use the top-right bell for recent notifications. The Account Center Notifications page provides the full inbox and notification settings.",
+        "summary": "The bell at the top right shows recent notifications; Dashboard → Notifications has the full inbox and settings.",
         "features": [
-          "The bell shows the unread count, loads recent notifications page by page, and supports mark-all-read.",
-          "Clicking a notification with a code opens the work by code; community notifications with a post go straight to the post detail; announcements and other notifications open the notification center.",
-          "The Notifications page has two Tabs, Inbox and Notification settings. There is no separate community notification entry.",
-          "The inbox supports unread-only, pagination, deleting individual items, and clearing read items."
+          "The bell shows the unread count, loads recent notifications page by page, and can mark everything read.",
+          "Notifications with a code open that work; community notifications with a post open the post; announcements and others open the notification center.",
+          "The page has two tabs, Inbox and Notification settings, with no separate community notification entry.",
+          "The inbox supports unread-only, pagination, deleting single items, and clearing read items.",
+          "Site announcements are merged with personal notifications rather than copied into the inbox."
         ],
         "steps": [
-          "Click the top-right bell to view recent notifications.",
-          "Click a notification to jump to the matching place.",
-          "Open Account Center → Notifications for the full list.",
+          "Click the bell at the top right to see recent notifications.",
+          "Click a notification to jump to its target.",
+          "Open Dashboard → Notifications for the full list.",
           "Filter or delete in the inbox, and adjust channels in notification settings."
         ],
         "caveats": [
-          "Different notifications open in different places; differing destinations are expected.",
+          "Different notifications lead to different places; varying destinations are expected.",
           "In-app and email switches are independent.",
           "Announcement notifications usually cannot be turned off."
         ]
@@ -4446,7 +4596,7 @@
           "The code has a countdown; you can resend after it ends."
         ],
         "steps": [
-          "Go to Account Center → Notifications → Notification settings.",
+          "Go to Dashboard → Notifications → Notification settings.",
           "Click “Verify email” on the email card.",
           "Enter the 6-digit code you received and submit.",
           "After verification, enable the email notifications you need."
@@ -4459,169 +4609,235 @@
       },
       "email-preferences": {
         "title": "Email preferences and privacy",
-        "summary": "Each notification type can control in-app and email channels separately, and sensitive details can be hidden from emails.",
+        "summary": "Each notification type controls in-app and email channels separately, and you can hide sensitive details from emails.",
         "features": [
-          "Types: new works from followed actresses, post likes / comments / favorites, report outcomes, and site announcements.",
-          "Channel toggles: every type has separate “In-app” and “Email” switches.",
-          "Hide email details: emails show only counts, without actress names or codes, and use a neutral subject.",
-          "Batching: new feed items are combined into one email every 30 minutes, up to 3 emails per day; extras are deferred.",
-          "Test email: after verification, send a test email to confirm delivery."
+          "Types: new releases for follows, likes / comments / favorites on your posts, report results, and site announcements.",
+          "Channel switches: every type has an in-app and an email switch that work independently.",
+          "Hide email details: emails show only counts, without actress names or codes, and keep a neutral subject.",
+          "Digest sending: new activity is merged every 30 minutes, up to 3 emails per day, with the rest deferred.",
+          "Test email: after verification you can send one to confirm delivery."
         ],
         "steps": [
-          "Go to Account Center → Notifications → Notification settings.",
+          "Go to Dashboard → Notifications → Notification settings.",
           "Verify your email first.",
-          "Turn in-app and email channels on or off by type.",
-          "Enable “Hide email details” or send a test email when needed."
+          "Turn in-app and email on or off per type.",
+          "Enable “Hide email details” or send a test email as needed."
         ],
         "caveats": [
-          "If emails do not arrive, check spam, the verification status, and the matching toggle.",
-          "Hiding details only affects the email body, not in-app notifications.",
-          "Batching delays some alerts; this is expected."
+          "If email does not arrive, check spam, the verification status, and the matching switch.",
+          "Hiding details affects only the email body, not in-app notifications.",
+          "Digest sending delays some alerts; this is expected."
         ]
       },
       "unsubscribe": {
-        "title": "Unsubscribe from emails",
-        "summary": "Every notification email has a one-click unsubscribe link; you can also turn emails off in notification settings.",
+        "title": "Unsubscribing from email",
+        "summary": "Every notification email has a one-click unsubscribe link, and you can also turn email off in notification settings.",
         "features": [
           "From email: click “Unsubscribe from email notifications” at the bottom and confirm.",
-          "Email only: unsubscribing does not affect in-app notifications.",
-          "Resubscribe: turn the matching email toggle back on in notification settings.",
-          "Expired link: if the unsubscribe link is invalid, sign in and disable email notifications from the Account Center."
+          "Email only: in-app notifications are unaffected.",
+          "Resubscribe: turn the email switch for that type back on in notification settings.",
+          "Expired links: if the link no longer works, sign in and disable email notifications in the Account Center."
         ],
         "steps": [
           "Open any notification email.",
           "Click the unsubscribe link at the bottom and confirm.",
-          "Sign in to notification settings to turn emails back on."
+          "To restore, sign in and re-enable it in notification settings."
         ],
         "caveats": [
-          "Unsubscribing does not unfollow actresses.",
-          "Some account emails, such as verification codes, are not affected by unsubscribe.",
-          "Unsubscribe links may expire."
+          "Unsubscribing does not cancel follows.",
+          "Some account emails, such as verification codes, are not affected.",
+          "Unsubscribe links can expire."
+        ]
+      },
+      "personal-center": {
+        "title": "Account Center",
+        "summary": "The Account Center gathers the overview, statistics, follow feed, my follows, favorites, history, notifications, activity, and sources; use the sidebar on desktop and the menu page on mobile.",
+        "features": [
+          "Overview: welcome text, user level, and four metrics (searches, favorites, weekly sign-ins, sources) plus recent activity.",
+          "Library: follow feed, my follows, favorites, and history, with the same data as the home entries.",
+          "Messages: the notification inbox and my activity, which records sign-ins, searches, favorites, and settings changes.",
+          "Resources: sources, for maintaining personal sources and enabling system sources.",
+          "Account: profile and settings, plus the admin panel entry for admins."
+        ],
+        "steps": [
+          "On desktop open the Dashboard group in the left sidebar; on mobile use the Dashboard bottom tab.",
+          "Start with the four overview metrics and recent activity.",
+          "Open favorites, history, or my follows to manage data.",
+          "On mobile the menu page appears first; click a feature to open its content page."
+        ],
+        "caveats": [
+          "Everything in the Account Center is tied to the account and requires signing in.",
+          "My activity records account operations only, not browsing.",
+          "Overview metrics accumulate per account; switching accounts shows different numbers."
+        ]
+      },
+      "dashboard-stats": {
+        "title": "Statistics",
+        "summary": "Statistics turns your search behavior into trends, a heatmap, and rankings so you can review your own habits.",
+        "features": [
+          "Metric cards: total searches, weekly searches, unique keywords, total favorites, active days, and daily average.",
+          "A 30-day search trend and a weekly activity heatmap; hover for daily counts.",
+          "Top keywords, source usage distribution, and the top 10 search frequency ranking.",
+          "Shows your user level and how many actions remain to the next level."
+        ],
+        "steps": [
+          "Open Dashboard → Statistics.",
+          "Use the trend and heatmap to spot peak times.",
+          "Use keyword and source distribution to see which sources you use most.",
+          "If it is empty, run a few searches and come back."
+        ],
+        "caveats": [
+          "Statistics only cover the current account's history; clearing history also clears the source data.",
+          "Rankings show at most 10 entries.",
+          "Data is aggregated by day, so today's numbers may lag."
+        ]
+      },
+      "settings": {
+        "title": "Settings and appearance",
+        "summary": "Settings has three tabs: Profile, Security, and Appearance. Changes take effect immediately.",
+        "features": [
+          "Profile: view and change the username (3–20 characters); “Change” next to the email swaps the address.",
+          "Security: change the password (6–100 characters) and use the danger zone to delete the account.",
+          "Appearance: theme (light, dark, or system) and language (简体中文, 繁體中文, English).",
+          "Theme and language share the same settings as the top-bar entries, so both stay in sync."
+        ],
+        "steps": [
+          "Open settings from the avatar menu or the mobile Me page.",
+          "Change the username in Profile, or click “Change” next to the email (requires the current password and a code sent to the new address).",
+          "Change the password under Security; you must sign in again afterwards.",
+          "Pick a theme and language under Appearance."
+        ],
+        "caveats": [
+          "Usernames and emails are checked for availability and format first; conflicts are reported on the matching field.",
+          "Changing the password invalidates the current session.",
+          "Deleting the account cannot be undone; back up favorites you want to keep."
         ]
       },
       "register-login": {
-        "title": "Sign up and sign in",
-        "summary": "Email registration, password sign-in, and GitHub / Google sign-in are supported.",
+        "title": "Sign-up and sign-in",
+        "summary": "Sign up with email, sign in with a password, or use GitHub / Google.",
         "features": [
-          "Registration: username 3–20 characters, password 6–100 characters, email verified with a 6-digit code.",
-          "Sign in: use your username or email plus password. Use “Forgot password” on the sign-in page if needed.",
-          "Registration switch: the site may disable registration. The sign-up page will explain; existing accounts can still sign in.",
-          "Sign out: top-right user menu → Sign out."
+          "Sign-up: username 3–20 characters, password 6–100 characters, email verified with a 6-digit code.",
+          "Sign-in: use a username or email plus password; reset the password from the sign-in page if needed.",
+          "Registration switch: the site may close registration; the page then explains it, and existing accounts can still sign in.",
+          "Sign-out: the avatar menu or the mobile Me page."
         ],
         "steps": [
-          "Open the sign-up page and enter a username, email, and password.",
-          "Enter the email verification code to finish registration.",
-          "Sign in with your username or email.",
-          "Use the top-right user menu to sign out."
+          "Open the sign-up page and fill in username, email, and password.",
+          "Enter the email code to finish registration.",
+          "Sign in with the username or email.",
+          "Use the avatar menu to sign out."
         ],
         "caveats": [
           "Passwords must be 6–100 characters.",
-          "Whether email verification is required depends on site configuration, but it is usually required.",
-          "Do not share your account with others."
+        "Registration requires agreeing to the Terms of Service and Privacy Policy, both linked from the sign-up page and the landing-page footer.",
+          "A taken username or email is reported before the code is sent, so no email quota is wasted.",
+          "Do not share your account."
         ]
       },
       "oauth": {
         "title": "Third-party sign-in (OAuth)",
-        "summary": "Sign in with GitHub or Google without remembering a separate password.",
+        "summary": "Sign in with GitHub or Google without a separate password.",
         "features": [
-          "Entry: the GitHub / Google buttons at the bottom of the sign-in page.",
-          "First sign-in: an account is created or linked automatically and you return to the site.",
-          "Callback failure: if the callback page reports an error, return to sign-in and retry, or use password sign-in."
+          "Entry points: the GitHub / Google buttons below the sign-in form.",
+          "First sign-in creates or links an account and returns you to the site.",
+          "Callback failures: go back to the sign-in page and retry, or use a password instead."
         ],
         "steps": [
           "Click GitHub or Google on the sign-in page.",
-          "Complete authorization on the third-party page.",
-          "Wait to be redirected back to the site.",
-          "The first use creates or links an account."
+          "Authorize on the third-party page.",
+          "Wait to be returned to Atlas.",
+          "The first sign-in creates or links the account."
         ],
         "caveats": [
-          "OAuth availability depends on whether the site has configured the provider app. If the button is missing, it is not enabled.",
-          "The security of your third-party account is handled by that platform.",
-          "Do not click repeatedly if the callback fails; retry later."
+          "OAuth availability depends on whether the site has configured the app; a missing button means it is off.",
+          "Third-party account security is up to that platform.",
+          "On callback failures, avoid rapid repeated clicks and retry later."
         ]
       },
       "email-password": {
-        "title": "Change email and password",
-        "summary": "Changing your email requires your current password and a code sent to the new address; changing your password signs you out.",
+        "title": "Changing email and password",
+        "summary": "Changing the email requires the current password and a code sent to the new address; changing the password requires signing in again.",
         "features": [
-          "Change email: Account Center → Settings → Profile → “Change” next to email.",
-          "The new email needs a 6-digit code, and you must enter your current password.",
-          "Change password: Account Center → Settings → Security → Change password.",
-          "You are signed out after the change and must sign in with the new credentials."
+          "Change email: Dashboard → Settings → Profile → “Change” next to the email.",
+          "The new address needs a 6-digit code and the current password.",
+          "Change password: Dashboard → Settings → Security → Change password.",
+          "You are signed out afterwards and must use the new credentials."
         ],
         "steps": [
-          "Open the Profile section in Account Center → Settings.",
-          "Click “Change” next to email and enter the new email and current password.",
+          "Open Profile in the Account Center settings.",
+          "Click “Change” next to the email and enter the new address and current password.",
           "Enter the code sent to the new address to finish.",
-          "To change your password, enter the current and new passwords."
+          "For a password change, enter the current and new passwords."
         ],
         "caveats": [
-          "Sign in with the new email after changing it.",
-          "Changing your password invalidates the current session.",
-          "The new password must be 6–100 characters."
+          "Sign in with the new email afterwards.",
+          "Changing the password invalidates the current session.",
+          "New passwords must be 6–100 characters."
         ]
       },
       "reset-password": {
-        "title": "Reset your password",
-        "summary": "Reset your password with an email code; the old password is not required.",
+        "title": "Resetting a password",
+        "summary": "Reset the password with an email code, no old password needed.",
         "features": [
           "Click “Forgot password” on the sign-in page.",
-          "Enter your registered email and request a 6-digit code.",
-          "Enter the code and a new password to sign in."
+          "Enter the registration email to get a 6-digit code.",
+          "Enter the code and a new password, then sign in."
         ],
         "steps": [
           "Click “Forgot password” on the sign-in page.",
-          "Enter your registered email and request a code.",
-          "Enter the code and a new password.",
+          "Enter the registration email and request a code.",
+          "Enter the code and the new password.",
           "Sign in with the new password."
         ],
         "caveats": [
-          "Codes expire; request a new one after expiry.",
-          "If the email does not arrive, check spam first.",
-          "Resetting your password does not lift account bans or restrictions."
+          "Codes expire and must be requested again.",
+          "Check spam if the email does not arrive.",
+          "Resetting the password does not lift account bans or limits."
         ]
       },
       "delete-account": {
-        "title": "Delete your account",
-        "summary": "Deleting your account permanently removes its data and cannot be undone.",
+        "title": "Deleting your account",
+        "summary": "Deletion permanently removes account data and cannot be undone.",
         "features": [
-          "Entry: Account Center → Settings → Security → Danger zone → Delete account.",
-          "You must read the impact, enter a confirmation text, and provide an email code.",
-          "Profile, favorites, search history, custom sources, and other account data are deleted."
+          "Where: Dashboard → Settings → Security → Danger zone → Delete account.",
+          "You must read the impact, type the confirmation text, and enter an email code.",
+          "Profile, favorites, search history, custom sources, and other account data are removed."
         ],
         "steps": [
-          "Go to Account Center → Settings → Security.",
+          "Open Dashboard → Settings → Security.",
           "Find the danger zone and click Delete account.",
-          "Read the impact and confirm to continue.",
+          "Read the impact and confirm.",
           "Enter the confirmation text and email code, then submit."
         ],
         "caveats": [
-          "A deleted account cannot be restored.",
-          "If you only want a break, sign out instead of deleting your account.",
-          "Back up any favorites you want to keep before deleting."
+          "The account cannot be recovered after deletion.",
+          "If you only need a break, sign out instead.",
+          "Back up favorites you want to keep beforehand."
         ]
       },
       "general-notices": {
         "title": "General notices",
-        "summary": "Before using Atlas, understand the basic rules for content sources, account security, email delivery, and data retention.",
+        "summary": "Before using Atlas, understand the basics of content sources, account safety, email delivery, and data retention.",
         "features": [
-          "Content sources and disclaimer: search results, rankings, recommendations, and details come from third-party sites. Atlas only aggregates and indexes them.",
-          "Account security: use a unique password and do not share your account. Verification codes are for your own actions only.",
-          "Notifications and email: in-app notifications arrive immediately; emails may be delayed by spam filters, blocking rules, or your email provider.",
-          "Data retention: search history, favorites, follows, and notifications are stored in your account; deleting the account removes them."
+          "Sources and disclaimer: results, rankings, recommendations, online playback, and details come from third-party sites; Atlas only aggregates and indexes them.",
+          "Account safety: use a unique password, never share the account, and use codes only for your own actions.",
+          "Notifications and email: in-app notifications arrive immediately; email may be delayed by spam filters, blocking rules, or the provider.",
+          "Data retention: history, favorites, follows, and notifications live in your account, and deletion removes them.",
+          "Feedback: the button at the bottom right submits bugs and suggestions, and admin replies go to the contact email."
         ],
         "steps": [
-          "Check the laws and regulations where you live and your personal usage boundaries.",
-          "Set a unique password for your account and keep your email secure.",
-          "Review notification settings and email verification status regularly.",
-          "Delete data or your account from the Account Center when you need to clean up."
+          "Confirm the laws and personal-use boundaries that apply where you live.",
+          "Set a unique password and keep the email account secure.",
+          "Review notification settings and email verification periodically.",
+          "Delete data or the account from the Account Center when you need to."
         ],
         "caveats": [
-          "Follow local laws and regulations and use this site only for lawful personal information retrieval.",
-          "Third-party sites are responsible for their availability, content, and security. Judge the risk yourself before opening external links.",
-          "Never enter passwords, verification codes, or payment information into third-party sources from any page.",
-          "If emails never arrive, check spam and blocking rules first, then confirm the email is verified and the matching email toggle is on.",
-          "Site features and copy may change; the page as displayed is authoritative."
+          "Follow local laws and use the site only for lawful personal information lookup.",
+          "Third-party sites are responsible for their availability, content, and safety; judge the risk before opening links.",
+          "Never enter passwords, codes, or payment details into any third-party source page.",
+          "If email never arrives, check spam and blocking rules, then confirm the address is verified and the matching switch is on.",
+          "Features and wording may change; what the page shows is authoritative."
         ]
       },
       "usage-limits": {
@@ -4634,51 +4850,75 @@
           "Other read endpoints: suggestions 30/min, trending keywords 20/min, tag recommendations 30/min, tag works 20/min.",
           "Writes: favorites 5/min; posts 6/min, 30/hour, 100/day; comments 10/min, 60/hour, 300/day; post likes and favorites 30/min, 1000/day; reports 6/min, 30/day; custom tags 5/min, 50/day.",
           "Registration is limited per IP to 5/min, 10/hour, 20/day; test emails are limited to 1/min per user.",
-          "Account data caps: up to 1,000 favorites and 1,000 history entries; follow up to 100 actresses."
+          "Account data caps: up to 1,000 favorites and 1,000 history entries; follow up to 100 entities."
         ],
         "steps": [
           "Click the quota question mark next to the search box to see remaining search quota.",
           "When quota runs out, wait for the matching window to reset (minute, hour, or next day) instead of retrying repeatedly.",
-          "On “too many requests” or HTTP 429, wait for the indicated seconds before retrying.",
-          "To raise your search quota, stay active and accumulate searches; tiers usually refresh automatically within 24 hours."
+          "On “too many requests” or 429, wait the number of seconds shown and try again.",
+          "To raise search quota, stay active and accumulate searches; tiers usually refresh within 24 hours."
         ],
         "caveats": [
-          "When signed out, search is counted by IP and uses the Basic tier quota; suggestions and trending are also counted by IP.",
-          "Multiple tabs share the same account quota; the per-minute window is a burst guard.",
-          "Values may vary with deployment configuration; the quota popover and live messages are authoritative."
+          "Signed-out searches count per IP on the Basic tier; suggestions and trending also count per IP.",
+          "Tabs in the same account share quota, and the minute window guards against bursts.",
+          "Values may change with deployment configuration; the quota popover and actual prompts are authoritative."
         ]
       },
       "faq-search": {
         "title": "No results or very few results",
-        "summary": "Work through these checks in order to find the cause quickly.",
+        "summary": "Work through these steps in order; they usually pinpoint the cause quickly.",
         "caveats": [
-          "Change mode: if a JAV code finds nothing, try title or actress mode.",
-          "Change category: make sure the top Tab matches the content type you want.",
-          "Check sources: run a health check in “Sources” or Account Center → Sources, and confirm the source is online and enabled.",
-          "Wait for quota: if the quota is exhausted, wait for the reset as prompted and avoid repeated searches.",
-          "Change keywords: try a shorter keyword, an alias, or remove extra symbols."
+          "Change mode: if a JAV code returns nothing, try title or actress mode.",
+          "Change category: make sure the current category matches the content you want.",
+          "Check sources: run a health check on the Sources page or Dashboard → Sources, and confirm the source is online and enabled.",
+          "Check personal sources: a source you created must sit under the target major category or category and use a correct URL template.",
+          "Wait for quota: when quota runs out, wait as prompted instead of searching repeatedly.",
+          "Change keywords: try a shorter term, an alias, or drop extra symbols."
         ]
       },
       "faq-access": {
         "title": "Sources will not open or fail to load",
-        "summary": "What to try when a source will not open, images are missing, or details fail to load.",
+        "summary": "When a source will not open, images are missing, or details fail to load, try these.",
         "caveats": [
-          "Enable the proxy: try the top-right proxy toggle for restricted sources.",
-          "Try another source: the same entry may be available from several sources.",
+          "Turn on the proxy: for restricted sources, try the top-bar proxy first.",
+          "Try another source: an item often has several sources.",
           "Retry: use retry when details fail; if it still fails, go back and search again.",
-          "Missing images: hotlink protection or network issues may be the cause. Refresh the page or enable the proxy.",
-          "Proxy confirmation: the first time you enable the proxy, a notice appears; it takes effect after you confirm."
+          "Missing images: this is usually hotlink protection or network trouble; refresh or turn on the proxy. Covers use the site cache, so the second load is usually faster.",
+          "Playback will not open: try another platform or use the magnet link directly.",
+          "Proxy confirmation: the first time you enable the proxy a dialog explains it, and it only takes effect after you confirm."
         ]
       },
       "faq-account": {
-        "title": "Account, verification code, and notification issues",
-        "summary": "Troubleshooting for sign-in problems, missing verification codes, and missing notifications.",
+        "title": "Account, code, and notification issues",
+        "summary": "How to troubleshoot sign-in problems, missing codes, and notifications that never appear.",
         "caveats": [
-          "No verification code: check spam, confirm the email address, then resend after the countdown.",
-          "Signed out unexpectedly: sign in again. If you changed your password or email, use the new credentials.",
-          "No email notifications: confirm the email is verified, the matching “Email” toggle is on, and you have not unsubscribed.",
-          "No in-app notifications: confirm the matching “In-app” toggle is on and check unread items in the notification center.",
-          "Still stuck: use the feedback button at the bottom-right of the page and include the steps you took."
+          "No code: check spam, confirm the address, and resend after the countdown.",
+          "Username taken: the sign-up form reports it before sending a code; pick another name or sign in to the existing account.",
+          "OAuth username collision: the system appends a suffix and retries; if it still fails, register with email.",
+          "Signed out unexpectedly: sign in again; after changing the password or email, use the new credentials.",
+          "No email notifications: confirm the address is verified, the matching email switch is on, and you have not unsubscribed.",
+          "No in-app notifications: confirm the matching in-app switch is on and check the notification center for unread items."
+        ]
+      },
+      "faq-feedback": {
+        "title": "Sending feedback",
+        "summary": "In-site feedback is for bugs and suggestions; clear reproduction steps shorten handling time noticeably.",
+        "features": [
+          "Entry: the feedback button at the bottom right of the landing and search pages.",
+          "Type: bug, suggestion, or other; title and content are required.",
+          "Contact email: defaults to the account email, and admin replies go there.",
+          "Feedback sent while signed in is linked to the account, which helps when checking data."
+        ],
+        "steps": [
+          "Click the feedback button at the bottom right.",
+          "Choose a type and describe the title and reproduction steps.",
+          "Confirm the contact email if you want a reply.",
+          "Wait for an email reply, or follow public issues on GitHub."
+        ],
+        "caveats": [
+          "Never include passwords, verification codes, or payment information.",
+          "Replies are not guaranteed for every item; duplicates are merged.",
+          "For account-data issues, include roughly when it happened and which category you used."
         ]
       }
     }
