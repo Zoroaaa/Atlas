@@ -80,13 +80,17 @@ export async function resolveLiveSources(
   const enabledIds = new Set(enabled.map(row => row.id));
   const variants = await lookupQueryVariants(db, opts.keyword, 'work').catch(() => undefined);
 
+  // 抓取器只由系统源驱动；用户私有源没有对应抓取器，但必须作为跳转卡片出现
+  const systemRows = rows.filter(row => row.owner_id === null);
+  const personalRows = enabled.filter(row => row.owner_id !== null);
+
   const cards: SearchSourceCard[] = [];
   const skip = new Set<string>();
 
   for (const spec of specs) {
     // 同一 host 可能有多条配置（如 tmdb / themoviedb_cn 都指向 themoviedb.org）：
     // 只有「该 host 下的配置全部被禁用」才算关源，否则会因其中一条被关而误伤整个抓取器。
-    const matched = rows.filter(r => hostOf(r.url_template).endsWith(spec.host));
+    const matched = systemRows.filter(r => hostOf(r.url_template).endsWith(spec.host));
     if (matched.length === 0) continue;
 
     const active = matched.filter(r => enabledIds.has(r.id));
@@ -95,6 +99,10 @@ export async function resolveLiveSources(
       continue;
     }
     cards.push(...await toSourceCards(db, [active[0]], opts.keyword, { variants }));
+  }
+
+  if (personalRows.length > 0) {
+    cards.push(...await toSourceCards(db, personalRows, opts.keyword, { variants }));
   }
 
   return { cards, skip };

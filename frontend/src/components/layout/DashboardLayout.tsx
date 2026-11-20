@@ -7,7 +7,7 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
-import { useAuthStore, useThemeStore } from '@/stores';
+import { useThemeStore } from '@/stores';
 import { useIsDesktop, useUnreadCount } from '@/hooks';
 import { useTranslation } from 'react-i18next';
 import { useRouteEnterAnimation } from '@/hooks/useRouteEnterAnimation';
@@ -23,23 +23,19 @@ const mobilePathOverrides: Record<string, string> = {
 /** 个人中心布局：桌面走 AppShell，移动端走菜单页 + 内容区。 */
 export const DashboardLayout: React.FC = () => {
   const { t } = useTranslation(['nav']);
-  const { user } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const location = useLocation();
   const isDesktop = useIsDesktop();
   const mainRef = useRouteEnterAnimation<HTMLElement>();
   const { data: unreadNotifications = 0 } = useUnreadCount();
 
-  const isAdmin = Boolean(user && (user.role === 'admin' || user.role === 'super_admin'));
   const isMenuRoot = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
   // 返回落点：从首页入口进来回首页（location.state.from），否则回到个人中心菜单页
   const originPath = (location.state as { from?: string } | null)?.from;
 
   const mobileGroups = dashboardNavGroups;
 
-  const navItems = mobileGroups
-    .flatMap((group) => group.items)
-    .filter((item) => item.id !== 'categories' || isAdmin);
+  const navItems = mobileGroups.flatMap((group) => group.items);
 
   const currentPageLabel =
     navItems.find((item) => isNavItemActive(item.path, location.pathname))?.labelKey ||
@@ -50,7 +46,6 @@ export const DashboardLayout: React.FC = () => {
       id: group.id,
       title: group.labelKey ? t(group.labelKey) : undefined,
       items: group.items
-        .filter((item) => item.id !== 'categories' || isAdmin)
         .map((item) => ({
           id: item.id,
           label: t(item.labelKey),

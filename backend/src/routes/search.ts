@@ -28,7 +28,7 @@ import { persistDataRecord } from '@/services/data-storage';
 import {
   listSourcesByCategory,
   listDefaultSources,
-  listDisabledSourceIds,
+  getSourceState,
   filterEnabledSources,
   toSourceCards,
 } from '@/repositories/search-source-repository';
@@ -112,9 +112,9 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
       });
     }
 
-    const disabledSources = userPayload
-      ? await listDisabledSourceIds(c.env.DB, userPayload.userId)
-      : null;
+    // 源开关与个人树版本一次性取出：任一用户源变更都会改变缓存键
+    const sourceState = await getSourceState(c.env.DB, userPayload?.userId || '');
+    const disabledSources = userPayload ? sourceState.disabled : null;
 
     // ── Provider 分发模式 ───────────────────────────────────
     if (majorCategoryId) {
@@ -135,8 +135,11 @@ searchRoutes.post('/', validateBody(schemas.search.search), async (c) => {
         const sourceKey = isUserScoped && disabledSources && disabledSources.size > 0
           ? `&ds=${encodeURIComponent([...disabledSources].sort().join(','))}`
           : '';
+        // 版本号覆盖「新增/修改个人源」与「管理员修改系统源」两种场景；
+        // 只靠禁用集合无法感知源定义变化，会把旧源列表缓存到 TTL 结束。
+        const revisionKey = `&sr=${sourceState.userRevision}&gsr=${sourceState.systemRevision}`;
         const cacheKey = new Request(
-          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}${sourceKey}`
+          `https://internal/search/${encodeURIComponent(majorCategoryId)}/${encodeURIComponent(trimmedKeyword)}?page=${limitPage}${subModeKey}${userKey}${sourceKey}${revisionKey}`
         );
         // 用户态响应不得声明为 public：真实请求 URL /api/search 不含用户标识，
         // 一旦被中间层按公共 URL 缓存就会跨用户泄露。

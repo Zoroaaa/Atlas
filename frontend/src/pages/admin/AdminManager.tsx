@@ -17,14 +17,16 @@ import { DataStorageTab } from './DataStorageTab';
 import { ActivityRankingTab } from './ActivityRankingTab';
 import { AliasTab } from './AliasTab';
 import { RankingsArchiveTab } from './RankingsArchiveTab';
+import { SourcesTab } from './SourcesTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage' | 'rankings-archive' | 'aliases';
+type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage' | 'rankings-archive' | 'aliases' | 'sources';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
 
   const getTabFromPath = useCallback((): TabType => {
     const p = location.pathname;
+    if (p.includes('/sources')) return 'sources';
     if (p.includes('/sessions')) return 'sessions';
     if (p.includes('/actions')) return 'actions';
     if (p.includes('/email-logs')) return 'email-logs';
@@ -66,6 +68,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'data-storage' && <DataStorageTab />}
       {activeTab === 'rankings-archive' && <RankingsArchiveTab />}
       {activeTab === 'aliases' && <AliasTab />}
+      {activeTab === 'sources' && <SourcesTab />}
     </div>
   );
 };

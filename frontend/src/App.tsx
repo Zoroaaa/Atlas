@@ -267,7 +267,7 @@ const App: React.FC = () => {
           <Route path="overview" element={withSuspense(<DashboardPage />)} />
           <Route path="stats" element={withSuspense(<DashboardPage />)} />
           <Route path="sources" element={withSuspense(<DashboardPage />)} />
-          <Route path="categories" element={<GuardRoute requiredRole="admin">{withSuspense(<DashboardPage />)}</GuardRoute>} />
+          <Route path="categories" element={<Navigate to="/dashboard/sources" replace />} />
           <Route path="favorites" element={withSuspense(<DashboardPage />)} />
           <Route path="history" element={withSuspense(<DashboardPage />)} />
           <Route path="follows" element={withSuspense(<DashboardPage />)} />
@@ -309,6 +309,7 @@ const App: React.FC = () => {
           <Route path="data-storage/*" element={withSuspense(<AdminManager />)} />
           <Route path="rankings-archive" element={withSuspense(<AdminManager />)} />
           <Route path="aliases" element={withSuspense(<AdminManager />)} />
+          <Route path="sources" element={withSuspense(<AdminManager />)} />
         </Route>
         
         <Route path="/admin" element={<GuardRoute requiredRole='admin'><DashboardLayout /></GuardRoute>}>

@@ -268,6 +268,19 @@ systemRoutes.get('/source-status-check', async (c) => {
   }
 
   try {
+    const user = c.get('user');
+    const source = await c.env.DB.prepare(
+      'SELECT * FROM search_sources WHERE id = ?'
+    ).bind(sourceId).first<SearchSource>();
+
+    if (!source) {
+      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
+    }
+    // 个人源只允许本人探测，避免通过状态缓存枚举他人私有源
+    if (source.owner_id !== null && source.owner_id !== user.userId) {
+      return c.json(error('FORBIDDEN', '无权检查此搜索源'), 403);
+    }
+
     // 5 分钟内复用上一次探测，避免重复回源；批量接口也按同一窗口判定缓存
     const cached = await c.env.DB.prepare(`
       SELECT * FROM source_status_cache
@@ -281,14 +294,6 @@ systemRoutes.get('/source-status-check', async (c) => {
         responseTime: cached.response_time, qualityScore: cached.quality_score,
         error: cached.check_error, cached: true,
       }));
-    }
-
-    const source = await c.env.DB.prepare(
-      'SELECT * FROM search_sources WHERE id = ?'
-    ).bind(sourceId).first<SearchSource>();
-
-    if (!source) {
-      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
 
     const checkUrl = resolveCheckUrl(source);
@@ -312,13 +317,25 @@ systemRoutes.get('/source-status-check', async (c) => {
 
 systemRoutes.post('/source-status-batch', validateBody(schemas.system.batchSourceStatus), async (c) => {
   try {
+    const user = c.get('user');
     const body = c.get('validatedBody') as z.infer<typeof schemas.system.batchSourceStatus>;
     const { sourceIds } = body;
 
     const sources = await c.env.DB.prepare(
-      `SELECT id, name, url_template, homepage_url FROM search_sources
+      `SELECT id, name, url_template, homepage_url, owner_id FROM search_sources
        WHERE id IN (${sourceIds.map(() => '?').join(',')}) AND is_active = 1`
-    ).bind(...sourceIds).all<{ id: string; name: string; url_template: string; homepage_url: string | null }>();
+    ).bind(...sourceIds).all<{
+      id: string;
+      name: string;
+      url_template: string;
+      homepage_url: string | null;
+      owner_id: string | null;
+    }>();
+
+    // 批量接口同样按归属过滤：只要请求里混入他人私有源就整体拒绝，避免探测他人数据
+    if (sources.results.some(source => source.owner_id !== null && source.owner_id !== user.userId)) {
+      return c.json(error('FORBIDDEN', '无权检查他人搜索源'), 403);
+    }
 
     const sourceMap = new Map(sources.results.map(s => [s.id, s]));
 
@@ -440,17 +457,23 @@ systemRoutes.get('/source-status-history/:sourceId', async (c) => {
   const hours = parseInt(c.req.query('hours') || '24', 10);
 
   try {
+    const user = c.get('user');
+    const source = await c.env.DB.prepare(
+      'SELECT id, name, url_template, owner_id FROM search_sources WHERE id = ?'
+    ).bind(sourceId).first<{ id: string; name: string; url_template: string; owner_id: string | null }>();
+
+    if (!source) {
+      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
+    }
+    if (source.owner_id !== null && source.owner_id !== user.userId) {
+      return c.json(error('FORBIDDEN', '无权查看此搜索源'), 403);
+    }
+
     const history = await c.env.DB.prepare(`
       SELECT * FROM source_status_cache
       WHERE source_id = ? AND created_at > ?
       ORDER BY created_at DESC LIMIT ?
     `).bind(sourceId, Date.now() - hours * 60 * 60 * 1000, limit).all<SourceStatusCache>();
-
-    const source = await c.env.DB.prepare('SELECT id, name, url_template FROM search_sources WHERE id = ?').bind(sourceId).first();
-
-    if (!source) {
-      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
-    }
 
     const results = history.results || [];
     const availableCount = results.filter(r => r.available === 1).length;
@@ -531,8 +554,18 @@ systemRoutes.get('/source-status-batch', async (c) => {
 
 systemRoutes.delete('/source-status-cache/:sourceId', async (c) => {
   const sourceId = c.req.param('sourceId');
+  const user = c.get('user');
 
   try {
+    const source = await c.env.DB.prepare(
+      'SELECT owner_id FROM search_sources WHERE id = ?'
+    ).bind(sourceId).first<{ owner_id: string | null }>();
+    if (!source) {
+      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
+    }
+    if (source.owner_id !== null && source.owner_id !== user.userId) {
+      return c.json(error('FORBIDDEN', '无权操作此搜索源'), 403);
+    }
     await c.env.DB.prepare('DELETE FROM source_status_cache WHERE source_id = ?').bind(sourceId).run();
     return c.json(success(null, '缓存已清除'));
   } catch (err) {

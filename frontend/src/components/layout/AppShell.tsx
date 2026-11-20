@@ -227,7 +227,6 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
           { id: 'notifications', label: t('nav:workspace.notifications'), icon: <Bell className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/notifications', pathname), badge: unreadNotifications, to: '/dashboard/notifications', sectionLabel: t('nav:dashboard.sections.messages') },
           { id: 'activities', label: t('nav:dashboard.items.activities'), icon: <ActivityIcon />, active: isNavItemActive('/dashboard/activities', pathname), to: '/dashboard/activities' },
           { id: 'sources', label: t('nav:dashboard.items.sources'), icon: <DatabaseIcon />, active: isNavItemActive('/dashboard/sources', pathname), to: '/dashboard/sources', sectionLabel: t('nav:dashboard.groups.resources') },
-          ...(isAdmin ? [{ id: 'categories', label: t('nav:dashboard.items.categories'), icon: <FolderTreeIcon />, active: isNavItemActive('/dashboard/categories', pathname), to: '/dashboard/categories' }] : []),
           { id: 'profile', label: t('nav:userMenu.profile'), icon: <User className="h-[16px] w-[16px]" />, active: pathname === '/me', to: '/me', sectionLabel: t('nav:dashboard.groups.account') },
           { id: 'settings', label: t('nav:userMenu.settings'), icon: <SettingsIcon />, active: pathname === '/settings', to: '/settings' },
         ],
@@ -572,9 +571,6 @@ function ActivityIcon() {
 }
 function BarChartIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
-}
-function FolderTreeIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /></svg>;
 }
 function DatabaseIcon() {  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></svg>;
 }

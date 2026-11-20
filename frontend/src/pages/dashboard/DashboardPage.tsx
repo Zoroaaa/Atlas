@@ -1,8 +1,7 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { OverviewManager } from './OverviewManager';
 import { SourceManager } from './SourceManager';
-import { CategoryManager } from './CategoryManager';
 import { FavoritesManager, HistoryManager } from './FavoritesHistoryManager';
 import { StatsManager } from './StatsManager';
 import { FollowsManager } from './FollowsManager';
@@ -25,8 +24,9 @@ export const DashboardPage: React.FC = () => {
     return <SourceManager />;
   }
   
+  // 旧的分类管理入口已并入个人源站页；管理员系统分类在 /admin-panel/sources
   if (path.startsWith('/dashboard/categories')) {
-    return <CategoryManager />;
+    return <Navigate to="/dashboard/sources" replace />;
   }
   
   if (path.startsWith('/dashboard/favorites')) {

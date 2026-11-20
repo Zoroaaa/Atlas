@@ -14,6 +14,11 @@ import { CONFIG, VALIDATION_RULES } from '@/constants';
 import { checkRateLimitD1 } from '@/utils/rate-limit';
 import { validateBody, schemas } from '@/validation';
 import { getUnreadCount } from '@/services/notification-service';
+import {
+  listUserSourceConfigs,
+  upsertUserSourceConfig,
+} from '@/repositories/user-source-config-repository';
+import { bumpUserSourceRevision, findVisibleSourceById } from '@/repositories/search-source-repository';
 
 const R = VALIDATION_RULES;
 
@@ -659,13 +664,9 @@ userRoutes.get('/source-configs', async (c) => {
   const user = c.get('user');
 
   try {
-    const configs = await c.env.DB.prepare(
-      'SELECT * FROM user_search_source_configs WHERE user_id = ?'
-    ).bind(user.userId).all();
+    const configs = await listUserSourceConfigs(c.env.DB, user.userId);
 
-    return c.json(success({
-      configs: configs.results || [],
-    }));
+    return c.json(success({ configs }));
   } catch (err) {
     console.error('Get source configs error:', err);
     return c.json(error('SERVER_ERROR', '获取配置失败'), 500);
@@ -681,69 +682,25 @@ userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSour
     const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateSourceConfig>;
     const { isEnabled, customPriority, customName, customSubtitle, customIcon, notes } = body;
 
-    const existing = await c.env.DB.prepare(
-      'SELECT id FROM user_search_source_configs WHERE user_id = ? AND source_id = ?'
-    ).bind(user.userId, sourceId).first();
-
-    const now = Date.now();
-
-    if (existing) {
-      const updates: string[] = [];
-      const params: (string | number | null)[] = [];
-
-      if (isEnabled !== undefined) {
-        updates.push('is_enabled = ?');
-        params.push(isEnabled ? 1 : 0);
-      }
-      if (customPriority !== undefined) {
-        updates.push('custom_priority = ?');
-        params.push(customPriority ?? null);
-      }
-      if (customName !== undefined) {
-        updates.push('custom_name = ?');
-        params.push(customName || null);
-      }
-      if (customSubtitle !== undefined) {
-        updates.push('custom_subtitle = ?');
-        params.push(customSubtitle || null);
-      }
-      if (customIcon !== undefined) {
-        updates.push('custom_icon = ?');
-        params.push(customIcon || null);
-      }
-      if (notes !== undefined) {
-        updates.push('notes = ?');
-        params.push(notes || null);
-      }
-
-      if (updates.length > 0) {
-        updates.push('updated_at = ?');
-        params.push(now, user.userId, sourceId);
-        await c.env.DB.prepare(`
-          UPDATE user_search_source_configs
-          SET ${updates.join(', ')}
-          WHERE user_id = ? AND source_id = ?
-        `).bind(...params).run();
-      }
-    } else {
-      const configId = generateId();
-      await c.env.DB.prepare(`
-        INSERT INTO user_search_source_configs (id, user_id, source_id, is_enabled, custom_priority, custom_name, custom_subtitle, custom_icon, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        configId,
-        user.userId,
-        sourceId,
-        isEnabled !== undefined ? (isEnabled ? 1 : 0) : 1,
-        customPriority ?? null,
-        customName || null,
-        customSubtitle || null,
-        customIcon || null,
-        notes || null,
-        now,
-        now
-      ).run();
+    const source = await findVisibleSourceById(c.env.DB, sourceId, user.userId);
+    if (!source) {
+      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
     }
+    if (source.owner_id !== null) {
+      return c.json(error('VALIDATION_ERROR', '个人源无需启停或自定义配置'), 400);
+    }
+
+    await upsertUserSourceConfig(c.env.DB, user.userId, sourceId, {
+      isEnabled,
+      customPriority,
+      customName: customName === undefined ? undefined : (customName || null),
+      customSubtitle: customSubtitle === undefined ? undefined : (customSubtitle || null),
+      customIcon: customIcon === undefined ? undefined : (customIcon || null),
+      notes: notes === undefined ? undefined : (notes || null),
+    }, Date.now());
+
+    // 启停/自定义变更后让搜索缓存立即失效
+    await bumpUserSourceRevision(c.env.DB, user.userId);
 
     return c.json(success(null, '配置已保存'));
   } catch (err) {

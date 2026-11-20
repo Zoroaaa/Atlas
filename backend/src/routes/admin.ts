@@ -13,6 +13,7 @@ import { CONFIG, VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware, adminMiddleware, checkIsSuperAdmin } from '@/middleware/auth';
 import { adminSessionSchema, adminEventSchema, adminActionSchema } from '@/utils/validators';
 import { validateBody, schemas } from '@/validation';
+import { adminSourceRoutes } from './admin-sources';
 import { findPostNotificationTarget } from '@/repositories/community-repository';
 import { emitNotification } from '@/services/notification-service';
 import { ingestAliasesForKeyword } from '@/services/alias-ingest';
@@ -121,6 +122,9 @@ function getPaginationConfig() {
 
 adminRoutes.use('*', authMiddleware);
 adminRoutes.use('*', adminMiddleware);
+
+// 系统源站管理：只操作系统树，父子路由共享上面的管理员鉴权
+adminRoutes.route('/search-sources', adminSourceRoutes);
 
 /**
  * 获取角色列表

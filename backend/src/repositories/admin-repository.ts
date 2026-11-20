@@ -557,7 +557,8 @@ export async function getSourceStats(db: D1Database): Promise<SourceStatsRow | n
         COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
         COALESCE(SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END), 0) as searchable,
         COALESCE(SUM(usage_count), 0) as total_usage
-      FROM search_sources`
+      FROM search_sources
+      WHERE owner_id IS NULL`
     )
     .first<SourceStatsRow>();
 }
@@ -625,7 +626,7 @@ export async function listTopUsedSources(db: D1Database): Promise<Row[]> {
     .prepare(
       `SELECT name, usage_count
       FROM search_sources
-      WHERE is_active = 1
+      WHERE owner_id IS NULL AND is_active = 1
       ORDER BY usage_count DESC
       LIMIT 10`
     )
@@ -1161,7 +1162,8 @@ export async function getDashboardSourceStats(
         COUNT(*) as total,
         SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
         SUM(usage_count) as total_usage
-      FROM search_sources`
+      FROM search_sources
+      WHERE owner_id IS NULL`
     )
     .first<{ total: number; active: number; total_usage: number }>();
 }

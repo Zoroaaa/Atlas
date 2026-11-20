@@ -3,8 +3,8 @@
  *
  * 约束：展开态只在首次拿到数据时初始化一次，此后由用户操作决定，避免数据刷新把折叠状态重置。
  */
-import { useState, useRef, useEffect } from 'react';
-import { useMajorCategories, useCategories, useSourcesWithUserConfig } from '@/hooks';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useUserSourceTree } from '@/hooks';
 import { sourceApi } from '@/services/api';
 import { useToast } from '@/hooks/useNotification';
 import i18next from '@/i18n';
@@ -25,9 +25,24 @@ interface MajorCategoryWithCategories extends MajorCategory {
 /** 源管理：展开态、源树组装与健康检查 */
 export function useSourceManager() {
   const toast = useToast();
-  const { data: majorCategories = [] } = useMajorCategories();
-  const { data: categories = [] } = useCategories();
-  const { data: allSourcesData = [] } = useSourcesWithUserConfig();
+  const { data: tree } = useUserSourceTree();
+
+  // 搜索工作台的源树需要同时包含系统树与个人私有树，否则自建源不会出现在侧栏
+  const majorCategories = useMemo(
+    () => [...(tree?.system.majorCategories || []), ...(tree?.mine.majorCategories || [])],
+    [tree]
+  );
+  const categories = useMemo(
+    () => [...(tree?.system.categories || []), ...(tree?.mine.categories || [])],
+    [tree]
+  );
+  const allSources: SourceWithUserConfig[] = useMemo(
+    () => [
+      ...(tree?.system.sources || []),
+      ...(tree?.mine.sources || []).map(source => ({ ...source, userConfig: null })),
+    ],
+    [tree]
+  );
 
   const [expandedMajorCategories, setExpandedMajorCategories] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -55,8 +70,6 @@ export function useSourceManager() {
       categoriesInitializedRef.current = true;
     }
   }, [categories]);
-
-  const allSources: SourceWithUserConfig[] = allSourcesData;
 
   const toggleMajorCategory = (id: string) => {
     const next = new Set(expandedMajorCategories);

@@ -387,15 +387,20 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
   const handleBatchToggle = useCallback(
     async (enabled: boolean) => {
       if (selectedIds.size === 0) return;
+      // 个人源没有启停语义，批量操作只作用于系统源
+      const systemIds = Array.from(selectedIds).filter(
+        (id) => items.find((item) => item.id === id)?.isSystem
+      );
+      if (systemIds.length === 0) return;
       setBatchToggling(true);
       try {
         const response = await sourceApi.batchUpdateUserSourceConfigs({
-          configs: Array.from(selectedIds).map((sourceId) => ({ sourceId, isEnabled: enabled })),
+          configs: systemIds.map((sourceId) => ({ sourceId, isEnabled: enabled })),
         });
         if (response.success) {
           setItems((prev) =>
             prev.map((item) =>
-              selectedIds.has(item.id)
+              systemIds.includes(item.id)
                 ? {
                     ...item,
                     enabled,
@@ -418,7 +423,7 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
         setBatchToggling(false);
       }
     },
-    [selectedIds, loadStats, notifyActionFailed]
+    [selectedIds, items, loadStats, notifyActionFailed]
   );
 
   const handleSaveCustom = useCallback(async () => {
@@ -774,32 +779,35 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
                                     <Activity className="h-4 w-4" />
                                   )}
                                 </button>
-                                <button
-                                  onClick={() => void handleToggle(item.id, item.enabled)}
-                                  disabled={isToggling}
-                                  title={
-                                    item.enabled
-                                      ? t('sourceBoard:actions.disable')
-                                      : t('sourceBoard:actions.enable')
-                                  }
-                                  aria-label={
-                                    item.enabled
-                                      ? t('sourceBoard:actions.disable')
-                                      : t('sourceBoard:actions.enable')
-                                  }
-                                  className={clsx(
-                                    'rounded-lg p-1.5 transition-colors disabled:opacity-60',
-                                    item.enabled
-                                      ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                      : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800'
-                                  )}
-                                >
-                                  {isToggling ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Power className="h-4 w-4" />
-                                  )}
-                                </button>
+                                {/* 个人源由用户直接维护，没有启停语义，不渲染无效开关 */}
+                                {item.isSystem && (
+                                  <button
+                                    onClick={() => void handleToggle(item.id, item.enabled)}
+                                    disabled={isToggling}
+                                    title={
+                                      item.enabled
+                                        ? t('sourceBoard:actions.disable')
+                                        : t('sourceBoard:actions.enable')
+                                    }
+                                    aria-label={
+                                      item.enabled
+                                        ? t('sourceBoard:actions.disable')
+                                        : t('sourceBoard:actions.enable')
+                                    }
+                                    className={clsx(
+                                      'rounded-lg p-1.5 transition-colors disabled:opacity-60',
+                                      item.enabled
+                                        ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                        : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-800'
+                                    )}
+                                  >
+                                    {isToggling ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Power className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                )}
                               </div>
                               <a
                                 href={item.homepageUrl || item.urlTemplate.replace('{keyword}', '')}
@@ -1067,20 +1075,22 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
                       ? t('sourceBoard:detail.checking')
                       : t('sourceBoard:detail.check')}
                   </button>
-                  <button
-                    onClick={() => void handleToggle(detail.source.id, detail.enabled)}
-                    disabled={togglingIds.has(detail.source.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 disabled:opacity-60 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-                  >
-                    {togglingIds.has(detail.source.id) ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Power className="h-4 w-4" />
-                    )}
-                    {detail.enabled
-                      ? t('sourceBoard:actions.disable')
-                      : t('sourceBoard:actions.enable')}
-                  </button>
+                  {detail.source.isSystem && (
+                    <button
+                      onClick={() => void handleToggle(detail.source.id, detail.enabled)}
+                      disabled={togglingIds.has(detail.source.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 disabled:opacity-60 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+                    >
+                      {togglingIds.has(detail.source.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Power className="h-4 w-4" />
+                      )}
+                      {detail.enabled
+                        ? t('sourceBoard:actions.disable')
+                        : t('sourceBoard:actions.enable')}
+                    </button>
+                  )}
                   <a
                     href={
                       detail.source.homepageUrl ||

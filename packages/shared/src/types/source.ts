@@ -26,6 +26,8 @@ export interface SearchSource {
   status: SourceStatus;
   isActive: boolean;
   isSystem?: boolean;
+  /** 非空表示当前用户私有源；系统源为 null */
+  ownerId?: string | null;
   usageCount: number;
   displayOrder: number;
   createdAt: string;
@@ -39,6 +41,10 @@ export interface Category {
   description?: string;
   majorCategoryId: string;
   majorCategoryName?: string;
+  /** 父大类归属：null 表示系统大类；用于用户源站分组展示 */
+  majorCategoryOwnerId?: string | null;
+  /** 父大类是否仍启用；停用后个人分类仍可由本人清理 */
+  majorCategoryActive?: boolean;
   icon?: string;
   color?: string;
   defaultSearchable: boolean;
@@ -46,6 +52,8 @@ export interface Category {
   searchPriority: number;
   isActive: boolean;
   isSystem?: boolean;
+  /** 非空表示当前用户私有分类；系统分类为 null */
+  ownerId?: string | null;
   displayOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +69,8 @@ export interface MajorCategory {
   color?: string;
   isActive: boolean;
   isSystem?: boolean;
+  /** 非空表示当前用户私有大类；系统大类为 null */
+  ownerId?: string | null;
   displayOrder: number;
   createdAt: string;
   updatedAt: string;

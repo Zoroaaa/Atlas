@@ -17,7 +17,6 @@ import {
   Database,
   FileText,
   FolderOpen,
-  FolderTree,
   Heart,
   History,
   Image as ImageIcon,
@@ -113,7 +112,6 @@ export const dashboardNavGroups: WorkspaceNavGroup[] = [
     labelKey: 'nav:dashboard.groups.resources',
     items: [
       { id: 'sources', labelKey: 'nav:dashboard.items.sources', icon: <Database className="h-[17px] w-[17px]" />, path: '/dashboard/sources' },
-      { id: 'categories', labelKey: 'nav:dashboard.items.categories', icon: <FolderTree className="h-[17px] w-[17px]" />, path: '/dashboard/categories' },
     ],
   },
   {
@@ -163,6 +161,13 @@ export const adminNavGroups: WorkspaceNavGroup[] = [
       { id: 'activity-ranking', labelKey: 'nav:adminPanel.items.activityRanking', icon: <Trophy className="h-[17px] w-[17px]" />, path: '/admin-panel/activity-ranking' },
       { id: 'rankings-archive', labelKey: 'nav:adminPanel.items.rankingsArchive', icon: <Trophy className="h-[17px] w-[17px]" />, path: '/admin-panel/rankings-archive' },
       { id: 'cleanup', labelKey: 'nav:adminPanel.items.cleanup', icon: <Trash2 className="h-[17px] w-[17px]" />, path: '/admin-panel/cleanup' },
+    ],
+  },
+  {
+    id: 'resources',
+    labelKey: 'nav:dashboard.groups.resources',
+    items: [
+      { id: 'sources', labelKey: 'nav:adminPanel.items.sources', icon: <Database className="h-[17px] w-[17px]" />, path: '/admin-panel/sources' },
     ],
   },
   {

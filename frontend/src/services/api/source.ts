@@ -26,6 +26,8 @@ import type {
   SourceCatalogPage,
   SourceCatalogParams,
   SourceDetailPayload,
+  UserSourceTree,
+  AdminSourceTree,
 } from '@/types';
 
 /** catalog 接口原始行（后端返回 snake_case + 少量 camelCase 别名） */
@@ -153,6 +155,14 @@ export const sourceApi = {
     return { success: false, data: [] };
   },
 
+  getUserSourceTree: async (): Promise<{ success: boolean; data: UserSourceTree }> => {
+    return apiClient.get('/search-sources/tree');
+  },
+
+  getAdminSourceTree: async (): Promise<{ success: boolean; data: AdminSourceTree }> => {
+    return apiClient.get('/admin/search-sources/tree');
+  },
+
   createMajorCategory: async (data: CreateMajorCategoryRequest): Promise<{ 
     success: boolean; 
     data: MajorCategory; 
@@ -160,7 +170,7 @@ export const sourceApi = {
   }> => {
     const { createMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<CreateMajorCategoryRequest>(createMajorCategorySchema, data);
-    return apiClient.post('/search-sources/major-categories', payload);
+    return apiClient.post('/search-sources/mine/major-categories', payload);
   },
 
   updateMajorCategory: async (id: string, data: UpdateMajorCategoryRequest): Promise<{ 
@@ -169,11 +179,34 @@ export const sourceApi = {
   }> => {
     const { updateMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<UpdateMajorCategoryRequest>(updateMajorCategorySchema, data);
-    return apiClient.put(`/search-sources/major-categories/${id}`, payload);
+    return apiClient.put(`/search-sources/mine/major-categories/${id}`, payload);
   },
 
   deleteMajorCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete(`/search-sources/major-categories/${id}`);
+    return apiClient.delete(`/search-sources/mine/major-categories/${id}`);
+  },
+
+  createSystemMajorCategory: async (data: CreateMajorCategoryRequest): Promise<{
+    success: boolean;
+    data: MajorCategory;
+    message: string;
+  }> => {
+    const { createMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateMajorCategoryRequest>(createMajorCategorySchema, data);
+    return apiClient.post('/admin/search-sources/major-categories', payload);
+  },
+
+  updateSystemMajorCategory: async (id: string, data: UpdateMajorCategoryRequest): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const { updateMajorCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateMajorCategoryRequest>(updateMajorCategorySchema, data);
+    return apiClient.put(`/admin/search-sources/major-categories/${id}`, payload);
+  },
+
+  deleteSystemMajorCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete(`/admin/search-sources/major-categories/${id}`);
   },
 
   getCategories: async (majorCategoryId?: string): Promise<{ 
@@ -232,7 +265,7 @@ export const sourceApi = {
   }> => {
     const { createCategorySchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<CreateCategoryRequest>(createCategorySchema, data);
-    return apiClient.post('/search-sources/categories', payload);
+    return apiClient.post('/search-sources/mine/categories', payload);
   },
 
   updateCategory: async (id: string, data: UpdateCategoryRequest): Promise<{ 
@@ -241,11 +274,34 @@ export const sourceApi = {
   }> => {
     const { updateCategorySchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<UpdateCategoryRequest>(updateCategorySchema, data);
-    return apiClient.put(`/search-sources/categories/${id}`, payload);
+    return apiClient.put(`/search-sources/mine/categories/${id}`, payload);
   },
 
   deleteCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete(`/search-sources/categories/${id}`);
+    return apiClient.delete(`/search-sources/mine/categories/${id}`);
+  },
+
+  createSystemCategory: async (data: CreateCategoryRequest): Promise<{
+    success: boolean;
+    data: Category;
+    message: string;
+  }> => {
+    const { createCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateCategoryRequest>(createCategorySchema, data);
+    return apiClient.post('/admin/search-sources/categories', payload);
+  },
+
+  updateSystemCategory: async (id: string, data: UpdateCategoryRequest): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const { updateCategorySchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateCategoryRequest>(updateCategorySchema, data);
+    return apiClient.put(`/admin/search-sources/categories/${id}`, payload);
+  },
+
+  deleteSystemCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete(`/admin/search-sources/categories/${id}`);
   },
 
   createSource: async (data: CreateSourceRequest): Promise<{ 
@@ -255,7 +311,7 @@ export const sourceApi = {
   }> => {
     const { createSourceSchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<CreateSourceRequest>(createSourceSchema, data);
-    return apiClient.post('/search-sources', payload);
+    return apiClient.post('/search-sources/mine/sources', payload);
   },
 
   updateSource: async (id: string, data: UpdateSourceRequest): Promise<{ 
@@ -264,11 +320,34 @@ export const sourceApi = {
   }> => {
     const { updateSourceSchema } = await import('@codeseek/shared/schemas/sources');
     const payload = await parseRequest<UpdateSourceRequest>(updateSourceSchema, data);
-    return apiClient.put(`/search-sources/${id}`, payload);
+    return apiClient.put(`/search-sources/mine/sources/${id}`, payload);
   },
 
   deleteSource: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete(`/search-sources/${id}`);
+    return apiClient.delete(`/search-sources/mine/sources/${id}`);
+  },
+
+  createSystemSource: async (data: CreateSourceRequest): Promise<{
+    success: boolean;
+    data: SearchSource;
+    message: string;
+  }> => {
+    const { createSourceSchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<CreateSourceRequest>(createSourceSchema, data);
+    return apiClient.post('/admin/search-sources/sources', payload);
+  },
+
+  updateSystemSource: async (id: string, data: UpdateSourceRequest): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const { updateSourceSchema } = await import('@codeseek/shared/schemas/sources');
+    const payload = await parseRequest<UpdateSourceRequest>(updateSourceSchema, data);
+    return apiClient.put(`/admin/search-sources/sources/${id}`, payload);
+  },
+
+  deleteSystemSource: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete(`/admin/search-sources/sources/${id}`);
   },
 
   incrementUsage: async (id: string): Promise<{ success: boolean; message: string }> => {
@@ -588,12 +667,12 @@ export const sourceApi = {
     
     // json 走 apiClient 统一错误处理；csv/opml 是二进制流，只能直接 fetch
     if (format === 'json') {
-      return apiClient.get(`/search-sources/export?${params.toString()}`);
+      return apiClient.get(`/search-sources/mine/export?${params.toString()}`);
     }
     
     const baseUrl = getApiBaseUrl();
     const token = apiClient.getToken();
-    const response = await fetch(`${baseUrl}/search-sources/export?${params.toString()}`, {
+    const response = await fetch(`${baseUrl}/search-sources/mine/export?${params.toString()}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       credentials: 'omit',
     });

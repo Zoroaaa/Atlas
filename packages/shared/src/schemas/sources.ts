@@ -38,6 +38,7 @@ export const createCategorySchema = z.object({
 });
 
 export const updateCategorySchema = z.object({
+  majorCategoryId: z.string().min(1).optional(),
   name: z.string().min(1).max(R.CATEGORY.NAME_MAX_LENGTH).optional(),
   description: z.string().max(R.CATEGORY.DESCRIPTION_MAX_LENGTH).optional().nullable(),
   icon: z.string().max(R.CATEGORY.ICON_MAX_LENGTH).optional(),

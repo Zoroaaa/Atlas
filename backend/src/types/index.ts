@@ -248,6 +248,8 @@ export interface MajorCategory {
   icon: string | null;
   color: string;
   display_order: number;
+  /** NULL = 系统大类；非空 = 用户私有大类 */
+  owner_id: string | null;
   is_system: number;
   is_active: number;
   created_at: number;
@@ -264,6 +266,8 @@ export interface SearchSourceCategory {
   default_searchable: number;
   default_site_type: string;
   search_priority: number;
+  /** NULL = 系统分类；非空 = 用户私有分类 */
+  owner_id: string | null;
   is_system: number;
   is_active: number;
   display_order: number;
@@ -286,6 +290,8 @@ export interface SearchSource {
   site_type: string;
   searchable: number;
   search_priority: number;
+  /** NULL = 系统源；非空 = 用户私有源 */
+  owner_id: string | null;
   is_system: number;
   is_active: number;
   display_order: number;

@@ -5,6 +5,7 @@ export { googleOAuthRoutes } from './google-oauth';
 export { oauthExchangeRoutes } from './oauth-exchange';
 export { userRoutes } from './user';
 export { sourceRoutes } from './sources';
+export { adminSourceRoutes } from './admin-sources';
 export { communityRoutes } from './community';
 export { systemRoutes } from './system';
 export { searchRoutes } from './search';

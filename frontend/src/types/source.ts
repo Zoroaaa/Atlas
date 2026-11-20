@@ -1,5 +1,5 @@
 // API 契约类型 - 从共享包导入
-import type { SiteType, UserSourceConfig, SearchSource, SourceStats } from '@codeseek/shared';
+import type { SiteType, UserSourceConfig, SearchSource, SourceStats, Category, MajorCategory } from '@codeseek/shared';
 
 export type {
   SourceStatus,
@@ -111,4 +111,46 @@ export interface SourceDetailPayload {
 export interface SourceBoardStats extends SourceStats {
   enabledSources?: number;
   availableSources?: number;
+}
+
+/* ── 源站树（个人 / 系统管理） ── */
+
+/** 个人源站页统计：个人树数量 + 系统源启用数量 */
+export interface UserSourceTreeStats {
+  myMajorCategories: number;
+  myCategories: number;
+  mySources: number;
+  systemSources: number;
+  enabledSystemSources: number;
+}
+
+/** 用户源站树：系统树（含启用状态）与个人私有树 */
+export interface UserSourceTree {
+  system: {
+    majorCategories: MajorCategory[];
+    categories: Category[];
+    sources: Array<SearchSource & { enabled: boolean; userConfig: UserSourceConfig | null }>;
+  };
+  mine: {
+    majorCategories: MajorCategory[];
+    categories: Category[];
+    sources: SearchSource[];
+  };
+  stats: UserSourceTreeStats;
+}
+
+/** 系统源站统计 */
+export interface SystemSourceStats {
+  totalMajorCategories: number;
+  totalCategories: number;
+  totalSources: number;
+  searchableSources: number;
+}
+
+/** 管理后台系统源站树 */
+export interface AdminSourceTree {
+  majorCategories: MajorCategory[];
+  categories: Category[];
+  sources: SearchSource[];
+  stats: SystemSourceStats;
 }
