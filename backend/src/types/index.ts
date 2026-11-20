@@ -250,7 +250,6 @@ export interface MajorCategory {
   display_order: number;
   /** NULL = 系统大类；非空 = 用户私有大类 */
   owner_id: string | null;
-  is_system: number;
   is_active: number;
   created_at: number;
   updated_at: number;
@@ -268,10 +267,8 @@ export interface SearchSourceCategory {
   search_priority: number;
   /** NULL = 系统分类；非空 = 用户私有分类 */
   owner_id: string | null;
-  is_system: number;
   is_active: number;
   display_order: number;
-  created_by: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -292,12 +289,10 @@ export interface SearchSource {
   search_priority: number;
   /** NULL = 系统源；非空 = 用户私有源 */
   owner_id: string | null;
-  is_system: number;
   is_active: number;
   display_order: number;
   usage_count: number;
   last_used_at: number | null;
-  created_by: string | null;
   created_at: number;
   updated_at: number;
 }

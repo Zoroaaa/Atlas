@@ -377,8 +377,8 @@ export async function insertMajorCategory(
     .prepare(
       `INSERT INTO search_major_categories (
          id, name, description, icon, color, display_order,
-         is_system, is_active, owner_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+         is_active, owner_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
     )
     .bind(
       input.id,
@@ -387,7 +387,6 @@ export async function insertMajorCategory(
       input.icon,
       input.color,
       input.displayOrder,
-      input.ownerId === null ? 1 : 0,
       input.ownerId,
       input.now,
       input.now
@@ -474,9 +473,9 @@ export async function insertSourceCategory(
     .prepare(
       `INSERT INTO search_source_categories (
          id, major_category_id, name, description, icon, color, display_order,
-         is_system, is_active, default_searchable, default_site_type, search_priority,
-         created_by, owner_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`
+         is_active, default_searchable, default_site_type, search_priority,
+         owner_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       input.id,
@@ -486,11 +485,9 @@ export async function insertSourceCategory(
       input.icon,
       input.color,
       input.displayOrder,
-      input.ownerId === null ? 1 : 0,
       input.defaultSearchable ? 1 : 0,
       input.defaultSiteType,
       input.searchPriority,
-      input.ownerId,
       input.ownerId,
       input.now,
       input.now
@@ -598,9 +595,9 @@ export async function insertSearchSource(
     .prepare(
       `INSERT INTO search_sources (
          id, category_id, name, subtitle, description, icon, url_template, homepage_url,
-         site_type, searchable, search_priority, is_system, is_active, display_order,
-         usage_count, created_by, owner_id, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 999, 0, ?, ?, ?, ?)`
+         site_type, searchable, search_priority, is_active, display_order,
+         usage_count, owner_id, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 999, 0, ?, ?, ?)`
     )
     .bind(
       input.id,
@@ -614,8 +611,6 @@ export async function insertSearchSource(
       input.siteType,
       input.searchable ? 1 : 0,
       input.searchPriority,
-      input.ownerId === null ? 1 : 0,
-      input.ownerId,
       input.ownerId,
       input.now,
       input.now
