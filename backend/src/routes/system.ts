@@ -10,6 +10,8 @@ import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
 import { success, error, generateId, getClientIP, hashToken, verifyToken, generateErrorFingerprint } from '@/utils';
 import { authMiddleware } from '@/middleware';
 import { ConfigService, fetchLatestAndroidRelease } from '@/services';
+import { HEALTH_PROBE_KEYWORD, probeSourceHealth, type SourceHealthResult } from '@/services/source-health';
+import { checkMultiLevelRateLimit, SOURCE_BATCH_PROBE_LIMITS, SOURCE_SINGLE_PROBE_LIMITS } from '@/utils/rate-limit';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 
@@ -153,87 +155,18 @@ systemRoutes.post('/errors', validateBody(schemas.system.reportError), async (c)
 // 以下接口均需登录；公开端点已在其之前注册，顺序不能调换
 systemRoutes.use('*', authMiddleware);
 
+// ── 源健康探测 ─────────────────────────────────────────
+
 /**
- * 探测源站可达性：区分「站点存在但拒绝匿名」（4xx 计入可达）与网络层不可达 / 超时。
- * 结果里的 status 供前端展示，available 才是是否可用的判定。
+ * 写入探测结果缓存（默认 5 分钟）。
+ *
+ * 缓存只服务于源看板/详情页展示「最近状态」，探测接口本身不读缓存：
+ * 手动点按钮必须看到新结果，命中旧缓存会让用户以为按钮没生效。
+ * 备注与探测地址塞进已有的 page_info JSON 列，避免为一行说明单独加表字段。
  */
-async function checkUrlReachability(url: string, timeoutMs = 10000): Promise<{
-  status: string;
-  available: boolean;
-  responseTime: number;
-  httpStatus: number | null;
-  error: string | null;
-}> {
-  const startTime = Date.now();
-
-  const headers: HeadersInit = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-  };
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-
-    clearTimeout(timer);
-    const responseTime = Date.now() - startTime;
-    const httpStatus = response.status;
-
-    // 400/401/403/405/406/429 说明站点活着只是拒绝匿名请求，仍算可达
-    const reachableSet = new Set([200, 201, 204, 206, 301, 302, 303, 304, 307, 308, 400, 401, 403, 405, 406, 429]);
-    const available = reachableSet.has(httpStatus) || (httpStatus >= 200 && httpStatus < 400);
-
-    if (available) {
-      const statusLabel = httpStatus >= 400 ? 'restricted' : 'online';
-      return { status: statusLabel, available: true, responseTime, httpStatus, error: null };
-    }
-
-    return { status: 'error', available: false, responseTime, httpStatus, error: `HTTP ${httpStatus}` };
-  } catch (err) {
-    const responseTime = Date.now() - startTime;
-
-    if (err instanceof Error) {
-      if (err.name === 'AbortError' || err.message.includes('timeout')) {
-        return { status: 'timeout', available: false, responseTime, httpStatus: null, error: '请求超时' };
-      }
-      const msg = err.message.toLowerCase();
-      if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('econnrefused')) {
-        return { status: 'offline', available: false, responseTime, httpStatus: null, error: '网络不可达' };
-      }
-      return { status: 'offline', available: false, responseTime, httpStatus: null, error: err.message };
-    }
-
-    return { status: 'offline', available: false, responseTime, httpStatus: null, error: '未知错误' };
-  }
-}
-
-/** 探测 URL 选取：优先首页，其次把模板里的 {keyword} 换成 test 再探测。 */
-function resolveCheckUrl(source: SearchSource): string {
-  if (source.homepage_url && source.homepage_url.startsWith('http')) {
-    return source.homepage_url;
-  }
-  const template = source.url_template || '';
-  if (template.includes('{keyword}')) {
-    return template.replace('{keyword}', encodeURIComponent('test'));
-  }
-  return template;
-}
-
-/** 写入探测结果缓存（默认 5 分钟）；缓存只是加速手段，写失败静默忽略。 */
 async function saveStatusCache(
   db: Env['DB'],
-  sourceId: string,
-  result: { status: string; available: boolean; responseTime: number; error: string | null },
+  result: SourceHealthResult,
   ttlMs = 5 * 60 * 1000
 ): Promise<void> {
   try {
@@ -243,16 +176,25 @@ async function saveStatusCache(
     // 同一「源 + health」只保留最新一条，避免每次健康检查都新增行
     await db.prepare(
       'DELETE FROM source_status_cache WHERE source_id = ? AND keyword_hash = ?'
-    ).bind(sourceId, keywordHash).run();
+    ).bind(result.sourceId, keywordHash).run();
     await db.prepare(`
       INSERT INTO source_status_cache
         (id, source_id, keyword, keyword_hash, status, available, content_match,
-         response_time, quality_score, check_error, expires_at, created_at, last_accessed, access_count)
-      VALUES (?, ?, 'health', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+         response_time, quality_score, match_details, page_info, check_error,
+         expires_at, created_at, last_accessed, access_count)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, 0)
     `).bind(
-      cacheId, sourceId, keywordHash,
-      result.status, result.available ? 1 : 0, result.available ? 1 : 0,
-      result.responseTime, result.available ? 100 : 0, result.error,
+      cacheId, result.sourceId, result.probeKeyword, keywordHash,
+      result.status, result.available ? 1 : 0,
+      result.responseTime,
+      JSON.stringify({ note: result.note }),
+      JSON.stringify({
+        httpStatus: result.httpStatus,
+        probeUrl: result.probeUrl,
+        homepageHttpStatus: result.homepageHttpStatus,
+      }),
+      // 可用时清空错误列，避免上一轮的失败原因残留
+      result.available ? null : result.note,
       now + ttlMs, now, now,
     ).run();
   } catch {
@@ -269,6 +211,17 @@ systemRoutes.get('/source-status-check', async (c) => {
 
   try {
     const user = c.get('user');
+
+    // 探测会真实请求上游站点，逐个点也要限额，否则接口等于一个免费压测工具
+    const quota = await checkMultiLevelRateLimit(
+      c.env.DB,
+      `source-probe:user:${user.userId}`,
+      SOURCE_SINGLE_PROBE_LIMITS
+    );
+    if (!quota.allowed) {
+      return c.json(error('RATE_LIMIT', quota.message || '探测过于频繁，请稍后再试', 429));
+    }
+
     const source = await c.env.DB.prepare(
       'SELECT * FROM search_sources WHERE id = ?'
     ).bind(sourceId).first<SearchSource>();
@@ -281,34 +234,16 @@ systemRoutes.get('/source-status-check', async (c) => {
       return c.json(error('FORBIDDEN', '无权检查此搜索源'), 403);
     }
 
-    // 5 分钟内复用上一次探测，避免重复回源；批量接口也按同一窗口判定缓存
-    const cached = await c.env.DB.prepare(`
-      SELECT * FROM source_status_cache
-      WHERE source_id = ? AND created_at > ?
-      ORDER BY created_at DESC LIMIT 1
-    `).bind(sourceId, Date.now() - 5 * 60 * 1000).first<SourceStatusCache>();
+    // 手动探测不读缓存：命中 5 分钟旧结果会让用户以为按钮没生效
+    const result = await probeSourceHealth({
+      id: source.id,
+      name: source.name,
+      url_template: source.url_template,
+      homepage_url: source.homepage_url,
+    });
+    await saveStatusCache(c.env.DB, result);
 
-    if (cached) {
-      return c.json(success({
-        status: cached.status, available: cached.available === 1,
-        responseTime: cached.response_time, qualityScore: cached.quality_score,
-        error: cached.check_error, cached: true,
-      }));
-    }
-
-    const checkUrl = resolveCheckUrl(source);
-    if (!checkUrl) {
-      return c.json(error('VALIDATION_ERROR', '该搜索源没有可检测的 URL'), 400);
-    }
-
-    const result = await checkUrlReachability(checkUrl, 10000);
-    saveStatusCache(c.env.DB, sourceId, result).catch(() => {});
-
-    return c.json(success({
-      status: result.status, available: result.available,
-      responseTime: result.responseTime, qualityScore: result.available ? 100 : 0,
-      error: result.error, cached: false, checkedUrl: checkUrl,
-    }));
+    return c.json(success(result));
   } catch (err) {
     console.error('Source status check error:', err);
     return c.json(error('SERVER_ERROR', '状态检查失败'), 500);
@@ -320,6 +255,16 @@ systemRoutes.post('/source-status-batch', validateBody(schemas.system.batchSourc
     const user = c.get('user');
     const body = c.get('validatedBody') as z.infer<typeof schemas.system.batchSourceStatus>;
     const { sourceIds } = body;
+
+    // 批量配额按「批」计：前端一次全量探测会拆成若干批，配额实际限制的是全量操作次数
+    const quota = await checkMultiLevelRateLimit(
+      c.env.DB,
+      `source-batch-probe:user:${user.userId}`,
+      SOURCE_BATCH_PROBE_LIMITS
+    );
+    if (!quota.allowed) {
+      return c.json(error('RATE_LIMIT', quota.message || '批量探测过于频繁，请稍后再试', 429));
+    }
 
     const sources = await c.env.DB.prepare(
       `SELECT id, name, url_template, homepage_url, owner_id FROM search_sources
@@ -338,52 +283,42 @@ systemRoutes.post('/source-status-batch', validateBody(schemas.system.batchSourc
     }
 
     const sourceMap = new Map(sources.results.map(s => [s.id, s]));
+    const probeIds = sourceIds.filter(id => sourceMap.has(id));
 
-    const TTL = 5 * 60 * 1000;
-    const cachedRows = await c.env.DB.prepare(
-      `SELECT source_id, status, available, response_time, check_error
-       FROM source_status_cache
-       WHERE source_id IN (${sourceIds.map(() => '?').join(',')}) AND created_at > ?
-       ORDER BY created_at DESC`
-    ).bind(...sourceIds, Date.now() - TTL).all<{
-      source_id: string; status: string; available: number; response_time: number; check_error: string | null;
-    }>();
-
-    const cacheMap = new Map<string, typeof cachedRows.results[0]>();
-    for (const row of (cachedRows.results || [])) {
-      if (!cacheMap.has(row.source_id)) cacheMap.set(row.source_id, row);
+    // 每片 20 个并发：单批上限 30，全部同时发会一次占满子请求配额且拉长最慢请求
+    const healthResults: SourceHealthResult[] = [];
+    for (let i = 0; i < probeIds.length; i += 20) {
+      const slice = probeIds.slice(i, i + 20);
+      const settled = await Promise.all(
+        slice.map((sourceId) => {
+          const source = sourceMap.get(sourceId)!;
+          return probeSourceHealth({
+            id: source.id,
+            name: source.name,
+            url_template: source.url_template,
+            homepage_url: source.homepage_url,
+          });
+        })
+      );
+      healthResults.push(...settled);
     }
 
-    const toCheck = sourceIds.filter(id => !cacheMap.has(id) && sourceMap.has(id));
+    // 与探测同一轮等待缓存写入：Worker 返回后再写会随请求结束丢失
+    await Promise.all(healthResults.map((result) => saveStatusCache(c.env.DB, result)));
 
-    const freshResults = await Promise.all(
-      toCheck.map(async (sourceId) => {
-        const source = sourceMap.get(sourceId)!;
-        const checkUrl = resolveCheckUrl(source as unknown as SearchSource);
-
-        if (!checkUrl) {
-          return { sourceId, sourceName: source.name, status: 'unknown', available: false, responseTime: 0, error: '无可用 URL', cached: false };
-        }
-
-        const result = await checkUrlReachability(checkUrl, 9000);
-        saveStatusCache(c.env.DB, sourceId, result).catch(() => {});
-
-        return { sourceId, sourceName: source.name, status: result.status, available: result.available, responseTime: result.responseTime, error: result.error, cached: false };
-      })
-    );
-
-    const results = sourceIds.map(sourceId => {
-      const source = sourceMap.get(sourceId);
-      if (!source) {
-        return { sourceId, sourceName: '未知', status: 'not_found', available: false, responseTime: 0, error: '搜索源不存在', cached: false };
-      }
-
-      const cached = cacheMap.get(sourceId);
-      if (cached) {
-        return { sourceId, sourceName: source.name, status: cached.status, available: cached.available === 1, responseTime: cached.response_time, error: cached.check_error, cached: true };
-      }
-
-      return freshResults.find(r => r.sourceId === sourceId) ?? { sourceId, sourceName: source.name, status: 'unknown', available: false, responseTime: 0, error: '检查失败', cached: false };
+    const resultMap = new Map(healthResults.map((result) => [result.sourceId, result]));
+    const results = sourceIds.map((sourceId) => resultMap.get(sourceId) ?? {
+      sourceId,
+      sourceName: '未知',
+      status: 'error' as const,
+      available: false,
+      httpStatus: null,
+      responseTime: 0,
+      note: '搜索源不存在或已停用',
+      probeUrl: '',
+      probeKeyword: HEALTH_PROBE_KEYWORD,
+      homepageHttpStatus: null,
+      checkedAt: Date.now(),
     });
 
     const availableCount = results.filter(r => r.available).length;

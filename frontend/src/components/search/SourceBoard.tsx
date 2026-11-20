@@ -45,7 +45,7 @@ interface CheckResult {
   available: boolean;
   status: string;
   responseTime: number;
-  error: string | null;
+  note: string;
 }
 
 interface AvailabilitySummary {
@@ -957,6 +957,12 @@ export const SourceBoard: React.FC<SourceBoardProps> = ({ onBackToSearch }) => {
                       {detailCheck ? ` · ${detailCheck.responseTime}ms` : null}
                     </dd>
                   </div>
+                  {detailCheck && (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-stone-500 dark:text-stone-400">{t('sourceBoard:detail.statusNote')}</dt>
+                      <dd className="max-w-[60%] text-right text-stone-700 dark:text-stone-200">{detailCheck.note}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-3">
                     <dt className="text-stone-500 dark:text-stone-400">{t('sourceBoard:detail.availability')}</dt>
                     <dd className="text-stone-700 dark:text-stone-200">

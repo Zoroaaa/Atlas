@@ -12,6 +12,7 @@ export type { SearchHistoryItem, FavoriteItem, SearchResult,
 
 export type { SourceStatus, SiteType, SearchSource, Category,
   MajorCategory, SourceCheckResult, UserSourceConfig, SourceStats,
+  SourceHealthStatus, SourceHealthResult,
   CreateMajorCategoryRequest, UpdateMajorCategoryRequest,
   CreateCategoryRequest, UpdateCategoryRequest,
   CreateSourceRequest, UpdateSourceRequest,

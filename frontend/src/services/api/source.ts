@@ -28,6 +28,7 @@ import type {
   SourceDetailPayload,
   UserSourceTree,
   AdminSourceTree,
+  SourceHealthResult,
 } from '@/types';
 
 /** catalog 接口原始行（后端返回 snake_case + 少量 camelCase 别名） */
@@ -728,16 +729,12 @@ export const sourceApi = {
     return apiClient.get(`/search-sources/export-user-configs/${payload.userId}`);
   },
 
-  checkSourceStatus: async (sourceId: string, keyword = 'test'): Promise<{ 
-    success: boolean; 
-    data: {
-      status: string;
-      available: boolean;
-      responseTime: number;
-      error: string | null;
-    } 
+  /** 手动探测单个源：服务端不读缓存，返回本次真实结果（含原因备注）。 */
+  checkSourceStatus: async (sourceId: string): Promise<{
+    success: boolean;
+    data: SourceHealthResult;
   }> => {
-    return apiClient.get(`/source-status-check?sourceId=${sourceId}&keyword=${encodeURIComponent(keyword)}`);
+    return apiClient.get(`/source-status-check?sourceId=${sourceId}`);
   },
 
   getSourceStatusHistory: async (sourceId: string, limit = 50, hours = 24): Promise<{ 
@@ -764,18 +761,13 @@ export const sourceApi = {
     return apiClient.get(`/source-status-history/${sourceId}?limit=${limit}&hours=${hours}`);
   },
 
-  batchCheckSourceStatus: async (sourceIds: string[]): Promise<{ 
-    success: boolean; 
+  /** 批量手动探测：一次最多 20 条，服务端按批扣减配额（429 表示全量探测次数已用完）。 */
+  batchCheckSourceStatus: async (sourceIds: string[]): Promise<{
+    success: boolean;
     data: {
-      results: Array<{
-        sourceId: string;
-        sourceName: string;
-        status: string;
-        available: boolean;
-        responseTime: number;
-        error: string | null;
-      }>;
+      results: SourceHealthResult[];
       checkedAt: number;
+      summary: { total: number; available: number; unavailable: number };
     }
   }> => {
     const { batchSourceStatusSchema } = await import('@codeseek/shared/schemas/system');

@@ -8,6 +8,8 @@ export type {
   Category,
   MajorCategory,
   SourceCheckResult,
+  SourceHealthStatus,
+  SourceHealthResult,
   UserSourceConfig,
   SourceStats,
   CreateSourceRequest,

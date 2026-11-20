@@ -215,6 +215,28 @@ export function registerRateLimitKey(ip: string): string {
   return `register:ip:${normalizeIpForRateLimit(ip)}`;
 }
 
+// ── 源健康探测（手动触发，无定时任务） ───────────────────────────
+
+/**
+ * 单源探测配额：逐个点检测按钮时的上限。
+ * 每次探测会真实请求上游站点，配额过松等于提供免费压测工具。
+ */
+export const SOURCE_SINGLE_PROBE_LIMITS: MultiLevelLimit[] = [
+  { windowMs: 60_000, maxRequests: 20, label: '每分钟' },
+  { windowMs: 3_600_000, maxRequests: 200, label: '每小时' },
+];
+
+/**
+ * 批量探测配额：按批计数，一次「全量探测」由前端按 20 条/批串行发起。
+ * 以 100 个源计算，一次全量约 5 批，即每小时最多全量 6 次、每天 12 次；
+ * 限制的是「操作次数」而不是单批条数，避免把批次上限调大绕过配额。
+ */
+export const SOURCE_BATCH_PROBE_LIMITS: MultiLevelLimit[] = [
+  { windowMs: 60_000, maxRequests: 10, label: '每分钟' },
+  { windowMs: 3_600_000, maxRequests: 30, label: '每小时' },
+  { windowMs: 86_400_000, maxRequests: 60, label: '每天' },
+];
+
 /**
  * 将 IP 归一化为限流键粒度：
  * - IPv4：保留完整地址

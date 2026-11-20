@@ -42,7 +42,7 @@ type BatchCheckResult = Record<string, {
   status: string;
   available: boolean;
   responseTime: number;
-  error: string | null;
+  note: string;
 }>;
 
 interface SourceTreeProps {
@@ -195,11 +195,10 @@ const SourceTree: React.FC<SourceTreeProps> = ({
                                               : t('search:sources.sidebar.ms', { time: checkResult.responseTime })
                                             : checkResult.status === 'timeout' ? t('search:sources.sidebar.timeout')
                                               : checkResult.status === 'offline' ? t('search:sources.sidebar.offline') : t('search:sources.sidebar.errorStatus');
-                                          const titleText = checkResult.available
-                                            ? checkResult.status === 'restricted'
-                                              ? t('search:sources.sidebar.onlineRestrictedTitle', { time: checkResult.responseTime })
-                                              : t('search:sources.sidebar.accessibleTitle', { time: checkResult.responseTime })
-                                            : checkResult.error || t('search:sources.sidebar.inaccessibleTitle');
+                                          const titleText = checkResult.note
+                                            || (checkResult.available
+                                              ? t('search:sources.sidebar.accessibleTitle', { time: checkResult.responseTime })
+                                              : t('search:sources.sidebar.inaccessibleTitle'));
                                           return (
                                             <span
                                               className={`flex items-center gap-0.5 text-[10px] px-1 py-0.5 rounded font-medium ${colorClass}`}

@@ -87,6 +87,38 @@ export interface SourceCheckResult {
   error?: string;
 }
 
+/**
+ * 健康探测结论：available 只表达「能不能用」这一个粗结论，
+ * status 说明属于哪类问题，用于前端分组与备注展示。
+ */
+export type SourceHealthStatus =
+  | 'online'              // 搜索页正常且命中探测词
+  | 'empty_result'        // 搜索页正常，但探测词无结果（非 JAV 源属正常）
+  | 'degraded'            // 页面可达，但服务端看不到结果（前端渲染或结构变更）
+  | 'challenge'           // 验证码 / 人机校验页
+  | 'login_required'      // 登录墙
+  | 'search_path_changed' // 搜索地址 404/410，首页仍可达
+  | 'restricted'          // 401/403/429，站点存在但拒绝我们
+  | 'timeout'
+  | 'offline'
+  | 'error';
+
+/** 单次健康探测结果；note 面向用户说明「为什么不可用 / 可用但有什么问题」。 */
+export interface SourceHealthResult {
+  sourceId: string;
+  sourceName: string;
+  status: SourceHealthStatus;
+  available: boolean;
+  httpStatus: number | null;
+  responseTime: number;
+  note: string;
+  probeUrl: string;
+  probeKeyword: string;
+  /** 仅在搜索地址异常时补探首页；null 表示本次未探测 */
+  homepageHttpStatus: number | null;
+  checkedAt: number;
+}
+
 /** 用户对源站的个性化配置；custom* 为空时回落到源站自身字段。 */
 export interface UserSourceConfig {
   id: string;

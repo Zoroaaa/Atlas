@@ -25,10 +25,12 @@ import { sourceApi } from '@/services/api';
 import { useAdminSourceTree, useUserSourceTree, sourcesKeys } from '@/hooks';
 import { useToast } from '@/hooks/useNotification';
 import { useTranslation } from 'react-i18next';
+import { isSourceHealthWarning, sourceHealthLabelKey } from '@/utils/sourceHealth';
 import type {
   Category,
   MajorCategory,
   SearchSource,
+  SourceHealthResult,
   UserSourceConfig,
 } from '@/types';
 
@@ -69,13 +71,6 @@ interface SourceFormState {
   homepageUrl: string;
   searchable: boolean;
   searchPriority: number;
-}
-
-interface CheckResult {
-  available: boolean;
-  status: string;
-  responseTime: number;
-  error: string | null;
 }
 
 const emptyMajorForm: MajorFormState = {
@@ -125,8 +120,11 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
   const isLoading = isUserScope ? userTreeQuery.isLoading : adminTreeQuery.isLoading;
 
   const [tab, setTab] = useState<'mine' | 'system'>('mine');
-  const [checkMap, setCheckMap] = useState<Record<string, CheckResult>>({});
+  const [checkMap, setCheckMap] = useState<Record<string, SourceHealthResult>>({});
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  // 全量探测是手动操作，按钮点击后按批推进；不做自动轮询
+  const [probeAllRunning, setProbeAllRunning] = useState(false);
+  const [probeProgress, setProbeProgress] = useState({ done: 0, total: 0 });
 
   const [majorModal, setMajorModal] = useState<{
     open: boolean;
@@ -243,6 +241,11 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
 
   // ── 健康检查 ─────────────────────────────────────────
 
+  // 全量探测只覆盖当前 Tab 可见的源：个人 tab 探自己的源，系统 tab 探系统源，管理员探系统树
+  const probeTargets = isUserScope
+    ? (tab === 'mine' ? mySources : systemSources)
+    : adminSources;
+
   const checkSource = async (sourceId: string) => {
     setCheckingId(sourceId);
     try {
@@ -250,19 +253,74 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
       if (response.success && response.data) {
         setCheckMap((prev) => ({ ...prev, [sourceId]: response.data }));
         if (response.data.available) {
-          toast.success(t('dashboard:sources.checkOnline', { time: response.data.responseTime }));
+          toast.success(t('dashboard:sources.healthOnline'), response.data.note);
         } else {
-          toast.error(
-            response.data.status === 'timeout'
-              ? t('dashboard:sources.checkTimeout')
-              : response.data.error || t('dashboard:sources.checkUnavailable')
-          );
+          toast.error(t('dashboard:sources.healthUnavailableTitle'), response.data.note);
         }
       }
-    } catch {
-      toast.error(t('dashboard:sources.batchCheckFailed'));
+    } catch (err) {
+      toast.error(
+        t('dashboard:sources.batchCheckFailed'),
+        err instanceof Error ? err.message : t('dashboard:sources.checkNetworkRetry')
+      );
     } finally {
       setCheckingId(null);
+    }
+  };
+
+  /**
+   * 全量探测：按 20 条分批，服务端按批扣配额。
+   * 配额耗尽时立即停止 —— 继续发剩余批次只会全部 429，并让用户等更久。
+   */
+  const probeAllSources = async () => {
+    if (probeAllRunning) return;
+    const targets = probeTargets.filter((source) => Boolean(source.urlTemplate));
+    if (targets.length === 0) {
+      toast.warning(t('dashboard:sources.noSourcesToCheck'));
+      return;
+    }
+
+    setProbeAllRunning(true);
+    setProbeProgress({ done: 0, total: targets.length });
+    let availableCount = 0;
+    let checkedCount = 0;
+
+    try {
+      for (let i = 0; i < targets.length; i += 20) {
+        const batch = targets.slice(i, i + 20);
+        try {
+          const response = await sourceApi.batchCheckSourceStatus(batch.map((source) => source.id));
+          if (response.success && response.data) {
+            const next: Record<string, SourceHealthResult> = {};
+            for (const result of response.data.results) {
+              next[result.sourceId] = result;
+              if (result.available) availableCount += 1;
+              checkedCount += 1;
+            }
+            setCheckMap((prev) => ({ ...prev, ...next }));
+          }
+        } catch (err) {
+          toast.warning(
+            t('dashboard:sources.probeQuotaTitle'),
+            err instanceof Error ? err.message : t('dashboard:sources.probeQuotaFallback')
+          );
+          break;
+        }
+        setProbeProgress({ done: Math.min(i + 20, targets.length), total: targets.length });
+      }
+
+      if (checkedCount > 0) {
+        toast.success(
+          t('dashboard:sources.probeDoneTitle'),
+          t('dashboard:sources.probeDoneSummary', {
+            total: checkedCount,
+            available: availableCount,
+            unavailable: checkedCount - availableCount,
+          })
+        );
+      }
+    } finally {
+      setProbeAllRunning(false);
     }
   };
 
@@ -579,18 +637,27 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
                 <Badge variant="info" className="text-[10px]">{t('dashboard:mySources.searchable')}</Badge>
               )}
               {check && (
-                <Badge variant={check.available ? 'success' : 'error'} className="text-[10px]">
-                  {check.available
-                    ? t('dashboard:sources.checkOnline', { time: check.responseTime })
-                    : check.status === 'timeout'
-                      ? t('dashboard:sources.checkTimeout')
-                      : t('dashboard:sources.checkUnavailable')}
+                <Badge
+                  variant={!check.available ? 'error' : isSourceHealthWarning(check.status) ? 'warning' : 'success'}
+                  className="text-[10px]"
+                  title={check.note}
+                >
+                  {t(sourceHealthLabelKey(check.status))}
+                  <span className="ml-1 font-normal tabular-nums opacity-80">{check.responseTime}ms</span>
                 </Badge>
               )}
             </div>
             <p className="mt-0.5 truncate text-xs text-stone-500 dark:text-stone-400">
               {systemSource.userConfig?.customSubtitle || source.subtitle || source.urlTemplate}
             </p>
+            {check && (
+              <p
+                className="mt-0.5 line-clamp-2 text-[11px] text-stone-500 dark:text-stone-400"
+                title={check.note}
+              >
+                {check.note}
+              </p>
+            )}
           </div>
         </div>
 
@@ -629,7 +696,7 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
           <IconButton
             title={t('dashboard:sources.actionCheckStatus')}
             onClick={() => checkSource(source.id)}
-            disabled={checkingId === source.id}
+            disabled={checkingId === source.id || probeAllRunning}
           >
             <RefreshCw className={clsx('h-3.5 w-3.5', checkingId === source.id && 'animate-spin')} />
           </IconButton>
@@ -774,6 +841,17 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<RefreshCw className={clsx('h-4 w-4', probeAllRunning && 'animate-spin')} />}
+            onClick={probeAllSources}
+            disabled={probeAllRunning}
+          >
+            {probeAllRunning
+              ? t('dashboard:sources.probingProgress', { done: probeProgress.done, total: probeProgress.total })
+              : t('dashboard:sources.probeAll')}
+          </Button>
           {isUserScope && (
             <>
               <Button variant="secondary" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={() => exportSources('json')}>

@@ -104,7 +104,19 @@ beforeEach(() => {
   });
   sourceApiMock.checkSourceStatus.mockResolvedValue({
     success: true,
-    data: { status: 'available', available: true, responseTime: 210, error: null },
+    data: {
+      sourceId: 'javbus',
+      sourceName: 'JavBus',
+      status: 'online',
+      available: true,
+      httpStatus: 200,
+      responseTime: 210,
+      note: '搜索页正常，命中探测词 ABP-984',
+      probeUrl: 'https://javbus.com/search/ABP-984',
+      probeKeyword: 'ABP-984',
+      homepageHttpStatus: null,
+      checkedAt: Date.now(),
+    },
   });
   sourceApiMock.updateUserSourceConfig.mockResolvedValue({ success: true, data: null });
   sourceApiMock.batchUpdateUserSourceConfigs.mockResolvedValue({

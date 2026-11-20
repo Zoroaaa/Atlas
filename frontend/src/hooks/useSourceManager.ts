@@ -51,7 +51,7 @@ export function useSourceManager() {
     status: string;
     available: boolean;
     responseTime: number;
-    error: string | null;
+    note: string;
   }>>({});
 
   // 源数据加载后初始化展开状态
@@ -110,6 +110,7 @@ export function useSourceManager() {
     setBatchCheckResults({});
     let totalAvailable = 0;
     let totalChecked = 0;
+    let quotaMessage: string | null = null;
     try {
       const sourceIds = checkableSources.map(s => s.id);
       // 每批 20 条：健康检查耗时长，分批降低超时风险；单批失败不中断后续批次
@@ -120,16 +121,27 @@ export function useSourceManager() {
           if (response.success && response.data) {
             const newResults: typeof batchCheckResults = {};
             response.data.results.forEach(result => {
-              newResults[result.sourceId] = { status: result.status, available: result.available, responseTime: result.responseTime, error: result.error };
+              newResults[result.sourceId] = {
+                status: result.status,
+                available: result.available,
+                responseTime: result.responseTime,
+                note: result.note,
+              };
               if (result.available) totalAvailable++;
               totalChecked++;
             });
             setBatchCheckResults(prev => ({ ...prev, ...newResults }));
           }
-        } catch { /* 单批失败不中断 */ }
+        } catch (err) {
+          // 配额用完后再继续只会让剩余批次全部失败，直接停止并提示剩余数量
+          quotaMessage = err instanceof Error ? err.message : i18next.t('errors:hooks.source.batchCheckFailedTitle');
+          break;
+        }
       }
       const unavailable = totalChecked - totalAvailable;
-      if (unavailable === 0) {
+      if (quotaMessage) {
+        toast.warning(i18next.t('errors:hooks.source.batchCheckQuotaTitle'), quotaMessage);
+      } else if (unavailable === 0) {
         toast.success(i18next.t('errors:hooks.source.batchCheckAllSuccessTitle', { count: totalChecked }));
       } else {
         toast.warning(i18next.t('errors:hooks.source.batchCheckPartialTitle', { available: totalAvailable, total: totalChecked, unavailable }));
@@ -144,16 +156,26 @@ export function useSourceManager() {
       if (response.success && response.data) {
         setBatchCheckResults(prev => ({
           ...prev,
-          [sourceId]: { status: response.data.status, available: response.data.available, responseTime: response.data.responseTime, error: response.data.error },
+          [sourceId]: {
+            status: response.data.status,
+            available: response.data.available,
+            responseTime: response.data.responseTime,
+            note: response.data.note,
+          },
         }));
-        const { status, available, responseTime, error } = response.data;
+        const { available, note } = response.data;
         if (available) {
-          toast.success(status === 'restricted' ? i18next.t('errors:hooks.source.onlineRestrictedTitle') : i18next.t('errors:hooks.source.onlineTitle'), i18next.t('errors:hooks.source.responseTimeMessage', { time: responseTime }));
+          toast.success(i18next.t('errors:hooks.source.onlineTitle'), note);
         } else {
-          toast.error(i18next.t('errors:hooks.source.checkFailedTitle'), status === 'timeout' ? i18next.t('errors:hooks.source.timeoutMessage') : error || i18next.t('errors:hooks.source.unavailableMessage'));
+          toast.error(i18next.t('errors:hooks.source.checkFailedTitle'), note);
         }
       }
-    } catch { toast.error(i18next.t('errors:hooks.source.checkFailedTitle'), i18next.t('errors:hooks.source.checkFailedMessage')); }
+    } catch (err) {
+      toast.error(
+        i18next.t('errors:hooks.source.checkFailedTitle'),
+        err instanceof Error ? err.message : i18next.t('errors:hooks.source.checkFailedMessage')
+      );
+    }
   };
 
   return {
