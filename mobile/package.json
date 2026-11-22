@@ -2,9 +2,10 @@
   "name": "atlas-mobile",
   "version": "1.9.0",
   "private": true,
-  "description": "Atlas Android 客户端",
+  "description": "Atlas Android / iOS 客户端",
   "scripts": {
-    "sync": "cap sync android"
+    "sync": "cap sync android",
+    "sync:ios": "cap sync ios"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
@@ -12,6 +13,7 @@
     "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.6.2",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.2",
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4"

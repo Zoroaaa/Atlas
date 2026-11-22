@@ -1,0 +1,125 @@
+name: Build iOS IPA (unsigned)
+
+# 仅在发版时手动触发；产物为未签名 .ipa，用户需用 AltStore / SideStore / Sideloadly 以自己的 Apple ID 重签安装
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '目标 Release 标签（如 v1.9.0）；留空则只构建不上传'
+        required: false
+        type: string
+      upload:
+        description: '构建后上传 IPA 到该 Release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    name: Build iOS IPA
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Capacitor 8 的 iOS 工程要求新版 Xcode，用 latest-stable 避免写死路径
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install Root Dependencies
+        run: npm install
+
+      - name: Build Frontend
+        run: npm run build --workspace=frontend
+
+      - name: Install Mobile Dependencies
+        working-directory: mobile
+        run: npm install
+
+      # ios/ 不入库，每次由模板生成
+      - name: Add iOS Platform
+        working-directory: mobile
+        run: npx cap add ios
+
+      - name: Generate iOS Icons
+        working-directory: mobile
+        run: npx capacitor-assets generate --ios
+
+      - name: Sync Web Assets
+        working-directory: mobile
+        run: npx cap sync ios
+
+      - name: Prepare iOS Project
+        working-directory: mobile
+        run: node scripts/prepare-ios.mjs
+
+      # 不签名：CODE_SIGNING_ALLOWED=NO 让 archive 跳过证书与描述文件
+      - name: Archive
+        working-directory: mobile/ios/App
+        run: |
+          xcodebuild archive \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Atlas.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      # .ipa 本质是 Payload/App.app 的 zip
+      - name: Package IPA
+        run: |
+          APP="$RUNNER_TEMP/Atlas.xcarchive/Products/Applications/App.app"
+          test -d "$APP" || { echo "未找到 App.app，archive 产物如下："; find "$RUNNER_TEMP/Atlas.xcarchive" -maxdepth 4; exit 1; }
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          mkdir -p build-output "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/build-output/Atlas-iOS-$PKG_VERSION-unsigned.ipa" Payload)
+          ls -lh build-output
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-ios
+          path: build-output/*.ipa
+          if-no-files-found: error
+
+      - name: Validate Release
+        if: ${{ inputs.upload && inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$PKG_VERSION" ]; then
+            echo "标签 $TAG 与根 package.json 版本 v$PKG_VERSION 不一致，终止上传"
+            exit 1
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+
+      - name: Upload IPA to Release
+        if: ${{ inputs.upload && inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          gh release upload "$TAG" "build-output/Atlas-iOS-$PKG_VERSION-unsigned.ipa" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "已上传 Atlas-iOS-$PKG_VERSION-unsigned.ipa 到 $TAG"
