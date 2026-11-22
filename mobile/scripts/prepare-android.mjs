@@ -68,3 +68,11 @@ if (!manifest.includes('android:scheme="atlas"')) {
   fs.writeFileSync(manifestPath, manifest);
   console.log('[android] injected atlas://auth/callback deep link');
 }
+
+// UA 标识：前端用 AtlasApp/<version> 识别应用壳并回退解析已装版本。
+// 直接改 sync 生成的副本，版本始终取自根 package.json，不会像静态配置那样过期。
+const genConfigPath = path.join(mobileDir, 'android/app/src/main/assets/capacitor.config.json');
+const genConfig = JSON.parse(fs.readFileSync(genConfigPath, 'utf8'));
+genConfig.android = { ...(genConfig.android ?? {}), appendUserAgent: `AtlasApp/${version}` };
+fs.writeFileSync(genConfigPath, JSON.stringify(genConfig, null, 2) + '\n');
+console.log(`[android] appendUserAgent=AtlasApp/${version}`);

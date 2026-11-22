@@ -12,8 +12,7 @@
   },
   "android": {
     "backgroundColor": "#0a0a0b",
-    "allowMixedContent": false,
-    "appendUserAgent": "AtlasApp/1.8.0"
+    "allowMixedContent": false
   },
   "ios": {
     "backgroundColor": "#0a0a0b"

@@ -113,6 +113,10 @@ jobs:
             exit 1
           fi
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          # AltStore 源地址指向 releases/latest，目标不是最新 Release 时源会解析到别的版本
+          if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isLatest -q .isLatest)" != "true" ]; then
+            echo "::warning::$TAG 不是最新 Release，latest/download/altstore.json 不会指向本次构建"
+          fi
 
       - name: Upload IPA to Release
         if: ${{ inputs.upload && inputs.release_tag != '' }}
@@ -121,5 +125,8 @@ jobs:
           TAG: ${{ inputs.release_tag }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
-          gh release upload "$TAG" "build-output/Atlas-iOS-$PKG_VERSION-unsigned.ipa" --repo "$GITHUB_REPOSITORY" --clobber
-          echo "已上传 Atlas-iOS-$PKG_VERSION-unsigned.ipa 到 $TAG"
+          IPA="Atlas-iOS-$PKG_VERSION-unsigned.ipa"
+          # AltStore / SideStore 源：用户添加一次后，新版本发现与 7 天续签都由它处理
+          node mobile/scripts/gen-altstore-source.mjs "build-output/$IPA" "$TAG" build-output/altstore.json
+          gh release upload "$TAG" "build-output/$IPA" build-output/altstore.json --repo "$GITHUB_REPOSITORY" --clobber
+          echo "已上传 $IPA 与 altstore.json 到 $TAG"
