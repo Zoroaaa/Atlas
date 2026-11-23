@@ -2,18 +2,17 @@
  * AppShell - 桌面端全局外壳（≥lg）。
  * 侧栏用「手风琴分组」承载全部导航，同一时间只展开一个分组，默认展开与当前路由匹配的分组。
  * 断点策略：<lg 直接返回 children，由 UnifiedNavBar + MobileTabBar 承担导航。
- * 约束：本文件自建一份侧栏分组数据，改动导航项时需与 workspaceNav.tsx 同步。
+ * 约束：个人中心与后台分组从 workspaceNav 派生；搜索/发现使用本地配置。
+ *       新增个人中心/后台菜单只改 workspaceNav，不要在本文件另存列表。
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
-  Bell,
   BookOpen,
   BookText,
   ChevronDown,
   Clapperboard,
-  Clock,
   Download,
   Film,
   Github,
@@ -24,7 +23,6 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Rss,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -33,7 +31,6 @@ import {
   Trophy,
   Tv,
   User,
-  UserCheck,
   Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +42,7 @@ import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { DropdownMenu, LanguageSwitcher, Modal } from '@/components/ui';
 import { UserAccountMenu } from './UserAccountMenu';
-import { adminNavGroups, isNavItemActive } from './workspaceNav';
+import { adminNavGroups, dashboardNavGroups, isNavItemActive } from './workspaceNav';
 
 interface AppShellProps {
   onSearchTabChange?: (tab: SearchTabType) => void;
@@ -217,19 +214,22 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
         id: 'mine',
         label: t('nav:workspace.groups.mine'),
         icon: <User className="h-[16px] w-[16px]" />,
-        items: [
-          { id: 'overview', label: t('nav:dashboard.items.overview'), icon: <LayoutIcon />, active: isNavItemActive('/dashboard', pathname), to: '/dashboard', sectionLabel: t('nav:dashboard.sections.overview') },
-          { id: 'stats', label: t('nav:dashboard.items.stats'), icon: <BarChartIcon />, active: isNavItemActive('/dashboard/stats', pathname), to: '/dashboard/stats' },
-          { id: 'follow-feed', label: t('nav:workspace.followFeed'), icon: <Rss className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/follow-feed', pathname), badge: follows?.unread ?? 0, to: '/dashboard/follow-feed', sectionLabel: t('nav:dashboard.sections.library') },
-          { id: 'follows', label: t('nav:workspace.follows'), icon: <UserCheck className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/follows', pathname), to: '/dashboard/follows' },
-          { id: 'favorites', label: t('search:favorites.title'), icon: <Heart className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/favorites', pathname), to: '/dashboard/favorites' },
-          { id: 'history', label: t('search:history.title'), icon: <Clock className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/history', pathname), to: '/dashboard/history' },
-          { id: 'notifications', label: t('nav:workspace.notifications'), icon: <Bell className="h-[16px] w-[16px]" />, active: isNavItemActive('/dashboard/notifications', pathname), badge: unreadNotifications, to: '/dashboard/notifications', sectionLabel: t('nav:dashboard.sections.messages') },
-          { id: 'activities', label: t('nav:dashboard.items.activities'), icon: <ActivityIcon />, active: isNavItemActive('/dashboard/activities', pathname), to: '/dashboard/activities' },
-          { id: 'sources', label: t('nav:dashboard.items.sources'), icon: <DatabaseIcon />, active: isNavItemActive('/dashboard/sources', pathname), to: '/dashboard/sources', sectionLabel: t('nav:dashboard.groups.resources') },
-          { id: 'profile', label: t('nav:userMenu.profile'), icon: <User className="h-[16px] w-[16px]" />, active: pathname === '/me', to: '/me', sectionLabel: t('nav:dashboard.groups.account') },
-          { id: 'settings', label: t('nav:userMenu.settings'), icon: <SettingsIcon />, active: pathname === '/settings', to: '/settings' },
-        ],
+        // 与移动端个人中心共用 workspaceNav；新增入口只改那一处，避免桌面端漏项
+        items: dashboardNavGroups.flatMap((group) =>
+          group.items.map((item, index) => ({
+            id: item.id,
+            label: t(item.labelKey),
+            icon: <span className="inline-flex shrink-0 [&>svg]:h-4 [&>svg]:w-4">{item.icon}</span>,
+            active: isNavItemActive(item.path, pathname),
+            to: item.path,
+            badge: item.id === 'follow-feed'
+              ? (follows?.unread || undefined)
+              : item.id === 'notifications'
+                ? (unreadNotifications || undefined)
+                : undefined,
+            sectionLabel: index === 0 && group.labelKey ? t(group.labelKey) : undefined,
+          }))
+        ),
       },
     ];
 
@@ -559,18 +559,4 @@ function CompassIcon() {
 }
 function FileTextIcon() {
   return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg>;
-}
-function SettingsIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>;
-}
-function LayoutIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></svg>;
-}
-function ActivityIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>;
-}
-function BarChartIcon() {
-  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>;
-}
-function DatabaseIcon() {  return <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></svg>;
 }
