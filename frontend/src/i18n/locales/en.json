@@ -969,6 +969,7 @@
       "admin_cleanup": "Cleanup data",
       "admin_handle_report": "Handle report",
       "admin_handle_feedback": "Handle feedback",
+      "admin_delete_feedback": "Delete feedback",
       "admin_create_announcement": "Create announcement",
       "admin_update_announcement": "Update announcement",
       "admin_delete_announcement": "Delete announcement",
@@ -1420,6 +1421,9 @@
       "handledButEmailFailedToast": "Feedback handled, but email failed: {{error}}",
       "handledToast": "Feedback handled",
       "handleFailedToast": "Failed to handle",
+      "deleteConfirm": "Delete feedback \"{{title}}\"? This cannot be undone.",
+      "deletedToast": "Feedback deleted",
+      "deleteFailedToast": "Failed to delete",
       "handleModal": {
         "title": "Handle feedback",
         "typeLabel": "Type:",
@@ -1465,7 +1469,8 @@
         "emailNotSent": "Not sent",
         "dash": "—",
         "handleBtn": "Handle",
-        "viewBtn": "View"
+        "viewBtn": "View",
+        "deleteBtn": "Delete"
       }
     },
     "observability": {

@@ -65,6 +65,7 @@ export const USER_ACTIONS: readonly UserActionMeta[] = [
   { action: 'admin_cleanup', labelKey: 'admin:actions.admin_cleanup', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '🗑' },
   { action: 'admin_handle_report', labelKey: 'admin:actions.admin_handle_report', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '⚠' },
   { action: 'admin_handle_feedback', labelKey: 'admin:actions.admin_handle_feedback', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '💬' },
+  { action: 'admin_delete_feedback', labelKey: 'admin:actions.admin_delete_feedback', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '🗑' },
   { action: 'admin_create_announcement', labelKey: 'admin:actions.admin_create_announcement', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '📢' },
   { action: 'admin_update_announcement', labelKey: 'admin:actions.admin_update_announcement', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '📢' },
   { action: 'admin_delete_announcement', labelKey: 'admin:actions.admin_delete_announcement', group: 'admin', filterable: true, userVisible: false, badgeClass: ADMIN_BADGE, emoji: '📢' },

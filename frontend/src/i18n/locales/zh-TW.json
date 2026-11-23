@@ -969,6 +969,7 @@
       "admin_cleanup": "清理資料",
       "admin_handle_report": "處理檢舉",
       "admin_handle_feedback": "處理回饋",
+      "admin_delete_feedback": "刪除回饋",
       "admin_create_announcement": "發布公告",
       "admin_update_announcement": "更新公告",
       "admin_delete_announcement": "刪除公告",
@@ -1420,6 +1421,9 @@
       "handledButEmailFailedToast": "回饋已處理，但郵件發送失敗：{{error}}",
       "handledToast": "回饋已處理",
       "handleFailedToast": "處理失敗",
+      "deleteConfirm": "確定刪除回饋「{{title}}」嗎？刪除後無法恢復。",
+      "deletedToast": "回饋已刪除",
+      "deleteFailedToast": "刪除失敗",
       "handleModal": {
         "title": "處理回饋",
         "typeLabel": "類型：",
@@ -1465,7 +1469,8 @@
         "emailNotSent": "未發",
         "dash": "—",
         "handleBtn": "處理",
-        "viewBtn": "查看"
+        "viewBtn": "查看",
+        "deleteBtn": "刪除"
       }
     },
     "observability": {

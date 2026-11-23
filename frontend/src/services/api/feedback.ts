@@ -78,6 +78,14 @@ export const feedbackApi = {
     if (!res.success) throw new Error(i18next.t('errors:api.feedback.deleteFailed'));
   },
 
+  /** 管理员删除反馈（同时清理指向它的站内通知） */
+  adminDelete: async (id: string): Promise<void> => {
+    const res = await apiClient.delete<{ success: boolean }>(
+      `/feedback/admin/${encodeURIComponent(id)}`
+    );
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.deleteFailed'));
+  },
+
   // ─── Admin ──────────────────────────────────────────────────────────────
 
   /** 管理员获取反馈列表 */

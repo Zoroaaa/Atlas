@@ -969,6 +969,7 @@
       "admin_cleanup": "清理数据",
       "admin_handle_report": "管理员处理举报",
       "admin_handle_feedback": "管理员处理反馈",
+      "admin_delete_feedback": "删除反馈",
       "admin_create_announcement": "发布公告",
       "admin_update_announcement": "更新公告",
       "admin_delete_announcement": "删除公告",
@@ -1420,6 +1421,9 @@
       "handledButEmailFailedToast": "反馈已处理，但邮件发送失败：{{error}}",
       "handledToast": "反馈已处理",
       "handleFailedToast": "处理失败",
+      "deleteConfirm": "确定删除反馈「{{title}}」吗？删除后无法恢复。",
+      "deletedToast": "反馈已删除",
+      "deleteFailedToast": "删除失败",
       "handleModal": {
         "title": "处理反馈",
         "typeLabel": "类型：",
@@ -1465,7 +1469,8 @@
         "emailNotSent": "未发",
         "dash": "—",
         "handleBtn": "处理",
-        "viewBtn": "查看"
+        "viewBtn": "查看",
+        "deleteBtn": "删除"
       }
     },
     "observability": {

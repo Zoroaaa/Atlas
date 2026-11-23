@@ -303,6 +303,42 @@ feedbackRoutes.get('/admin/:id', async (c) => {
   }
 });
 
+// DELETE /api/feedback/admin/:id — 管理员删除反馈（清理垃圾/无效反馈）
+feedbackRoutes.delete('/admin/:id', async (c) => {
+  const auth = await getAdminUser(c);
+  if (!auth.ok) return c.json(error('AUTH_ERROR', auth.message), auth.status);
+
+  const feedbackId = c.req.param('id');
+
+  try {
+    const item = await c.env.DB.prepare(
+      'SELECT id, user_id, title, status FROM user_feedback WHERE id = ?'
+    ).bind(feedbackId).first<{ id: string; user_id: string | null; title: string; status: string }>();
+
+    if (!item) return c.json(error('NOT_FOUND', '反馈不存在'), 404);
+
+    await c.env.DB.prepare('DELETE FROM user_feedback WHERE id = ?').bind(feedbackId).run();
+
+    // 反馈删除后，指向它的站内通知不能再留着，否则点击会跳到不存在的记录
+    if (item.user_id) {
+      await c.env.DB.prepare(
+        'DELETE FROM notifications WHERE user_id = ? AND dedup_key LIKE ?'
+      ).bind(item.user_id, `feedback:${feedbackId}:%`).run();
+    }
+
+    await logUserAction(c.env, auth.user.userId, 'admin_delete_feedback', {
+      feedbackId,
+      title: item.title,
+      status: item.status,
+    }, c);
+
+    return c.json(success(null, '反馈已删除'));
+  } catch (err) {
+    console.error('Admin delete feedback error:', err);
+    return c.json(error('SERVER_ERROR', '删除失败，请稍后重试'), 500);
+  }
+});
+
 // PUT /api/feedback/admin/:id  — 管理员处理反馈（支持回复并发送邮件）
 feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c) => {
   const auth = await getAdminUser(c);

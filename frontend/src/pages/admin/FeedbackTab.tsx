@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import {
   RefreshCw, Bug, Lightbulb, MessageCircle, Mail, MailCheck,
-  ChevronDown, ChevronUp, Search, AlertTriangle, Clock, CheckCircle2
+  ChevronDown, ChevronUp, Search, AlertTriangle, Clock, CheckCircle2, Trash2
 } from 'lucide-react';
 import { feedbackApi } from '@/services/api';
 import type { FeedbackItem, FeedbackStats } from '@/services/api';
@@ -297,6 +297,7 @@ export const FeedbackTab: React.FC = () => {
 
   // Handle modal
   const [handleModal, setHandleModal] = useState<HandleModalState>({ open: false, item: null });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -357,6 +358,23 @@ export const FeedbackTab: React.FC = () => {
     setHandleModal({ open: false, item: null });
     loadItems();
     loadStats();
+  };
+
+  const handleDelete = async (item: FeedbackItem) => {
+    if (!confirm(t('admin:feedback.deleteConfirm', { title: item.title }))) return;
+    setDeletingId(item.id);
+    try {
+      await feedbackApi.adminDelete(item.id);
+      toast.success(t('admin:feedback.deletedToast'));
+      // 删掉当前页最后一条时回退一页，避免停在空白页
+      if (items.length === 1 && page > 1) setPage(page - 1);
+      else await loadItems();
+      loadStats();
+    } catch (err) {
+      toast.error((err as Error).message || t('admin:feedback.deleteFailedToast'));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -472,9 +490,21 @@ export const FeedbackTab: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">{fmtDate(item.created_at)}</td>
                   <td className="px-4 py-3">
-                    <Button variant="outline" size="sm" onClick={() => openHandle(item)}>
-                      {item.status === 'pending' || item.status === 'processing' ? t('admin:feedback.table.handleBtn') : t('admin:feedback.table.viewBtn')}
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => openHandle(item)}>
+                        {item.status === 'pending' || item.status === 'processing' ? t('admin:feedback.table.handleBtn') : t('admin:feedback.table.viewBtn')}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        disabled={deletingId === item.id}
+                        title={t('admin:feedback.table.deleteBtn')}
+                        aria-label={t('admin:feedback.table.deleteBtn')}
+                        className="p-2 rounded-lg text-stone-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
