@@ -271,6 +271,7 @@
         "follows": "我的關注",
         "followFeed": "關注動態",
         "notifications": "通知",
+        "feedback": "我的回饋",
         "activities": "活動紀錄",
         "sources": "搜尋源管理",
         "settings": "系統設定",
@@ -696,7 +697,8 @@
         "fetchFailed": "取得失敗",
         "statsFailed": "取得統計失敗",
         "detailFailed": "取得詳情失敗",
-        "handleFailed": "處理失敗"
+        "handleFailed": "處理失敗",
+        "deleteFailed": "刪除失敗"
       }
     }
   },
@@ -938,15 +940,25 @@
       "login": "登入成功",
       "login_failed": "登入失敗",
       "logout": "登出",
+      "register": "註冊帳號",
+      "token_refresh": "重新整理登入狀態",
       "search": "搜尋",
       "add_favorite": "加入收藏",
       "remove_favorite": "取消收藏",
+      "update_favorite_status": "更新收藏狀態",
       "sync_favorites": "同步收藏",
       "update_settings": "更新設定",
+      "forgot_password": "申請找回密碼",
+      "reset_password": "重設密碼",
       "change_password": "修改密碼",
       "change_email": "修改郵箱",
+      "email_verify": "驗證郵箱",
+      "email_change": "修改郵箱",
+      "email_change_cancelled": "取消修改郵箱",
       "delete_account": "刪除帳號",
       "clear_search_history": "清空紀錄",
+      "submit_feedback": "提交回饋",
+      "delete_feedback": "刪除回饋",
       "share_source": "分享搜尋源",
       "review_source": "評價搜尋源",
       "report_source": "檢舉搜尋源",
@@ -956,6 +968,10 @@
       "admin_terminate_session": "終止工作階段",
       "admin_cleanup": "清理資料",
       "admin_handle_report": "處理檢舉",
+      "admin_handle_feedback": "處理回饋",
+      "admin_create_announcement": "發布公告",
+      "admin_update_announcement": "更新公告",
+      "admin_delete_announcement": "刪除公告",
       "loadLogsFailed": "載入日誌失敗",
       "loadStatsFailed": "載入統計資料失敗",
       "allOperations": "全部操作",
@@ -1240,33 +1256,37 @@
       "metric": {
         "overall": "綜合排名",
         "search": "搜尋排名",
-        "favorite": "收藏排名"
+        "favorite": "收藏排名",
+        "follow": "關注排名"
       },
       "metricValue": {
         "overall": "活躍分",
         "search": "搜尋次數",
-        "favorite": "收藏次數"
+        "favorite": "收藏次數",
+        "follow": "關注數"
       },
       "topN": "Top {{count}}",
       "card": {
         "activeUsers": "活躍使用者數",
         "totalSearches": "搜尋次數",
         "totalFavorites": "收藏次數",
-        "totalLogins": "登入次數"
+        "totalFollows": "關注數",
+        "totalLogins": "登入次數",
+        "totalFeedback": "提交回饋"
       },
       "podium": {
         "rank": "第{{count}}名"
       },
       "statusInactive": "已停用",
-      "scoreFormula": "活躍分 = 搜尋×{{search}} + 收藏×{{favorite}} + 登入×{{login}} + 其他行為×{{other}}",
+      "scoreFormula": "活躍分 = 搜尋×{{search}} + 收藏×{{favorite}} + 關注×{{follow}} + 登入×{{login}}",
       "periodNote": "當天按北京時間自然日計算，其餘為滾動時間視窗",
       "table": {
         "colRank": "排名",
         "colUser": "使用者",
         "colSearches": "搜尋",
         "colFavorites": "收藏",
+        "colFollows": "關注",
         "colLogins": "登入",
-        "colOthers": "其他",
         "colLastActive": "最近活躍",
         "empty": "該時間段內暫無使用者活躍資料"
       }
@@ -1318,24 +1338,55 @@
       "noDescription": "暫無描述"
     },
     "cleanup": {
-      "confirm": "確定要清理過期資料嗎？此操作不可撤銷。",
+      "confirmSelected": "確定清理選取的 {{count}} 條資料嗎？此操作不可撤銷。",
       "successToast": "資料清理完成",
       "failedToast": "清理失敗",
+      "previewFailed": "取得清理預覽失敗",
       "noticeTitle": "資料清理說明",
       "autoCleanDesc": "以下資料由觸發器即時清理，無需手動操作：",
       "autoCleanSessions": "• 過期工作階段（user_sessions）",
       "autoCleanEmailVerifications": "• 過期郵箱驗證記錄（email_verifications）",
       "autoCleanLockouts": "• 過期安全鎖定記錄（security_lockouts）",
-      "retentionDesc": "以下資料根據動態設定的保留天數清理：",
-      "retentionPassword": "• 密碼重置日誌（預設保留30天）",
-      "retentionActions": "• 使用者行為日誌（預設保留90天）",
-      "retentionSecurity": "• 安全事件日誌（預設保留90天）",
+      "retentionDesc": "「自動」目標由每小時定時任務處理，也可以在此手動立即清理；「手動」目標不會自動執行。",
+      "refreshPreview": "重新整理預覽",
+      "previewLoading": "正在統計可清理數量...",
+      "empty": "暫無可清理目標",
+      "selectedCount": "已選 {{count}} 條",
+      "executeSelected": "清理選取目標",
       "executing": "清理中...",
-      "execute": "執行清理",
+      "superAdminOnly": "只有超級管理員可以執行資料清理",
+      "selectAll": "全選",
+      "table": {
+        "target": "清理目標",
+        "mode": "執行方式",
+        "retention": "保留期",
+        "count": "可清理數量"
+      },
+      "modeAuto": "自動",
+      "modeManual": "手動",
+      "retentionDays": "{{count}} 天",
+      "expiredOnly": "過期即刪",
       "resultTitle": "清理結果",
-      "resultPassword": "密碼重置日誌",
-      "resultActions": "使用者行為日誌",
-      "resultSecurity": "安全事件日誌"
+      "resultDeleted": "{{count}} 條",
+      "resultTotal": "合計刪除",
+      "targets": {
+        "rate_limits": "限流記錄",
+        "source_status_cache": "來源狀態探測快取",
+        "community_post_views": "社群瀏覽去重記錄",
+        "data_records": "無來源未補全記錄",
+        "oauth_login_codes": "OAuth 登入票據",
+        "cron_locks": "定時任務鎖",
+        "email_queue": "郵件發送佇列",
+        "email_log": "郵件發送彙總",
+        "system_errors": "系統錯誤記錄",
+        "analytics_events": "分析事件",
+        "user_actions": "使用者行為日誌",
+        "password_reset_logs": "密碼重置日誌",
+        "user_security_events": "安全事件日誌",
+        "notifications_read": "已讀站內通知",
+        "email_send_logs": "郵件發送明細",
+        "config_change_logs": "設定變更日誌"
+      }
     },
     "feedback": {
       "type": {
@@ -2819,6 +2870,8 @@
       "thankYou": "感謝您的回饋！",
       "followUpBody": "我們已收到您的回饋，將盡快進行處理。",
       "followUpEmail": "處理結果將透過郵件告知您。",
+      "followUpInApp": "也可以在「個人中心 → 我的回饋」查看處理進度。",
+      "viewMyFeedback": "查看我的回饋",
       "close": "關閉",
       "typeLabel": "回饋類型",
       "typeBug": "問題回饋",
@@ -2839,6 +2892,36 @@
       "errorContentMinLength": "內容至少需要 10 個字元",
       "errorEmailInvalid": "請填寫有效的聯絡信箱",
       "errorSubmitFailed": "提交失敗，請稍後重試"
+    },
+    "my": {
+      "title": "我的回饋",
+      "subtitle": "查看處理進度與團隊回覆",
+      "refresh": "重新整理",
+      "empty": "還沒有提交過回饋",
+      "emptyDesc": "點擊頁面右下角的「回饋建議」即可提交問題或建議",
+      "loadFailed": "載入回饋失敗",
+      "delete": "刪除",
+      "deleteConfirm": "確定刪除這條回饋嗎？刪除後無法恢復。",
+      "deleted": "回饋已刪除",
+      "deleteFailed": "刪除失敗",
+      "emailSent": "回覆郵件已發送",
+      "replyLabel": "團隊回覆",
+      "noReply": "處理完成，暫無文字回覆",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁",
+      "statusFilter": {
+        "all": "全部",
+        "pending": "待處理",
+        "processing": "處理中",
+        "resolved": "已解決",
+        "closed": "已關閉"
+      },
+      "status": {
+        "pending": "待處理",
+        "processing": "處理中",
+        "resolved": "已解決",
+        "closed": "已關閉"
+      }
     }
   },
 
@@ -3850,6 +3933,8 @@
     "communityComment": "{{name}} 留言了你的貼文",
     "communityFavorite": "{{name}} 收藏了你的貼文",
     "communityReport": "你貼文上的檢舉已處理",
+    "feedbackReply": "你的回饋已收到回覆",
+    "feedbackStatus": "回饋狀態已更新",
     "unreadAria": "通知，{{count}} 則未讀",
     "prev": "上一頁",
     "next": "下一頁",
@@ -3860,6 +3945,7 @@
       "relatedPost": "相關貼文：{{title}}",
       "viewPost": "查看貼文",
       "viewFollowFeed": "查看關注動態",
+      "viewFeedback": "查看我的回饋",
       "searchCode": "搜尋該番號"
     },
     "page": {
@@ -4600,10 +4686,11 @@
         "summary": "右上角鈴鐺查看最近通知，個人中心「通知」頁提供完整收件匣與通知設定。",
         "features": [
           "鈴鐺顯示未讀數，依頁載入最近通知，可一鍵全部已讀。",
-          "點擊新作通知會進入「關注動態」並篩到對應關注對象；帶貼文的社群通知直接進入貼文詳情；帶番號的其他通知在搜尋頁開啟；公告在通知詳情中查看。",
+          "點擊新作通知會進入「關注動態」並篩到對應關注對象；帶貼文的社群通知直接進入貼文詳情；回饋處理通知進入「我的回饋」；帶番號的其他通知在搜尋頁開啟；公告在通知詳情中查看。",
           "通知頁分為「收件匣」和「通知設定」兩個 Tab，不再有單獨的社群通知入口。",
           "收件匣支援只看未讀、分頁、刪除單筆與清空已讀。",
-          "站內公告與個人通知合併展示，公告不會被複製進收件匣。"
+          "站內公告與個人通知合併展示，公告不會被複製進收件匣。",
+          "回饋被回覆或狀態變更時會產生站內通知，郵件回覆仍由管理員單獨勾選寄送。"
         ],
         "steps": [
           "點擊右上角鈴鐺查看最近通知。",
@@ -4938,18 +5025,20 @@
           "入口：入口頁與搜尋頁右下角的回報按鈕。",
           "類型：故障、建議、其他；標題與內容為必填。",
           "聯絡信箱：不填時使用帳號信箱，管理員回覆會寄到這個信箱。",
-          "登入狀態下提交的回報會關聯帳號，方便對照資料排查。"
+          "登入狀態下提交的回饋會關聯帳號，可在個人中心「我的回饋」查看狀態與回覆。",
+          "「我的回饋」中待處理或已關閉的回饋可以刪除，處理中與已解決的保留處理記錄。"
         ],
         "steps": [
           "點右下角回報按鈕。",
           "選擇類型，填寫標題與重現步驟。",
           "需要回覆時確認聯絡信箱。",
-          "送出後等待郵件回覆；也可以在 GitHub Issues 追蹤公開問題。"
+          "送出後可在「我的回饋」查看處理進度；管理員回覆或變更狀態時會收到站內通知，勾選郵件回覆時還會寄送郵件。"
         ],
         "caveats": [
           "請勿在回報裡填寫密碼、驗證碼或付款資訊。",
           "回報不保證逐筆回覆，重複問題會合併處理。",
-          "涉及帳號資料的排查，請提供大致發生時間與使用的欄目。"
+          "涉及帳號資料的排查，請提供大致發生時間與使用的欄目。",
+          "處理中或已解決的回饋不能刪除，刪除回饋後無法恢復。"
         ]
       }
     }

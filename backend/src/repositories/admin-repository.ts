@@ -331,16 +331,18 @@ export interface ActivityRankingRow {
   last_login: number | null;
   role_display_name: string | null;
   searches: number;
-  logins: number;
   favorites: number;
-  other_actions: number;
+  follows: number;
+  logins: number;
   last_active_at: number;
 }
 
-/** 行为日志中不计入「其他行为」的类型 */
-const EXCLUDED_ACTIONS = "('login', 'login_failed', 'logout', 'register', 'token_refresh', 'add_favorite', 'remove_favorite', 'search')";
-
-/** 查询活跃排名原始聚合数据（搜索/登录/收藏/其他行为） */
+/**
+ * 查询活跃排名原始聚合数据。
+ *
+ * 口径：搜索/收藏/关注取业务表（用户操作必然落表），登录取行为日志。
+ * 不复用行为日志的「其他行为」，避免 admin_* 管理操作把管理员活跃分抬高。
+ */
 export async function queryActivityRanking(
   db: D1Database,
   opts: { startTime: number }
@@ -353,32 +355,57 @@ export async function queryActivityRanking(
         WHERE created_at >= ? AND user_id IS NOT NULL
         GROUP BY user_id
       ),
-      action_counts AS (
-        SELECT user_id,
-          SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) AS logins,
-          SUM(CASE WHEN action = 'add_favorite' THEN 1 ELSE 0 END) AS favorites,
-          SUM(CASE WHEN action NOT IN ${EXCLUDED_ACTIONS} THEN 1 ELSE 0 END) AS other_actions,
-          MAX(created_at) AS last_action_at
+      favorite_counts AS (
+        SELECT user_id, COUNT(*) AS favorites, MAX(created_at) AS last_favorite_at
+        FROM user_favorites
+        WHERE created_at >= ?
+        GROUP BY user_id
+      ),
+      follow_counts AS (
+        SELECT user_id, COUNT(*) AS follows, MAX(created_at) AS last_follow_at
+        FROM user_follows
+        WHERE created_at >= ?
+        GROUP BY user_id
+      ),
+      login_counts AS (
+        SELECT user_id, COUNT(*) AS logins, MAX(created_at) AS last_login_at
         FROM user_actions
-        WHERE created_at >= ? AND user_id IS NOT NULL
+        WHERE action = 'login' AND created_at >= ? AND user_id IS NOT NULL
         GROUP BY user_id
       )
       SELECT u.id, u.username, u.email, u.is_active, u.last_login,
              r.display_name AS role_display_name,
              COALESCE(sc.searches, 0) AS searches,
-             COALESCE(ac.logins, 0) AS logins,
-             COALESCE(ac.favorites, 0) AS favorites,
-             COALESCE(ac.other_actions, 0) AS other_actions,
-             MAX(COALESCE(sc.last_search_at, 0), COALESCE(ac.last_action_at, 0)) AS last_active_at
+             COALESCE(fc.favorites, 0) AS favorites,
+             COALESCE(fl.follows, 0) AS follows,
+             COALESCE(lc.logins, 0) AS logins,
+             MAX(
+               COALESCE(sc.last_search_at, 0),
+               COALESCE(fc.last_favorite_at, 0),
+               COALESCE(fl.last_follow_at, 0),
+               COALESCE(lc.last_login_at, 0)
+             ) AS last_active_at
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       LEFT JOIN search_counts sc ON sc.user_id = u.id
-      LEFT JOIN action_counts ac ON ac.user_id = u.id
-      WHERE COALESCE(sc.searches, 0) + COALESCE(ac.logins, 0) + COALESCE(ac.favorites, 0) + COALESCE(ac.other_actions, 0) > 0`
+      LEFT JOIN favorite_counts fc ON fc.user_id = u.id
+      LEFT JOIN follow_counts fl ON fl.user_id = u.id
+      LEFT JOIN login_counts lc ON lc.user_id = u.id
+      WHERE COALESCE(sc.searches, 0) + COALESCE(fc.favorites, 0)
+          + COALESCE(fl.follows, 0) + COALESCE(lc.logins, 0) > 0`
     )
-    .bind(opts.startTime, opts.startTime)
+    .bind(opts.startTime, opts.startTime, opts.startTime, opts.startTime)
     .all<ActivityRankingRow>();
   return rows.results || [];
+}
+
+/** 统计窗口内提交的反馈数，仅用于排行概览展示，不参与综合计分 */
+export async function countFeedbackSince(db: D1Database, since: number): Promise<number> {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS total FROM user_feedback WHERE created_at >= ?')
+    .bind(since)
+    .first<{ total: number }>();
+  return row?.total || 0;
 }
 
 /** 登录日志按天统计（成功/失败/去重用户） */
@@ -758,26 +785,6 @@ export async function listActionLogs(
     .bind(...params, opts.limit, opts.offset)
     .all<ActionLogRow>();
   return rows.results || [];
-}
-
-// ── 数据清理 ────────────────────────────────────────────────────────
-
-/** 删除过期的密码重置日志，返回删除条数 */
-export async function deletePasswordResetLogsBefore(db: D1Database, before: number): Promise<number> {
-  const result = await db.prepare('DELETE FROM password_reset_logs WHERE created_at < ?').bind(before).run();
-  return result.meta.changes || 0;
-}
-
-/** 删除过期的行为日志，返回删除条数 */
-export async function deleteUserActionsBefore(db: D1Database, before: number): Promise<number> {
-  const result = await db.prepare('DELETE FROM user_actions WHERE created_at < ?').bind(before).run();
-  return result.meta.changes || 0;
-}
-
-/** 删除过期的安全事件，返回删除条数 */
-export async function deleteSecurityEventsBefore(db: D1Database, before: number): Promise<number> {
-  const result = await db.prepare('DELETE FROM user_security_events WHERE created_at < ?').bind(before).run();
-  return result.meta.changes || 0;
 }
 
 // ── 会话管理 ────────────────────────────────────────────────────────

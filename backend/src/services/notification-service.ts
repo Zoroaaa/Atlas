@@ -17,6 +17,11 @@ export interface NotificationInput {
   body?: string;
   payload?: Record<string, unknown>;
   dedupKey: string;
+  /**
+   * 强制指定渠道；不传时按用户偏好。
+   * 反馈回复的富文本邮件由反馈模块单独发送，这里必须显式关闭邮件渠道，避免重复发信。
+   */
+  channels?: { inApp?: boolean; email?: boolean };
 }
 
 export interface NotificationPreference {
@@ -53,8 +58,8 @@ export async function emitNotification(db: D1Database, input: NotificationInput)
     .prepare('SELECT in_app, email FROM notification_preferences WHERE user_id = ? AND type = ?')
     .bind(input.userId, input.type)
     .first<{ in_app: number; email: number }>();
-  const wantsInApp = pref ? pref.in_app === 1 : true;
-  const wantsEmail = pref ? pref.email === 1 : false;
+  const wantsInApp = input.channels?.inApp ?? (pref ? pref.in_app === 1 : true);
+  const wantsEmail = input.channels?.email ?? (pref ? pref.email === 1 : false);
 
   const result: EmitResult = { inApp: false, email: false };
   const now = Date.now();

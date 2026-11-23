@@ -271,6 +271,7 @@
         "follows": "我的关注",
         "followFeed": "关注动态",
         "notifications": "通知",
+        "feedback": "我的反馈",
         "activities": "活动记录",
         "sources": "搜索源管理",
         "settings": "系统设置",
@@ -696,7 +697,8 @@
         "fetchFailed": "获取失败",
         "statsFailed": "获取统计失败",
         "detailFailed": "获取详情失败",
-        "handleFailed": "处理失败"
+        "handleFailed": "处理失败",
+        "deleteFailed": "删除失败"
       }
     }
   },
@@ -938,15 +940,25 @@
       "login": "登录成功",
       "login_failed": "登录失败",
       "logout": "登出",
+      "register": "注册账号",
+      "token_refresh": "刷新登录状态",
       "search": "搜索",
       "add_favorite": "添加收藏",
       "remove_favorite": "取消收藏",
+      "update_favorite_status": "更新收藏状态",
       "sync_favorites": "同步收藏",
       "update_settings": "更新设置",
+      "forgot_password": "申请找回密码",
+      "reset_password": "重置密码",
       "change_password": "修改密码",
       "change_email": "修改邮箱",
+      "email_verify": "验证邮箱",
+      "email_change": "修改邮箱",
+      "email_change_cancelled": "取消修改邮箱",
       "delete_account": "删除账户",
       "clear_search_history": "清空历史",
+      "submit_feedback": "提交反馈",
+      "delete_feedback": "删除反馈",
       "share_source": "分享搜索源",
       "review_source": "评价搜索源",
       "report_source": "举报搜索源",
@@ -956,6 +968,10 @@
       "admin_terminate_session": "终止会话",
       "admin_cleanup": "清理数据",
       "admin_handle_report": "管理员处理举报",
+      "admin_handle_feedback": "管理员处理反馈",
+      "admin_create_announcement": "发布公告",
+      "admin_update_announcement": "更新公告",
+      "admin_delete_announcement": "删除公告",
       "loadLogsFailed": "加载日志失败",
       "loadStatsFailed": "加载统计数据失败",
       "allOperations": "全部操作",
@@ -1240,33 +1256,37 @@
       "metric": {
         "overall": "综合排名",
         "search": "搜索排名",
-        "favorite": "收藏排名"
+        "favorite": "收藏排名",
+        "follow": "关注排名"
       },
       "metricValue": {
         "overall": "活跃分",
         "search": "搜索次数",
-        "favorite": "收藏次数"
+        "favorite": "收藏次数",
+        "follow": "关注数"
       },
       "topN": "Top {{count}}",
       "card": {
         "activeUsers": "活跃用户数",
         "totalSearches": "搜索次数",
         "totalFavorites": "收藏次数",
-        "totalLogins": "登录次数"
+        "totalFollows": "关注数",
+        "totalLogins": "登录次数",
+        "totalFeedback": "提交反馈"
       },
       "podium": {
         "rank": "第{{count}}名"
       },
       "statusInactive": "已禁用",
-      "scoreFormula": "活跃分 = 搜索×{{search}} + 收藏×{{favorite}} + 登录×{{login}} + 其他行为×{{other}}",
+      "scoreFormula": "活跃分 = 搜索×{{search}} + 收藏×{{favorite}} + 关注×{{follow}} + 登录×{{login}}",
       "periodNote": "当天按北京时间自然日计算，其余为滚动时间窗口",
       "table": {
         "colRank": "排名",
         "colUser": "用户",
         "colSearches": "搜索",
         "colFavorites": "收藏",
+        "colFollows": "关注",
         "colLogins": "登录",
-        "colOthers": "其他",
         "colLastActive": "最近活跃",
         "empty": "该时间段内暂无用户活跃数据"
       }
@@ -1318,24 +1338,55 @@
       "noDescription": "暂无描述"
     },
     "cleanup": {
-      "confirm": "确定要清理过期数据吗？此操作不可撤销。",
+      "confirmSelected": "确定清理选中的 {{count}} 条数据吗？此操作不可撤销。",
       "successToast": "数据清理完成",
       "failedToast": "清理失败",
+      "previewFailed": "获取清理预览失败",
       "noticeTitle": "数据清理说明",
       "autoCleanDesc": "以下数据由触发器实时清理，无需手动操作：",
       "autoCleanSessions": "• 过期会话（user_sessions）",
       "autoCleanEmailVerifications": "• 过期邮箱验证记录（email_verifications）",
       "autoCleanLockouts": "• 过期安全锁定记录（security_lockouts）",
-      "retentionDesc": "以下数据根据动态配置的保留天数清理：",
-      "retentionPassword": "• 密码重置日志（默认保留30天）",
-      "retentionActions": "• 用户行为日志（默认保留90天）",
-      "retentionSecurity": "• 安全事件日志（默认保留90天）",
+      "retentionDesc": "「自动」目标由每小时定时任务处理，也可以在此手动立即清理；「手动」目标不会自动运行。",
+      "refreshPreview": "刷新预览",
+      "previewLoading": "正在统计可清理数量...",
+      "empty": "暂无可清理目标",
+      "selectedCount": "已选 {{count}} 条",
+      "executeSelected": "清理选中目标",
       "executing": "清理中...",
-      "execute": "执行清理",
+      "superAdminOnly": "只有超级管理员可以执行数据清理",
+      "selectAll": "全选",
+      "table": {
+        "target": "清理目标",
+        "mode": "执行方式",
+        "retention": "保留期",
+        "count": "可清理数量"
+      },
+      "modeAuto": "自动",
+      "modeManual": "手动",
+      "retentionDays": "{{count}} 天",
+      "expiredOnly": "过期即删",
       "resultTitle": "清理结果",
-      "resultPassword": "密码重置日志",
-      "resultActions": "用户行为日志",
-      "resultSecurity": "安全事件日志"
+      "resultDeleted": "{{count}} 条",
+      "resultTotal": "合计删除",
+      "targets": {
+        "rate_limits": "限流记录",
+        "source_status_cache": "源状态探测缓存",
+        "community_post_views": "社区浏览去重记录",
+        "data_records": "无来源未补全记录",
+        "oauth_login_codes": "OAuth 登录票据",
+        "cron_locks": "定时任务锁",
+        "email_queue": "邮件发送队列",
+        "email_log": "邮件发送汇总",
+        "system_errors": "系统错误记录",
+        "analytics_events": "分析事件",
+        "user_actions": "用户行为日志",
+        "password_reset_logs": "密码重置日志",
+        "user_security_events": "安全事件日志",
+        "notifications_read": "已读站内通知",
+        "email_send_logs": "邮件发送明细",
+        "config_change_logs": "配置变更日志"
+      }
     },
     "feedback": {
       "type": {
@@ -2819,6 +2870,8 @@
       "thankYou": "感谢您的反馈！",
       "followUpBody": "我们已收到您的反馈，将尽快进行处理。",
       "followUpEmail": "处理结果将通过邮件告知您。",
+      "followUpInApp": "也可以在「个人中心 → 我的反馈」查看处理进度。",
+      "viewMyFeedback": "查看我的反馈",
       "close": "关闭",
       "typeLabel": "反馈类型",
       "typeBug": "问题反馈",
@@ -2839,6 +2892,36 @@
       "errorContentMinLength": "内容至少需要 10 个字符",
       "errorEmailInvalid": "请填写有效的联系邮箱",
       "errorSubmitFailed": "提交失败，请稍后重试"
+    },
+    "my": {
+      "title": "我的反馈",
+      "subtitle": "查看处理进度与团队回复",
+      "refresh": "刷新",
+      "empty": "还没有提交过反馈",
+      "emptyDesc": "点击页面右下角的「反馈建议」即可提交问题或建议",
+      "loadFailed": "加载反馈失败",
+      "delete": "删除",
+      "deleteConfirm": "确定删除这条反馈吗？删除后无法恢复。",
+      "deleted": "反馈已删除",
+      "deleteFailed": "删除失败",
+      "emailSent": "回复邮件已发送",
+      "replyLabel": "团队回复",
+      "noReply": "处理完成，暂无文字回复",
+      "prevPage": "上一页",
+      "nextPage": "下一页",
+      "statusFilter": {
+        "all": "全部",
+        "pending": "待处理",
+        "processing": "处理中",
+        "resolved": "已解决",
+        "closed": "已关闭"
+      },
+      "status": {
+        "pending": "待处理",
+        "processing": "处理中",
+        "resolved": "已解决",
+        "closed": "已关闭"
+      }
     }
   },
 
@@ -3850,6 +3933,8 @@
     "communityComment": "{{name}} 评论了你的帖子",
     "communityFavorite": "{{name}} 收藏了你的帖子",
     "communityReport": "你帖子上的举报已处理",
+    "feedbackReply": "你的反馈已收到回复",
+    "feedbackStatus": "反馈状态已更新",
     "unreadAria": "通知，{{count}} 条未读",
     "prev": "上一页",
     "next": "下一页",
@@ -3860,6 +3945,7 @@
       "relatedPost": "相关帖子：{{title}}",
       "viewPost": "查看帖子",
       "viewFollowFeed": "查看关注动态",
+      "viewFeedback": "查看我的反馈",
       "searchCode": "搜索该番号"
     },
     "page": {
@@ -4600,10 +4686,11 @@
         "summary": "右上角铃铛查看最近通知，个人中心「通知」页提供完整收件箱与通知设置。",
         "features": [
           "铃铛显示未读数，按页加载最近通知，可一键全部已读。",
-          "点击新作通知会进入「关注动态」并筛到对应关注对象；带帖子的社区通知直接进入帖子详情；带番号的其他通知在搜索页打开；公告在通知详情中查看。",
+          "点击新作通知会进入「关注动态」并筛到对应关注对象；带帖子的社区通知直接进入帖子详情；反馈处理通知进入「我的反馈」；带番号的其他通知在搜索页打开；公告在通知详情中查看。",
           "通知页分为“收件箱”和“通知设置”两个 Tab，不再有单独的社区通知入口。",
           "收件箱支持只看未读、分页、删除单条与清空已读。",
-          "站内公告与个人通知合并展示，公告不会被复制进收件箱。"
+          "站内公告与个人通知合并展示，公告不会被复制进收件箱。",
+          "反馈被回复或状态变更时会产生站内通知，邮件回复仍由管理员单独勾选发送。"
         ],
         "steps": [
           "点击右上角铃铛查看最近通知。",
@@ -4938,18 +5025,20 @@
           "入口：门户页与搜索页右下角的反馈按钮。",
           "类型：故障、建议、其他；标题与内容为必填。",
           "联系邮箱：不填时使用账号邮箱，管理员回复会发到这个邮箱。",
-          "登录状态下提交的反馈会关联账号，方便对照数据排查。"
+          "登录状态下提交的反馈会关联账号，可在个人中心「我的反馈」查看状态与回复。",
+          "「我的反馈」中待处理或已关闭的反馈可以删除，处理中与已解决的保留处理记录。"
         ],
         "steps": [
           "点右下角反馈按钮。",
           "选择类型，填写标题与复现步骤。",
           "需要回复时确认联系邮箱。",
-          "提交后等待邮件回复；也可以在 GitHub Issues 跟踪公开问题。"
+          "提交后可在「我的反馈」查看处理进度；管理员回复或变更状态时会收到站内通知，勾选邮件回复时还会发送邮件。"
         ],
         "caveats": [
           "请勿在反馈里填写密码、验证码或支付信息。",
           "反馈不保证逐条回复，重复问题会合并处理。",
-          "涉及账号数据的排查，请提供大致发生时间与使用的栏目。"
+          "涉及账号数据的排查，请提供大致发生时间与使用的栏目。",
+          "处理中或已解决的反馈不能删除，删除反馈后无法恢复。"
         ]
       }
     }

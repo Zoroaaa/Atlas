@@ -38,6 +38,29 @@ describe('describeNotification', () => {
     expect(view.postId).toBe('p1');
     expect(view.code).toBeUndefined();
   });
+
+  it('反馈回复通知带反馈 ID，并优先跳我的反馈', () => {
+    const view = describeNotification({
+      ...base,
+      type: 'feedback.reply',
+      payload: { feedbackId: 'f1', hasReply: true, feedbackTitle: '标题' },
+    }, t);
+
+    expect(view.feedbackId).toBe('f1');
+    expect(notificationTargetPath(view)).toBe('/dashboard/feedback');
+  });
+
+  it('反馈状态通知没有回复时仍能解析标题', () => {
+    const view = describeNotification({
+      ...base,
+      type: 'feedback.reply',
+      body: '当前状态：已解决',
+      payload: { feedbackId: 'f2', hasReply: false, status: 'resolved' },
+    }, t);
+
+    expect(view.title).toBe('notify:feedbackStatus');
+    expect(view.body).toBe('feedback:my.status.resolved');
+  });
 });
 
 describe('notificationTargetPath', () => {

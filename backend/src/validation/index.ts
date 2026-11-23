@@ -164,6 +164,13 @@ const backendOnlySchemas = {
     limit: z.string().regex(/^\d+$/).optional(),
     offset: z.string().regex(/^\d+$/).optional(),
   }),
+
+  admin: {
+    // targets 由数据清理服务校验；这里只限制数量与单值长度
+    cleanup: z.object({
+      targets: z.array(z.string().min(1).max(64)).max(50).optional(),
+    }),
+  },
 };
 
 // 同名分组以后端 schema 合并覆盖共享 schema，保持 schemas.xxx.yyy 的访问方式不变
@@ -179,6 +186,7 @@ export const schemas = {
   follows: backendOnlySchemas.follows,
   r2Admin: backendOnlySchemas.r2Admin,
   pagination: backendOnlySchemas.pagination,
+  admin: { ...sharedSchemas.admin, ...backendOnlySchemas.admin },
 };
 
 export type ValidationResult<T> =

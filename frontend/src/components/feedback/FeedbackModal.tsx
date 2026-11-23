@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { X, MessageSquarePlus, Bug, Lightbulb, MessageCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +41,7 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { t } = useTranslation(['feedback']);
   const { user, isAuthenticated } = useAuthStore();
   const toast = useToast();
+  const navigate = useNavigate();
   const [type, setType] = useState<'bug' | 'suggestion' | 'other'>('bug');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -135,13 +137,26 @@ export const FeedbackModal: React.FC<Props> = ({ isOpen, onClose }) => {
               {(isAuthenticated ? user?.email : contactEmail) && (
                 <><br />{t('feedback:modal.followUpEmail')}</>
               )}
+              {isAuthenticated && (
+                <><br />{t('feedback:modal.followUpInApp')}</>
+              )}
             </p>
-            <button
-              onClick={handleClose}
-              className="px-6 py-2.5 bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
-            >
-              {t('feedback:modal.close')}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              {isAuthenticated && (
+                <button
+                  onClick={() => { reset(); onClose(); navigate('/dashboard/feedback'); }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-[#d4a853] to-[#f59e0b] text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  {t('feedback:modal.viewMyFeedback')}
+                </button>
+              )}
+              <button
+                onClick={handleClose}
+                className="px-6 py-2.5 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 text-sm font-semibold rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+              >
+                {t('feedback:modal.close')}
+              </button>
+            </div>
           </div>
         ) : (
           /* ── 表单 ── */

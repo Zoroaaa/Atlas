@@ -303,8 +303,14 @@ export default {
       ctx.waitUntil(
         withCronLock(env.DB, 'data.retention', HOURLY_LOCK_TTL_MS, () => runDataRetention(env.DB))
           .then((r) => {
-            if (r && r.rateLimits + r.postViews + r.dataRecords > 0) {
-              console.log(`[retention] rate_limits=${r.rateLimits} post_views=${r.postViews} data_records=${r.dataRecords}`);
+            if (!r) return;
+            const total = Object.values(r).reduce((sum, n) => sum + n, 0);
+            if (total > 0) {
+              console.log(
+                `[retention] rate_limits=${r.rateLimits} post_views=${r.postViews} data_records=${r.dataRecords} ` +
+                `system_errors=${r.systemErrors} analytics=${r.analyticsEvents} ` +
+                `email_queue=${r.emailQueue} email_log=${r.emailLog} cron_locks=${r.cronLocks}`
+              );
             }
           })
           .catch((err) => console.error('[retention] cleanup failed:', err))

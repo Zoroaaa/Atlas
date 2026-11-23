@@ -277,6 +277,7 @@ const App: React.FC = () => {
           <Route path="follows" element={withSuspense(<DashboardPage />)} />
           <Route path="follow-feed" element={withSuspense(<DashboardPage />)} />
           <Route path="notifications" element={withSuspense(<DashboardPage />)} />
+          <Route path="feedback" element={withSuspense(<DashboardPage />)} />
           {/* 设置已独立成 /settings，旧链接保留一次重定向 */}
           <Route path="settings" element={<Navigate to="/settings" replace />} />
           <Route path="activities" element={withSuspense(<UserActivitiesPage />)} />

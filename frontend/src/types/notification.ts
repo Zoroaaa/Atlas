@@ -27,6 +27,11 @@ export interface NotificationItem {
     /** 站点公告（读时合并） */
     announcementId?: string;
     level?: 'info' | 'success' | 'warning' | 'error';
+    /** 反馈处理结果 */
+    feedbackId?: string;
+    feedbackTitle?: string;
+    hasReply?: boolean;
+    status?: string;
   };
   /** 收件箱来源：公告为读时合并，不落 notifications 表 */
   source?: 'notification' | 'announcement';

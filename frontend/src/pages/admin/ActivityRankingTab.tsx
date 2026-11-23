@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
-import { Trophy, Search, Heart, LogIn, Users, RefreshCw, Crown, MoreHorizontal, Zap, Activity } from 'lucide-react';
+import { Trophy, Search, Heart, LogIn, Users, RefreshCw, Crown, MoreHorizontal, Zap, Activity, UserCheck, MessageSquarePlus } from 'lucide-react';
 import { adminApi } from '@/services/api';
 import type { ActivityRanking, ActivityRankingEntry, ActivityRankingMetric, ActivityRankingPeriod } from '@/services/api/admin';
 import { useToast } from '@/hooks/useNotification';
@@ -11,13 +11,14 @@ type Period = ActivityRankingPeriod;
 type Metric = ActivityRankingMetric;
 
 const PERIODS: Period[] = ['today', 'week', 'month', 'all'];
-const METRICS: Metric[] = ['overall', 'search', 'favorite'];
+const METRICS: Metric[] = ['overall', 'search', 'favorite', 'follow'];
 
 /** 各维度的主题配色与取值函数（榜单主指标） */
 const metricTheme: Record<Metric, { icon: React.ElementType; accent: string; bar: string; value: (e: ActivityRankingEntry) => number }> = {
   overall: { icon: Trophy, accent: 'text-amber-500', bar: 'bg-gradient-to-r from-amber-400 to-orange-500', value: e => e.score },
   search: { icon: Search, accent: 'text-sky-500', bar: 'bg-gradient-to-r from-sky-400 to-blue-500', value: e => e.searches },
   favorite: { icon: Heart, accent: 'text-rose-500', bar: 'bg-gradient-to-r from-rose-400 to-pink-500', value: e => e.favorites },
+  follow: { icon: UserCheck, accent: 'text-violet-500', bar: 'bg-gradient-to-r from-violet-400 to-purple-500', value: e => e.follows },
 };
 
 /** 前三名奖牌配色 */
@@ -90,11 +91,13 @@ export const ActivityRankingTab: React.FC = () => {
       ) : data ? (
         <>
           {/* 周期总览 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             {[
               { icon: Users, label: t('admin:activityRanking.card.activeUsers'), value: data.summary.activeUsers, color: 'from-violet-500 to-purple-600' },
               { icon: Search, label: t('admin:activityRanking.card.totalSearches'), value: data.summary.totalSearches, color: 'from-sky-500 to-blue-600' },
               { icon: Heart, label: t('admin:activityRanking.card.totalFavorites'), value: data.summary.totalFavorites, color: 'from-rose-500 to-pink-600' },
+              { icon: UserCheck, label: t('admin:activityRanking.card.totalFollows'), value: data.summary.totalFollows, color: 'from-violet-500 to-indigo-600' },
+              { icon: MessageSquarePlus, label: t('admin:activityRanking.card.totalFeedback'), value: data.summary.totalFeedback, color: 'from-amber-500 to-orange-600' },
               { icon: LogIn, label: t('admin:activityRanking.card.totalLogins'), value: data.summary.totalLogins, color: 'from-emerald-500 to-green-600' },
             ].map(c => (
               <div key={c.label} className="bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 p-4 flex items-center gap-3">
@@ -141,6 +144,7 @@ export const ActivityRankingTab: React.FC = () => {
                     <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-surface-500 dark:text-surface-400">
                       <span className="inline-flex items-center gap-1"><Search className="w-3 h-3 text-sky-500" />{e.searches.toLocaleString()}</span>
                       <span className="inline-flex items-center gap-1"><Heart className="w-3 h-3 text-rose-500" />{e.favorites.toLocaleString()}</span>
+                      <span className="inline-flex items-center gap-1"><UserCheck className="w-3 h-3 text-violet-500" />{e.follows.toLocaleString()}</span>
                       <span className="inline-flex items-center gap-1"><LogIn className="w-3 h-3 text-emerald-500" />{e.logins.toLocaleString()}</span>
                     </div>
                     {!e.isActive && (
@@ -162,8 +166,8 @@ export const ActivityRankingTab: React.FC = () => {
                     t('admin:activityRanking.table.colUser'),
                     t('admin:activityRanking.table.colSearches'),
                     t('admin:activityRanking.table.colFavorites'),
+                    t('admin:activityRanking.table.colFollows'),
                     t('admin:activityRanking.table.colLogins'),
-                    t('admin:activityRanking.table.colOthers'),
                     t(`admin:activityRanking.metricValue.${metric}`),
                     t('admin:activityRanking.table.colLastActive'),
                   ].map(h => (
@@ -204,8 +208,8 @@ export const ActivityRankingTab: React.FC = () => {
                       </td>
                       <td className="px-4 py-3"><span className="font-semibold text-sky-600 dark:text-sky-400 tabular-nums">{e.searches.toLocaleString()}</span></td>
                       <td className="px-4 py-3"><span className="font-semibold text-rose-600 dark:text-rose-400 tabular-nums">{e.favorites.toLocaleString()}</span></td>
+                      <td className="px-4 py-3"><span className="font-semibold text-violet-600 dark:text-violet-400 tabular-nums">{e.follows.toLocaleString()}</span></td>
                       <td className="px-4 py-3"><span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{e.logins.toLocaleString()}</span></td>
-                      <td className="px-4 py-3 text-surface-500 tabular-nums hidden md:table-cell">{e.otherActions.toLocaleString()}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 min-w-[120px]">
                           <div className="flex-1 bg-surface-100 dark:bg-surface-700 rounded-full h-2 overflow-hidden">

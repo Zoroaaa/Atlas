@@ -737,24 +737,6 @@ userRoutes.get('/activities', async (c) => {
       LIMIT ? OFFSET ?
     `).bind(...params, limit, offset).all();
 
-    const actionLabels: Record<string, string> = {
-      login: '登录',
-      login_failed: '登录失败',
-      logout: '登出',
-      search: '搜索',
-      add_favorite: '添加收藏',
-      remove_favorite: '取消收藏',
-      sync_favorites: '同步收藏',
-      update_settings: '更新设置',
-      change_password: '修改密码',
-      change_email: '修改邮箱',
-      delete_account: '删除账户',
-      clear_search_history: '清空搜索历史',
-      share_source: '分享搜索源',
-      review_source: '评价搜索源',
-      report_source: '举报搜索源',
-    };
-
     return c.json(success({
       activities: (activities.results || []).map((a) => {
         const result = userActivitySchema.safeParse(a);
@@ -762,7 +744,6 @@ userRoutes.get('/activities', async (c) => {
         return {
           id: activity.id,
           action: activity.action,
-          actionLabel: actionLabels[activity.action] || activity.action,
           data: activity.data ? (() => { try { return JSON.parse(activity.data); } catch { return {}; } })() : {},
           ipAddress: activity.ip_address,
           userAgent: activity.user_agent,

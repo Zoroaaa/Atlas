@@ -271,6 +271,7 @@
         "follows": "Follows",
         "followFeed": "Follow Feed",
         "notifications": "Notifications",
+        "feedback": "My Feedback",
         "activities": "Activity Log",
         "sources": "Search Sources",
         "settings": "System Settings",
@@ -696,7 +697,8 @@
         "fetchFailed": "Failed to fetch",
         "statsFailed": "Failed to fetch statistics",
         "detailFailed": "Failed to fetch details",
-        "handleFailed": "Failed to process"
+        "handleFailed": "Failed to process",
+        "deleteFailed": "Failed to delete"
       }
     }
   },
@@ -938,15 +940,25 @@
       "login": "Login success",
       "login_failed": "Login failed",
       "logout": "Logout",
+      "register": "Register",
+      "token_refresh": "Refresh login state",
       "search": "Search",
       "add_favorite": "Add favorite",
       "remove_favorite": "Remove favorite",
+      "update_favorite_status": "Update favorite status",
       "sync_favorites": "Sync favorites",
       "update_settings": "Update settings",
+      "forgot_password": "Request password reset",
+      "reset_password": "Reset password",
       "change_password": "Change password",
       "change_email": "Change email",
+      "email_verify": "Verify email",
+      "email_change": "Change email",
+      "email_change_cancelled": "Cancel email change",
       "delete_account": "Delete account",
       "clear_search_history": "Clear history",
+      "submit_feedback": "Submit feedback",
+      "delete_feedback": "Delete feedback",
       "share_source": "Share source",
       "review_source": "Review source",
       "report_source": "Report source",
@@ -956,6 +968,10 @@
       "admin_terminate_session": "Terminate session",
       "admin_cleanup": "Cleanup data",
       "admin_handle_report": "Handle report",
+      "admin_handle_feedback": "Handle feedback",
+      "admin_create_announcement": "Create announcement",
+      "admin_update_announcement": "Update announcement",
+      "admin_delete_announcement": "Delete announcement",
       "loadLogsFailed": "Failed to load logs",
       "loadStatsFailed": "Failed to load statistics",
       "allOperations": "All Operations",
@@ -1240,33 +1256,37 @@
       "metric": {
         "overall": "Overall",
         "search": "Search",
-        "favorite": "Favorites"
+        "favorite": "Favorites",
+        "follow": "Follows"
       },
       "metricValue": {
         "overall": "Activity score",
         "search": "Searches",
-        "favorite": "Favorites"
+        "favorite": "Favorites",
+        "follow": "Follows"
       },
       "topN": "Top {{count}}",
       "card": {
         "activeUsers": "Active users",
         "totalSearches": "Searches",
         "totalFavorites": "Favorites",
-        "totalLogins": "Logins"
+        "totalFollows": "Follows",
+        "totalLogins": "Logins",
+        "totalFeedback": "Feedback"
       },
       "podium": {
         "rank": "No.{{count}}"
       },
       "statusInactive": "Disabled",
-      "scoreFormula": "Score = searches×{{search}} + favorites×{{favorite}} + logins×{{login}} + others×{{other}}",
+      "scoreFormula": "Score = searches×{{search}} + favorites×{{favorite}} + follows×{{follow}} + logins×{{login}}",
       "periodNote": "\"Today\" is based on Beijing time (UTC+8); other ranges are rolling windows",
       "table": {
         "colRank": "Rank",
         "colUser": "User",
         "colSearches": "Searches",
         "colFavorites": "Favorites",
+        "colFollows": "Follows",
         "colLogins": "Logins",
-        "colOthers": "Others",
         "colLastActive": "Last active",
         "empty": "No user activity in this period"
       }
@@ -1318,24 +1338,55 @@
       "noDescription": "No description"
     },
     "cleanup": {
-      "confirm": "Clean up expired data? This cannot be undone.",
+      "confirmSelected": "Clean up {{count}} selected rows? This cannot be undone.",
       "successToast": "Cleanup complete",
       "failedToast": "Cleanup failed",
+      "previewFailed": "Failed to load cleanup preview",
       "noticeTitle": "Cleanup notice",
       "autoCleanDesc": "The following data is cleaned automatically by triggers:",
       "autoCleanSessions": "• Expired sessions (user_sessions)",
       "autoCleanEmailVerifications": "• Expired email verifications (email_verifications)",
       "autoCleanLockouts": "• Expired security lockouts (security_lockouts)",
-      "retentionDesc": "The following data is cleaned based on retention days:",
-      "retentionPassword": "• Password reset logs (default 30 days)",
-      "retentionActions": "• User action logs (default 90 days)",
-      "retentionSecurity": "• Security event logs (default 90 days)",
+      "retentionDesc": "\"Auto\" targets run hourly and can also be cleaned immediately here; \"Manual\" targets never run automatically.",
+      "refreshPreview": "Refresh preview",
+      "previewLoading": "Counting rows to clean...",
+      "empty": "No cleanup targets",
+      "selectedCount": "{{count}} selected",
+      "executeSelected": "Clean selected",
       "executing": "Cleaning...",
-      "execute": "Run cleanup",
+      "superAdminOnly": "Only super admins can run data cleanup",
+      "selectAll": "Select all",
+      "table": {
+        "target": "Target",
+        "mode": "Mode",
+        "retention": "Retention",
+        "count": "Rows"
+      },
+      "modeAuto": "Auto",
+      "modeManual": "Manual",
+      "retentionDays": "{{count}} days",
+      "expiredOnly": "Expired only",
       "resultTitle": "Cleanup result",
-      "resultPassword": "Password reset logs",
-      "resultActions": "User action logs",
-      "resultSecurity": "Security event logs"
+      "resultDeleted": "{{count}} rows",
+      "resultTotal": "Total deleted",
+      "targets": {
+        "rate_limits": "Rate limit records",
+        "source_status_cache": "Source status cache",
+        "community_post_views": "Community view dedup records",
+        "data_records": "Incomplete records without source",
+        "oauth_login_codes": "OAuth login codes",
+        "cron_locks": "Cron locks",
+        "email_queue": "Email queue",
+        "email_log": "Email digest log",
+        "system_errors": "System errors",
+        "analytics_events": "Analytics events",
+        "user_actions": "User action logs",
+        "password_reset_logs": "Password reset logs",
+        "user_security_events": "Security event logs",
+        "notifications_read": "Read notifications",
+        "email_send_logs": "Email send logs",
+        "config_change_logs": "Config change logs"
+      }
     },
     "feedback": {
       "type": {
@@ -2819,6 +2870,8 @@
       "thankYou": "Thanks for your feedback!",
       "followUpBody": "We have received your feedback and will process it as soon as possible.",
       "followUpEmail": "You will be notified of the result via email.",
+      "followUpInApp": "You can also track progress in Dashboard → My Feedback.",
+      "viewMyFeedback": "View my feedback",
       "close": "Close",
       "typeLabel": "Feedback type",
       "typeBug": "Bug report",
@@ -2839,6 +2892,36 @@
       "errorContentMinLength": "Content must be at least 10 characters",
       "errorEmailInvalid": "Please provide a valid contact email",
       "errorSubmitFailed": "Submission failed, please try again later"
+    },
+    "my": {
+      "title": "My Feedback",
+      "subtitle": "Track progress and team replies",
+      "refresh": "Refresh",
+      "empty": "No feedback yet",
+      "emptyDesc": "Click \"Feedback\" at the bottom right corner to submit a bug or suggestion",
+      "loadFailed": "Failed to load feedback",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this feedback? This cannot be undone.",
+      "deleted": "Feedback deleted",
+      "deleteFailed": "Failed to delete",
+      "emailSent": "Reply email sent",
+      "replyLabel": "Team reply",
+      "noReply": "Resolved without a text reply",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "statusFilter": {
+        "all": "All",
+        "pending": "Pending",
+        "processing": "Processing",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "status": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      }
     }
   },
 
@@ -3850,6 +3933,8 @@
     "communityComment": "{{name}} commented on your post",
     "communityFavorite": "{{name}} favorited your post",
     "communityReport": "A report on your post has been handled",
+    "feedbackReply": "Your feedback has a reply",
+    "feedbackStatus": "Feedback status updated",
     "unreadAria": "Notifications, {{count}} unread",
     "prev": "Previous",
     "next": "Next",
@@ -3860,6 +3945,7 @@
       "relatedPost": "Related post: {{title}}",
       "viewPost": "View post",
       "viewFollowFeed": "View follow feed",
+      "viewFeedback": "View my feedback",
       "searchCode": "Search this code"
     },
     "page": {
@@ -4600,10 +4686,11 @@
         "summary": "The bell at the top right shows recent notifications; Dashboard → Notifications has the full inbox and settings.",
         "features": [
           "The bell shows the unread count, loads recent notifications page by page, and can mark everything read.",
-          "New-release notifications open Follow Feed filtered to that author; community notifications with a post open the post; other notifications with a code open search; announcements open their details in the inbox.",
+          "New-release notifications open Follow Feed filtered to that author; community notifications with a post open the post; feedback updates open My Feedback; other notifications with a code open search; announcements open their details in the inbox.",
           "The page has two tabs, Inbox and Notification settings, with no separate community notification entry.",
           "The inbox supports unread-only, pagination, deleting single items, and clearing read items.",
-          "Site announcements are merged with personal notifications rather than copied into the inbox."
+          "Site announcements are merged with personal notifications rather than copied into the inbox.",
+          "Feedback replies and status changes create in-app notifications; the email reply is still sent separately when an admin opts in."
         ],
         "steps": [
           "Click the bell at the top right to see recent notifications.",
@@ -4938,18 +5025,20 @@
           "Entry: the feedback button at the bottom right of the landing and search pages.",
           "Type: bug, suggestion, or other; title and content are required.",
           "Contact email: defaults to the account email, and admin replies go there.",
-          "Feedback sent while signed in is linked to the account, which helps when checking data."
+          "Feedback sent while signed in is linked to the account and appears in Dashboard → My Feedback.",
+          "Pending or closed feedback can be deleted in My Feedback; processing and resolved items keep their handling record."
         ],
         "steps": [
           "Click the feedback button at the bottom right.",
           "Choose a type and describe the title and reproduction steps.",
           "Confirm the contact email if you want a reply.",
-          "Wait for an email reply, or follow public issues on GitHub."
+          "Track progress in My Feedback after submitting; replies or status changes trigger an in-app notification, and an email is sent when the admin opts in."
         ],
         "caveats": [
           "Never include passwords, verification codes, or payment information.",
           "Replies are not guaranteed for every item; duplicates are merged.",
-          "For account-data issues, include roughly when it happened and which category you used."
+          "For account-data issues, include roughly when it happened and which category you used.",
+          "Processing or resolved feedback cannot be deleted; deleting feedback is permanent."
         ]
       }
     }

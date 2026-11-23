@@ -10,6 +10,8 @@ export interface NotificationView {
   code?: string;
   /** 社区互动通知对应的帖子 ID（供跳转帖子详情使用） */
   postId?: string;
+  /** 反馈回复通知对应的反馈 ID（供跳转「我的反馈」使用） */
+  feedbackId?: string;
 }
 
 /** 按类型和当前语言渲染通知文案（服务端存的 title/body 只作为兜底和邮件内容） */
@@ -53,6 +55,16 @@ export function describeNotification(item: NotificationItem, t: TFunction): Noti
       postId: item.payload.postId,
     };
   }
+  if (item.type === 'feedback.reply') {
+    const statusText = item.payload.status
+      ? t(`feedback:my.status.${item.payload.status}`)
+      : item.body;
+    return {
+      title: item.payload.hasReply ? t('notify:feedbackReply') : t('notify:feedbackStatus'),
+      body: item.payload.hasReply ? (item.body || '') : statusText,
+      feedbackId: item.payload.feedbackId,
+    };
+  }
   // 发售提醒等后续关注类通知复用同一落地页；带 key 才跳，避免旧数据跳到空筛选
   if (item.type.startsWith('follow.') && item.payload.key) {
     return { title: item.title, body: item.body, followKey: item.payload.key };
@@ -67,11 +79,12 @@ export function searchPathForCode(code: string): string {
 
 /**
  * 通知点击后的落地页。优先级按「最具体 → 最宽泛」：
- * 帖子详情 → 关注动态（筛到该关注对象）→ 番号搜索。
+ * 帖子详情 → 反馈中心 → 关注动态（筛到该关注对象）→ 番号搜索。
  * 公告没有独立页面，返回 null 由调用方留在通知中心看详情。
  */
 export function notificationTargetPath(view: NotificationView): string | null {
   if (view.postId) return `/community/post/${encodeURIComponent(view.postId)}`;
+  if (view.feedbackId) return '/dashboard/feedback';
   if (view.followKey) return `/dashboard/follow-feed?entity=${encodeURIComponent(view.followKey)}`;
   if (view.code) return searchPathForCode(view.code);
   return null;

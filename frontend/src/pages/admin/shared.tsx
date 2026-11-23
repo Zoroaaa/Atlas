@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LucideIcon, ArrowLeftRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import i18next from '@/i18n';
 import { useLanguageStore } from '@/stores';
 import { formatRelativeTime as formatRelativeTimeBase } from '@/utils/relativeTime';
 import { Pagination as WorkbenchPagination } from '@/components/workbench';
@@ -17,47 +16,7 @@ export const formatDate = (timestamp: number | null | undefined) => {
 export const formatRelativeTime = (timestamp: number) =>
   formatRelativeTimeBase(timestamp, useLanguageStore.getState().language);
 
-/** 操作类型 -> i18n key 映射。消费端调用 t(actionLabels[actionType] || actionType) 解析。 */
-export const actionLabels: Record<string, string> = {
-  login: 'admin:actions.login',
-  login_failed: 'admin:actions.login_failed',
-  logout: 'admin:actions.logout',
-  search: 'admin:actions.search',
-  add_favorite: 'admin:actions.add_favorite',
-  remove_favorite: 'admin:actions.remove_favorite',
-  sync_favorites: 'admin:actions.sync_favorites',
-  update_settings: 'admin:actions.update_settings',
-  change_password: 'admin:actions.change_password',
-  change_email: 'admin:actions.change_email',
-  delete_account: 'admin:actions.delete_account',
-  clear_search_history: 'admin:actions.clear_search_history',
-  share_source: 'admin:actions.share_source',
-  review_source: 'admin:actions.review_source',
-  report_source: 'admin:actions.report_source',
-  admin_update_user_status: 'admin:actions.admin_update_user_status',
-  admin_update_user_role: 'admin:actions.admin_update_user_role',
-  admin_update_user_permissions: 'admin:actions.admin_update_user_permissions',
-  admin_terminate_session: 'admin:actions.admin_terminate_session',
-  admin_cleanup: 'admin:actions.admin_cleanup',
-  admin_handle_report: 'admin:actions.admin_handle_report',
-};
-
-/** 解析操作类型为当前语言的标签文案。非组件环境调用,使用 i18next.t。 */
-export const resolveActionLabel = (actionType: string): string => {
-  const key = actionLabels[actionType];
-  return key ? i18next.t(key) : actionType;
-};
-
-export const actionColors: Record<string, string> = {
-  login: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  login_failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  logout: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400',
-  search: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  add_favorite: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  share_source: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  admin_update_user_status: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  admin_update_user_role: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-};
+export { resolveActionLabel, actionBadgeClass } from '@/utils/userActions';
 
 /** 管理后台分页：复用统一分页组件（bar 模式），保留 onPageChange 旧签名以免改动调用点。 */
 export const Pagination: React.FC<{ page: number; totalPages: number; onPageChange: (p: number) => void }> = ({ page, totalPages, onPageChange }) => (

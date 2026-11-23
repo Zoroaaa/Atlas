@@ -5,7 +5,8 @@ import { adminApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/hooks/useNotification';
-import { Pagination, TableWrapper, actionLabels, actionColors, StatCard, StatsGrid, resolveActionLabel } from './shared';
+import { Pagination, TableWrapper, StatCard, StatsGrid, resolveActionLabel } from './shared';
+import { allActionOptions, actionBadgeClass } from '@/utils/userActions';
 import { useTranslation } from 'react-i18next';
 
 export const ActionsTab: React.FC = () => {
@@ -84,7 +85,7 @@ export const ActionsTab: React.FC = () => {
           <div className="w-44"><Input placeholder={t('admin:actions.filterUsername')} value={userSearch} onChange={e => { setUserSearch(e.target.value); setPage(1); }} leftIcon={<Search className="w-4 h-4" />} /></div>
           <select value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm">
             <option value="">{t('admin:actions.allOperations')}</option>
-            {Object.entries(actionLabels).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
+            {allActionOptions.map((item) => <option key={item.action} value={item.action}>{t(item.labelKey)}</option>)}
           </select>
           <span className="text-sm text-surface-500">{t('admin:actions.totalCount', { count: total })}</span>
         </div>
@@ -107,7 +108,7 @@ export const ActionsTab: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 font-medium text-surface-900 dark:text-surface-100">{log.username || t('admin:actions.anonymous')}</td>
                     <td className="px-4 py-3">
-                      <span className={clsx('inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium', actionColors[log.action] || 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400')}>
+                      <span className={clsx('inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium', actionBadgeClass(log.action))}>
                         {resolveActionLabel(log.action)}
                       </span>
                     </td>

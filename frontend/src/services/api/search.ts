@@ -331,7 +331,6 @@ export const userApi = {
       activities: Array<{
         id: string;
         action: string;
-        actionLabel: string;
         data: Record<string, unknown>;
         ipAddress: string | null;
         userAgent: string | null;

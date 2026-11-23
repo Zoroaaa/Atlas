@@ -16,6 +16,7 @@ import { validateBody, schemas } from '@/validation';
 import { adminSourceRoutes } from './admin-sources';
 import { findPostNotificationTarget } from '@/repositories/community-repository';
 import { emitNotification } from '@/services/notification-service';
+import { countCleanupTarget, getCleanupTargets, runCleanupTarget } from '@/services/data-retention';
 import { ingestAliasesForKeyword } from '@/services/alias-ingest';
 import { resolveQuery } from '@/services/alias-resolver';
 import { suggestAliasesWithAi } from '@/services/alias-ai';
@@ -42,6 +43,7 @@ import {
   listUserLoginLogs,
   listActiveUsers,
   queryActivityRanking,
+  countFeedbackSince,
   listLoginDailyStats,
   listLoginTopIPs,
   listLoginFailedAttempts,
@@ -64,9 +66,6 @@ import {
   getLoginActionStats,
   countActionLogs,
   listActionLogs,
-  deletePasswordResetLogsBefore,
-  deleteUserActionsBefore,
-  deleteSecurityEventsBefore,
   countAllSessions,
   getActiveSessionStats,
   countRecentlyActiveSessions,
@@ -410,11 +409,14 @@ adminRoutes.get('/active-users', async (c) => {
  * GET /api/admin/activity-ranking?period=today|week|month|all&limit=20
  *
  * 数据口径：
- * - 搜索数：user_search_history（每次搜索必写入，为权威来源）
- * - 收藏/登录/其他行为：user_actions 行为日志（add_favorite / login / 其余有效行为）
- * - 综合活跃分 = 搜索×2 + 收藏×3 + 登录×1 + 其他×1
+ * - 搜索数：user_search_history
+ * - 收藏数：user_favorites
+ * - 关注数：user_follows（关注女优 / 实体）
+ * - 登录数：user_actions 中 action = login
+ * - 反馈数：user_feedback，仅作概览展示，不参与计分
+ * - 综合活跃分 = 搜索×2 + 收藏×3 + 关注×3 + 登录×1
  * - "当天"按北京时间（UTC+8）自然日计算，其余为滚动窗口
- * - 一次返回 综合/搜索/收藏 三个榜单，前端切换维度无需重复请求
+ * - 一次返回 综合/搜索/收藏/关注 四个榜单，前端切换维度无需重复请求
  */
 adminRoutes.get('/activity-ranking', async (c) => {
   const { defaultPageSize, maxPageSize } = getPaginationConfig();
@@ -426,7 +428,7 @@ adminRoutes.get('/activity-ranking', async (c) => {
   }
 
   // 综合活跃分权重（同步暴露给前端用于展示计算规则）
-  const SCORE_WEIGHTS = { search: 2, favorite: 3, login: 1, other: 1 };
+  const SCORE_WEIGHTS = { search: 2, favorite: 3, follow: 3, login: 1 };
 
   try {
     const now = Date.now();
@@ -443,7 +445,10 @@ adminRoutes.get('/activity-ranking', async (c) => {
       startTime = 0;
     }
 
-    const rows = await queryActivityRanking(c.env.DB, { startTime });
+    const [rows, totalFeedback] = await Promise.all([
+      queryActivityRanking(c.env.DB, { startTime }),
+      countFeedbackSince(c.env.DB, startTime),
+    ]);
 
     interface Entry {
       rank: number;
@@ -454,8 +459,8 @@ adminRoutes.get('/activity-ranking', async (c) => {
       isActive: boolean;
       searches: number;
       favorites: number;
+      follows: number;
       logins: number;
-      otherActions: number;
       score: number;
       lastActiveAt: number;
     }
@@ -469,17 +474,17 @@ adminRoutes.get('/activity-ranking', async (c) => {
       isActive: r.is_active === 1,
       searches: r.searches || 0,
       favorites: r.favorites || 0,
+      follows: r.follows || 0,
       logins: r.logins || 0,
-      otherActions: r.other_actions || 0,
       score:
         (r.searches || 0) * SCORE_WEIGHTS.search +
         (r.favorites || 0) * SCORE_WEIGHTS.favorite +
-        (r.logins || 0) * SCORE_WEIGHTS.login +
-        (r.other_actions || 0) * SCORE_WEIGHTS.other,
+        (r.follows || 0) * SCORE_WEIGHTS.follow +
+        (r.logins || 0) * SCORE_WEIGHTS.login,
       lastActiveAt: r.last_active_at || 0,
     }));
 
-    const rankBy = (key: 'score' | 'searches' | 'favorites'): Entry[] =>
+    const rankBy = (key: 'score' | 'searches' | 'favorites' | 'follows'): Entry[] =>
       [...entries]
         .sort((a, b) => (b[key] as number) - (a[key] as number) || a.username.localeCompare(b.username))
         .slice(0, limit)
@@ -493,13 +498,15 @@ adminRoutes.get('/activity-ranking', async (c) => {
         activeUsers: entries.length,
         totalSearches: entries.reduce((s, e) => s + e.searches, 0),
         totalFavorites: entries.reduce((s, e) => s + e.favorites, 0),
+        totalFollows: entries.reduce((s, e) => s + e.follows, 0),
         totalLogins: entries.reduce((s, e) => s + e.logins, 0),
-        totalOtherActions: entries.reduce((s, e) => s + e.otherActions, 0),
+        totalFeedback,
       },
       rankings: {
         overall: rankBy('score'),
         search: rankBy('searches'),
         favorite: rankBy('favorites'),
+        follow: rankBy('follows'),
       },
     }));
   } catch (err) {
@@ -836,17 +843,55 @@ adminRoutes.get('/logs', async (c) => {
   }
 });
 
+/** 读取可动态调整的清理保留期（天），其余目标使用服务内固定保留期 */
+async function getCleanupRetentionOverrides(env: Env): Promise<Record<string, number>> {
+  const configService = new ConfigService(env);
+  const [passwordReset, userActions, securityEvents] = await Promise.all([
+    configService.getInt(DB_CONFIG_KEYS.PASSWORD_RESET_LOG_RETENTION_DAYS, 30),
+    configService.getInt(DB_CONFIG_KEYS.USER_ACTIONS_RETENTION_DAYS, 90),
+    configService.getInt(DB_CONFIG_KEYS.SECURITY_EVENT_RETENTION_DAYS, 90),
+  ]);
+  return {
+    password_reset_logs: passwordReset,
+    user_actions: userActions,
+    user_security_events: securityEvents,
+  };
+}
+
+/**
+ * GET /api/admin/cleanup/preview
+ * 预览各清理目标的保留期与当前可清理数量。
+ */
+adminRoutes.get('/cleanup/preview', async (c) => {
+  try {
+    const overrides = await getCleanupRetentionOverrides(c.env);
+    const targets = getCleanupTargets(overrides);
+    const now = Date.now();
+
+    const items = await Promise.all(
+      targets.map(async (target) => ({
+        key: target.key,
+        mode: target.mode,
+        retentionDays: target.retentionDays,
+        count: await countCleanupTarget(c.env.DB, target, now),
+      }))
+    );
+
+    return c.json(success({ items, checkedAt: now }));
+  } catch (err) {
+    console.error('Preview cleanup error:', err);
+    return c.json(error('SERVER_ERROR', '获取清理预览失败'), 500);
+  }
+});
+
 /**
  * POST /api/admin/cleanup
- * 手动清理过期数据（仅清理需要动态配置保留天数的表）
- * 
- * 权限规则：只有超级管理员可以执行数据清理（高危操作）
- * 
- * 说明：
- * - user_sessions、email_verifications、security_lockouts 由触发器实时清理
- * - password_reset_logs、user_actions、user_security_events 需要动态配置保留天数
+ * 手动清理指定目标（不传 targets 时保持旧行为：只清理三项动态保留期数据）。
+ *
+ * 权限规则：只有超级管理员可以执行数据清理（高危操作）。
+ * 说明：会话、验证码、锁定记录由触发器实时清理；其余自动目标由每小时定时任务处理。
  */
-adminRoutes.post('/cleanup', async (c) => {
+adminRoutes.post('/cleanup', validateBody(schemas.admin.cleanup), async (c) => {
   const adminUser = c.get('user') as JwtPayload;
 
   const isSuperAdmin = await checkIsSuperAdmin(c);
@@ -854,28 +899,31 @@ adminRoutes.post('/cleanup', async (c) => {
     return c.json(error('FORBIDDEN', '只有超级管理员可以执行数据清理'), 403);
   }
 
+  const body = c.get('validatedBody') as { targets?: string[] };
+
   try {
-    const configService = new ConfigService(c.env);
-    const passwordResetRetentionDays = await configService.getInt(DB_CONFIG_KEYS.PASSWORD_RESET_LOG_RETENTION_DAYS, 30);
-    const userActionsRetentionDays = await configService.getInt(DB_CONFIG_KEYS.USER_ACTIONS_RETENTION_DAYS, 90);
-    const securityEventRetentionDays = await configService.getInt(DB_CONFIG_KEYS.SECURITY_EVENT_RETENTION_DAYS, 90);
+    const overrides = await getCleanupRetentionOverrides(c.env);
+    const targetMap = new Map(getCleanupTargets(overrides).map((target) => [target.key, target]));
 
-    const now = Date.now();
-    const results = {
-      oldPasswordResetLogs: 0,
-      oldActions: 0,
-      oldSecurityEvents: 0,
-    };
+    const requested = body.targets && body.targets.length > 0
+      ? [...new Set(body.targets)]
+      : ['user_actions', 'password_reset_logs', 'user_security_events'];
 
-    results.oldPasswordResetLogs = await deletePasswordResetLogsBefore(c.env.DB, now - passwordResetRetentionDays * CONFIG.Stats.DAY_IN_MS);
+    const unknown = requested.filter((key) => !targetMap.has(key));
+    if (unknown.length > 0) {
+      return c.json(error('VALIDATION_ERROR', `未知的清理目标：${unknown.join(', ')}`), 400);
+    }
 
-    results.oldActions = await deleteUserActionsBefore(c.env.DB, now - userActionsRetentionDays * CONFIG.Stats.DAY_IN_MS);
+    const results: Array<{ key: string; deleted: number }> = [];
+    for (const key of requested) {
+      const target = targetMap.get(key)!;
+      results.push({ key, deleted: await runCleanupTarget(c.env.DB, target) });
+    }
 
-    results.oldSecurityEvents = await deleteSecurityEventsBefore(c.env.DB, now - securityEventRetentionDays * CONFIG.Stats.DAY_IN_MS);
+    const total = results.reduce((sum, item) => sum + item.deleted, 0);
+    await logUserAction(c.env, adminUser.userId, 'admin_cleanup', { targets: requested, results, total }, c);
 
-    await logUserAction(c.env, adminUser.userId, 'admin_cleanup', results, c);
-
-    return c.json(success(results, '数据清理完成'));
+    return c.json(success({ results, total, checkedAt: Date.now() }, '数据清理完成'));
   } catch (err) {
     console.error('Cleanup error:', err);
     return c.json(error('SERVER_ERROR', '清理失败'), 500);

@@ -28,7 +28,7 @@ import { adminApi } from '@/services/api';
 import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { useTranslation } from 'react-i18next';
-import { resolveActionLabel, actionColors } from './shared';
+import { resolveActionLabel, actionBadgeClass } from './shared';
 
 interface DashboardOverview {
   users: {
@@ -362,7 +362,7 @@ export const AdminPanelOverview: React.FC = () => {
                   <td className="py-3 px-4">
                     <span className={clsx(
                       'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium',
-                      actionColors[action.action] || 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-400'
+                      actionBadgeClass(action.action)
                     )}>
                       {resolveActionLabel(action.action)}
                     </span>

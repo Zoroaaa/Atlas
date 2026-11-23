@@ -7,6 +7,7 @@ import { StatsManager } from './StatsManager';
 import { FollowsManager } from './FollowsManager';
 import { FollowFeedManager } from './FollowFeedManager';
 import { NotificationsManager } from './NotificationsManager';
+import { MyFeedbackPage } from './MyFeedbackPage';
 
 export const DashboardPage: React.FC = () => {
   const location = useLocation();
@@ -47,6 +48,10 @@ export const DashboardPage: React.FC = () => {
 
   if (path.startsWith('/dashboard/notifications')) {
     return <NotificationsManager />;
+  }
+
+  if (path.startsWith('/dashboard/feedback')) {
+    return <MyFeedbackPage />;
   }
 
   return <OverviewManager />;

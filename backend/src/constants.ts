@@ -298,6 +298,7 @@ export const NOTIFICATION = {
     'community.comment',
     'community.favorite',
     'community.report_resolved',
+    'feedback.reply',
     'site.announcement',
   ] as const,
 } as const;

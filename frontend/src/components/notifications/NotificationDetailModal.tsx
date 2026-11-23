@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Rss, Search } from 'lucide-react';
+import { ExternalLink, Rss, Search, MessageSquarePlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button, Modal } from '@/components/ui';
 import { formatRelativeTime } from '@/utils/relativeTime';
@@ -35,12 +35,16 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
       size="sm"
       leftIcon={view.postId
         ? <ExternalLink className="h-4 w-4" />
-        : view.followKey ? <Rss className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+        : view.feedbackId
+          ? <MessageSquarePlus className="h-4 w-4" />
+          : view.followKey ? <Rss className="h-4 w-4" /> : <Search className="h-4 w-4" />}
       onClick={() => onNavigate(target)}
     >
       {view.postId
         ? t('notify:detail.viewPost')
-        : view.followKey ? t('notify:detail.viewFollowFeed') : t('notify:detail.searchCode')}
+        : view.feedbackId
+          ? t('notify:detail.viewFeedback')
+          : view.followKey ? t('notify:detail.viewFollowFeed') : t('notify:detail.searchCode')}
     </Button>
   ) : undefined;
 

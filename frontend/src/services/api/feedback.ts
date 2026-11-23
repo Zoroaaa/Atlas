@@ -60,12 +60,22 @@ export const feedbackApi = {
   },
 
   /** 获取当前用户的反馈列表 */
-  getMy: async (page = 1, pageSize = 10): Promise<PaginatedResult<FeedbackItem>> => {
+  getMy: async (page = 1, pageSize = 10, status?: string): Promise<PaginatedResult<FeedbackItem>> => {
+    const q = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (status) q.set('status', status);
     const res = await apiClient.get<{ success: boolean; data: PaginatedResult<FeedbackItem> }>(
-      `/feedback/my?page=${page}&pageSize=${pageSize}`
+      `/feedback/my?${q.toString()}`
     );
     if (!res.success) throw new Error(i18next.t('errors:api.feedback.fetchFailed'));
     return res.data;
+  },
+
+  /** 删除本人反馈（仅待处理/已关闭可删） */
+  deleteMy: async (id: string): Promise<void> => {
+    const res = await apiClient.delete<{ success: boolean; message?: string }>(
+      `/feedback/my/${encodeURIComponent(id)}`
+    );
+    if (!res.success) throw new Error(i18next.t('errors:api.feedback.deleteFailed'));
   },
 
   // ─── Admin ──────────────────────────────────────────────────────────────

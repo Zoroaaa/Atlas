@@ -104,6 +104,7 @@ export const dashboardNavGroups: WorkspaceNavGroup[] = [
     labelKey: 'nav:dashboard.sections.messages',
     items: [
       { id: 'notifications', labelKey: 'nav:dashboard.items.notifications', icon: <Bell className="h-[17px] w-[17px]" />, path: '/dashboard/notifications' },
+      { id: 'feedback', labelKey: 'nav:dashboard.items.feedback', icon: <MessageSquarePlus className="h-[17px] w-[17px]" />, path: '/dashboard/feedback' },
       { id: 'activities', labelKey: 'nav:dashboard.items.activities', icon: <Activity className="h-[17px] w-[17px]" />, path: '/dashboard/activities' },
     ],
   },

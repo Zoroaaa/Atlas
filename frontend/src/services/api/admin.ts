@@ -92,7 +92,7 @@ interface LoginStats {
 }
 
 export type ActivityRankingPeriod = 'today' | 'week' | 'month' | 'all';
-export type ActivityRankingMetric = 'overall' | 'search' | 'favorite';
+export type ActivityRankingMetric = 'overall' | 'search' | 'favorite' | 'follow';
 
 export interface ActivityRankingEntry {
   rank: number;
@@ -103,8 +103,8 @@ export interface ActivityRankingEntry {
   isActive: boolean;
   searches: number;
   favorites: number;
+  follows: number;
   logins: number;
-  otherActions: number;
   score: number;
   lastActiveAt: number;
 }
@@ -112,19 +112,34 @@ export interface ActivityRankingEntry {
 export interface ActivityRanking {
   period: ActivityRankingPeriod;
   startTime: number;
-  weights: { search: number; favorite: number; login: number; other: number };
+  weights: { search: number; favorite: number; follow: number; login: number };
   summary: {
     activeUsers: number;
     totalSearches: number;
     totalFavorites: number;
+    totalFollows: number;
     totalLogins: number;
-    totalOtherActions: number;
+    totalFeedback: number;
   };
   rankings: {
     overall: ActivityRankingEntry[];
     search: ActivityRankingEntry[];
     favorite: ActivityRankingEntry[];
+    follow: ActivityRankingEntry[];
   };
+}
+
+export interface CleanupTargetPreview {
+  key: string;
+  mode: 'auto' | 'manual';
+  retentionDays: number;
+  count: number;
+}
+
+export interface CleanupResult {
+  results: Array<{ key: string; deleted: number }>;
+  total: number;
+  checkedAt: number;
 }
 
 export interface AliasVariant {
@@ -365,19 +380,19 @@ export const adminApi = {
     };
   },
 
-  cleanup: async (): Promise<{
-    oldPasswordResetLogs: number;
-    oldActions: number;
-    oldSecurityEvents: number;
-  }> => {
-    const response = await apiClient.post<{
+  previewCleanup: async (): Promise<{ items: CleanupTargetPreview[]; checkedAt: number }> => {
+    const response = await apiClient.get<{
       success: boolean;
-      data: {
-        oldPasswordResetLogs: number;
-        oldActions: number;
-        oldSecurityEvents: number;
-      };
-    }>('/admin/cleanup', {});
+      data: { items: CleanupTargetPreview[]; checkedAt: number };
+    }>('/admin/cleanup/preview');
+    return response.data;
+  },
+
+  cleanup: async (targets: string[]): Promise<CleanupResult> => {
+    const response = await apiClient.post<{ success: boolean; data: CleanupResult }>(
+      '/admin/cleanup',
+      { targets }
+    );
     return response.data;
   },
 

@@ -1,5 +1,5 @@
 /**
- * 用户反馈路由：提交、本人查询、管理员处理与邮件回复。
+ * 用户反馈路由：提交、本人查询/删除、管理员处理、邮件回复与站内通知。
  *
  * 约束：仅提交接口允许匿名（必须留联系邮箱）；管理接口实时查库校验角色。
  */
@@ -11,6 +11,7 @@ import { checkIsAdmin } from '@/middleware/auth';
 import { z } from 'zod';
 import { validateBody, schemas } from '@/validation';
 import { sendEmail, logEmailSend } from '@/services/email-sender';
+import { emitNotification } from '@/services/notification-service';
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
 
@@ -106,19 +107,24 @@ feedbackRoutes.get('/my', async (c) => {
   // page 必须 ≥1：负数会生成负 OFFSET，SQLite 直接报错
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || '10', 10) || 10), 50);
+  const status = c.req.query('status');
+  const statusFilter = status && ['pending', 'processing', 'resolved', 'closed'].includes(status) ? status : null;
 
   try {
+    const where = statusFilter ? 'WHERE user_id = ? AND status = ?' : 'WHERE user_id = ?';
+    const params: string[] = statusFilter ? [user.userId, statusFilter] : [user.userId];
+
     const countResult = await c.env.DB.prepare(
-      'SELECT COUNT(*) as total FROM user_feedback WHERE user_id = ?'
-    ).bind(user.userId).first<{ total: number }>();
+      `SELECT COUNT(*) as total FROM user_feedback ${where}`
+    ).bind(...params).first<{ total: number }>();
 
     const items = await c.env.DB.prepare(`
-      SELECT id, type, title, status, priority, admin_reply, created_at, updated_at
+      SELECT id, type, title, content, status, priority, admin_reply, email_sent, created_at, updated_at
       FROM user_feedback
-      WHERE user_id = ?
+      ${where}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `).bind(user.userId, pageSize, (page - 1) * pageSize).all();
+    `).bind(...params, pageSize, (page - 1) * pageSize).all();
 
     return c.json(success({
       items: items.results || [],
@@ -130,6 +136,37 @@ feedbackRoutes.get('/my', async (c) => {
   } catch (err) {
     console.error('Get my feedback error:', err);
     return c.json(error('SERVER_ERROR', '获取失败'), 500);
+  }
+});
+
+// ── DELETE /api/feedback/my/:id — 删除本人反馈 ──────────
+// 已受理（processing/resolved）的反馈保留处理记录；只允许删未处理或已关闭的反馈
+feedbackRoutes.delete('/my/:id', async (c) => {
+  const user = c.get('user') as JwtPayload | undefined;
+  if (!user) return c.json(error('AUTH_ERROR', '请先登录'), 401);
+
+  const feedbackId = c.req.param('id');
+
+  try {
+    const item = await c.env.DB.prepare(
+      'SELECT id, status FROM user_feedback WHERE id = ? AND user_id = ?'
+    ).bind(feedbackId, user.userId).first<{ id: string; status: string }>();
+
+    if (!item) return c.json(error('NOT_FOUND', '反馈不存在'), 404);
+    if (!['pending', 'closed'].includes(item.status)) {
+      return c.json(error('VALIDATION_ERROR', '处理中或已解决的反馈不能删除'), 400);
+    }
+
+    await c.env.DB.prepare(
+      'DELETE FROM user_feedback WHERE id = ? AND user_id = ?'
+    ).bind(feedbackId, user.userId).run();
+
+    await logUserAction(c.env, user.userId, 'delete_feedback', { feedbackId }, c);
+
+    return c.json(success(null, '反馈已删除'));
+  } catch (err) {
+    console.error('Delete my feedback error:', err);
+    return c.json(error('SERVER_ERROR', '删除失败，请稍后重试'), 500);
   }
 });
 
@@ -293,7 +330,8 @@ feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c
     }
 
     const now = Date.now();
-    const newStatus = (status || (item as Record<string, unknown>).status) as string;
+    const previousStatus = (item as Record<string, unknown>).status as string;
+    const newStatus = (status || previousStatus) as string;
     const isResolved = newStatus === 'resolved' || newStatus === 'closed';
 
     await c.env.DB.prepare(`
@@ -333,6 +371,32 @@ feedbackRoutes.put('/admin/:id', validateBody(schemas.feedback.update), async (c
       } catch (emailErr) {
         console.error('Send feedback reply email error:', emailErr);
         emailResult = { sent: false, error: (emailErr as Error).message };
+      }
+    }
+
+    // 站内通知：状态变化或有新回复时提醒提交者；邮件仍由上面的可选回复邮件负责，
+    // 这里强制关闭邮件渠道，避免同一处理动作发两封邮件
+    const submitterUserId = (item as Record<string, unknown>).user_id as string | null;
+    if (submitterUserId && (newStatus !== previousStatus || adminReply)) {
+      try {
+        const statusLabel = STATUS_LABELS[newStatus] || newStatus;
+        await emitNotification(c.env.DB, {
+          userId: submitterUserId,
+          type: 'feedback.reply',
+          title: adminReply ? '你的反馈已收到回复' : `反馈状态已更新：${statusLabel}`,
+          body: adminReply || '',
+          payload: {
+            feedbackId,
+            status: newStatus,
+            hasReply: !!adminReply,
+            feedbackTitle: (item as Record<string, unknown>).title,
+          },
+          dedupKey: `feedback:${feedbackId}:${newStatus}:${adminReply ? 'reply' : 'status'}`,
+          channels: { email: false },
+        });
+      } catch (notifyErr) {
+        // 通知失败不影响反馈处理结果，只记录日志
+        console.error('Emit feedback notification error:', notifyErr);
       }
     }
 

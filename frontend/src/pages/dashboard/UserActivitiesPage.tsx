@@ -15,11 +15,11 @@ import { Card } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTranslation } from 'react-i18next';
+import { actionBadgeClass, actionEmoji, resolveActionLabel, userActionOptions } from '@/utils/userActions';
 
 interface Activity {
   id: string;
   action: string;
-  actionLabel: string;
   data: Record<string, unknown>;
   ipAddress: string | null;
   userAgent: string | null;
@@ -40,32 +40,7 @@ interface ActivityStats {
   };
 }
 
-const actionColors: Record<string, { bg: string; text: string; icon: string }> = {
-  login: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', icon: '✓' },
-  login_failed: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', icon: '✗' },
-  logout: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '→' },
-  search: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', icon: '🔍' },
-  add_favorite: { bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-400', icon: '♥' },
-  remove_favorite: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '♡' },
-  sync_favorites: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-400', icon: '↻' },
-  update_settings: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', icon: '⚙' },
-  change_password: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', icon: '🔒' },
-  change_email: { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-700 dark:text-cyan-400', icon: '✉' },
-  clear_search_history: { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '🗑' },
-  share_source: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', icon: '↗' },
-  review_source: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', icon: '★' },
-  report_source: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', icon: '⚠' },
-};
-
-const actionFilterOptionKeys: Array<{ value: string; labelKey: string }> = [
-  { value: '', labelKey: 'dashboard:activities.filterAll' },
-  { value: 'login', labelKey: 'dashboard:activities.filterLogin' },
-  { value: 'login_failed', labelKey: 'dashboard:activities.filterLoginFailed' },
-  { value: 'search', labelKey: 'dashboard:activities.filterSearch' },
-  { value: 'add_favorite', labelKey: 'dashboard:activities.filterAddFavorite' },
-  { value: 'remove_favorite', labelKey: 'dashboard:activities.filterRemoveFavorite' },
-  { value: 'update_settings', labelKey: 'dashboard:activities.filterUpdateSettings' },
-];
+const actionOptions = userActionOptions.map((item) => ({ value: item.action, labelKey: item.labelKey }));
 
 export const UserActivitiesPage: React.FC = () => {
   const { t } = useTranslation(['dashboard']);
@@ -78,7 +53,10 @@ export const UserActivitiesPage: React.FC = () => {
   const limit = 20;
 
   const actionFilterOptions = useMemo(
-    () => actionFilterOptionKeys.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
+    () => [
+      { value: '', label: t('dashboard:activities.filterAll') },
+      ...actionOptions.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
+    ],
     [t]
   );
 
@@ -231,21 +209,19 @@ export const UserActivitiesPage: React.FC = () => {
                 </div>
                 <Card className="divide-y divide-stone-100 dark:divide-stone-800">
                   {dateActivities.map((activity) => {
-                    const colorStyle = actionColors[activity.action] || { bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-400', icon: '•' };
                     return (
                       <div key={activity.id} className="p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
                         <div className="flex items-start gap-3">
                           <div className={clsx(
                             'w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold',
-                            colorStyle.bg,
-                            colorStyle.text
+                            actionBadgeClass(activity.action)
                           )}>
-                            {colorStyle.icon}
+                            {actionEmoji(activity.action)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <p className={clsx('font-medium', colorStyle.text)}>
-                                {activity.actionLabel}
+                              <p className="font-medium text-stone-900 dark:text-stone-100">
+                                {resolveActionLabel(activity.action)}
                               </p>
                               <span className="text-xs text-stone-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
