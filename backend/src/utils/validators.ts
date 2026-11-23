@@ -56,14 +56,11 @@ export const adminSessionSchema = z.object({
   last_activity: z.number(),
 });
 
-/** 管理后台事件行（severity 固定四级） */
+/** 管理后台事件行：列名严格对齐 analytics_events（事件载荷在 event_data，不是 data） */
 export const adminEventSchema = z.object({
   id: z.string(),
   event_type: z.string(),
-  severity: z.enum(['info', 'warning', 'error', 'critical']),
-  message: z.string(),
-  data: z.string().nullable(),
-  source: z.string().nullable(),
+  event_data: z.string().nullable(),
   ip_address: z.string().nullable(),
   user_id: z.string().nullable(),
   user_agent: z.string().nullable(),

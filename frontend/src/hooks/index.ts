@@ -2,6 +2,7 @@ export { useSearchSuggestions } from './useSearchSuggestions';
 export { useIsDesktop } from './useIsDesktop';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useNotification, useToast } from './useNotification';
+export { useLogout } from './useLogout';
 export { useJavDetail } from './useJavDetail';
 export { useJavRankings } from './useJavRankings';
 export { useJavTop250 } from './useJavTop250';

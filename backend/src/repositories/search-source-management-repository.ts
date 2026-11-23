@@ -217,6 +217,37 @@ export async function findLatestSourceStatus(
 }
 
 /** 源看板统计：当前用户可见的系统源与私有源 */
+/** 源看板明细：使用量 Top5、按分类分布、按站点类型分布（只统计当前用户可见的源） */
+export async function getUserVisibleSourceBreakdown(
+  db: D1Database,
+  userId: string
+): Promise<{
+  topUsedSources: Array<{ id: string; name: string; usageCount: number }>;
+  sourcesByCategory: Array<{ categoryId: string; categoryName: string; count: number }>;
+  sourcesBySiteType: Array<{ siteType: string; count: number }>;
+}> {
+  const visible = `FROM search_sources s
+    INNER JOIN search_source_categories c ON s.category_id = c.id
+    INNER JOIN search_major_categories m ON c.major_category_id = m.id
+    WHERE s.is_active = 1 AND c.is_active = 1 AND m.is_active = 1
+      AND (s.owner_id IS NULL OR s.owner_id = ?)`;
+
+  const [top, byCategory, bySiteType] = await Promise.all([
+    db.prepare(`SELECT s.id, s.name, s.usage_count AS usageCount ${visible}
+      ORDER BY s.usage_count DESC, s.name ASC LIMIT 5`).bind(userId).all<{ id: string; name: string; usageCount: number }>(),
+    db.prepare(`SELECT c.id AS categoryId, c.name AS categoryName, COUNT(*) AS count ${visible}
+      GROUP BY c.id, c.name ORDER BY count DESC`).bind(userId).all<{ categoryId: string; categoryName: string; count: number }>(),
+    db.prepare(`SELECT s.site_type AS siteType, COUNT(*) AS count ${visible}
+      GROUP BY s.site_type ORDER BY count DESC`).bind(userId).all<{ siteType: string; count: number }>(),
+  ]);
+
+  return {
+    topUsedSources: top.results || [],
+    sourcesByCategory: byCategory.results || [],
+    sourcesBySiteType: bySiteType.results || [],
+  };
+}
+
 export async function getUserVisibleBoardStats(
   db: D1Database,
   userId: string

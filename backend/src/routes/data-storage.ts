@@ -263,44 +263,6 @@ dataStorageRoutes.get('/stats', async (c) => {
 
 // ── 趋势数据 ─────────────────────────────────────────────
 
-dataStorageRoutes.get('/trends', async (c) => {
-  const days = Math.min(90, Math.max(7, parseInt(c.req.query('days') || '30')));
-
-  try {
-    const now = Date.now();
-    const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
-
-    const [overTimeResult, byTypeOverTimeResult] = (await c.env.DB.batch([
-      c.env.DB.prepare(
-        `SELECT date(first_seen_at / 1000, 'unixepoch', '+8 hours') as d, COUNT(*) as cnt
-         FROM data_records
-         WHERE first_seen_at > ?
-         GROUP BY d ORDER BY d ASC`
-      ).bind(startTime),
-      c.env.DB.prepare(
-        `SELECT record_type as type, COUNT(*) as cnt
-         FROM data_records
-         WHERE first_seen_at > ?
-         GROUP BY record_type ORDER BY cnt DESC`
-      ).bind(startTime),
-    ])) as unknown as [
-      { results: Array<{ d: string; cnt: number }> },
-      { results: Array<{ type: string; cnt: number }> },
-    ];
-
-    return c.json(
-      success({
-        days,
-        recordsOverTime: (overTimeResult.results || []).map((r) => ({ date: r.d, count: r.cnt })),
-        byType: (byTypeOverTimeResult.results || []).map((r) => ({ type: r.type, count: r.cnt })),
-      })
-    );
-  } catch (err) {
-    console.error('[data-storage] trends error:', err);
-    return c.json(error('SERVER_ERROR', '获取趋势失败'), 500);
-  }
-});
-
 // ── 记录列表（分页 + 筛选） ──────────────────────────────
 
 dataStorageRoutes.get('/records', async (c) => {

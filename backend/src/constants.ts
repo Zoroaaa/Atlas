@@ -293,7 +293,6 @@ export const NOTIFICATION = {
   ANNOUNCEMENT_ID_PREFIX: 'announcement:',
   TYPES: [
     'follow.new_work',
-    'follow.release_soon',
     'community.like',
     'community.comment',
     'community.favorite',

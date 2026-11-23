@@ -6,6 +6,7 @@ import { Card, Button, Input } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores';
 import { useToast } from '@/hooks/useNotification';
+import { VALIDATION_RULES } from '@codeseek/shared';
 
 interface CommentsSectionProps {
   postId: string;
@@ -53,7 +54,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
       toast.error(t('communityPages:comments.emptyContent'));
       return;
     }
-    if (commentText.length > 500) {
+    if (commentText.length > VALIDATION_RULES.REVIEW.COMMENT_MAX_LENGTH) {
       toast.error(t('communityPages:comments.tooLong'));
       return;
     }
@@ -156,17 +157,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
             <Card key={comment.id} padding="md" className="hover:shadow-md transition-shadow">
               <div className="flex gap-3">
                 {/* 头像 */}
-                {comment.userAvatar ? (
-                  <img
-                    src={comment.userAvatar}
-                    alt={comment.userName}
-                    className="w-9 h-9 rounded-full object-cover ring-1 ring-stone-200 dark:ring-stone-700 shrink-0"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-xs font-bold text-white shrink-0">
-                    {comment.userName?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                )}
+                {/* users 表没有头像列，后端也不返回 userAvatar；统一用首字母占位 */}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {comment.userName?.charAt(0)?.toUpperCase() || '?'}
+                </div>
 
                 {/* 内容区 */}
                 <div className="flex-1 min-w-0">

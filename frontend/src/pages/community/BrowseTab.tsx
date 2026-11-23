@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   Search,
@@ -13,6 +14,7 @@ import {
   Clock,
   Flame,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { Card, Button, Input, Loading, EmptyState } from '@/components/ui';
 import { useCommunityStore } from '@/stores/communityStore';
@@ -53,6 +55,15 @@ export const BrowseTab: React.FC = () => {
     fetchPost,
   } = useCommunityStore();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  // 标签筛选放在 URL 上：从标签页跳转、刷新、分享都能保留
+  const tagFilter = searchParams.get('tags') || '';
+  const clearTagFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('tags');
+    setSearchParams(next, { replace: true });
+  };
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -61,8 +72,8 @@ export const BrowseTab: React.FC = () => {
   // 初始加载 & 筛选/排序变化时重新加载（合并为单个 effect 避免重复请求）
   useEffect(() => {
     setPage(1);
-    fetchPosts({ page: 1 });
-  }, [postTypeFilter, sortBy, fetchPosts]);
+    fetchPosts({ page: 1, tags: tagFilter || undefined });
+  }, [postTypeFilter, sortBy, tagFilter, fetchPosts]);
 
   // 搜索防抖
   const handleSearchChange = (value: string) => {
@@ -72,14 +83,14 @@ export const BrowseTab: React.FC = () => {
     }
     searchTimeoutRef.current = setTimeout(() => {
       setPage(1);
-      fetchPosts({ page: 1, search: value || undefined });
+      fetchPosts({ page: 1, search: value || undefined, tags: tagFilter || undefined });
     }, 500);
   };
 
   // 分页
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchPosts({ page: newPage });
+    fetchPosts({ page: newPage, tags: tagFilter || undefined });
   };
 
   // 点击帖子查看详情
@@ -95,7 +106,7 @@ export const BrowseTab: React.FC = () => {
 
   // 刷新
   const handleRefresh = () => {
-    fetchPosts({ page });
+    fetchPosts({ page, tags: tagFilter || undefined });
   };
 
   // 详情页模式
@@ -200,6 +211,22 @@ export const BrowseTab: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {tagFilter && (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+            #{tagFilter}
+            <button
+              type="button"
+              onClick={clearTagFilter}
+              aria-label={t('communityPages:browse.clearTag')}
+              className="rounded-full p-0.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* 帖子数量提示 */}
       {!postsLoading && postsTotal > 0 && (

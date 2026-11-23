@@ -85,11 +85,6 @@ export class MangaProvider implements SearchProvider {
     }
   }
 
-  /** 漫画抓取源没有热门榜单，返回空数组，由路由回落到本地历史。 */
-  async trending(): Promise<{ keyword: string; count: number }[]> {
-    // 漫画没有热门搜索 API，返回空数组，会 fallback 到数据库历史
-    return [];
-  }
 }
 
 export const mangaProvider = new MangaProvider();

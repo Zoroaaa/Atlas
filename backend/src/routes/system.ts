@@ -9,42 +9,13 @@ import { z } from 'zod';
 import { Env, SourceStatusCache, UserAction, SearchSource } from '@/types';
 import { success, error, generateId, getClientIP, hashToken, verifyToken, generateErrorFingerprint } from '@/utils';
 import { authMiddleware } from '@/middleware';
-import { ConfigService, fetchLatestAndroidRelease } from '@/services';
+import { fetchLatestAndroidRelease } from '@/services';
 import { HEALTH_PROBE_KEYWORD, probeSourceHealth, type SourceHealthResult } from '@/services/source-health';
 import { checkMultiLevelRateLimit, SOURCE_BATCH_PROBE_LIMITS, SOURCE_SINGLE_PROBE_LIMITS } from '@/utils/rate-limit';
-import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
+import { CONFIG } from '@/constants';
 import { validateBody, schemas } from '@/validation';
 
 export const systemRoutes = new Hono<{ Bindings: Env }>();
-
-systemRoutes.get('/public-config', async (c) => {
-  try {
-    const configService = new ConfigService(c.env);
-
-    const [
-      enableRegistration,
-      communityEnabled,
-      siteName,
-      siteDescription,
-    ] = await Promise.all([
-      configService.getBoolean(DB_CONFIG_KEYS.ENABLE_REGISTRATION, true),
-      configService.getBoolean(DB_CONFIG_KEYS.COMMUNITY_ENABLED, true),
-      configService.get(DB_CONFIG_KEYS.SITE_NAME, 'Atlas'),
-      configService.get(DB_CONFIG_KEYS.SITE_DESCRIPTION, '搜索全网资源，一步直达'),
-    ]);
-
-    return c.json(success({
-      appVersion: c.env.APP_VERSION || CONFIG.APP_VERSION,
-      siteName,
-      siteDescription,
-      allowRegistration: enableRegistration,
-      communityEnabled,
-    }));
-  } catch (err) {
-    console.error('Get public config error:', err);
-    return c.json(error('SERVER_ERROR', '获取配置失败'), 500);
-  }
-});
 
 /** APK 版本查询缓存：10 分钟内同一边缘节点只回源 GitHub 一次 */
 const APP_RELEASE_CACHE_TTL_SECONDS = 600;
@@ -333,59 +304,6 @@ systemRoutes.post('/source-status-batch', validateBody(schemas.system.batchSourc
   }
 });
 
-systemRoutes.post('/record-action', validateBody(schemas.system.recordAction), async (c) => {
-  const user = c.get('user');
-
-  try {
-    const body = c.get('validatedBody') as z.infer<typeof schemas.system.recordAction>;
-    const { action, data } = body;
-
-    const actionId = generateId();
-    const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || c.req.header('CF-Connecting-IP') || null;
-    const userAgent = c.req.header('User-Agent') || null;
-
-    await c.env.DB.prepare(`
-      INSERT INTO user_actions (id, user_id, action, data, ip_address, user_agent, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(actionId, user.userId, action, JSON.stringify(data || {}), ip, userAgent, Date.now()).run();
-
-    return c.json(success({ id: actionId }, '行为已记录'));
-  } catch (err) {
-    console.error('Record action error:', err);
-    return c.json(error('SERVER_ERROR', '记录失败'), 500);
-  }
-});
-
-systemRoutes.get('/stats', async (c) => {
-  try {
-    // 活跃用户按「最近一周有搜索记录」定义，增长率与此前一周对比
-    const userCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE is_active = 1').first<{ count: number }>();
-    const sourceCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM search_sources WHERE is_active = 1').first<{ count: number }>();
-    const searchCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM user_search_history').first<{ count: number }>();
-
-    const now = Date.now();
-    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const twoWeeksAgo = now - 14 * 24 * 60 * 60 * 1000;
-
-    const thisWeekActiveUsers = await c.env.DB.prepare('SELECT COUNT(DISTINCT user_id) as count FROM user_search_history WHERE created_at >= ?').bind(oneWeekAgo).first<{ count: number }>();
-    const lastWeekActiveUsers = await c.env.DB.prepare('SELECT COUNT(DISTINCT user_id) as count FROM user_search_history WHERE created_at >= ? AND created_at < ?').bind(twoWeeksAgo, oneWeekAgo).first<{ count: number }>();
-
-    const thisWeekActive = thisWeekActiveUsers?.count || 0;
-    const lastWeekActive = lastWeekActiveUsers?.count || 0;
-    let activeUsersGrowthPercent = 0;
-    if (lastWeekActive > 0) {
-      activeUsersGrowthPercent = Math.round(((thisWeekActive - lastWeekActive) / lastWeekActive) * 100);
-    } else if (thisWeekActive > 0) {
-      activeUsersGrowthPercent = 100;
-    }
-
-    return c.json(success({ users: userCount?.count || 0, sources: sourceCount?.count || 0, searches: searchCount?.count || 0, activeUsers: thisWeekActive, activeUsersGrowthPercent }));
-  } catch (err) {
-    console.error('Get stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取统计失败'), 500);
-  }
-});
-
 systemRoutes.get('/source-status-history/:sourceId', async (c) => {
   const sourceId = c.req.param('sourceId');
   const limit = parseInt(c.req.query('limit') || '50', 10);
@@ -437,75 +355,6 @@ systemRoutes.get('/source-status-history/:sourceId', async (c) => {
   } catch (err) {
     console.error('Get source status history error:', err);
     return c.json(error('SERVER_ERROR', '获取状态历史失败'), 500);
-  }
-});
-
-systemRoutes.get('/source-status-batch', async (c) => {
-  const sourceIds = c.req.query('sourceIds');
-
-  if (!sourceIds) {
-    return c.json(error('VALIDATION_ERROR', '请提供搜索源ID列表'), 400);
-  }
-
-  const ids = sourceIds.split(',').filter(Boolean);
-
-  if (ids.length === 0) {
-    return c.json(error('VALIDATION_ERROR', '搜索源ID列表为空'), 400);
-  }
-
-  if (ids.length > 50) {
-    return c.json(error('VALIDATION_ERROR', '最多同时查询50个搜索源的缓存状态'), 400);
-  }
-
-  try {
-    const cachedRows = await c.env.DB.prepare(
-      `SELECT source_id, status, available, response_time, check_error, created_at
-       FROM source_status_cache
-       WHERE source_id IN (${ids.map(() => '?').join(',')})
-       ORDER BY created_at DESC`
-    ).bind(...ids).all<{
-      source_id: string; status: string; available: number; response_time: number; check_error: string | null; created_at: number;
-    }>();
-
-    const cacheMap = new Map<string, typeof cachedRows.results[0]>();
-    for (const row of (cachedRows.results || [])) {
-      if (!cacheMap.has(row.source_id)) cacheMap.set(row.source_id, row);
-    }
-
-    const results = ids.map(sourceId => {
-      const cached = cacheMap.get(sourceId);
-      if (cached) {
-        return { sourceId, status: cached.status, available: cached.available === 1, responseTime: cached.response_time, cached: true, cacheAgeSeconds: Math.round((Date.now() - cached.created_at) / 1000), error: cached.check_error || undefined };
-      }
-      return { sourceId, status: 'unchecked', available: false, responseTime: 0, cached: false, cacheAgeSeconds: null, error: '尚未检查' };
-    });
-
-    return c.json(success({ results }));
-  } catch (err) {
-    console.error('Batch status cache query error:', err);
-    return c.json(error('SERVER_ERROR', '批量查询失败'), 500);
-  }
-});
-
-systemRoutes.delete('/source-status-cache/:sourceId', async (c) => {
-  const sourceId = c.req.param('sourceId');
-  const user = c.get('user');
-
-  try {
-    const source = await c.env.DB.prepare(
-      'SELECT owner_id FROM search_sources WHERE id = ?'
-    ).bind(sourceId).first<{ owner_id: string | null }>();
-    if (!source) {
-      return c.json(error('NOT_FOUND', '搜索源不存在'), 404);
-    }
-    if (source.owner_id !== null && source.owner_id !== user.userId) {
-      return c.json(error('FORBIDDEN', '无权操作此搜索源'), 403);
-    }
-    await c.env.DB.prepare('DELETE FROM source_status_cache WHERE source_id = ?').bind(sourceId).run();
-    return c.json(success(null, '缓存已清除'));
-  } catch (err) {
-    console.error('Clear status cache error:', err);
-    return c.json(error('SERVER_ERROR', '清除缓存失败'), 500);
   }
 });
 

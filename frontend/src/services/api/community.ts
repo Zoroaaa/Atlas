@@ -11,6 +11,8 @@ import type {
   CommunityPost,
   CommunityComment,
   CreateTagRequest,
+  UpdateTagRequest,
+  UpdatePostStatusRequest,
   CreatePostRequest,
   UpdatePostRequest,
   CreateCommentRequest,
@@ -29,18 +31,17 @@ export const communityApi = {
     return response.success ? response.data : [];
   },
 
-  getTag: async (id: string): Promise<CommunityTag> => {
-    const response = await apiClient.get<{ success: boolean; data: CommunityTag }>(`/community/tags/${id}`);
-    return response.data;
-  },
-
   createTag: async (data: CreateTagRequest): Promise<{ data: CommunityTag; message: string }> => {
     const { createTagSchema } = await import('@codeseek/shared/schemas/community');
     const payload = await parseRequest<CreateTagRequest>(createTagSchema, data);
     return apiClient.post('/community/tags', payload);
   },
 
-  // 更新标签由管理端直接调用后端接口；前端没有入口，不在这里保留无校验的重复实现
+  updateTag: async (id: string, data: UpdateTagRequest): Promise<{ message: string }> => {
+    const { updateTagSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<UpdateTagRequest>(updateTagSchema, data);
+    return apiClient.put(`/community/tags/${id}`, payload);
+  },
 
   deleteTag: async (id: string): Promise<{ message: string }> => {
     return apiClient.delete(`/community/tags/${id}`);
@@ -55,6 +56,8 @@ export const communityApi = {
     tags?: string;
     sort?: string;
     search?: string;
+    /** 仅管理员可用：active / hidden，后端对普通用户强制 active */
+    status?: 'active' | 'hidden';
   }): Promise<PostsResponse> => {
     const queryParams = new URLSearchParams();
     const page = params?.page ?? 1;
@@ -65,6 +68,7 @@ export const communityApi = {
     if (params?.tags) queryParams.append('tags', params.tags);
     if (params?.sort) queryParams.append('sort', params.sort);
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
 
     const response = await apiClient.get<{ success: boolean; data: PostsResponse }>(`/community/posts?${queryParams.toString()}`);
     return response.data;
@@ -89,6 +93,13 @@ export const communityApi = {
 
   deletePost: async (id: string): Promise<{ message: string }> => {
     return apiClient.delete(`/community/posts/${id}`);
+  },
+
+  /** 管理员隐藏/恢复帖子（社区无审核流，只有 active / hidden 两态） */
+  updatePostStatus: async (id: string, status: 'active' | 'hidden'): Promise<{ message: string }> => {
+    const { updatePostStatusSchema } = await import('@codeseek/shared/schemas/community');
+    const payload = await parseRequest<UpdatePostStatusRequest>(updatePostStatusSchema, { status });
+    return apiClient.put(`/community/posts/${id}/status`, payload);
   },
 
   // ── 互动功能 ────────────────────────────────────────────────

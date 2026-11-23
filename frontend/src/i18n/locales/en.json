@@ -246,8 +246,9 @@
         "cleanup": "Data Cleanup",
         "feedback": "User Feedback",
         "announcements": "Announcements",
-    "aliases": "Alias Management",
-    "sources": "Source Management"
+        "aliases": "Alias Management",
+        "sources": "Source Management",
+        "posts": "Posts"
       }
     },
     "dashboard": {
@@ -895,6 +896,44 @@
   "admin": {
     "table": {
       "scrollHint": "Swipe horizontally for more columns"
+    },
+    "posts": {
+      "filterActive": "Visible",
+      "filterHidden": "Hidden",
+      "allTypes": "All types",
+      "searchPlaceholder": "Search title or caption",
+      "search": "Search",
+      "refresh": "Refresh",
+      "loading": "Loading…",
+      "empty": "No posts match these filters",
+      "untitled": "Untitled",
+      "anonymous": "Anonymous",
+      "loadFailed": "Failed to load posts",
+      "opFailed": "Operation failed, please try again",
+      "hiddenToast": "Post hidden",
+      "restoredToast": "Post restored",
+      "statusActive": "Visible",
+      "statusHidden": "Hidden",
+      "hide": "Hide",
+      "restore": "Restore",
+      "stats": "{{views}} views · {{likes}} likes · {{comments}} comments",
+      "table": {
+        "title": "Post",
+        "author": "Author",
+        "type": "Type",
+        "stats": "Engagement",
+        "status": "Status",
+        "time": "Created",
+        "actions": "Actions"
+      },
+      "types": {
+        "jav": "JAV",
+        "anime": "Anime",
+        "movie": "Movie",
+        "manga": "Manga",
+        "novel": "Novel",
+        "actress": "Actress"
+      }
     },
     "aliases": {
       "title": "Alias Management",
@@ -2446,6 +2485,7 @@
       "listView": "List view",
       "loading": "Loading...",
       "totalFound": "{{total}} post(s) found",
+      "clearTag": "Clear tag filter",
       "totalCount": "{{total}} item(s)",
       "emptyTitle": "No posts yet",
       "emptyWithSearch": "No posts found for \"{{query}}\"",
@@ -2604,7 +2644,18 @@
       "createAction": "Create tag",
       "noMatchTitle": "No matching tags",
       "noMatchDescription": "No tags found for \"{{query}}\"",
-      "postCount": "{{count}} post(s)"
+      "postCount": "{{count}} post(s)",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional: what this tag is for",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "editTitle": "Edit tag",
+      "deleteTitle": "Delete tag",
+      "deleteConfirm": "Delete tag \"#{{name}}\"? Tags still used by posts cannot be deleted.",
+      "updated": "Tag \"{{name}}\" updated",
+      "deleted": "Tag \"{{name}}\" deleted",
+      "renameHint": "Renaming also updates the tag on existing posts."
     },
     "trending": {
       "types": {
@@ -3215,7 +3266,10 @@
       "formPriorityLabel": "Priority",
       "cancel": "Cancel",
       "saveChanges": "Save Changes",
-      "create": "Create"
+      "create": "Create",
+      "resetConfig": "Reset to default",
+      "resetConfigConfirm": "Clear your custom name, notes and enabled state for this source?",
+      "resetConfigDone": "Default settings restored"
     },
     "mySources": {
       "title": "My Sources",
@@ -3991,6 +4045,7 @@
       "groups": {
         "follow": "Follows",
         "community": "Community",
+        "feedback": "Feedback",
         "site": "Announcements"
       },
       "typeNewWork": "New releases from actresses I follow",
@@ -4003,9 +4058,12 @@
       "typeCommunityFavoriteDesc": "Notify me when someone favorites my community post",
       "typeCommunityReport": "Report outcomes on my posts",
       "typeCommunityReportDesc": "Notify me when a report on my post is handled by a moderator",
+      "typeFeedbackReply": "Replies to my feedback",
+      "typeFeedbackReplyDesc": "Notify me when an admin replies to my feedback or changes its status",
       "typeSiteAnnouncement": "Site announcements",
       "typeSiteAnnouncementDesc": "Notify me when an admin publishes an announcement",
       "muteHint": "To stop alerts for one actress, mute her in My Follows — it applies to both in-app and email.",
+      "emailManagedElsewhere": "Emails for this type are sent separately with the reply; this only controls in-app alerts.",
       "hideDetails": "Hide details in emails",
       "hideDetailsDesc": "Emails will only show a count — no actress names or codes. Subjects are always neutral and emails never include cover images.",
       "digestHint": "Emails are batched: we check every 30 minutes and send the updates from that window as one email, at most 3 per day (extras roll into the next one). Every email has a one-click unsubscribe link.",

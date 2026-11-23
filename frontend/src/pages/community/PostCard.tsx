@@ -166,17 +166,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onLike, onFavorite, on
         )}
 
         <div className="flex items-center gap-2">
-          {post.userAvatar ? (
-            <img
-              src={post.userAvatar}
-              alt={post.userName}
-              className="w-6 h-6 rounded-full object-cover ring-1 ring-stone-200 dark:ring-stone-700"
-            />
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-[10px] font-bold text-white">
-              {post.userName?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-          )}
+          {/* users 表没有头像列，后端也不返回 userAvatar；统一用首字母占位 */}
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-[10px] font-bold text-white">
+            {post.userName?.charAt(0)?.toUpperCase() || '?'}
+          </div>
           <span className="text-xs text-stone-600 dark:text-stone-400 truncate flex-1">
             {post.userName || t('communityPages:postCard.anonymous')}
           </span>

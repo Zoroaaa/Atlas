@@ -15,18 +15,6 @@ export interface UserSourceConfigPatch {
   notes?: string | null;
 }
 
-/** 读取用户全部源配置 */
-export async function listUserSourceConfigs(
-  db: D1Database,
-  userId: string
-): Promise<UserSearchSourceConfig[]> {
-  const rows = await db
-    .prepare('SELECT * FROM user_search_source_configs WHERE user_id = ?')
-    .bind(userId)
-    .all<UserSearchSourceConfig>();
-  return rows.results || [];
-}
-
 /** 读取用户对某条源的配置 */
 export async function findUserSourceConfig(
   db: D1Database,

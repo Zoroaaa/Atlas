@@ -21,7 +21,6 @@ export interface CommunityPost {
   id: string;
   userId: string;
   userName: string;
-  userAvatar?: string;
   postType: PostType;
   title: string;
   coverImage: string;
@@ -58,7 +57,6 @@ export interface CommunityComment {
   postId: string;
   userId: string;
   userName: string;
-  userAvatar?: string;
   content: string;
   createdAt: number;
   updatedAt: number;
@@ -72,16 +70,10 @@ export type {
   UpdatePostRequest,
   CreateCommentRequest,
   CreateTagRequest,
+  UpdateTagRequest,
+  UpdatePostStatusRequest,
   ReportRequest,
 } from '../schemas/community';
-
-// 更新标签没有前端调用方，schema 留在后端，类型仍手写
-export interface UpdateTagRequest {
-  name?: string;
-  description?: string;
-  color?: string;
-  isActive?: boolean;
-}
 
 // ==================== 统计类型 ====================
 

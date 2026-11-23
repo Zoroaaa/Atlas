@@ -38,7 +38,6 @@ import {
   updateSearchHistoryResultsCount,
   enrichSearchHistory,
   querySuggestionStats,
-  queryTrendingStats,
 } from '@/repositories/search-history-repository';
 
 const R = VALIDATION_RULES;
@@ -430,99 +429,6 @@ searchRoutes.get('/suggestions', async (c) => {
     return c.json(success(suggestions));
   } catch (err) {
     console.error('Get suggestions error:', err);
-    return c.json(success([]));
-  }
-});
-
-/**
- * 获取热门搜索关键词：GET /api/search/trending。
- * 带 source 且 Provider 支持 trending 时优先走 Provider，否则回落历史统计。
- */
-searchRoutes.get('/trending', async (c) => {
-  const userPayload = c.get('user');
-
-  // 速率限制：每用户每分钟最多 20 次
-  const rateLimitKey = userPayload ? `trending:${userPayload.userId}` : `trending:ip:${c.req.header('cf-connecting-ip') || 'unknown'}`;
-  const rl = (await checkIsAdmin(c))
-    ? { allowed: true }
-    : await checkRateLimitD1(c.env.DB, rateLimitKey, 60_000, 20);
-  if (!rl.allowed) {
-    return c.json(error('RATE_LIMITED', '请求过于频繁，请稍后再试'), 429);
-  }
-
-  const source = c.req.query('source');
-  const hourInMs = 60 * 60 * 1000;
-
-  const limit = Math.min(
-    Math.max(1, parseInt(c.req.query('limit') || String(R.TRENDING.DEFAULT_LIMIT))),
-    R.TRENDING.MAX_LIMIT
-  );
-  const hours = Math.min(
-    Math.max(1, parseInt(c.req.query('hours') || String(R.TRENDING.DEFAULT_HOURS))),
-    R.TRENDING.MAX_HOURS
-  );
-
-  // ── Provider trending 模式 ──────────────────────────────
-  if (source && source !== 'all') {
-    const provider = providerRegistry.getByCategory(source);
-    if (provider?.trending) {
-      // ── trending 缓存 ─────────────────────────────────
-      // 30 分钟：趋势榜单变化慢；缓存键只含 source，因为 Provider 返回全量榜单，
-      // limit / hours 仅对通用模式生效
-      const TRENDING_CACHE_TTL = 30 * 60;
-      const cacheKey = new Request(`https://internal/trending/${source}`);
-      const cache = caches.default;
-
-      const cached = await cache.match(cacheKey);
-      if (cached) {
-        return new Response(cached.body, {
-          headers: {
-            ...Object.fromEntries(cached.headers),
-            'X-Cache': 'HIT',
-          },
-        });
-      }
-
-      try {
-        setTmdbApiKey(c.env.TMDB_API_KEY ?? undefined);
-        const items = await provider.trending();
-        // 统一返回格式：{ keyword, count }
-        const mapped = items.map(item => ({
-          keyword: item.keyword,
-          count: item.count,
-          ...(item.cover ? { cover: item.cover } : {}),
-          ...(item.subtitle ? { subtitle: item.subtitle } : {}),
-        }));
-        // 只有非空结果才直接返回，空结果继续 fallback 到数据库历史
-        if (mapped.length > 0) {
-          const responseBody = JSON.stringify(success(mapped));
-          const newResponse = new Response(responseBody, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': `public, max-age=${TRENDING_CACHE_TTL}`,
-              'X-Cache': 'MISS',
-            },
-          });
-
-          c.executionCtx.waitUntil(cache.put(cacheKey, newResponse.clone()));
-          return newResponse;
-        }
-      } catch (err) {
-        console.error(`[Provider:${provider.id}] trending error:`, err);
-        // fallback 到通用模式
-      }
-    }
-  }
-
-  // ── 通用模式：按时间窗口聚合历史 ───────────────────────
-  try {
-    const since = Date.now() - hours * hourInMs;
-
-    const trending = await queryTrendingStats(c.env.DB, { since, limit });
-
-    return c.json(success(trending));
-  } catch (err) {
-    console.error('Get trending error:', err);
     return c.json(success([]));
   }
 });

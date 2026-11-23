@@ -98,16 +98,14 @@ export const SettingsManager: React.FC = () => {
       const pending = res.data.pendingVerifications || [];
       const emailChangeReq = res.data.emailChangeRequest;
 
-      // 修改邮箱：有进行中的请求且有待验证的 new email 验证码
+      // 修改邮箱：有进行中的请求且有待验证的 new email 验证码。
+      // 倒计时直接用列表里的 expires_at 计算，不再额外请求验证码状态接口。
       const emailChangeVerif = pending.find((v: { verification_type: string }) => v.verification_type === 'email_change_new');
       if (emailChangeReq && emailChangeVerif) {
         setEmailChangeRequestId(emailChangeReq.id);
         setEmailChangeMaskedEmail(maskEmail(emailChangeReq.new_email));
-        authApi.checkVerificationStatus(emailChangeReq.new_email, 'email_change_new').then((sv) => {
-          if (sv.success && sv.data?.hasPendingVerification && sv.data.remainingTime && sv.data.remainingTime > 0) {
-            setEmailChangeCountdown(Math.floor(sv.data.remainingTime / 1000));
-          }
-        });
+        const remaining = Math.floor(((emailChangeVerif.expires_at ?? 0) - Date.now()) / 1000);
+        setEmailChangeCountdown(remaining > 0 ? remaining : 0);
         setEmailChangeStep('verify');
         setEmailChangeModal(true);
         return;
@@ -116,14 +114,13 @@ export const SettingsManager: React.FC = () => {
       // 删除账号：有待验证的 account_delete 验证码
       const deleteVerif = pending.find((v: { verification_type: string }) => v.verification_type === 'account_delete');
       if (deleteVerif && user.email) {
-        authApi.checkVerificationStatus(user.email, 'account_delete').then((sv) => {
-          if (sv.success && sv.data?.hasPendingVerification && sv.data.remainingTime && sv.data.remainingTime > 0) {
-            setDeleteMaskedEmail(maskEmail(user.email!));
-            setDeleteCountdown(Math.floor(sv.data.remainingTime / 1000));
-            setDeleteAccountStep('verify');
-            setDeleteAccountModal(true);
-          }
-        });
+        const remaining = Math.floor(((deleteVerif.expires_at ?? 0) - Date.now()) / 1000);
+        if (remaining > 0) {
+          setDeleteMaskedEmail(maskEmail(user.email));
+          setDeleteCountdown(remaining);
+          setDeleteAccountStep('verify');
+          setDeleteAccountModal(true);
+        }
       }
     }).catch(() => { /* 静默忽略 */ });
   }, [user?.email]);
@@ -154,16 +151,27 @@ export const SettingsManager: React.FC = () => {
     return limited.replace(/(\d{3})(\d{1,3})?/, '$1 $2').trim();
   };
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** 语言切换：本地立即生效，同时写入 users.settings 供换设备登录后沿用 */
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    void userApi
+      .updateSettings({ language: lang })
+      .then(() => useAuthStore.getState().updateUserSettings({ language: lang }))
+      .catch(() => {
+        // 本地已切换成功，远端同步失败不打扰用户，下次切换会重试
+      });
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {    e.preventDefault();
     setIsLoading(true);
     try {
-      await userApi.updateSettings({ 
-        // 邮箱不走资料接口，需通过下方的独立验证码流程修改
-        profile: { 
-          username: profileForm.username,
-        } 
-      });
+      // 邮箱不走资料接口，需通过下方的独立验证码流程修改
+      const response = await userApi.updateProfile(profileForm.username.trim());
+      // 后端只写 users.username；同步刷新登录态，避免顶栏/侧栏仍显示旧名字
+      const current = useAuthStore.getState().user;
+      if (current) {
+        useAuthStore.getState().setUser({ ...current, username: response.data.username });
+      }
       notification.auth.profileUpdateSuccess();
     } catch (error: any) {
       notification.auth.profileUpdateFailed(error.message);
@@ -847,7 +855,7 @@ export const SettingsManager: React.FC = () => {
                 {SUPPORTED_LANGUAGES.map((option) => (
                   <button
                     key={option.code}
-                    onClick={() => setLanguage(option.code as Language)}
+                    onClick={() => handleLanguageChange(option.code as Language)}
                     className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all duration-200 ${
                       language === option.code
                         ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-accent-50 text-primary-600 dark:from-primary-900/20 dark:to-accent-900/20 dark:text-primary-400 shadow-md'

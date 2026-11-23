@@ -19,7 +19,6 @@ const EMAIL_TYPES = [
 
 const QUEUE_TYPES = [
   'follow.new_work',
-  'follow.release_soon',
   'community.like',
   'community.comment',
   'community.favorite',

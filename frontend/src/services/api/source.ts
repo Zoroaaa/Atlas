@@ -382,118 +382,15 @@ export const sourceApi = {
     return apiClient.post(`/search-sources/${id}/increment-usage`, {});
   },
 
-  getActiveSources: async (): Promise<{ 
-    success: boolean; 
-    data: SearchSource[]
-  }> => {
-    const response = await apiClient.get<{ success: boolean; data: { sources: Array<{
-      id: string;
-      category_id: string;
-      name: string;
-      subtitle: string | null;
-      description: string | null;
-      icon: string | null;
-      url_template: string;
-      homepage_url: string | null;
-      site_type: string;
-      searchable: number;
-      search_priority: number;
-      is_system: number;
-      is_active: number;
-      display_order: number;
-      usage_count: number;
-      last_used_at: number | null;
-      created_by: string | null;
-      created_at: number;
-      updated_at: number;
-    }> } }>('/search-sources?searchable=true');
-    
-    if (response.success && response.data) {
-      return {
-        success: true,
-        data: response.data.sources.map(s => ({
-          id: s.id,
-          categoryId: s.category_id,
-          name: s.name,
-          subtitle: s.subtitle || undefined,
-          description: s.description || undefined,
-          icon: s.icon || undefined,
-          urlTemplate: s.url_template,
-          homepageUrl: s.homepage_url || undefined,
-          siteType: s.site_type as 'search' | 'browse' | 'reference',
-          searchable: s.searchable === 1,
-          searchPriority: s.search_priority,
-          isSystem: s.is_system === 1,
-          isActive: s.is_active === 1,
-          usageCount: s.usage_count,
-          displayOrder: s.display_order,
-          createdAt: new Date(s.created_at).toISOString(),
-          updatedAt: new Date(s.updated_at).toISOString(),
-          status: 'active' as const,
-        }))
-      };
-    }
-    return { success: false, data: [] };
-  },
-
   getSourcesWithUserConfig: async (): Promise<{ 
     success: boolean; 
     data: Array<SearchSource & { userConfig: UserSourceConfig | null }> 
   }> => {
+    // 源列表属于登录后数据：/search-sources 全组挂在 authMiddleware 下，
+    // 原先的「未登录走公共列表」分支永远 401，已随该路由一并移除。
     const token = apiClient.getToken();
-    // 未登录：只取公共源列表，不请求用户配置接口
-    if (!token) {
-      const response = await apiClient.get<{ success: boolean; data: { sources: Array<{
-        id: string;
-        category_id: string;
-        name: string;
-        subtitle: string | null;
-        description: string | null;
-        icon: string | null;
-        url_template: string;
-        homepage_url: string | null;
-        site_type: string;
-        searchable: number;
-        search_priority: number;
-        is_system: number;
-        is_active: number;
-        display_order: number;
-        usage_count: number;
-        last_used_at: number | null;
-        created_by: string | null;
-        created_at: number;
-        updated_at: number;
-      }> } }>('/search-sources');
-      
-      if (response.success && response.data) {
-        return {
-          success: true,
-          data: response.data.sources.map(s => ({
-            id: s.id,
-            categoryId: s.category_id,
-            name: s.name,
-            subtitle: s.subtitle || undefined,
-            description: s.description || undefined,
-            icon: s.icon || undefined,
-            urlTemplate: s.url_template,
-            homepageUrl: s.homepage_url || undefined,
-            siteType: s.site_type as 'search' | 'browse' | 'reference',
-            searchable: s.searchable === 1,
-            searchPriority: s.search_priority,
-            isSystem: s.is_system === 1,
-            isActive: s.is_active === 1,
-            usageCount: s.usage_count,
-            displayOrder: s.display_order,
-            createdAt: new Date(s.created_at).toISOString(),
-            updatedAt: new Date(s.updated_at).toISOString(),
-            status: 'active' as const,
-            userConfig: null,
-          }))
-        };
-      }
-      return { success: false, data: [] };
-    }
-    
+    if (!token) return { success: false, data: [] };
+
     // 用户配置接口按 userId 寻址，这里从 JWT payload 直接取；解析失败视为本地 token 损坏
     const payload = decodeJwtPayload(token);
     if (!payload) {
@@ -581,6 +478,11 @@ export const sourceApi = {
     const { updateSourceConfigSchema } = await import('@codeseek/shared/schemas/user');
     const payload = await parseRequest<UpdateUserSourceConfigRequest>(updateSourceConfigSchema, config);
     return apiClient.put(`/user/source-configs/${sourceId}`, payload);
+  },
+
+  /** 清除本人对某个系统源的自定义配置（恢复默认名称/备注/启用状态） */
+  resetUserSourceConfig: async (sourceId: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete(`/search-sources/user-configs/${sourceId}`);
   },
 
   batchUpdateUserSourceConfigs: async (data: BatchUpdateUserSourceConfigRequest): Promise<{ 
@@ -715,20 +617,6 @@ export const sourceApi = {
     return response.blob();
   },
 
-  exportUserConfigs: async (): Promise<{ 
-    success: boolean; 
-    data: UserSourceConfig[] 
-  }> => {
-    const token = apiClient.getToken();
-    if (!token) return { success: false, data: [] };
-    const payload = decodeJwtPayload(token);
-    if (!payload) {
-      console.error('[source] JWT payload 解析失败，无法导出用户源配置');
-      return { success: false, data: [] };
-    }
-    return apiClient.get(`/search-sources/export-user-configs/${payload.userId}`);
-  },
-
   /** 手动探测单个源：服务端不读缓存，返回本次真实结果（含原因备注）。 */
   checkSourceStatus: async (sourceId: string): Promise<{
     success: boolean;
@@ -773,9 +661,5 @@ export const sourceApi = {
     const { batchSourceStatusSchema } = await import('@codeseek/shared/schemas/system');
     const payload = await parseRequest<{ sourceIds: string[] }>(batchSourceStatusSchema, { sourceIds });
     return apiClient.post('/source-status-batch', payload);
-  },
-
-  clearSourceStatusCache: async (sourceId: string): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete(`/source-status-cache/${sourceId}`);
   },
 };

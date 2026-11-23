@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ChevronRight, Download, Github, HelpCircle, LogOut, RefreshCw, Settings, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppUpdateStore, useAuthStore } from '@/stores';
+import { useLogout } from '@/hooks';
 import { hapticTap, isAndroidApp } from '@/utils/nativeShell';
 
 const rowClassName =
@@ -10,8 +11,8 @@ const rowClassName =
 
 export const MePage: React.FC = () => {
   const { t } = useTranslation(['nav', 'update']);
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const logoutAndRedirect = useLogout();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const isAndroid = isAndroidApp();
@@ -47,8 +48,7 @@ export const MePage: React.FC = () => {
   })();
 
   const handleLogout = () => {
-    logout();
-    navigate('/');
+    void logoutAndRedirect();
   };
 
   return (

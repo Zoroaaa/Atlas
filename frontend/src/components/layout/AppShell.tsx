@@ -36,7 +36,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useProxyStore, useSourceStore, useThemeStore } from '@/stores';
 import { useFeatureFlags } from '@/contexts';
-import { useFollows, useIsDesktop, useUnreadCount } from '@/hooks';
+import { useFollows, useIsDesktop, useLogout, useUnreadCount } from '@/hooks';
 import type { SearchTabType } from '@/types/source';
 import { SEARCH_TABS, PINNED_TABS } from '@/config/tabs';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -149,7 +149,8 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const logoutAndRedirect = useLogout();
   const { activeTab, setActiveTab } = useSourceStore();
   const { sidebarCollapsed, toggleSidebar } = useThemeStore();
   const { isEnabled: proxyEnabled, status: proxyStatus, isLoading: proxyLoading, toggleProxy, initializeProxy } = useProxyStore();
@@ -420,7 +421,7 @@ export const AppShell: React.FC<AppShellProps> = ({ onSearchTabChange, children 
                 <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{user?.username}</span>
                 <button
                   type="button"
-                  onClick={() => { logout(); navigate('/'); }}
+                  onClick={() => { void logoutAndRedirect(); }}
                   title={t('nav:userMenu.logout')}
                   className="grid h-7 w-7 flex-none place-items-center rounded-lg text-stone-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                 >

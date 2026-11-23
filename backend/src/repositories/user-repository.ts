@@ -49,13 +49,6 @@ export async function findActiveUserByEmail(db: D1Database, email: string): Prom
 }
 
 /** 用户基础字段子集；查询只 SELECT 三列，返回类型不能声明为完整 User */
-export type UserBasic = Pick<User, 'id' | 'username' | 'email'>;
-
-/** 查询用户基础字段（id / username / email） */
-export async function findUserBasicById(db: D1Database, id: string): Promise<UserBasic | null> {
-  return db.prepare('SELECT id, username, email FROM users WHERE id = ?').bind(id).first<UserBasic>();
-}
-
 /** 查询用户名（用于验证码邮件展示） */
 export async function findUsernameById(db: D1Database, id: string): Promise<string | null> {
   const row = await db
@@ -121,6 +114,32 @@ export async function updateUserPassword(
     .prepare('UPDATE users SET password_hash = ?, last_password_change = ?, updated_at = ? WHERE id = ?')
     .bind(passwordHash, now, now, userId)
     .run();
+}
+
+/** 更新用户名；唯一性由调用方先行校验（users.username 有 UNIQUE 约束兜底）。 */
+export async function updateUsername(
+  db: D1Database,
+  userId: string,
+  username: string,
+  now: number
+): Promise<void> {
+  await db
+    .prepare('UPDATE users SET username = ?, updated_at = ? WHERE id = ?')
+    .bind(username, now, userId)
+    .run();
+}
+
+/** 判断用户名是否被其他账号占用 */
+export async function existsUsernameExcluding(
+  db: D1Database,
+  username: string,
+  excludeUserId: string
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT 1 AS hit FROM users WHERE username = ? AND id <> ? LIMIT 1')
+    .bind(username, excludeUserId)
+    .first();
+  return !!row;
 }
 
 /** 标记邮箱为已验证 */

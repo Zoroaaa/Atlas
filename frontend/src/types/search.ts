@@ -20,7 +20,6 @@ export type {
   SearchRequest,
   SearchResponse,
   SearchSuggestion,
-  TrendingSearch,
   AddFavoriteRequest,
   SaveSearchHistoryRequest,
   SearchStats,

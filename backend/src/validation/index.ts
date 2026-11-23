@@ -6,7 +6,6 @@
 import { z } from 'zod';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Env } from '@/types';
-import { VALIDATION_RULES } from '@/constants';
 import { schemas as sharedSchemas } from '@codeseek/shared/schemas';
 
 // 校验中间件写入的上下文变量，供 handler 通过 c.get('validatedBody'/'validatedQuery') 读取
@@ -17,64 +16,9 @@ declare module 'hono' {
   }
 }
 
-const R = VALIDATION_RULES;
 
 // ── 仅后端使用的 schema（前端没有调用方或对应输入） ─────
 const backendOnlySchemas = {
-  auth: {
-    // smart-send-code 没有前端调用方
-    sendVerificationCode: z.object({
-      email: z.string().email('请输入有效的邮箱地址').max(R.EMAIL.MAX_LENGTH),
-      verificationType: z.enum(['registration', 'password_reset', 'email_change_old', 'email_change_new', 'account_delete']),
-      force: z.boolean().optional(),
-    }),
-  },
-
-  user: {
-    // 搜索历史由搜索接口在后端直接写入，前端没有单独的保存调用
-    addSearchHistory: z.object({
-      query: z.string()
-        .min(R.KEYWORD.MIN_LENGTH, '搜索关键词不能为空')
-        .max(R.KEYWORD.MAX_LENGTH, `关键词最多${R.KEYWORD.MAX_LENGTH}个字符`),
-      source: z.string().max(100).optional(),
-      resultsCount: z.number().int().min(0).optional(),
-      title: z.string().optional().nullable(),
-      subtitle: z.string().optional().nullable(),
-      code: z.string().optional().nullable(),
-      actors: z.string().optional().nullable(),
-      duration: z.string().optional().nullable(),
-      tags: z.string().optional().nullable(),
-      releaseDate: z.string().optional().nullable(),
-      publisher: z.string().optional().nullable(),
-      keyword: z.string().optional().nullable(),
-    }),
-  },
-
-  community: {
-    // 前端没有更新标签的调用
-    updateTag: z.object({
-      name: z.string().min(R.TAG.NAME_MIN_LENGTH).max(R.TAG.NAME_MAX_LENGTH).optional(),
-      description: z.string().max(R.TAG.DESCRIPTION_MAX_LENGTH).optional().nullable(),
-      color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-      isActive: z.boolean().optional(),
-    }),
-
-    // 前端没有帖子状态变更入口
-    updatePostStatus: z.object({
-      // 社区没有审核流：只有正常展示与管理员隐藏两种状态
-      status: z.enum(['active', 'hidden']),
-    }),
-  },
-
-  system: {
-    // 前端定义了 recordAction 调用但没有任何调用点
-    recordAction: z.object({
-      userId: z.string().optional(),
-      action: z.string().min(1, '行为类型不能为空').max(50),
-      data: z.record(z.string(), z.unknown()).optional(),
-    }),
-  },
-
   config: {
     // 前端仅使用单条更新与导入，没有批量更新调用
     batchUpdateConfig: z.object({
@@ -176,10 +120,6 @@ const backendOnlySchemas = {
 // 同名分组以后端 schema 合并覆盖共享 schema，保持 schemas.xxx.yyy 的访问方式不变
 export const schemas = {
   ...sharedSchemas,
-  auth: { ...sharedSchemas.auth, ...backendOnlySchemas.auth },
-  user: { ...sharedSchemas.user, ...backendOnlySchemas.user },
-  community: { ...sharedSchemas.community, ...backendOnlySchemas.community },
-  system: { ...sharedSchemas.system, ...backendOnlySchemas.system },
   config: { ...sharedSchemas.config, ...backendOnlySchemas.config },
   rankings: backendOnlySchemas.rankings,
   dataStorage: backendOnlySchemas.dataStorage,

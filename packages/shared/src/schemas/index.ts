@@ -21,6 +21,7 @@ import {
 } from './auth';
 import {
   updateSettingsSchema,
+  updateProfileSchema,
   addFavoriteSchema,
   updateSearchHistorySchema,
   batchDeleteSearchHistorySchema,
@@ -39,6 +40,8 @@ import {
 } from './sources';
 import {
   createTagSchema,
+  updateTagSchema,
+  updatePostStatusSchema,
   createPostSchema,
   updatePostSchema,
   createCommentSchema,
@@ -90,6 +93,7 @@ export const schemas = {
 
   user: {
     updateSettings: updateSettingsSchema,
+    updateProfile: updateProfileSchema,
     addFavorite: addFavoriteSchema,
     updateSearchHistory: updateSearchHistorySchema,
     batchDeleteSearchHistory: batchDeleteSearchHistorySchema,
@@ -113,6 +117,8 @@ export const schemas = {
 
   community: {
     createTag: createTagSchema,
+    updateTag: updateTagSchema,
+    updatePostStatus: updatePostStatusSchema,
     createPost: createPostSchema,
     updatePost: updatePostSchema,
     createComment: createCommentSchema,

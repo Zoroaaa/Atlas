@@ -4,7 +4,7 @@
  * 包装 anime-search.ts 的 searchAnime：Bangumi 元数据 + Mikan / AnimeTosho / DMHY 磁力（Nyaa 已禁用）。
  * 响应会注入按用户过滤的源卡片，因此 injectsUserSources=true，路由必须按用户隔离缓存。
  */
-import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
+import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem } from '@/services/search-provider';
 import { searchAnime } from '@/services/anime-search';
 import { resolveLiveSources } from '@/services/live-sources';
 import { lookupQueryVariants } from '@/services/alias-resolver';
@@ -96,34 +96,6 @@ export class AnimeProvider implements SearchProvider {
       return data.list.map((s: BgmApiSubject) => ({
         text: s.name_cn || s.name || '',
         meta: { id: s.id, cover: s.images?.common || '' },
-      }));
-    } catch {
-      return [];
-    }
-  }
-
-  /** Bangumi 站内排行前 10 作为热门；异常时返回空数组。 */
-  async trending(): Promise<TrendingItem[]> {
-    try {
-      // Bangumi v0 排行榜：type=2 动画，sort=rank 按站内排名。
-      // 旧实现拿关键词「マンガ」以 type=2 去搜，返回的是「与漫画相关的动画」，语义是错的。
-      const url = 'https://api.bgm.tv/v0/subjects?type=2&sort=rank&limit=10';
-      const r = await fetch(url, {
-        headers: {
-          'User-Agent': 'codeseek/1.0 (https://github.com/Zoroaaa)',
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!r.ok) return [];
-      const data = await r.json() as { data?: BgmApiSubject[] };
-      if (!data.data?.length) return [];
-
-      return data.data.slice(0, 10).map((s: BgmApiSubject) => ({
-        keyword: s.name_cn || s.name || '',
-        count: s.collection?.collect || 0,
-        cover: s.images?.common || '',
-        subtitle: `${s.rating?.score || '?'} 分`,
       }));
     } catch {
       return [];

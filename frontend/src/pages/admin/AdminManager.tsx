@@ -18,14 +18,16 @@ import { ActivityRankingTab } from './ActivityRankingTab';
 import { AliasTab } from './AliasTab';
 import { RankingsArchiveTab } from './RankingsArchiveTab';
 import { SourcesTab } from './SourcesTab';
+import { PostsTab } from './PostsTab';
 
-type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage' | 'rankings-archive' | 'aliases' | 'sources';
+type TabType = 'users' | 'sessions' | 'actions' | 'email-logs' | 'analytics' | 'observability' | 'trends' | 'activity-ranking' | 'reports' | 'roles' | 'config' | 'cleanup' | 'feedback' | 'announcements' | 'data-storage' | 'rankings-archive' | 'aliases' | 'sources' | 'posts';
 
 export const AdminManager: React.FC = () => {
   const location = useLocation();
 
   const getTabFromPath = useCallback((): TabType => {
     const p = location.pathname;
+    if (p.includes('/posts')) return 'posts';
     if (p.includes('/sources')) return 'sources';
     if (p.includes('/sessions')) return 'sessions';
     if (p.includes('/actions')) return 'actions';
@@ -69,6 +71,7 @@ export const AdminManager: React.FC = () => {
       {activeTab === 'rankings-archive' && <RankingsArchiveTab />}
       {activeTab === 'aliases' && <AliasTab />}
       {activeTab === 'sources' && <SourcesTab />}
+      {activeTab === 'posts' && <PostsTab />}
     </div>
   );
 };

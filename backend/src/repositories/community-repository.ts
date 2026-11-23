@@ -49,7 +49,11 @@ export async function listActiveTags(db: D1Database): Promise<Array<Record<strin
 
 /** 按标签名查询标签 id（用于创建时的重名校验） */
 export async function findTagIdByName(db: D1Database, name: string): Promise<{ id: string } | null> {
-  return db.prepare('SELECT id FROM community_tags WHERE tag_name = ?').bind(name).first<{ id: string }>();
+  // 大小写不敏感：与更新时的查重口径一致，避免 JAV / jav 两个标签并存
+  return db
+    .prepare('SELECT id FROM community_tags WHERE LOWER(tag_name) = LOWER(?)')
+    .bind(name)
+    .first<{ id: string }>();
 }
 
 /** 新增标签（创建时即置为启用） */
@@ -456,14 +460,24 @@ export async function findPostLike(
 }
 
 /** 新增点赞/收藏记录 */
+/**
+ * 插入点赞/收藏记录。
+ *
+ * 返回 false 表示撞上 UNIQUE(post_id, user_id, like_type)——并发双击时第二个请求
+ * 会走到这里，此时不应报 500，由调用方按「已点赞/已收藏」收尾。
+ */
 export async function insertPostLike(
   db: D1Database,
   params: { id: string; postId: string; userId: string; likeType: string; now: number }
-): Promise<void> {
-  await db
-    .prepare('INSERT INTO community_likes (id, post_id, user_id, like_type, created_at) VALUES (?, ?, ?, ?, ?)')
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `INSERT OR IGNORE INTO community_likes (id, post_id, user_id, like_type, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    )
     .bind(params.id, params.postId, params.userId, params.likeType, params.now)
     .run();
+  return (result.meta?.changes ?? 0) > 0;
 }
 
 /** 按 id 删除点赞/收藏记录 */

@@ -246,8 +246,9 @@
         "cleanup": "数据清理",
         "feedback": "用户反馈",
         "announcements": "网站公告",
-    "aliases": "别名管理",
-    "sources": "源站管理"
+        "aliases": "别名管理",
+        "sources": "源站管理",
+        "posts": "帖子管理"
       }
     },
     "dashboard": {
@@ -895,6 +896,44 @@
   "admin": {
     "table": {
       "scrollHint": "左右滑动查看更多列"
+    },
+    "posts": {
+      "filterActive": "正常展示",
+      "filterHidden": "已隐藏",
+      "allTypes": "全部类型",
+      "searchPlaceholder": "搜索标题或正文",
+      "search": "搜索",
+      "refresh": "刷新",
+      "loading": "加载中…",
+      "empty": "没有符合条件的帖子",
+      "untitled": "无标题",
+      "anonymous": "匿名",
+      "loadFailed": "加载帖子失败",
+      "opFailed": "操作失败，请稍后重试",
+      "hiddenToast": "帖子已隐藏",
+      "restoredToast": "帖子已恢复展示",
+      "statusActive": "正常",
+      "statusHidden": "已隐藏",
+      "hide": "隐藏",
+      "restore": "恢复",
+      "stats": "浏览 {{views}} · 赞 {{likes}} · 评 {{comments}}",
+      "table": {
+        "title": "帖子",
+        "author": "作者",
+        "type": "类型",
+        "stats": "互动",
+        "status": "状态",
+        "time": "发布时间",
+        "actions": "操作"
+      },
+      "types": {
+        "jav": "番号",
+        "anime": "动漫",
+        "movie": "影视",
+        "manga": "漫画",
+        "novel": "小说",
+        "actress": "女优"
+      }
     },
     "aliases": {
       "title": "别名管理",
@@ -2446,6 +2485,7 @@
       "listView": "列表视图",
       "loading": "加载中...",
       "totalFound": "共找到 {{total}} 个帖子",
+      "clearTag": "清除标签筛选",
       "totalCount": "共 {{total}} 条",
       "emptyTitle": "暂无帖子",
       "emptyWithSearch": "没有找到与 \"{{query}}\" 相关的帖子",
@@ -2604,7 +2644,18 @@
       "createAction": "创建标签",
       "noMatchTitle": "没有匹配的标签",
       "noMatchDescription": "没有找到与 \"{{query}}\" 相关的标签",
-      "postCount": "{{count}} 帖子"
+      "postCount": "{{count}} 帖子",
+      "descriptionLabel": "标签描述",
+      "descriptionPlaceholder": "可选：说明这个标签适合什么内容",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存",
+      "editTitle": "编辑标签",
+      "deleteTitle": "删除标签",
+      "deleteConfirm": "确定删除标签 \"#{{name}}\" 吗？仍有帖子使用该标签时无法删除。",
+      "updated": "标签 \"{{name}}\" 已更新",
+      "deleted": "标签 \"{{name}}\" 已删除",
+      "renameHint": "重命名会同步替换历史帖子中的同名标签。"
     },
     "trending": {
       "types": {
@@ -3215,7 +3266,10 @@
       "formPriorityLabel": "优先级",
       "cancel": "取消",
       "saveChanges": "保存更改",
-      "create": "创建"
+      "create": "创建",
+      "resetConfig": "恢复默认",
+      "resetConfigConfirm": "清除你对该源的自定义名称、备注与启用状态？",
+      "resetConfigDone": "已恢复默认配置"
     },
     "mySources": {
       "title": "我的源站",
@@ -3991,6 +4045,7 @@
       "groups": {
         "follow": "关注动态",
         "community": "社区互动",
+        "feedback": "反馈与支持",
         "site": "站点公告"
       },
       "typeNewWork": "关注的女优有新作",
@@ -4003,9 +4058,12 @@
       "typeCommunityFavoriteDesc": "别人收藏你的社区帖子时通知",
       "typeCommunityReport": "我的帖子举报有结果",
       "typeCommunityReportDesc": "你帖子上的举报被管理员处理时通知",
+      "typeFeedbackReply": "我的反馈有回复",
+      "typeFeedbackReplyDesc": "你提交的反馈被管理员回复或状态变更时通知",
       "typeSiteAnnouncement": "站点公告",
       "typeSiteAnnouncementDesc": "管理员发布新公告时通知",
       "muteHint": "想对某位女优不再提醒，可以在「我的关注」里静音，对站内和邮件都生效。",
+      "emailManagedElsewhere": "该类型的邮件由反馈回复单独发送，此处只控制站内提醒。",
       "hideDetails": "隐藏邮件详情",
       "hideDetailsDesc": "开启后邮件只显示条数，不含女优名和番号；邮件主题始终是中性的，也不含封面图",
       "digestHint": "邮件会合并发送：每 30 分钟检查一次，把这段时间的新动态合成一封，每天最多 3 封，超出的会合并进下一封；每封邮件都有一键退订链接。",

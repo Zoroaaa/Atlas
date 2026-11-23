@@ -79,12 +79,6 @@ export interface SearchSuggestion {
   count: number;
 }
 
-/** 热门搜索项。 */
-export interface TrendingSearch {
-  keyword: string;
-  count: number;
-}
-
 // 搜索历史由搜索接口在后端写入，没有独立的前端调用方，schema 留在后端
 export interface SaveSearchHistoryRequest {
   query: string;

@@ -98,22 +98,3 @@ export async function querySuggestionStats(
     .all<{ keyword: string; count: number }>();
   return rows.results || [];
 }
-
-/** 「热门」统计：不区分来源，按 since 窗口内的出现次数排序 */
-export async function queryTrendingStats(
-  db: D1Database,
-  opts: { since: number; limit: number }
-): Promise<{ keyword: string; count: number }[]> {
-  const rows = await db
-    .prepare(
-      `SELECT query as keyword, COUNT(*) as count
-       FROM user_search_history
-       WHERE created_at > ?
-       GROUP BY query
-       ORDER BY count DESC
-       LIMIT ?`
-    )
-    .bind(opts.since, opts.limit)
-    .all<{ keyword: string; count: number }>();
-  return rows.results || [];
-}

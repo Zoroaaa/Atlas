@@ -15,19 +15,26 @@ import { formatRelativeTime } from '@/utils/relativeTime';
 import type { NotificationItem } from '@/types';
 
 const PAGE_SIZE = 20;
-/** 设置页里展示的通知类型（follow.release_soon 等发售提醒上线后再加入） */
+/**
+ * 设置页里展示的通知类型。
+ * follow.release_soon 在服务端没有生产者（即将发售提醒未上线），不在此列出。
+ */
 const PREF_GROUPS = [
   { id: 'follow', types: ['follow.new_work'] },
   { id: 'community', types: ['community.like', 'community.comment', 'community.favorite', 'community.report_resolved'] },
+  { id: 'feedback', types: ['feedback.reply'] },
   { id: 'site', types: ['site.announcement'] },
 ] as const;
 const PREF_TYPES = PREF_GROUPS.flatMap((group) => group.types);
+/** 邮件渠道由业务模块单独发送（避免重复投递），设置页只保留站内开关 */
+const PREF_EMAIL_MANAGED_ELSEWHERE = new Set<string>(['feedback.reply']);
 const PREF_KEYS: Record<string, { label: string; desc: string }> = {
   'follow.new_work': { label: 'typeNewWork', desc: 'typeNewWorkDesc' },
   'community.like': { label: 'typeCommunityLike', desc: 'typeCommunityLikeDesc' },
   'community.comment': { label: 'typeCommunityComment', desc: 'typeCommunityCommentDesc' },
   'community.favorite': { label: 'typeCommunityFavorite', desc: 'typeCommunityFavoriteDesc' },
   'community.report_resolved': { label: 'typeCommunityReport', desc: 'typeCommunityReportDesc' },
+  'feedback.reply': { label: 'typeFeedbackReply', desc: 'typeFeedbackReplyDesc' },
   'site.announcement': { label: 'typeSiteAnnouncement', desc: 'typeSiteAnnouncementDesc' },
 };
 
@@ -181,7 +188,7 @@ const Preferences: React.FC = () => {
 
   const { email, settings } = data;
   const prefOf = (type: string) => data.preferences.find((p) => p.type === type);
-  const anyEmailOn = PREF_TYPES.some((type) => prefOf(type)?.email);
+  const anyEmailOn = PREF_TYPES.some((type) => !PREF_EMAIL_MANAGED_ELSEWHERE.has(type) && prefOf(type)?.email);
 
   const handleSendVerifyCode = async () => {
     const response = await sendVerifyCode.mutateAsync().catch(() => null);
@@ -317,11 +324,14 @@ const Preferences: React.FC = () => {
                         <span className="text-xs text-surface-500 sm:hidden">{t('notify:prefs.email')}</span>
                         <Switch
                           aria-label={`${label} · ${t('notify:prefs.email')}`}
-                          checked={pref?.email ?? false}
-                          disabled={!email.verified || setPreference.isPending}
+                          checked={PREF_EMAIL_MANAGED_ELSEWHERE.has(type) ? false : (pref?.email ?? false)}
+                          disabled={!email.verified || setPreference.isPending || PREF_EMAIL_MANAGED_ELSEWHERE.has(type)}
                           onChange={(value) => setPreference.mutate({ type, email: value })}
                         />
                       </div>
+                      {PREF_EMAIL_MANAGED_ELSEWHERE.has(type) ? (
+                        <p className="text-xs text-surface-400 sm:col-span-3">{t('notify:prefs.emailManagedElsewhere')}</p>
+                      ) : null}
                     </li>
                   );
                 })}

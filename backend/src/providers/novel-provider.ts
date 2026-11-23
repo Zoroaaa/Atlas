@@ -51,9 +51,6 @@ export class NovelProvider implements SearchProvider {
   }
 
   /** 小说抓取源没有热门榜单，返回空数组，由路由回落到本地历史。 */
-  async trending(): Promise<{ keyword: string; count: number }[]> {
-    return [];
-  }
 
   /** 写搜索历史：优先取知轩藏书条目，缺失时退到首条结果。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {

@@ -47,6 +47,7 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
 
 vi.mock('@/hooks', () => ({
   useIsDesktop: () => mocks.isDesktop,
+  useLogout: () => vi.fn(),
 }));
 
 const onTabChange = vi.fn();

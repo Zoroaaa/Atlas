@@ -7,7 +7,6 @@
 
 import type {
   SearchSuggestion,
-  TrendingSearch,
   FavoriteItem,
   SearchHistoryItem,
   User,
@@ -74,9 +73,6 @@ export type SearchEndpointResponse = ApiResponse<BasicSearchData | EnrichedSearc
 
 /** /search/suggestions 响应 */
 export type SearchSuggestionsResponse = ApiResponse<SearchSuggestion[]>;
-
-/** /search/trending 响应 */
-export type SearchTrendingResponse = ApiResponse<TrendingSearch[]>;
 
 /** 限流窗口单位 */
 export type SearchQuotaUnit = 'minute' | 'hour' | 'day';

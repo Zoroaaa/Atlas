@@ -6,7 +6,7 @@
  */
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Env, User, UserFavorite, UserSearchHistory } from '@/types';
+import { Env, UserFavorite, UserSearchHistory } from '@/types';
 import { success, error, generateId, logUserAction } from '@/utils';
 import { authMiddleware, checkIsAdmin } from '@/middleware/auth';
 import { userActivitySchema } from '@/utils/validators';
@@ -15,37 +15,16 @@ import { checkRateLimitD1 } from '@/utils/rate-limit';
 import { validateBody, schemas } from '@/validation';
 import { getUnreadCount } from '@/services/notification-service';
 import {
-  listUserSourceConfigs,
   upsertUserSourceConfig,
 } from '@/repositories/user-source-config-repository';
 import { bumpUserSourceRevision, findVisibleSourceById } from '@/repositories/search-source-repository';
+import { existsUsernameExcluding, updateUsername } from '@/repositories/user-repository';
 
 const R = VALIDATION_RULES;
 
 export const userRoutes = new Hono<{ Bindings: Env }>();
 
 userRoutes.use('*', authMiddleware);
-
-userRoutes.get('/settings', async (c) => {
-  const user = c.get('user');
-
-  try {
-    const userRow = await c.env.DB.prepare(
-      'SELECT settings FROM users WHERE id = ?'
-    ).bind(user.userId).first<User>();
-
-    if (!userRow) {
-      return c.json(error('AUTH_ERROR', '用户不存在'), 404);
-    }
-
-    return c.json(success({
-      settings: (() => { try { return JSON.parse(userRow.settings || '{}'); } catch { return {}; } })(),
-    }));
-  } catch (err) {
-    console.error('Get settings error:', err);
-    return c.json(error('SERVER_ERROR', '获取设置失败'), 500);
-  }
-});
 
 userRoutes.put('/settings', validateBody(schemas.user.updateSettings), async (c) => {
   const user = c.get('user');
@@ -64,6 +43,40 @@ userRoutes.put('/settings', validateBody(schemas.user.updateSettings), async (c)
   } catch (err) {
     console.error('Update settings error:', err);
     return c.json(error('SERVER_ERROR', '保存设置失败'), 500);
+  }
+});
+
+// ── 资料 ─────────────────────────────────────────────
+
+/**
+ * 更新用户名。
+ *
+ * 约束：users.username 有唯一索引，必须先在应用层查重给出中文提示，
+ * 否则并发写入会变成 500；改名后需重新拉取 /auth/me 刷新前端登录态。
+ */
+userRoutes.put('/profile', validateBody(schemas.user.updateProfile), async (c) => {
+  const user = c.get('user');
+
+  const rl = await checkRateLimitD1(c.env.DB, `profile:update:${user.userId}`, 60_000, 10);
+  if (!rl.allowed) {
+    return c.json(error('RATE_LIMITED', '操作过于频繁，请稍后再试'), 429);
+  }
+
+  try {
+    const body = c.get('validatedBody') as z.infer<typeof schemas.user.updateProfile>;
+    const username = body.username.trim();
+
+    if (await existsUsernameExcluding(c.env.DB, username, user.userId)) {
+      return c.json(error('DUPLICATE_ERROR', '该用户名已被使用'), 409);
+    }
+
+    await updateUsername(c.env.DB, user.userId, username, Date.now());
+    await logUserAction(c.env, user.userId, 'update_profile', { username }, c);
+
+    return c.json(success({ username }, '资料已更新'));
+  } catch (err) {
+    console.error('Update profile error:', err);
+    return c.json(error('SERVER_ERROR', '更新资料失败'), 500);
   }
 });
 
@@ -435,69 +448,6 @@ userRoutes.get('/search-history', async (c) => {
   }
 });
 
-/** 保存一条搜索历史并按上限裁剪：超限时一次性删到最近 N 条，避免反复超限。 */
-userRoutes.post('/search-history', validateBody(schemas.user.addSearchHistory), async (c) => {
-  const user = c.get('user');
-
-  try {
-    const body = c.get('validatedBody') as z.infer<typeof schemas.user.addSearchHistory>;
-    const { query, source, resultsCount, title, subtitle, code, actors, duration, tags, releaseDate, publisher, keyword } = body;
-
-    const maxHistory = R.SEARCH_HISTORY.MAX_COUNT;
-
-    const historyId = generateId();
-    const now = Date.now();
-
-    await c.env.DB.prepare(`
-      INSERT INTO user_search_history (id, user_id, query, source, results_count, created_at, title, subtitle, code, actors, duration, tags, release_date, publisher, keyword)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      historyId,
-      user.userId,
-      query,
-      source || '',
-      resultsCount || 0,
-      now,
-      title || null,
-      subtitle || null,
-      code || null,
-      actors || null,
-      duration || null,
-      tags || null,
-      releaseDate || null,
-      publisher || null,
-      keyword || null
-    ).run();
-
-    // 超限时一次性裁剪到最近的 N 条（原来只删 1 条，仍可能超限）
-    await c.env.DB.prepare(
-      `DELETE FROM user_search_history WHERE user_id = ? AND id NOT IN (
-         SELECT id FROM user_search_history WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?
-       )`
-    ).bind(user.userId, user.userId, maxHistory).run();
-
-    return c.json(success({
-      id: historyId,
-      query,
-      source: source || '',
-      resultsCount: resultsCount || 0,
-      createdAt: now,
-      title: title || null,
-      subtitle: subtitle || null,
-      code: code || null,
-      actors: actors || null,
-      duration: duration || null,
-      tags: tags || null,
-      releaseDate: releaseDate || null,
-      publisher: publisher || null,
-      keyword: keyword || null,
-    }, '搜索历史已保存'));
-  } catch (err) {
-    console.error('Save search history error:', err);
-    return c.json(error('SERVER_ERROR', '保存搜索历史失败'), 500);
-  }
-});
-
 userRoutes.put('/search-history/:id', validateBody(schemas.user.updateSearchHistory), async (c) => {
   const user = c.get('user');
   const historyId = c.req.param('id');
@@ -660,18 +610,6 @@ userRoutes.get('/search-stats', async (c) => {
   }
 });
 
-userRoutes.get('/source-configs', async (c) => {
-  const user = c.get('user');
-
-  try {
-    const configs = await listUserSourceConfigs(c.env.DB, user.userId);
-
-    return c.json(success({ configs }));
-  } catch (err) {
-    console.error('Get source configs error:', err);
-    return c.json(error('SERVER_ERROR', '获取配置失败'), 500);
-  }
-});
 
 /** 用户搜索源配置的增量保存：只写请求中出现的字段，未传字段保持原值。 */
 userRoutes.put('/source-configs/:sourceId', validateBody(schemas.user.updateSourceConfig), async (c) => {

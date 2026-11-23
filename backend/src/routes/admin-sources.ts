@@ -1,5 +1,5 @@
 /**
- * 管理后台系统源站路由：系统大类 / 分类 / 搜索源的增删改与导出。
+ * 管理后台系统源站路由：系统大类 / 分类 / 搜索源的增删改与读取。
  *
  * 约束：本路由只操作 owner_id IS NULL 的系统数据；用户私有数据在此不可见、不可改。
  * 鉴权由父级 adminRoutes 的 authMiddleware + adminMiddleware 统一兜底。
@@ -9,7 +9,6 @@ import { z } from 'zod';
 import { Env } from '@/types';
 import { success, error } from '@/utils';
 import { toMajorCategoryDto, toCategoryDto, toSourceDto } from '@/utils/source-dto';
-import { csvCell, xmlAttr } from '@/utils/source-export';
 import { invalidateCache } from '@/utils/cache';
 import { validateBody, schemas } from '@/validation';
 import {
@@ -59,86 +58,6 @@ adminSourceRoutes.get('/tree', async (c) => {
   } catch (err) {
     console.error('Admin get source tree error:', err);
     return c.json(error('SERVER_ERROR', '获取系统源站树失败'), 500);
-  }
-});
-
-adminSourceRoutes.get('/stats', async (c) => {
-  try {
-    const stats = await getSystemStats(c.env.DB);
-    return c.json(success(stats));
-  } catch (err) {
-    console.error('Admin get source stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取系统源站统计失败'), 500);
-  }
-});
-
-adminSourceRoutes.get('/export', async (c) => {
-  try {
-    const format = c.req.query('format') || 'json';
-    const tree = await getSystemTree(c.env.DB);
-    const categoryMap = new Map(tree.categories.map(category => [category.id, category]));
-    const majorMap = new Map(tree.majorCategories.map(major => [major.id, major]));
-
-    const rows = tree.sources.map(source => {
-      const category = categoryMap.get(source.category_id);
-      const major = category ? majorMap.get(category.major_category_id) : undefined;
-      return {
-        ...source,
-        category_name: category?.name || '',
-        major_category_name: major?.name || '',
-      };
-    });
-
-    if (format === 'csv') {
-      const headers = ['ID', '名称', '副标题', 'URL模板', '分类', '大类', '站点类型', '搜索优先级', '使用次数', '是否可搜索'];
-      const csvRows = rows.map(row => [
-        row.id,
-        row.name,
-        row.subtitle || '',
-        row.url_template,
-        row.category_name,
-        row.major_category_name,
-        row.site_type,
-        String(row.search_priority),
-        String(row.usage_count),
-        row.searchable ? '是' : '否',
-      ]);
-      const csv = [headers.map(csvCell).join(','), ...csvRows.map(row => row.map(csvCell).join(','))].join('\n');
-      return new Response(csv, {
-        headers: {
-          'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="system-search-sources.csv"',
-        },
-      });
-    }
-
-    if (format === 'opml') {
-      const opml = `<?xml version="1.0" encoding="UTF-8"?>
-<opml version="2.0">
-  <head>
-    <title>Atlas 系统搜索源</title>
-    <dateCreated>${new Date().toISOString()}</dateCreated>
-  </head>
-  <body>
-${rows.map(row => `    <outline type="link" text="${xmlAttr(row.name)}" htmlUrl="${xmlAttr(row.url_template)}" description="${xmlAttr(row.subtitle)}" category="${xmlAttr(row.category_name)}"/>`).join('\n')}
-  </body>
-</opml>`;
-      return new Response(opml, {
-        headers: {
-          'Content-Type': 'application/xml; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="system-search-sources.opml"',
-        },
-      });
-    }
-
-    return c.json(success({
-      sources: rows,
-      exportedAt: Date.now(),
-      count: rows.length,
-    }));
-  } catch (err) {
-    console.error('Admin export sources error:', err);
-    return c.json(error('SERVER_ERROR', '导出失败'), 500);
   }
 });
 

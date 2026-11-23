@@ -3,9 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/services/api/queryClient';
 import { useAuthStore, useThemeStore, useLanguageStore } from '@/stores';
-import { apiClient } from '@/services/api';
-import { analyticsApi } from '@/services/api';
+import { authApi, analyticsApi } from '@/services/api';
 import i18next from '@/i18n';
+import { isSupportedLanguage } from '@/i18n/config';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { AccountLayout } from '@/components/layout/AccountLayout';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -151,10 +151,6 @@ const App: React.FC = () => {
   const { communityEnabled } = useFeatureFlags();
 
   useEffect(() => {
-    // apiClient 现在直接从 zustand persist 读取 token，无需手动同步
-  }, []);
-
-  useEffect(() => {
     const root = document.documentElement;
     if (resolvedTheme === 'dark') {
       root.classList.add('dark');
@@ -177,9 +173,15 @@ const App: React.FC = () => {
 
       if (token) {
         try {
-          const response = await apiClient.get<{ success: boolean; data: import('@/types').User }>('/auth/me');
+          const response = await authApi.getCurrentUser();
           if (response.success && response.data) {
             setUser(response.data);
+            // 账号里保存过语言偏好时以服务端为准，保证换设备登录后界面语言一致；
+            // 旧账号 settings 为 {}，不会覆盖本机选择
+            const serverLanguage = response.data.settings?.language;
+            if (serverLanguage && isSupportedLanguage(serverLanguage) && serverLanguage !== useLanguageStore.getState().language) {
+              useLanguageStore.getState().setLanguage(serverLanguage);
+            }
           } else {
             logout();
           }
@@ -306,6 +308,7 @@ const App: React.FC = () => {
           <Route path="trends" element={withSuspense(<AdminManager />)} />
           <Route path="activity-ranking" element={withSuspense(<AdminManager />)} />
           <Route path="reports" element={withSuspense(<AdminManager />)} />
+          <Route path="posts" element={withSuspense(<AdminManager />)} />
           <Route path="roles" element={withSuspense(<AdminManager />)} />
           <Route path="config" element={withSuspense(<AdminManager />)} />
           <Route path="cleanup" element={withSuspense(<AdminManager />)} />

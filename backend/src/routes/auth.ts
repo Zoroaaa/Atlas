@@ -7,15 +7,15 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Env } from '@/types';
-import { success, error, generateId, hashPassword, hashToken, verifyPassword, generateToken, verifyToken, validateEmail, validateUsername, validatePassword, logUserAction, getClientIP, checkLockout, clearLockout, recordSecurityEvent } from '@/utils';
+import { success, error, generateId, hashPassword, hashToken, verifyPassword, generateToken, validateEmail, validateUsername, validatePassword, logUserAction, getClientIP, checkLockout, clearLockout, recordSecurityEvent } from '@/utils';
 import { recordFailedAttempt, recordPasswordResetLog, updatePasswordResetLog } from '@/utils/security';
 import { checkMultiLevelRateLimit, registerRateLimitKey, REGISTER_IP_LIMITS } from '@/utils/rate-limit';
 import { EmailVerificationService, emailVerificationUtils, ConfigService } from '@/services';
 import { VALIDATION_RULES, DB_CONFIG_KEYS } from '@/constants';
 import { authMiddleware } from '@/middleware/auth';
 import { validateBody, schemas } from '@/validation';
-import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUserBasicById, findUsernameById, findRegistrationConflict, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
-import { findVerificationByCode, findLatestVerificationByEmailType, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
+import { findUserForLogin, findUserWithRoleById, findUserById, findActiveUserByEmail, findUsernameById, findRegistrationConflict, existsUserByEmailExcluding, recordLogin, updateUserEmail, markUserEmailVerified, createUserWithSession, resetPasswordAndRevokeSessions, deleteAccountCascade, insertSession, findActiveSessionByToken, touchSession, rotateSessionToken, deleteSessionByToken } from '@/repositories/user-repository';
+import { findVerificationByCode, listPendingVerificationsByUser, deleteVerificationById, findPendingChangeRequestById, findActiveChangeRequestByUser, insertChangeRequest, markChangeRequestVerified, findChangeRequestById, completeChangeRequest } from '@/repositories/email-verification-repository';
 
 const R = VALIDATION_RULES;
 
@@ -352,35 +352,6 @@ authRoutes.get('/me', authMiddleware, async (c) => {
   } catch (err) {
     console.error('Get me error:', err);
     return c.json(error('SERVER_ERROR', '获取用户信息失败'), 500);
-  }
-});
-
-authRoutes.post('/verify-token', authMiddleware, async (c) => {
-  const payload = c.get('user');
-  const token = c.get('authToken');
-
-  try {
-    const tokenHash = await hashToken(token);
-    const session = await findActiveSessionByToken(c.env.DB, payload.userId, tokenHash, Date.now());
-
-    if (!session) {
-      return c.json(error('AUTH_ERROR', '会话已过期'), 401);
-    }
-
-    const user = await findUserBasicById(c.env.DB, payload.userId);
-
-    if (!user) {
-      return c.json(error('AUTH_ERROR', '用户不存在'), 404);
-    }
-
-    return c.json(success({
-      valid: true,
-      userId: user.id,
-      username: user.username,
-    }));
-  } catch (err) {
-    console.error('Verify token error:', err);
-    return c.json(error('SERVER_ERROR', '验证失败'), 500);
   }
 });
 
@@ -951,7 +922,10 @@ authRoutes.post('/verify-email-change-code', validateBody(schemas.auth.verifyEma
 
     const updatedRequest = await findChangeRequestById(c.env.DB, requestId);
 
-    if (updatedRequest && updatedRequest.old_email_verified === 1 && updatedRequest.new_email_verified === 1) {
+    // 完成条件只看新邮箱：请求阶段已校验当前密码，前端也只提供「验证新邮箱」一步。
+    // 原邮箱验证码（emailType='old'）保留为可选的二次确认，不再作为完成前置条件，
+    // 否则 UI 永远拿不到 completed=true，改邮箱功能整体不可用。
+    if (updatedRequest && updatedRequest.new_email_verified === 1) {
       await updateUserEmail(c.env.DB, payload.userId, changeRequest.new_email, Date.now());
 
       await completeChangeRequest(c.env.DB, requestId, Date.now());
@@ -1048,62 +1022,6 @@ authRoutes.post('/send-account-delete-code', async (c) => {
   }
 });
 
-authRoutes.get('/verification-status', async (c) => {
-  const email = c.req.query('email');
-  const verificationType = c.req.query('type');
-
-  if (!email || !verificationType) {
-    return c.json(error('VALIDATION_ERROR', '缺少必要参数：email 和 type'), 400);
-  }
-
-  if (!validateEmail(email)) {
-    return c.json(error('VALIDATION_ERROR', '邮箱格式不正确'), 400);
-  }
-
-  const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
-
-  // 仅注册流程允许匿名查询；其他类型需登录且只能查自己的邮箱，避免任意邮箱枚举验证码状态
-  if (verificationType !== 'registration') {
-    const authHeader = c.req.header('Authorization');
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const payload = token ? await verifyToken(token, c.env.JWT_SECRET) : null;
-    if (!payload) {
-      return c.json(error('AUTH_ERROR', '未授权'), 401);
-    }
-
-    const owner = await findUserById(c.env.DB, payload.userId);
-    const pendingChange = owner ? await findActiveChangeRequestByUser(c.env.DB, { userId: owner.id, now: Date.now() }) : null;
-    if (owner?.email !== normalizedEmail && pendingChange?.new_email !== normalizedEmail) {
-      return c.json(error('FORBIDDEN', '无权查询该邮箱'), 403);
-    }
-  }
-
-  try {
-    const verification = await findLatestVerificationByEmailType(c.env.DB, { email: normalizedEmail, type: verificationType, now: Date.now() });
-
-    if (!verification) {
-      return c.json(success({
-        hasPendingVerification: false,
-        canResend: true
-      }));
-    }
-
-    const remainingTime = verification.expires_at - Date.now();
-    const resendIntervalMs = R.VERIFICATION_CODE.RESEND_INTERVAL_MS;
-    const canResend = remainingTime <= resendIntervalMs;
-
-    return c.json(success({
-      hasPendingVerification: true,
-      canResend,
-      remainingTime,
-      expiresAt: verification.expires_at
-    }));
-  } catch (err) {
-    console.error('Check verification status error:', err);
-    return c.json(error('SERVER_ERROR', '检查验证状态失败'), 500);
-  }
-});
-
 authRoutes.get('/user-verification-status', async (c) => {
   const payload = c.get('user');
 
@@ -1112,100 +1030,29 @@ authRoutes.get('/user-verification-status', async (c) => {
 
     const emailChangeRequest = await findActiveChangeRequestByUser(c.env.DB, { userId: payload.userId, now: Date.now() });
 
+    // 只回传前端渲染所需字段：code_hash / email_hash / metadata 不能下发到浏览器
     return c.json(success({
-      pendingVerifications: verifications,
-      emailChangeRequest,
+      pendingVerifications: verifications.map((v) => ({
+        id: v.id,
+        verification_type: v.verification_type,
+        email: v.email,
+        expires_at: v.expires_at,
+        created_at: v.created_at,
+      })),
+      emailChangeRequest: emailChangeRequest
+        ? {
+            id: emailChangeRequest.id,
+            old_email: emailChangeRequest.old_email,
+            new_email: emailChangeRequest.new_email,
+            status: emailChangeRequest.status,
+            expires_at: emailChangeRequest.expires_at,
+            created_at: emailChangeRequest.created_at,
+          }
+        : null,
       hasAnyPendingVerifications: verifications.length > 0 || !!emailChangeRequest
     }));
   } catch (err) {
     console.error('Get user verification status error:', err);
     return c.json(error('SERVER_ERROR', '获取用户验证状态失败'), 500);
-  }
-});
-
-/** 统一验证码发送入口（注册 / 重置 / 换绑 / 删号）；force=1 时跳过重复发送检查。 */
-authRoutes.post('/smart-send-code', validateBody(schemas.auth.sendVerificationCode), async (c) => {
-  const body = c.get('validatedBody') as z.infer<typeof schemas.auth.sendVerificationCode>;
-  const { email, verificationType, force = false } = body;
-
-  const normalizedEmail = emailVerificationUtils.normalizeEmail(email);
-
-  let userId: string | null = null;
-  const authHeader = c.req.header('Authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    const payload = await verifyToken(token, c.env.JWT_SECRET);
-    if (payload) {
-      userId = payload.userId;
-    }
-  }
-
-  if (['password_reset', 'email_change_old', 'email_change_new', 'account_delete'].includes(verificationType) && !userId) {
-    return c.json(error('AUTH_ERROR', '未授权'), 401);
-  }
-
-  try {
-    const emailService = new EmailVerificationService(c.env);
-    const ipAddress = getClientIP(c);
-
-    if (!force) {
-      const canResend = await emailService.canResendVerification(normalizedEmail, verificationType, userId);
-      if (!canResend.canResend) {
-        return c.json(success({
-          canResend: false,
-          reason: canResend.reason,
-          waitTime: canResend.waitTime,
-          remainingTime: canResend.remainingTime
-        }, '存在有效的验证码'));
-      }
-    }
-
-    try {
-      await emailService.checkEmailRateLimit(normalizedEmail, ipAddress);
-    } catch (rateLimitError) {
-      return c.json(error('RATE_LIMIT', (rateLimitError as Error).message), 429);
-    }
-
-    const verification = await emailService.createEmailVerification(
-      normalizedEmail, 
-      verificationType, 
-      userId, 
-      { ipAddress }
-    );
-
-    const username = (userId ? await findUsernameById(c.env.DB, userId) : null) ?? '用户';
-
-    // email_change 模板需要 oldEmail/newEmail，缺失会导致邮件正文空白
-    const templateVars: Record<string, unknown> = { username };
-    if (verificationType === 'email_change_old' || verificationType === 'email_change_new') {
-      const activeRequest = userId
-        ? await findActiveChangeRequestByUser(c.env.DB, { userId, now: Date.now() })
-        : null;
-      templateVars.oldEmail = activeRequest?.old_email
-        ?? (verificationType === 'email_change_old' ? normalizedEmail : '');
-      templateVars.newEmail = activeRequest?.new_email
-        ?? (verificationType === 'email_change_new' ? normalizedEmail : '');
-    }
-
-    try {
-      await emailService.sendVerificationEmail(
-        normalizedEmail,
-        verification.code,
-        verificationType as 'registration' | 'password_reset' | 'forgot_password' | 'email_change_old' | 'email_change_new' | 'account_delete',
-        templateVars,
-        { userId, ipAddress }
-      );
-    } catch (sendError) {
-      console.error('发送验证码失败:', sendError);
-      return c.json(error('SERVER_ERROR', '验证码发送失败，请稍后重试'), 500);
-    }
-
-    return c.json(success({
-      maskedEmail: emailVerificationUtils.maskEmail(normalizedEmail),
-      expiresIn: expiresInSeconds(verification.expiresAt)
-    }, '验证码已发送'));
-  } catch (err) {
-    console.error('Smart send code error:', err);
-    return c.json(error('SERVER_ERROR', '发送验证码失败'), 500);
   }
 });

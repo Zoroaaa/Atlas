@@ -11,6 +11,7 @@ export type {
   CreateCommentRequest,
   CreateTagRequest,
   UpdateTagRequest,
+  UpdatePostStatusRequest,
   ReportRequest,
   CommunityUserStats,
 } from '@codeseek/shared';

@@ -34,7 +34,7 @@ export const createCategorySchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   defaultSearchable: z.boolean().optional(),
   defaultSiteType: z.enum(['search', 'browse', 'reference']).optional(),
-  searchPriority: z.number().int().min(0).max(10).optional(),
+  searchPriority: z.number().int().min(0).max(100).optional(),
 });
 
 export const updateCategorySchema = z.object({
@@ -45,7 +45,7 @@ export const updateCategorySchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   defaultSearchable: z.boolean().optional(),
   defaultSiteType: z.enum(['search', 'browse', 'reference']).optional(),
-  searchPriority: z.number().int().min(0).max(10).optional(),
+  searchPriority: z.number().int().min(0).max(100).optional(),
 });
 
 export const createSourceSchema = z.object({
@@ -61,7 +61,7 @@ export const createSourceSchema = z.object({
   homepageUrl: z.union([z.string().url('主页URL格式不正确').max(R.SOURCE.URL_MAX_LENGTH), z.literal('')]).optional().nullable(),
   siteType: z.enum(['search', 'browse', 'reference']).optional(),
   searchable: z.boolean().optional(),
-  searchPriority: z.number().int().min(0).max(10).optional(),
+  searchPriority: z.number().int().min(0).max(100).optional(),
 });
 
 export const updateSourceSchema = z.object({
@@ -74,7 +74,7 @@ export const updateSourceSchema = z.object({
   homepageUrl: z.union([z.string().url().max(R.SOURCE.URL_MAX_LENGTH), z.literal('')]).optional().nullable(),
   siteType: z.enum(['search', 'browse', 'reference']).optional(),
   searchable: z.boolean().optional(),
-  searchPriority: z.number().int().min(0).max(10).optional(),
+  searchPriority: z.number().int().min(0).max(100).optional(),
 });
 
 export const batchUpdateUserConfigsSchema = z.object({

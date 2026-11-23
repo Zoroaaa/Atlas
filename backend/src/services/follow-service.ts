@@ -223,7 +223,9 @@ async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]
     .bind(title, body, payload, dedupKey, now, watch.key)
     .run();
 
-  // 邮件：默认关闭，只有显式开启且邮箱已验证的才入队，由邮件摘要合并发送
+  // 邮件：默认关闭，只有显式开启且邮箱已验证的才入队，由邮件摘要合并发送。
+  // 渠道开关只认用户级 notification_preferences（与设置页一致）；
+  // user_follows.notify_email 无任何写入方，不能作为入队条件，否则邮件永远不会发出。
   await db
     .prepare(
       `INSERT OR IGNORE INTO email_queue (id, user_id, type, title, body, payload, dedup_key, status, created_at)
@@ -232,7 +234,7 @@ async function notifyFollowers(db: D1Database, watch: WatchRow, fresh: JavItem[]
        JOIN users u ON u.id = f.user_id
        LEFT JOIN notification_preferences p
          ON p.user_id = f.user_id AND p.type = 'follow.new_work'
-       WHERE f.watch_key = ? AND f.notify_email = 1
+       WHERE f.watch_key = ?
          AND p.email = 1 AND u.email IS NOT NULL AND u.email_verified = 1`
     )
     .bind(title, body, payload, dedupKey, now, watch.key)

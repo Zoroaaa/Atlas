@@ -404,62 +404,6 @@ configRoutes.get('/export', async (c) => {
   }
 });
 
-configRoutes.get('/analytics/stats', async (c) => {
-  
-  if (!await checkIsAdmin(c)) {
-    return c.json(error('FORBIDDEN', '需要管理员权限'), 403);
-  }
-
-  const days = parseInt(c.req.query('days') || '7');
-  const since = Date.now() - days * 24 * 60 * 60 * 1000;
-
-  try {
-    const totalEvents = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM analytics_events WHERE created_at > ?'
-    ).bind(since).first<{ count: number }>();
-
-    const eventsByType = await c.env.DB.prepare(`
-      SELECT event_type, COUNT(*) as count 
-      FROM analytics_events 
-      WHERE created_at > ? 
-      GROUP BY event_type 
-      ORDER BY count DESC
-    `).bind(since).all();
-
-    const dailyEvents = await c.env.DB.prepare(`
-      SELECT date(created_at / 1000, 'unixepoch') as date, COUNT(*) as count
-      FROM analytics_events
-      WHERE created_at > ?
-      GROUP BY date
-      ORDER BY date
-    `).bind(since).all();
-
-    const uniqueUsers = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT user_id) as count 
-      FROM analytics_events 
-      WHERE created_at > ? AND user_id IS NOT NULL
-    `).bind(since).first<{ count: number }>();
-
-    const uniqueSessions = await c.env.DB.prepare(`
-      SELECT COUNT(DISTINCT session_id) as count 
-      FROM analytics_events 
-      WHERE created_at > ? AND session_id IS NOT NULL
-    `).bind(since).first<{ count: number }>();
-
-    return c.json(success({
-      totalEvents: totalEvents?.count || 0,
-      uniqueUsers: uniqueUsers?.count || 0,
-      uniqueSessions: uniqueSessions?.count || 0,
-      eventsByType: eventsByType.results || [],
-      dailyEvents: dailyEvents.results || [],
-      period: { days, since },
-    }));
-  } catch (err) {
-    console.error('Get analytics stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取统计失败'), 500);
-  }
-});
-
 configRoutes.get('/email/logs', async (c) => {
   
   if (!await checkIsAdmin(c)) {

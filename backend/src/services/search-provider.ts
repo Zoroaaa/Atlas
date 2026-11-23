@@ -65,17 +65,6 @@ export interface SuggestionItem {
   meta?: Record<string, unknown>;
 }
 
-// ── 热门趋势项 ────────────────────────────────────────────────────────
-
-export interface TrendingItem {
-  keyword: string;
-  count: number;
-  /** 可选封面/图标 */
-  cover?: string;
-  /** 可选副标题 */
-  subtitle?: string;
-}
-
 // ── SearchProvider 接口 ────────────────────────────────────────────────
 
 export interface SearchProvider {
@@ -97,9 +86,6 @@ export interface SearchProvider {
 
   /** 搜索建议（可选） */
   suggestions?(keyword: string): Promise<SuggestionItem[]>;
-
-  /** 热门趋势（可选） */
-  trending?(): Promise<TrendingItem[]>;
 
   /**
    * 从搜索结果提取写入搜索历史的增强字段（可选）

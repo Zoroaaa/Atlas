@@ -18,7 +18,6 @@ import {
   listSystemMajorCategories,
   listSystemCategories,
   listSourceCatalog,
-  listVisibleSources,
   listSystemSourcesWithConfig,
   listUserSources,
   listUserMajorCategories,
@@ -32,14 +31,13 @@ import {
 import {
   getUserSourceStats,
   getUserVisibleBoardStats,
+  getUserVisibleSourceBreakdown,
   findLatestSourceStatus,
 } from '@/repositories/search-source-management-repository';
 import {
-  listUserSourceConfigs,
   findUserSourceConfig,
   upsertUserSourceConfig,
   deleteUserSourceConfig,
-  listUserConfigsWithSource,
 } from '@/repositories/user-source-config-repository';
 import {
   SourceTreeError,
@@ -224,9 +222,10 @@ sourceRoutes.get('/catalog', async (c) => {
 sourceRoutes.get('/stats', async (c) => {
   const user = c.get('user');
   try {
-    const [board, userStats] = await Promise.all([
+    const [board, userStats, breakdown] = await Promise.all([
       getUserVisibleBoardStats(c.env.DB, user.userId),
       getUserSourceStats(c.env.DB, user.userId),
+      getUserVisibleSourceBreakdown(c.env.DB, user.userId),
     ]);
 
     return c.json(success({
@@ -236,9 +235,7 @@ sourceRoutes.get('/stats', async (c) => {
       availableSources: board.availableSources,
       totalCategories: board.totalCategories,
       totalMajorCategories: board.totalMajorCategories,
-      topUsedSources: [],
-      sourcesByCategory: [],
-      sourcesBySiteType: [],
+      ...breakdown,
       ...userStats,
     }));
   } catch (err) {
@@ -323,16 +320,6 @@ ${rows.map(row => `    <outline type="link" text="${xmlAttr(row.name)}" htmlUrl=
   }));
 }
 
-sourceRoutes.get('/export', async (c) => {
-  const user = c.get('user');
-  try {
-    return await buildUserExport(c, user.userId);
-  } catch (err) {
-    console.error('Export sources error:', err);
-    return c.json(error('SERVER_ERROR', '导出失败'), 500);
-  }
-});
-
 sourceRoutes.get('/mine/export', async (c) => {
   const user = c.get('user');
   try {
@@ -365,46 +352,6 @@ sourceRoutes.get('/with-user-config/:userId', async (c) => {
     }));
   } catch (err) {
     console.error('Get sources with user config error:', err);
-    return c.json(error('SERVER_ERROR', '获取搜索源失败'), 500);
-  }
-});
-
-sourceRoutes.get('/user-configs/:userId', async (c) => {
-  const user = c.get('user');
-  if (c.req.param('userId') !== user.userId) {
-    return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
-  }
-  try {
-    const configs = await listUserSourceConfigs(c.env.DB, user.userId);
-    return c.json(success({ configs }));
-  } catch (err) {
-    console.error('Get user configs error:', err);
-    return c.json(error('SERVER_ERROR', '获取用户配置失败'), 500);
-  }
-});
-
-sourceRoutes.get('/export-user-configs/:userId', async (c) => {
-  const user = c.get('user');
-  if (c.req.param('userId') !== user.userId) {
-    return c.json(error('FORBIDDEN', '无权访问他人配置'), 403);
-  }
-  try {
-    const configs = await listUserConfigsWithSource(c.env.DB, user.userId);
-    return c.json(success({ configs, exportedAt: Date.now(), count: configs.length }));
-  } catch (err) {
-    console.error('Export user configs error:', err);
-    return c.json(error('SERVER_ERROR', '导出失败'), 500);
-  }
-});
-
-/** 兼容旧列表接口：返回系统源 + 本人私有源 */
-sourceRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  try {
-    const sources = await listVisibleSources(c.env.DB, user.userId);
-    return c.json(success({ sources }));
-  } catch (err) {
-    console.error('Get sources error:', err);
     return c.json(error('SERVER_ERROR', '获取搜索源失败'), 500);
   }
 });
@@ -508,38 +455,6 @@ sourceRoutes.delete('/mine/sources/:id', async (c) => {
 });
 
 // ── 兼容旧写接口：只允许写用户私有源 ─────────────────
-
-sourceRoutes.post('/', validateBody(schemas.sources.createSource), async (c) => {
-  const user = c.get('user');
-  const body = c.get('validatedBody') as z.infer<typeof schemas.sources.createSource>;
-  try {
-    const created = await createUserSource(c.env.DB, user.userId, body);
-    return c.json(success(toSourceDto(created), '搜索源创建成功'));
-  } catch (err) {
-    return respondServiceError(c, err);
-  }
-});
-
-sourceRoutes.put('/:id', validateBody(schemas.sources.updateSource), async (c) => {
-  const user = c.get('user');
-  const body = c.get('validatedBody') as z.infer<typeof schemas.sources.updateSource>;
-  try {
-    await updateUserSource(c.env.DB, user.userId, c.req.param('id'), body);
-    return c.json(success(null, '搜索源更新成功'));
-  } catch (err) {
-    return respondServiceError(c, err);
-  }
-});
-
-sourceRoutes.delete('/:id', async (c) => {
-  const user = c.get('user');
-  try {
-    await deleteUserSource(c.env.DB, user.userId, c.req.param('id'));
-    return c.json(success(null, '搜索源已删除'));
-  } catch (err) {
-    return respondServiceError(c, err);
-  }
-});
 
 // ── 用户配置 ─────────────────────────────────────────
 

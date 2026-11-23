@@ -39,26 +39,13 @@ import {
   updateUserStatus,
   findUserRolePriority,
   findUserRoleAndPriority,
-  countUserLoginActions,
-  listUserLoginLogs,
-  listActiveUsers,
   queryActivityRanking,
   countFeedbackSince,
-  listLoginDailyStats,
-  listLoginTopIPs,
-  listLoginFailedAttempts,
   countReportsByStatus,
   listReportsByStatus,
   findReportById,
   updateReportHandling,
   hidePost,
-  getSystemUserStats,
-  listRoleStats,
-  getSourceStats,
-  getSearchHistoryStats,
-  getCommunitySummaryStats,
-  listTopSearchKeywords,
-  listTopUsedSources,
   countUserActions,
   countUserActionsSince,
   countDistinctUsersSince,
@@ -335,76 +322,6 @@ adminRoutes.put('/users/:id/role', validateBody(schemas.admin.updateUserRole), a
 });
 
 /**
- * 获取用户登录日志
- * GET /api/admin/users/:id/login-logs
- */
-adminRoutes.get('/users/:id/login-logs', async (c) => {
-  const userId = c.req.param('id');
-  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
-  const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const pageSize = Math.min(Math.max(1, parseInt(c.req.query('pageSize') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
-
-  try {
-    const total = await countUserLoginActions(c.env.DB, userId);
-
-    const logs = await listUserLoginLogs(c.env.DB, { userId, limit: pageSize, offset: (page - 1) * pageSize });
-
-    return c.json(success({
-      logs: logs.map(l => {
-        const data = l.data ? (() => { try { return JSON.parse(l.data as string); } catch { return {}; } })() : {};
-        return {
-          id: l.id,
-          loginTime: l.created_at,
-          ipAddress: l.ip_address,
-          userAgent: l.user_agent,
-          loginStatus: l.action === 'login' ? 'success' : 'failed',
-          loginMethod: data.method || 'password',
-          failureReason: data.reason || null,
-        };
-      }),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    }));
-  } catch (err) {
-    console.error('Get login logs error:', err);
-    return c.json(error('SERVER_ERROR', '获取登录日志失败'), 500);
-  }
-});
-
-/**
- * 获取活跃用户排行
- * GET /api/admin/active-users
- */
-adminRoutes.get('/active-users', async (c) => {
-  const { defaultPageSize, maxPageSize } = getPaginationConfig();
-  const limit = Math.min(Math.max(1, parseInt(c.req.query('limit') || String(defaultPageSize), 10) || defaultPageSize), maxPageSize);
-  const days = parseInt(c.req.query('days') || '7');
-
-  try {
-    const startTime = Date.now() - days * CONFIG.Stats.DAY_IN_MS;
-
-    const users = await listActiveUsers(c.env.DB, { startTime, limit });
-
-    return c.json(success({
-      users: users.map(u => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        roleDisplayName: u.role_display_name || '普通用户',
-        totalLoginCount: u.login_count || 0,
-        recentLogins: u.recent_logins || 0,
-        recentSearches: u.recent_searches || 0,
-      })),
-    }));
-  } catch (err) {
-    console.error('Get active users error:', err);
-    return c.json(error('SERVER_ERROR', '获取活跃用户失败'), 500);
-  }
-});
-
-/**
  * 用户活跃度排名
  * GET /api/admin/activity-ranking?period=today|week|month|all&limit=20
  *
@@ -512,34 +429,6 @@ adminRoutes.get('/activity-ranking', async (c) => {
   } catch (err) {
     console.error('Get activity ranking error:', err);
     return c.json(error('SERVER_ERROR', '获取活跃排名失败'), 500);
-  }
-});
-
-/**
- * 获取登录日志统计
- * GET /api/admin/login-stats
- */
-adminRoutes.get('/login-stats', async (c) => {
-  const days = parseInt(c.req.query('days') || '7');
-
-  try {
-    const now = Date.now();
-    const startTime = now - days * CONFIG.Stats.DAY_IN_MS;
-
-    const dailyStats = await listLoginDailyStats(c.env.DB, startTime);
-
-    const topIPs = await listLoginTopIPs(c.env.DB, startTime);
-
-    const failedAttempts = await listLoginFailedAttempts(c.env.DB, startTime);
-
-    return c.json(success({
-      dailyStats: dailyStats,
-      topIPs: topIPs,
-      failedAttempts: failedAttempts,
-    }));
-  } catch (err) {
-    console.error('Get login stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取登录统计失败'), 500);
   }
 });
 
@@ -703,68 +592,6 @@ adminRoutes.put('/reports/:id', validateBody(schemas.admin.handleReport), async 
   } catch (err) {
     console.error('Handle report error:', err);
     return c.json(error('SERVER_ERROR', '处理举报失败'), 500);
-  }
-});
-
-/**
- * 获取系统统计
- * GET /api/admin/stats
- */
-adminRoutes.get('/stats', async (c) => {
-  try {
-    const userStats = await getSystemUserStats(c.env.DB, Date.now() - CONFIG.Stats.WEEK_IN_MS);
-
-    const roleStats = await listRoleStats(c.env.DB);
-
-    const sourceStats = await getSourceStats(c.env.DB);
-
-    const searchStats = await getSearchHistoryStats(c.env.DB);
-
-    const communityStats = await getCommunitySummaryStats(c.env.DB);
-
-    const dailyActiveUsers = await countActiveUsersSince(c.env.DB, Date.now() - CONFIG.Stats.DAY_IN_MS);
-
-    const topSearchKeywords = await listTopSearchKeywords(c.env.DB, Date.now() - CONFIG.Stats.WEEK_IN_MS);
-
-    const topUsedSources = await listTopUsedSources(c.env.DB);
-
-    return c.json(success({
-      users: {
-        total: userStats?.total || 0,
-        active: userStats?.active || 0,
-        verified: userStats?.verified || 0,
-        newThisWeek: userStats?.new_this_week || 0,
-        dailyActive: dailyActiveUsers,
-      },
-      roles: roleStats.map(r => ({
-        id: r.id,
-        name: r.name,
-        displayName: r.display_name,
-        userCount: r.user_count || 0,
-      })),
-      sources: {
-        total: sourceStats?.total || 0,
-        active: sourceStats?.active || 0,
-        searchable: sourceStats?.searchable || 0,
-        totalUsage: sourceStats?.total_usage || 0,
-      },
-      searches: {
-        total: searchStats?.total || 0,
-        uniqueUsers: searchStats?.unique_users || 0,
-        uniqueKeywords: searchStats?.unique_keywords || 0,
-      },
-      community: {
-        posts: communityStats?.posts || 0,
-        tags: communityStats?.tags || 0,
-        reviews: communityStats?.reviews || 0,
-        pendingReports: communityStats?.pending_reports || 0,
-      },
-      topSearchKeywords: topSearchKeywords,
-      topUsedSources: topUsedSources,
-    }));
-  } catch (err) {
-    console.error('Get admin stats error:', err);
-    return c.json(error('SERVER_ERROR', '获取统计失败'), 500);
   }
 });
 
@@ -1141,15 +968,19 @@ adminRoutes.get('/analytics/events', async (c) => {
 
     return c.json(success({
       events: events.map((e) => {
+        // 事件载荷列名是 event_data；schema 校验失败时按行原样兜底，避免整表显示为「-」
         const result = adminEventSchema.safeParse(e);
-        const event = result.success ? result.data : e as { id: string; user_id?: string; event_type: string; data?: string; ip_address?: string; user_agent?: string; session_id?: string; referer?: string; created_at: number };
+        const event = result.success
+          ? result.data
+          : (e as { id: string; user_id?: string; event_type: string; event_data?: string; ip_address?: string; user_agent?: string; session_id?: string; referer?: string; created_at: number });
+        const rawData = (event as { event_data?: string | null }).event_data;
         return {
           id: event.id,
           userId: event.user_id,
           username: (e as Record<string, unknown>).username,
           sessionId: event.session_id,
           eventType: event.event_type,
-          eventData: event.data ? (() => { try { return JSON.parse(event.data); } catch { return {}; } })() : {},
+          eventData: rawData ? (() => { try { return JSON.parse(rawData); } catch { return {}; } })() : {},
           ipAddress: event.ip_address,
           userAgent: event.user_agent,
           referer: event.referer,

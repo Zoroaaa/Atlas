@@ -246,8 +246,9 @@
         "cleanup": "資料清理",
         "feedback": "使用者回饋",
         "announcements": "網站公告",
-    "aliases": "別名管理",
-    "sources": "源站管理"
+        "aliases": "別名管理",
+        "sources": "源站管理",
+        "posts": "貼文管理"
       }
     },
     "dashboard": {
@@ -895,6 +896,44 @@
   "admin": {
     "table": {
       "scrollHint": "左右滑動查看更多欄位"
+    },
+    "posts": {
+      "filterActive": "正常顯示",
+      "filterHidden": "已隱藏",
+      "allTypes": "全部類型",
+      "searchPlaceholder": "搜尋標題或內容",
+      "search": "搜尋",
+      "refresh": "重新整理",
+      "loading": "載入中…",
+      "empty": "沒有符合條件的貼文",
+      "untitled": "無標題",
+      "anonymous": "匿名",
+      "loadFailed": "載入貼文失敗",
+      "opFailed": "操作失敗，請稍後重試",
+      "hiddenToast": "貼文已隱藏",
+      "restoredToast": "貼文已恢復顯示",
+      "statusActive": "正常",
+      "statusHidden": "已隱藏",
+      "hide": "隱藏",
+      "restore": "恢復",
+      "stats": "瀏覽 {{views}} · 讚 {{likes}} · 留言 {{comments}}",
+      "table": {
+        "title": "貼文",
+        "author": "作者",
+        "type": "類型",
+        "stats": "互動",
+        "status": "狀態",
+        "time": "發佈時間",
+        "actions": "操作"
+      },
+      "types": {
+        "jav": "番號",
+        "anime": "動漫",
+        "movie": "影視",
+        "manga": "漫畫",
+        "novel": "小說",
+        "actress": "女優"
+      }
     },
     "aliases": {
       "title": "別名管理",
@@ -2446,6 +2485,7 @@
       "listView": "列表視圖",
       "loading": "載入中...",
       "totalFound": "共找到 {{total}} 個帖子",
+      "clearTag": "清除標籤篩選",
       "totalCount": "共 {{total}} 條",
       "emptyTitle": "暫無帖子",
       "emptyWithSearch": "沒有找到與 \"{{query}}\" 相關的帖子",
@@ -2604,7 +2644,18 @@
       "createAction": "建立標籤",
       "noMatchTitle": "沒有匹配的標籤",
       "noMatchDescription": "沒有找到與 \"{{query}}\" 相關的標籤",
-      "postCount": "{{count}} 帖子"
+      "postCount": "{{count}} 帖子",
+      "descriptionLabel": "標籤描述",
+      "descriptionPlaceholder": "可選：說明這個標籤適合什麼內容",
+      "edit": "編輯",
+      "delete": "刪除",
+      "save": "儲存",
+      "editTitle": "編輯標籤",
+      "deleteTitle": "刪除標籤",
+      "deleteConfirm": "確定刪除標籤 \"#{{name}}\" 嗎？仍有貼文使用該標籤時無法刪除。",
+      "updated": "標籤 \"{{name}}\" 已更新",
+      "deleted": "標籤 \"{{name}}\" 已刪除",
+      "renameHint": "重新命名會同步替換歷史貼文中的同名標籤。"
     },
     "trending": {
       "types": {
@@ -3215,7 +3266,10 @@
       "formPriorityLabel": "優先級",
       "cancel": "取消",
       "saveChanges": "儲存變更",
-      "create": "建立"
+      "create": "建立",
+      "resetConfig": "恢復預設",
+      "resetConfigConfirm": "清除你對該來源的自訂名稱、備註與啟用狀態？",
+      "resetConfigDone": "已恢復預設設定"
     },
     "mySources": {
       "title": "我的源站",
@@ -3991,6 +4045,7 @@
       "groups": {
         "follow": "關注動態",
         "community": "社群互動",
+        "feedback": "回饋與支援",
         "site": "站點公告"
       },
       "typeNewWork": "關注的女優有新作",
@@ -4003,9 +4058,12 @@
       "typeCommunityFavoriteDesc": "別人收藏你的社群貼文時通知",
       "typeCommunityReport": "我的貼文檢舉有結果",
       "typeCommunityReportDesc": "你貼文上的檢舉被管理員處理時通知",
+      "typeFeedbackReply": "我的回饋有回覆",
+      "typeFeedbackReplyDesc": "你提交的回饋被管理員回覆或狀態變更時通知",
       "typeSiteAnnouncement": "站點公告",
       "typeSiteAnnouncementDesc": "管理員發布新公告時通知",
       "muteHint": "想對某位女優不再提醒，可以在「我的關注」裡靜音，對站內和郵件都生效。",
+      "emailManagedElsewhere": "此類型的郵件由回饋回覆單獨發送，這裡只控制站內提醒。",
       "hideDetails": "隱藏郵件詳情",
       "hideDetailsDesc": "開啟後郵件只顯示則數，不含女優名和番號；郵件主旨始終是中性的，也不含封面圖",
       "digestHint": "郵件會合併發送：每 30 分鐘檢查一次，把這段時間的新動態合成一封，每天最多 3 封，超出的會合併進下一封；每封郵件都有一鍵退訂連結。",

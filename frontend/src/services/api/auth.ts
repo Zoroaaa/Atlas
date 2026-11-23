@@ -16,13 +16,10 @@ import type {
   ResetPasswordRequest,
   ChangePasswordRequest,
   DeleteAccountRequest,
-  SendVerificationCodeRequest,
   SendRegistrationCodeRequest,
-  VerificationStatusResponse,
   EmailChangeRequest,
   SendEmailChangeCodeRequest,
   VerifyEmailChangeCodeRequest,
-  TokenVerifyResponse,
 } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import { isNativeApp, openOAuthUrl } from '@/utils/nativeShell';
@@ -96,26 +93,6 @@ export const authApi = {
 
   getCurrentUser: async (): Promise<{ success: boolean; data: User }> => {
     return apiClient.get<{ success: boolean; data: User }>('/auth/me');
-  },
-
-  verifyToken: async (token?: string): Promise<{ success: boolean; data: TokenVerifyResponse }> => {
-    // 先落 token 再校验：/auth/verify-token 依赖 Authorization 头
-    if (token) {
-      const store = useAuthStore.getState();
-      store.setToken(token);
-      store.persistToken(token);
-    }
-    return apiClient.post<{ success: boolean; data: TokenVerifyResponse }>('/auth/verify-token', {});
-  },
-
-  refreshToken: async (): Promise<{ success: boolean; data: { token: string } }> => {
-    const response = await apiClient.post<{ success: boolean; data: { token: string } }>('/auth/refresh', {});
-    if (response.success && response.data?.token) {
-      const store = useAuthStore.getState();
-      store.setToken(response.data.token);
-      store.persistToken(response.data.token);
-    }
-    return response;
   },
 
   forgotPassword: async (data: ForgotPasswordRequest): Promise<{ 
@@ -203,40 +180,6 @@ export const authApi = {
       data?: { emailVerified: boolean };
       message?: string;
     }>('/auth/verify-current-email', payload);
-  },
-
-  smartSendCode: async (data: SendVerificationCodeRequest): Promise<{ 
-    success: boolean; 
-    data?: { 
-      maskedEmail: string; 
-      expiresIn: number; 
-      canResend: boolean;
-      hasPendingCode?: boolean;
-    };
-    message?: string;
-  }> => {
-    return apiClient.post<{ 
-      success: boolean; 
-      data?: { 
-        maskedEmail: string; 
-        expiresIn: number; 
-        canResend: boolean;
-        hasPendingCode?: boolean;
-      };
-      message?: string;
-    }>('/auth/smart-send-code', data);
-  },
-
-  checkVerificationStatus: async (email: string, type: string): Promise<{ 
-    success: boolean; 
-    data?: VerificationStatusResponse;
-    message?: string;
-  }> => {
-    return apiClient.get<{ 
-      success: boolean; 
-      data?: VerificationStatusResponse;
-      message?: string;
-    }>(`/auth/verification-status?email=${encodeURIComponent(email)}&type=${type}`);
   },
 
   getUserVerificationStatus: async (): Promise<{ 

@@ -268,61 +268,7 @@ export async function findUserRoleAndPriority(
     .first<User & { role_name: string; priority: number }>();
 }
 
-// ── 登录日志 / 活跃用户 / 活跃排名 ──────────────────────────────────
-
-/** 统计用户登录相关行为数（login / login_failed） */
-export async function countUserLoginActions(db: D1Database, userId: string): Promise<number> {
-  const row = await db
-    .prepare("SELECT COUNT(*) as total FROM user_actions WHERE user_id = ? AND action IN ('login', 'login_failed')")
-    .bind(userId)
-    .first<{ total: number }>();
-  return row?.total || 0;
-}
-
-/** 分页查询用户登录日志（按创建时间倒序） */
-export async function listUserLoginLogs(
-  db: D1Database,
-  opts: { userId: string; limit: number; offset: number }
-): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT id, action, data, ip_address, user_agent, created_at 
-       FROM user_actions 
-       WHERE user_id = ? AND action IN ('login', 'login_failed')
-       ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`
-    )
-    .bind(opts.userId, opts.limit, opts.offset)
-    .all();
-  return rows.results || [];
-}
-
-/** 查询活跃用户排行（按窗口内登录数排序） */
-export async function listActiveUsers(
-  db: D1Database,
-  opts: { startTime: number; limit: number }
-): Promise<Row[]> {
-  // 时间窗放在 LEFT JOIN 的 ON 里而不是 WHERE：没有行为的活跃用户仍会保留，计数为 0
-  const rows = await db
-    .prepare(
-      `SELECT u.id, u.username, u.email, u.role_id, u.login_count,
-             r.display_name as role_display_name,
-             COUNT(DISTINCT CASE WHEN a.action = 'login' THEN a.id END) as recent_logins,
-             COUNT(DISTINCT CASE WHEN a.action = 'search' THEN a.id END) as recent_searches
-       FROM users u
-       LEFT JOIN roles r ON u.role_id = r.id
-       LEFT JOIN user_actions a ON u.id = a.user_id AND a.created_at >= ?
-       WHERE u.is_active = 1
-       GROUP BY u.id
-       ORDER BY recent_logins DESC, u.login_count DESC
-       LIMIT ?`
-    )
-    .bind(opts.startTime, opts.limit)
-    .all();
-  return rows.results || [];
-}
-
-/** 活跃排名聚合行 */
+// ── 登录日志 / 活跃用户 / 活跃排名 ──────────────────────────────────/** 活跃排名聚合行 */
 export interface ActivityRankingRow {
   id: string;
   username: string;
@@ -406,61 +352,7 @@ export async function countFeedbackSince(db: D1Database, since: number): Promise
     .bind(since)
     .first<{ total: number }>();
   return row?.total || 0;
-}
-
-/** 登录日志按天统计（成功/失败/去重用户） */
-export async function listLoginDailyStats(db: D1Database, startTime: number): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT 
-        date(created_at / 1000, 'unixepoch') as date,
-        COUNT(*) as total,
-        SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as success,
-        SUM(CASE WHEN action = 'login_failed' THEN 1 ELSE 0 END) as failed,
-        COUNT(DISTINCT user_id) as unique_users
-      FROM user_actions
-      WHERE created_at >= ? AND action IN ('login', 'login_failed')
-      GROUP BY date(created_at / 1000, 'unixepoch')
-      ORDER BY date DESC`
-    )
-    .bind(startTime)
-    .all();
-  return rows.results || [];
-}
-
-/** 登录成功来源 IP Top 排行 */
-export async function listLoginTopIPs(db: D1Database, startTime: number): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT ip_address, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at >= ? AND action = 'login' AND ip_address IS NOT NULL
-      GROUP BY ip_address
-      ORDER BY count DESC
-      LIMIT 10`
-    )
-    .bind(startTime)
-    .all();
-  return rows.results || [];
-}
-
-/** 登录失败来源 IP Top 排行 */
-export async function listLoginFailedAttempts(db: D1Database, startTime: number): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT ip_address, COUNT(*) as count
-      FROM user_actions
-      WHERE created_at >= ? AND action = 'login_failed' AND ip_address IS NOT NULL
-      GROUP BY ip_address
-      ORDER BY count DESC
-      LIMIT 10`
-    )
-    .bind(startTime)
-    .all();
-  return rows.results || [];
-}
-
-// ── 举报处理 ────────────────────────────────────────────────────────
+}// ── 举报处理 ────────────────────────────────────────────────────────
 
 /** 统计某状态的举报数 */
 export async function countReportsByStatus(db: D1Database, status: string): Promise<number> {
@@ -536,132 +428,24 @@ export interface SystemUserStatsRow {
   active: number;
   verified: number;
   new_this_week: number;
-}
-
-/** 系统用户统计（总量 / 活跃 / 验证 / 本周新增） */
-export async function getSystemUserStats(db: D1Database, weekAgo: number): Promise<SystemUserStatsRow | null> {
-  return db
-    .prepare(
-      `SELECT 
-        COUNT(*) as total,
-        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
-        COALESCE(SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END), 0) as verified,
-        COALESCE(SUM(CASE WHEN created_at > ? THEN 1 ELSE 0 END), 0) as new_this_week
-      FROM users`
-    )
-    .bind(weekAgo)
-    .first<SystemUserStatsRow>();
-}
-
-/** 各角色用户数统计（按优先级倒序） */
-export async function listRoleStats(db: D1Database): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT r.id, r.name, r.display_name, COUNT(u.id) as user_count
-      FROM roles r
-      LEFT JOIN users u ON r.id = u.role_id
-      GROUP BY r.id
-      ORDER BY r.priority DESC`
-    )
-    .all();
-  return rows.results || [];
-}
-
-/** 搜索源统计行 */
+}/** 搜索源统计行 */
 export interface SourceStatsRow {
   total: number;
   active: number;
   searchable: number;
   total_usage: number;
-}
-
-/** 搜索源统计（总量 / 活跃 / 可搜索 / 总使用量） */
-export async function getSourceStats(db: D1Database): Promise<SourceStatsRow | null> {
-  return db
-    .prepare(
-      `SELECT 
-        COUNT(*) as total,
-        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) as active,
-        COALESCE(SUM(CASE WHEN searchable = 1 THEN 1 ELSE 0 END), 0) as searchable,
-        COALESCE(SUM(usage_count), 0) as total_usage
-      FROM search_sources
-      WHERE owner_id IS NULL`
-    )
-    .first<SourceStatsRow>();
-}
-
-/** 搜索历史统计行 */
+}/** 搜索历史统计行 */
 export interface SearchHistoryStatsRow {
   total: number;
   unique_users: number;
   unique_keywords: number;
-}
-
-/** 搜索历史统计（总量 / 去重用户 / 去重关键词） */
-export async function getSearchHistoryStats(db: D1Database): Promise<SearchHistoryStatsRow | null> {
-  return db
-    .prepare(
-      `SELECT 
-        COUNT(*) as total,
-        COUNT(DISTINCT user_id) as unique_users,
-        COUNT(DISTINCT query) as unique_keywords
-      FROM user_search_history`
-    )
-    .first<SearchHistoryStatsRow>();
-}
-
-/** 社区概要统计行（帖子 / 标签 / 评论 / 待处理举报） */
+}/** 社区概要统计行（帖子 / 标签 / 评论 / 待处理举报） */
 export interface CommunitySummaryStatsRow {
   posts: number;
   tags: number;
   reviews: number;
   pending_reports: number;
-}
-
-/** 社区概要统计（帖子 / 标签 / 评论 / 待处理举报） */
-export async function getCommunitySummaryStats(db: D1Database): Promise<CommunitySummaryStatsRow | null> {
-  return db
-    .prepare(
-      `SELECT
-        (SELECT COUNT(*) FROM community_posts WHERE status = 'active') as posts,
-        (SELECT COUNT(*) FROM community_tags WHERE tag_active = 1) as tags,
-        (SELECT COUNT(*) FROM community_comments) as reviews,
-        (SELECT COUNT(*) FROM community_reports WHERE status = 'pending') as pending_reports`
-    )
-    .first<CommunitySummaryStatsRow>();
-}
-
-/** 热门搜索关键词 Top 10（自某时刻起） */
-export async function listTopSearchKeywords(db: D1Database, since: number): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT query, COUNT(*) as count
-      FROM user_search_history
-      WHERE created_at > ?
-      GROUP BY query
-      ORDER BY count DESC
-      LIMIT 10`
-    )
-    .bind(since)
-    .all();
-  return rows.results || [];
-}
-
-/** 使用量最高的搜索源 Top 10 */
-export async function listTopUsedSources(db: D1Database): Promise<Row[]> {
-  const rows = await db
-    .prepare(
-      `SELECT name, usage_count
-      FROM search_sources
-      WHERE owner_id IS NULL AND is_active = 1
-      ORDER BY usage_count DESC
-      LIMIT 10`
-    )
-    .all();
-  return rows.results || [];
-}
-
-// ── 行为日志统计与列表 ──────────────────────────────────────────────
+}// ── 行为日志统计与列表 ──────────────────────────────────────────────
 
 /** 行为日志总数 */
 export async function countUserActions(db: D1Database): Promise<number> {

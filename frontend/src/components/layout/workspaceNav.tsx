@@ -148,6 +148,7 @@ export const adminNavGroups: WorkspaceNavGroup[] = [
     labelKey: 'nav:adminSections.content',
     items: [
       { id: 'reports', labelKey: 'nav:adminPanel.items.reports', icon: <AlertTriangle className="h-[17px] w-[17px]" />, path: '/admin-panel/reports' },
+      { id: 'posts', labelKey: 'nav:adminPanel.items.posts', icon: <FileText className="h-[17px] w-[17px]" />, path: '/admin-panel/posts' },
       { id: 'feedback', labelKey: 'nav:adminPanel.items.feedback', icon: <MessageSquarePlus className="h-[17px] w-[17px]" />, path: '/admin-panel/feedback' },
       { id: 'announcements', labelKey: 'nav:adminPanel.items.announcements', icon: <Megaphone className="h-[17px] w-[17px]" />, path: '/admin-panel/announcements' },
       { id: 'aliases', labelKey: 'nav:adminPanel.items.aliases', icon: <Languages className="h-[17px] w-[17px]" />, path: '/admin-panel/aliases' },

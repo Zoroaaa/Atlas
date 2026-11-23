@@ -347,39 +347,6 @@ export class JavProvider implements SearchProvider {
     }
   }
 
-  /** JavBus 首页推荐位；只解析首页 movie-box，不做额外搜索请求。 */
-  async trending(): Promise<{ keyword: string; count: number; cover?: string; subtitle?: string }[]> {
-    try {
-      const html = await getHtml('https://www.javbus.com/', 10000);
-      if (!html) return [];
-
-      const items: { keyword: string; count: number; cover?: string; subtitle?: string }[] = [];
-      const re = /<a[^>]+class="movie-box"[^>]*>([\s\S]*?)<\/a>/gi;
-      let m: RegExpExecArray | null;
-
-      while ((m = re.exec(html)) !== null && items.length < 10) {
-        const block = m[1];
-        const codeM = block.match(/<span[^>]*class="[^"]*id[^"]*"[^>]*>([A-Za-z0-9]+[-_][A-Za-z0-9]+)<\/span>/i);
-        if (!codeM) continue;
-
-        const code = normalizeJavCode(codeM[1]);
-        if (!isJavCodeLike(code)) continue;
-        const titleM = block.match(/title="([^"]+)"/i);
-        const coverM = block.match(/<img[^>]+src="([^"]+)"/i);
-
-        items.push({
-          keyword: code,
-          count: 0,
-          subtitle: titleM ? titleM[1].slice(0, 30) : undefined,
-          cover: coverM ? coverM[1] : undefined,
-        });
-      }
-      return items;
-    } catch {
-      return [];
-    }
-  }
-
   /** 写搜索历史：番号结果取详情，女优结果退化为首位女优资料。 */
   buildHistoryEnrichment(result: Record<string, unknown>): HistoryEnrichment | null {
     const fields: string[] = [];

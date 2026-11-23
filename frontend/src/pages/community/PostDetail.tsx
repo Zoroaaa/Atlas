@@ -663,17 +663,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ postId, onBack }) => {
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            {currentPost.userAvatar ? (
-              <img
-                src={currentPost.userAvatar}
-                alt={currentPost.userName}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-stone-200 dark:ring-stone-700"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-sm font-bold text-white">
-                {currentPost.userName?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-            )}
+            {/* users 表没有头像列，后端也不返回 userAvatar；统一用首字母占位 */}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d4a853] to-[#f59e0b] flex items-center justify-center text-sm font-bold text-white">
+              {currentPost.userName?.charAt(0)?.toUpperCase() || '?'}
+            </div>
             <div className="flex-1">
               <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">
                 {currentPost.userName || '匿名用户'}

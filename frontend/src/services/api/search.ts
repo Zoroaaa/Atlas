@@ -13,7 +13,6 @@ import type {
   FavoriteRef,
   SearchHistoryStats,
   AddFavoriteRequest,
-  SaveSearchHistoryRequest,
   SearchRequest,
 } from '@/types';
 import type {
@@ -21,11 +20,11 @@ import type {
   BatchDeleteSearchHistoryRequest,
   UpdateFavoriteStatusRequest,
   UpdateSettingsRequest,
+  UpdateProfileRequest,
 } from '@codeseek/shared';
 import type {
   SearchEndpointResponse,
   SearchSuggestionsResponse,
-  SearchTrendingResponse,
   SearchQuotaResponse,
   FavoritesResponse,
   ApiResponse,
@@ -47,10 +46,6 @@ export const searchApi = {
     return apiClient.get(`/search/suggestions?${params.toString()}`, signal);
   },
 
-  getTrending: async (limit = 20, hours = 24): Promise<SearchTrendingResponse> => {
-    return apiClient.get(`/search/trending?limit=${limit}&hours=${hours}`);
-  },
-
   getQuota: async (): Promise<SearchQuotaResponse> => {
     return apiClient.get('/search/quota');
   },
@@ -58,11 +53,15 @@ export const searchApi = {
 
 /** 用户中心接口：设置、收藏、搜索历史、行为日志；列表返回值统一补齐可选字段。 */
 export const userApi = {
-  getSettings: async (): Promise<{ 
-    success: boolean; 
-    data: { settings: Record<string, unknown> } 
+  /** 更新用户名：只写 users.username，不复用 settings 表单，避免"看似保存实则无效" */
+  updateProfile: async (username: string): Promise<{
+    success: boolean;
+    data: { username: string };
+    message: string;
   }> => {
-    return apiClient.get('/user/settings');
+    const { updateProfileSchema } = await import('@codeseek/shared/schemas/user');
+    const payload = await parseRequest<UpdateProfileRequest>(updateProfileSchema, { username });
+    return apiClient.put('/user/profile', payload);
   },
 
   updateSettings: async (settings: Record<string, unknown>): Promise<{ 
@@ -257,14 +256,6 @@ export const userApi = {
     );
     if (response.success && response.data) return { success: true, data: response.data };
     return { success: false };
-  },
-
-  saveSearchHistory: async (data: SaveSearchHistoryRequest): Promise<{ 
-    success: boolean; 
-    data: SearchHistoryItem; 
-    message: string 
-  }> => {
-    return apiClient.post('/user/search-history', data);
   },
 
   clearSearchHistory: async (): Promise<{ success: boolean; message: string }> => {

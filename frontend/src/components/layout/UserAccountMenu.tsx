@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DropdownMenu, userMenuItems } from '@/components/ui';
-import { useAuthStore, useThemeStore } from '@/stores';
+import { useThemeStore } from '@/stores';
+import { useLogout } from '@/hooks';
 
 export interface UserAccountMenuProps {
   isAuthenticated: boolean;
@@ -19,13 +20,13 @@ export interface UserAccountMenuProps {
 export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ isAuthenticated, user }) => {
   const { t } = useTranslation(['nav']);
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
+  const logoutAndRedirect = useLogout();
 
   const handleLogout = useCallback(() => {
-    logout();
-    navigate('/');
-  }, [logout, navigate]);
+    // 主动退出必须通知服务端注销会话；本地清理由 authApi.logout 兜底
+    void logoutAndRedirect('/');
+  }, [logoutAndRedirect]);
 
   return (
     <DropdownMenu

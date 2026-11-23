@@ -6,7 +6,7 @@
 
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
-import type { Role, AdminUser, AdminUserDetail, UserLoginLog } from '@/types';
+import type { Role, AdminUser, AdminUserDetail } from '@/types';
 import type {
   UpdateUserRoleRequest,
   UpdateUserStatusRequest,
@@ -17,7 +17,6 @@ import type {
   DataRecord,
   DataRecordDetail,
   DataStorageStats,
-  DataStorageTrends,
   DataRecordsQuery,
   DataRecordStatus,
   JavDetailJobView,
@@ -42,53 +41,6 @@ interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
   totalPages: number;
-}
-
-interface AdminStats {
-  users: {
-    total: number;
-    active: number;
-    verified: number;
-    newThisWeek: number;
-    dailyActive: number;
-  };
-  roles: Array<{
-    id: string;
-    name: string;
-    displayName: string;
-    userCount: number;
-  }>;
-  sources: {
-    total: number;
-    active: number;
-    searchable: number;
-    totalUsage: number;
-  };
-  searches: {
-    total: number;
-    uniqueUsers: number;
-    uniqueKeywords: number;
-  };
-  community: {
-    posts: number;
-    tags: number;
-    reviews: number;
-    pendingReports: number;
-  };
-  topSearchKeywords: Array<{ query: string; count: number }>;
-  topUsedSources: Array<{ name: string; usage_count: number }>;
-}
-
-interface LoginStats {
-  dailyStats: Array<{
-    date: string;
-    total: number;
-    success: number;
-    failed: number;
-    unique_users: number;
-  }>;
-  topIPs: Array<{ ip_address: string; count: number }>;
-  failedAttempts: Array<{ ip_address: string; count: number }>;
 }
 
 export type ActivityRankingPeriod = 'today' | 'week' | 'month' | 'all';
@@ -254,46 +206,6 @@ export const adminApi = {
     return response.data;
   },
 
-  getUserLoginLogs: async (userId: string, params: {
-    page?: number;
-    pageSize?: number;
-  } = {}): Promise<PaginatedResponse<UserLoginLog>> => {
-    const queryParams = new URLSearchParams();
-    if (params.page) queryParams.set('page', params.page.toString());
-    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
-
-    const response = await apiClient.get<{
-      success: boolean;
-      data: {
-        logs: UserLoginLog[];
-        total: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-      };
-    }>(`/admin/users/${userId}/login-logs?${queryParams.toString()}`);
-
-    return {
-      items: response.data.logs,
-      total: response.data.total,
-      page: response.data.page,
-      pageSize: response.data.pageSize,
-      totalPages: response.data.totalPages,
-    };
-  },
-
-  getActiveUsers: async (params: {
-    limit?: number;
-    days?: number;
-  } = {}): Promise<AdminUser[]> => {
-    const queryParams = new URLSearchParams();
-    if (params.limit) queryParams.set('limit', params.limit.toString());
-    if (params.days) queryParams.set('days', params.days.toString());
-
-    const response = await apiClient.get<{ success: boolean; data: { users: AdminUser[] } }>(`/admin/active-users?${queryParams.toString()}`);
-    return response.data.users;
-  },
-
   getActivityRanking: async (params: {
     period?: ActivityRankingPeriod;
     limit?: number;
@@ -303,16 +215,6 @@ export const adminApi = {
     if (params.limit) queryParams.set('limit', params.limit.toString());
 
     const response = await apiClient.get<{ success: boolean; data: ActivityRanking }>(`/admin/activity-ranking?${queryParams.toString()}`);
-    return response.data;
-  },
-
-  getLoginStats: async (days: number = 7): Promise<LoginStats> => {
-    const response = await apiClient.get<{ success: boolean; data: LoginStats }>(`/admin/login-stats?days=${days}`);
-    return response.data;
-  },
-
-  getStats: async (): Promise<AdminStats> => {
-    const response = await apiClient.get<{ success: boolean; data: AdminStats }>('/admin/stats');
     return response.data;
   },
 
@@ -837,13 +739,6 @@ export const dataStorageApi = {
   getStats: async (): Promise<DataStorageStats> => {
     const response = await apiClient.get<{ success: boolean; data: DataStorageStats }>(
       '/admin/data-storage/stats'
-    );
-    return response.data;
-  },
-
-  getTrends: async (days: number = 30): Promise<DataStorageTrends> => {
-    const response = await apiClient.get<{ success: boolean; data: DataStorageTrends }>(
-      `/admin/data-storage/trends?days=${days}`
     );
     return response.data;
   },

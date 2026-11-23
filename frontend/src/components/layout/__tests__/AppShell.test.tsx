@@ -9,6 +9,7 @@ const toggleSidebar = vi.fn();
 const onSearchTabChange = vi.fn();
 
 vi.mock('@/hooks', () => ({
+  useLogout: () => vi.fn(),
   useIsDesktop: () => true,
   useFollows: () => ({ data: { unread: 3 } }),
   useUnreadCount: () => ({ data: 6 }),

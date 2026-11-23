@@ -5,11 +5,11 @@
  * 源卡片放独立的 sourceCards 字段，不覆盖 results（results 是 TMDB 元数据契约）；
  * 响应含按用户过滤的源卡片，因此 injectsUserSources=true。
  */
-import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem, TrendingItem } from '@/services/search-provider';
+import { SearchProvider, SearchResultBase, SearchContext, HistoryEnrichment, SuggestionItem } from '@/services/search-provider';
 import { searchMovie } from '@/services/movie-search';
 import { resolveLiveSources } from '@/services/live-sources';
 
-/** 模块级注入的 TMDB API Key；为空时 suggestions / trending 直接跳过，避免无效请求。 */
+/** 模块级注入的 TMDB API Key；为空时 suggestions 直接跳过，避免无效请求。 */
 let _tmdbApiKey: string | undefined;
 
 /** 注入 TMDB API Key（由运行时配置提供）。 */
@@ -104,35 +104,6 @@ export class MovieProvider implements SearchProvider {
             date: item.release_date || item.first_air_date || '',
             poster: item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : '',
           },
-        }));
-    } catch {
-      return [];
-    }
-  }
-
-  /** TMDB 当日热门；无 Key 或接口异常时返回空数组。 */
-  async trending(): Promise<TrendingItem[]> {
-    // 无 API Key 时直接返回空，避免无效请求
-    if (!_tmdbApiKey) return [];
-    try {
-      const url = `https://api.themoviedb.org/3/trending/all/day?api_key=${_tmdbApiKey}&language=zh-CN`;
-      const r = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!r.ok) return [];
-      const data = await r.json() as { results?: TmdbApiItem[] };
-      if (!data.results?.length) return [];
-
-      return data.results
-        .slice(0, 10)
-        .map((item: TmdbApiItem) => ({
-          keyword: item.title || item.name || '',
-          count: item.popularity || 0,
-          cover: item.poster_path
-            ? `https://image.tmdb.org/t/p/w92${item.poster_path}`
-            : undefined,
-          subtitle: `${item.vote_average || '?'} 分 · ${item.media_type === 'tv' ? '剧' : '影'}`,
         }));
     } catch {
       return [];

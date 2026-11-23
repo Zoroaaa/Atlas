@@ -1,12 +1,12 @@
 /**
- * 系统 API：错误上报、站点统计、行为日志，以及分析与配置管理。
+ * 系统 API：错误上报、用户行为查询、埋点与系统配置管理。
  *
  * 约束：错误上报必须静默失败，任何异常都不能冒泡到用户。
  */
 
 import { apiClient } from './client';
 import { parseRequest } from '../validation';
-import type { SystemStats, RecordActionRequest, AnalyticsEvent, AnalyticsStats } from '@/types';
+import type { AnalyticsEvent } from '@/types';
 import type { ConfigImportRequest, UpdateConfigRequest, TestEmailRequest } from '@codeseek/shared';
 
 export interface SystemConfigItem {
@@ -98,46 +98,6 @@ export const systemApi = {
     }
   },
 
-  getStats: async (): Promise<{ success: boolean; data: SystemStats }> => {
-    const response = await apiClient.get<{ success: boolean; data: {
-      users: number;
-      sources: number;
-      searches: number;
-      activeUsers: number;
-      activeUsersGrowthPercent: number;
-    } }>('/stats');
-    
-    if (response.success && response.data) {
-      return {
-        success: true,
-        data: {
-          // 后端把用户数放在 users，前端展示口径统一为 activeUsers
-          activeUsers: response.data.activeUsers || response.data.users || 0,
-          activeSources: response.data.sources || 0,
-          totalSearches: response.data.searches || 0,
-          activeUsersGrowthPercent: response.data.activeUsersGrowthPercent || 0,
-        }
-      };
-    }
-    return { 
-      success: false, 
-      data: {
-        activeUsers: 0,
-        activeSources: 0,
-        totalSearches: 0,
-        activeUsersGrowthPercent: 0,
-      }
-    };
-  },
-
-  recordAction: async (data: RecordActionRequest): Promise<{ 
-    success: boolean; 
-    data: { id: string }; 
-    message: string 
-  }> => {
-    return apiClient.post('/record-action', data);
-  },
-
   getUserActions: async (params?: { 
     userId?: string; 
     action?: string; 
@@ -223,12 +183,6 @@ export const analyticsApi = {
     return apiClient.post('/config/analytics/events', payload);
   },
 
-  getStats: async (days = 7): Promise<{ 
-    success: boolean; 
-    data: AnalyticsStats 
-  }> => {
-    return apiClient.get(`/config/analytics/stats?days=${days}`);
-  },
 };
 
 /** 系统配置接口：公开配置、增删改查、分组、审计日志与导入导出。 */

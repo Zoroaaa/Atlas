@@ -1,12 +1,8 @@
-export { FavoritesPanel } from './FavoritesPanel';
-export { QuickActionsPanel } from './QuickActionsPanel';
-export { SearchHistoryPanel } from './SearchHistoryPanel';
 export { LibraryDetailModal } from './LibraryDetailModal';
 export type { LibraryDetailTarget } from './LibraryDetailModal';
 export { SearchResultsPanel } from './SearchResultsPanel';
 export { SearchDock } from './SearchDock';
 export { SearchWorkspace } from './SearchWorkspace';
-export { SourcesSidebar, default } from './SourcesSidebar';
 export { SourceBoard } from './SourceBoard';
 export { AnimeSearchResultPanel } from './AnimeSearchResultPanel';
 export { MovieSearchResultPanel } from './MovieSearchResultPanel';

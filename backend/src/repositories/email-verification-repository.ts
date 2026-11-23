@@ -31,24 +31,7 @@ export async function findVerificationByCode(
     )
     .bind(...params)
     .first<EmailVerification>();
-}
-
-/** 按邮箱 + 类型查询最新有效验证码（不校验具体码值） */
-export async function findLatestVerificationByEmailType(
-  db: D1Database,
-  opts: { email: string; type: string; now: number }
-): Promise<EmailVerification | null> {
-  return db
-    .prepare(
-      `SELECT * FROM email_verifications
-       WHERE email = ? AND verification_type = ? AND status = 'pending' AND expires_at > ?
-       ORDER BY created_at DESC LIMIT 1`
-    )
-    .bind(opts.email, opts.type, opts.now)
-    .first<EmailVerification>();
-}
-
-/** 查询用户全部未过期验证码 */
+}/** 查询用户全部未过期验证码 */
 export async function listPendingVerificationsByUser(
   db: D1Database,
   userId: string,

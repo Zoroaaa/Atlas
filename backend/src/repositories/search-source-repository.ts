@@ -206,7 +206,7 @@ export async function listSystemSourcesWithConfig(
        LEFT JOIN user_search_source_configs u ON u.source_id = s.id AND u.user_id = ?
        WHERE s.owner_id IS NULL AND c.owner_id IS NULL AND m.owner_id IS NULL
          AND s.is_active = 1 AND c.is_active = 1 AND m.is_active = 1
-       ORDER BY m.display_order ASC, c.display_order ASC, s.search_priority DESC, s.display_order ASC`
+       ORDER BY m.display_order ASC, c.display_order ASC, s.search_priority ASC, s.display_order ASC`
     )
     .bind(userId)
     .all<SearchSource & {
@@ -263,7 +263,7 @@ export async function listVisibleSources(db: D1Database, userId: string): Promis
        INNER JOIN search_major_categories m ON c.major_category_id = m.id
        WHERE s.is_active = 1 AND c.is_active = 1 AND m.is_active = 1
          AND (s.owner_id IS NULL OR s.owner_id = ?)
-       ORDER BY m.display_order ASC, c.display_order ASC, s.search_priority DESC, s.display_order ASC`
+       ORDER BY m.display_order ASC, c.display_order ASC, s.search_priority ASC, s.display_order ASC`
     )
     .bind(userId)
     .all<SearchSource>();
@@ -335,7 +335,7 @@ export async function listSourceCatalog(
     ? 's.name ASC'
     : opts.sort === 'usage'
       ? 's.usage_count DESC, s.name ASC'
-      : 'm.display_order ASC, c.display_order ASC, s.search_priority DESC, s.display_order ASC';
+      : 'm.display_order ASC, c.display_order ASC, s.search_priority ASC, s.display_order ASC';
 
   const countRow = await db
     .prepare(`SELECT COUNT(*) AS count ${joins}${whereClause}`)

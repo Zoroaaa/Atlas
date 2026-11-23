@@ -7,7 +7,7 @@ export type { User, UserSettings, LoginRequest, RegisterRequest, AuthResponse,
 export { DEFAULT_USER_SETTINGS } from './auth';
 
 export type { SearchHistoryItem, FavoriteItem, SearchResult,
-  SearchRequest, SearchResponse, SearchSuggestion, TrendingSearch,
+  SearchRequest, SearchResponse, SearchSuggestion,
   AddFavoriteRequest, SaveSearchHistoryRequest, SearchStats } from './search';
 
 export type { SourceStatus, SiteType, SearchSource, Category,
@@ -21,7 +21,7 @@ export type { SourceStatus, SiteType, SearchSource, Category,
 export type { PostStatus, PostType, LikeType,
   CommunityPost, CommunityTag, CommunityComment,
   CreatePostRequest, UpdatePostRequest, CreateCommentRequest,
-  CreateTagRequest, UpdateTagRequest, ReportRequest,
+  CreateTagRequest, UpdateTagRequest, UpdatePostStatusRequest, ReportRequest,
   CommunityUserStats } from './community';
 
 export type { ApiError, ApiSuccess, ApiResponse,
@@ -36,6 +36,7 @@ export type { DataRecordType, DataRecordStatus, DataSourceType,
 // ── 由 zod schema 推导的请求契约类型 ──
 export type {
   UpdateSettingsRequest,
+  UpdateProfileRequest,
   UpdateSearchHistoryRequest,
   BatchDeleteSearchHistoryRequest,
   UpdateFavoriteStatusRequest,

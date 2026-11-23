@@ -2,12 +2,21 @@
  * 用户/收藏/历史相关请求契约 — 前后端共用同一份 zod schema
  */
 import { z } from 'zod';
-import { VALIDATION_RULES } from '../validations';
+import { VALIDATION_RULES, VALIDATION_PATTERNS } from '../validations';
 
 const R = VALIDATION_RULES;
 
 export const updateSettingsSchema = z.object({
   settings: z.record(z.string(), z.unknown()),
+});
+
+/** 资料更新：用户名规则与注册保持一致，避免两处口径分叉 */
+export const updateProfileSchema = z.object({
+  username: z
+    .string()
+    .min(R.USERNAME.MIN_LENGTH, `用户名至少${R.USERNAME.MIN_LENGTH}个字符`)
+    .max(R.USERNAME.MAX_LENGTH, `用户名最多${R.USERNAME.MAX_LENGTH}个字符`)
+    .regex(VALIDATION_PATTERNS.USERNAME, '用户名只能包含字母、数字和下划线'),
 });
 
 export const addFavoriteSchema = z.object({
@@ -57,6 +66,7 @@ export const updateSourceConfigSchema = z.object({
 });
 
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsSchema>;
+export type UpdateProfileRequest = z.infer<typeof updateProfileSchema>;
 export type AddFavoriteRequest = z.infer<typeof addFavoriteSchema>;
 export type UpdateSearchHistoryRequest = z.infer<typeof updateSearchHistorySchema>;
 export type BatchDeleteSearchHistoryRequest = z.infer<typeof batchDeleteSearchHistorySchema>;

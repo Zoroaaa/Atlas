@@ -12,6 +12,7 @@ import { checkMultiLevelRateLimit, type MultiLevelLimit } from '@/utils/rate-lim
 import { validateBody, schemas } from '@/validation';
 import { emitNotification } from '@/services/notification-service';
 import { ConfigService } from '@/services';
+import { findUsernameById } from '@/repositories/user-repository';
 import { DB_CONFIG_KEYS } from '@/constants';
 import {
   listActiveTags,
@@ -193,32 +194,6 @@ communityRoutes.post('/tags', validateBody(schemas.community.createTag), async (
   } catch (err) {
     console.error('Create tag error:', err);
     return c.json(error('SERVER_ERROR', '创建失败'), 500);
-  }
-});
-
-/** 获取标签详情 */
-communityRoutes.get('/tags/:id', async (c) => {
-  const tagId = c.req.param('id');
-
-  try {
-    const tag = await findTagById(c.env.DB, tagId);
-
-    if (!tag) {
-      return c.json(error('NOT_FOUND', '标签不存在'), 404);
-    }
-
-    return c.json(success({
-      id: tag.id,
-      tagName: tag.tag_name,
-      tagDescription: tag.tag_description,
-      tagColor: tag.tag_color,
-      isActive: !!tag.tag_active,
-      createdAt: tag.created_at,
-      createdBy: tag.created_by,
-    }));
-  } catch (err) {
-    console.error('Get tag error:', err);
-    return c.json(error('SERVER_ERROR', '获取标签失败'), 500);
   }
 });
 
@@ -595,9 +570,13 @@ communityRoutes.post('/posts', validateBody(schemas.community.createPost), async
       now,
     });
 
+    // 列表会把响应直接插到头部：必须带 userName，否则前端短暂显示「匿名」
+    const username = await findUsernameById(c.env.DB, user.userId);
+
     return c.json(success({
       id,
       userId: user.userId,
+      userName: username,
       postType,
       title: title.trim(),
       coverImage,
@@ -688,6 +667,15 @@ communityRoutes.delete('/posts/:id', async (c) => {
     }
 
     await deletePost(c.env.DB, postId);
+
+    // 清理指向该帖子的通知：否则收件箱里的点赞/评论/收藏提醒点击后 404
+    await c.env.DB.prepare(
+      `DELETE FROM notifications
+       WHERE type LIKE 'community.%'
+         AND json_valid(payload)
+         AND json_extract(payload, '$.postId') = ?`
+    ).bind(postId).run();
+
     return c.json(success(null, '删除成功'));
   } catch (err) {
     console.error('Delete post error:', err);
@@ -745,9 +733,12 @@ communityRoutes.post('/posts/:id/like', async (c) => {
       await deletePostLikeById(c.env.DB, existing.id);
       return c.json(success({ liked: false }, '取消点赞'));
     } else {
-      // 点赞 — 触发器自动增加计数
+      // 点赞 — 触发器自动增加计数；并发双击时第二条插入会被 UNIQUE 吞掉，直接按已点赞返回
       const likeId = generateId();
-      await insertPostLike(c.env.DB, { id: likeId, postId, userId: user.userId, likeType: 'like', now: Date.now() });
+      const inserted = await insertPostLike(c.env.DB, { id: likeId, postId, userId: user.userId, likeType: 'like', now: Date.now() });
+      if (!inserted) {
+        return c.json(success({ liked: true }, '已点赞'));
+      }
       const target = await findPostNotificationTarget(c.env.DB, postId);
       if (target && target.user_id !== user.userId) {
         await emitNotification(c.env.DB, {
@@ -790,7 +781,11 @@ communityRoutes.post('/posts/:id/favorite', async (c) => {
       return c.json(success({ favorited: false }, '取消收藏'));
     } else {
       const favId = generateId();
-      await insertPostLike(c.env.DB, { id: favId, postId, userId: user.userId, likeType: 'favorite', now: Date.now() });
+      // 并发双击时第二条插入会被 UNIQUE 吞掉，直接按已收藏返回
+      const favInserted = await insertPostLike(c.env.DB, { id: favId, postId, userId: user.userId, likeType: 'favorite', now: Date.now() });
+      if (!favInserted) {
+        return c.json(success({ favorited: true }, '已收藏'));
+      }
       const target = await findPostNotificationTarget(c.env.DB, postId);
       if (target && target.user_id !== user.userId) {
         await emitNotification(c.env.DB, {
@@ -890,7 +885,7 @@ communityRoutes.post('/comments', validateBody(schemas.community.createComment),
         type: 'community.comment',
         title: `${user.username} 评论了你的帖子`,
         body: excerpt,
-        payload: { postId, postTitle: target.title, actorName: user.username, comment: excerpt },
+        payload: { postId, postTitle: target.title, actorName: user.username, comment: excerpt, commentId: id },
         dedupKey: `community_comment:${id}`,
       }).catch((err) => console.error('Emit comment notification error:', err));
     }
@@ -930,6 +925,15 @@ communityRoutes.delete('/comments/:id', async (c) => {
     }
 
     await deleteComment(c.env.DB, commentId);
+
+    // 清理该评论触发的通知（payload 里带 commentId）
+    await c.env.DB.prepare(
+      `DELETE FROM notifications
+       WHERE type = 'community.comment'
+         AND json_valid(payload)
+         AND json_extract(payload, '$.commentId') = ?`
+    ).bind(commentId).run();
+
     return c.json(success(null, '删除成功'));
   } catch (err) {
     console.error('Delete comment error:', err);

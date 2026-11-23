@@ -112,6 +112,21 @@ export const createTagSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '颜色格式不正确').optional(),
 });
 
+export const updateTagSchema = z.object({
+  name: z.string()
+    .min(R.TAG.NAME_MIN_LENGTH, `标签名称至少${R.TAG.NAME_MIN_LENGTH}个字符`)
+    .max(R.TAG.NAME_MAX_LENGTH, `标签名称最多${R.TAG.NAME_MAX_LENGTH}个字符`)
+    .optional(),
+  description: z.string().max(R.TAG.DESCRIPTION_MAX_LENGTH).optional().nullable(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, '颜色格式不正确').optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const updatePostStatusSchema = z.object({
+  // 社区没有审核流：只有正常展示与管理员隐藏两种状态
+  status: z.enum(['active', 'hidden']),
+});
+
 export const createPostSchema = z.object({
   postType: z.enum(['jav', 'anime', 'movie', 'manga', 'novel', 'actress']),
   title: z.string().min(1, '标题不能为空').max(200, '标题最多200个字符'),
@@ -150,6 +165,8 @@ export const reportPostSchema = z.object({
 });
 
 export type CreateTagRequest = z.infer<typeof createTagSchema>;
+export type UpdateTagRequest = z.infer<typeof updateTagSchema>;
+export type UpdatePostStatusRequest = z.infer<typeof updatePostStatusSchema>;
 export type CreatePostRequest = z.infer<typeof createPostSchema>;
 export type UpdatePostRequest = z.infer<typeof updatePostSchema>;
 export type CreateCommentRequest = z.infer<typeof createCommentSchema>;

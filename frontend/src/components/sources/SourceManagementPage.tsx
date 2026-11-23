@@ -579,6 +579,22 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
     }
   };
 
+  /** 清除自定义配置：后端删除该用户对该源的配置行，回落到系统默认值 */
+  const resetConfig = async () => {
+    if (!configModal.source) return;
+    if (!window.confirm(t('dashboard:sources.resetConfigConfirm'))) return;
+    try {
+      const response = await sourceApi.resetUserSourceConfig(configModal.source.id);
+      if (response.success) {
+        toast.success(t('dashboard:sources.resetConfigDone'));
+        setConfigModal({ open: false, source: null });
+        invalidate();
+      }
+    } catch {
+      toast.error(t('dashboard:categories.updateFailedTitle'));
+    }
+  };
+
   // ── 导出 ─────────────────────────────────────────────
 
   const exportSources = async (format: 'json' | 'csv' | 'opml') => {
@@ -1158,7 +1174,7 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
               label={t('dashboard:sources.formPriorityLabel')}
               type="number"
               min={1}
-              max={10}
+              max={100}
               value={sourceForm.searchPriority}
               onChange={(event) => setSourceForm((prev) => ({ ...prev, searchPriority: Number(event.target.value) }))}
               fullWidth
@@ -1185,6 +1201,9 @@ export const SourceManagementPage: React.FC<SourceManagementPageProps> = ({ scop
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfigModal({ open: false, source: null })}>
               {t('dashboard:sources.cancel')}
+            </Button>
+            <Button variant="outline" onClick={resetConfig}>
+              {t('dashboard:sources.resetConfig')}
             </Button>
             <Button variant="primary" onClick={saveConfig}>
               {t('dashboard:sources.saveChanges')}
