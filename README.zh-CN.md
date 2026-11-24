@@ -253,7 +253,7 @@ Category (大类)        Classification (分类)         Source (源实例)
 - **评论评分**: 对搜索源发表评价，帮助他人选择
 - **点赞收藏**: 为优质搜索源点赞，收藏到个人列表
 - **举报机制**: 发现违规内容可举报，管理员处理
-- **浏览去重（v1.6.0）**: 同一用户对同一帖子 24 小时内只计一次浏览量，作者本人访问不计数；依赖 `database/04_community.sql`
+- **浏览去重（v1.6.0）**: 同一用户对同一帖子 24 小时内只计一次浏览量，作者本人访问不计数；表结构见 `database/migrations/0003_community.sql`
 - **通知统一（v1.6.0）**: 点赞、评论、收藏、举报处理结果统一投递到通知收件箱；原社区通知 Tab 及旧接口已删除
 
 #### 贡献统计
@@ -381,10 +381,12 @@ npm install
 # 创建 D1 数据库，将返回的 database_id 填入 backend/wrangler.toml
 npx wrangler d1 create codeseek
 
-# 全新库按文件名顺序执行 database/ 下全部脚本，所有脚本均可重复执行。
-for f in database/[0-9]*.sql; do
-  npx wrangler d1 execute codeseek --remote --file="$f"
-done
+# 应用结构迁移（d1_migrations 记录已执行文件，重复执行不会重复建表）
+npm run db:migrate --workspace=backend
+
+# 仅全新环境：导入默认业务数据。
+# 生产环境已调整过数据时绝对不要执行。
+npm run db:seed --workspace=backend
 
 # 本地开发（两个终端；前端运行在 :3000，并把 /api 代理到 :8787）
 npm run dev --workspace=backend

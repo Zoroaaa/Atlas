@@ -258,7 +258,7 @@ Category (large category)        Classification (subcategory)         Source (so
 - **Comment Rating**: Publish reviews on search sources to help others choose
 - **Like/Favorite**: Like quality search sources and collect them in personal list
 - **Report Mechanism**: Report inappropriate content, with admin processing
-- **View De-duplication (v1.6.0)**: The same user viewing the same post only increments `view_count` once per 24 hours (author self-views never count); requires `database/04_community.sql`
+- **View De-duplication (v1.6.0)**: The same user viewing the same post only increments `view_count` once per 24 hours (author self-views never count); schema in `database/migrations/0003_community.sql`
 - **Unified Notifications (v1.6.0)**: Likes, comments, favorites, and report results are delivered to the unified notification inbox; the separate community notification tab and its legacy endpoints were removed
 
 #### Contribution Statistics
@@ -381,11 +381,12 @@ npm install
 # Create the D1 database and keep the returned database_id for backend/wrangler.toml
 npx wrangler d1 create codeseek
 
-# Initialize a fresh database by running every script in database/ in filename order.
-# All scripts are idempotent, so partial reruns are safe.
-for f in database/[0-9]*.sql; do
-  npx wrangler d1 execute codeseek --remote --file="$f"
-done
+# Apply schema migrations (tracked in d1_migrations; reruns are no-ops)
+npm run db:migrate --workspace=backend
+
+# Only for a brand-new environment: import default business data.
+# Never run this against production that has already been tuned.
+npm run db:seed --workspace=backend
 
 # Local development (two terminals; frontend runs on :3000 and proxies /api to :8787)
 npm run dev --workspace=backend

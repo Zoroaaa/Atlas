@@ -124,6 +124,20 @@ const NovelItemCard: React.FC<{
                 {t('search:novel.downloadTxt')}
               </a>
             ) : null}
+            {/* 跨站合并后另一站的下载入口必须露出来，否则用户只看到「条数变少」 */}
+            {(item.mirrors ?? []).slice(0, 3).map((mirror, index) => (
+              <a
+                key={`${mirror.source}-${index}`}
+                href={toLink(mirror.detailUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t('search:novel.downloadFromHint', { source: mirror.source })}
+                className="flex h-7 items-center gap-1 whitespace-nowrap rounded-lg px-2 text-[11px] text-surface-500 transition-colors hover:bg-primary-50 hover:text-primary-500 dark:hover:bg-primary-900/20"
+              >
+                <Download className="h-3.5 w-3.5 shrink-0" />
+                {t('search:novel.downloadFrom', { source: mirror.source })}
+              </a>
+            ))}
           </div>
         </>
       }

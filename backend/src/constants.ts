@@ -135,6 +135,11 @@ export const DB_CONFIG_KEYS = {
   EMAIL_PRIORITY_RESEND: 'email_priority_resend',
   EMAIL_PRIORITY_MAILTRAP: 'email_priority_mailtrap',
   EMAIL_PRIORITY_BREVO: 'email_priority_brevo',
+  /** 邮件服务商发件地址（留空回退 DEFAULT_FROM_EMAIL） */
+  EMAIL_FROM_CLOUDFLARE: 'email_from_cloudflare',
+  EMAIL_FROM_RESEND: 'email_from_resend',
+  EMAIL_FROM_MAILTRAP: 'email_from_mailtrap',
+  EMAIL_FROM_BREVO: 'email_from_brevo',
   /** 邮件服务商每日发送上限（0 表示不限额） */
   EMAIL_DAILY_LIMIT_CLOUDFLARE: 'email_daily_limit_cloudflare',
   EMAIL_DAILY_LIMIT_RESEND: 'email_daily_limit_resend',

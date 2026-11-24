@@ -156,7 +156,9 @@ export const ConfigTab: React.FC = () => {
   const handleUpdateConfig = async () => {
     if (!editingConfig) return;
 
-    if (!editValue.trim()) {
+    // 发件地址允许留空，表示回退 DEFAULT_FROM_EMAIL；其他配置仍要求非空
+    const allowsEmpty = editingConfig.key.startsWith('email_from_');
+    if (!allowsEmpty && !editValue.trim()) {
       notification.error(t('admin:config.validateFailed'), t('admin:config.valueRequired'));
       return;
     }

@@ -36,6 +36,11 @@ npm run lint --workspace=backend
 npm run test:run --workspace=frontend # vitest 单次运行
 npm run test --workspace=backend      # vitest run
 
+# 数据库迁移（部署时自动执行；本地验证用 db:migrate:local）
+npm run db:migrate --workspace=backend
+npm run db:migrate:local --workspace=backend
+npm run db:seed --workspace=backend   # 仅全新环境；生产环境禁止执行
+
 # 构建
 npm run build --workspace=frontend    # tsc --noEmit && vite build
 
@@ -44,7 +49,8 @@ npm run deploy --workspace=backend
 ```
 
 - 线上部署走 Cloudflare Workers Builds（push 触发）；`.github/workflows/backend-deploy.yml` 仅保留手动应急入口，不要新增并行自动部署流水线。
-- 数据库脚本位于 `database/`，按编号顺序手动执行；编号只增不改，不允许重排或复用旧编号。
+- 数据库结构变更写在 `database/migrations/`，部署时由 `wrangler d1 migrations apply` 自动执行；默认业务数据在 `database/seeds/`，只用于全新环境，生产环境禁止自动执行。
+- 迁移编号只增不改；已应用过的迁移文件禁止修改，否则 `d1_migrations` 记录会与实际结构脱节。
 
 ## 3. 仓库地图
 
@@ -64,7 +70,8 @@ npm run deploy --workspace=backend
 | `backend/src/repositories` | 所有 SQL 读写 | SQL 只允许出现在这里 |
 | `backend/src/validation` | zod 请求 schema 入口 | 与 `@codeseek/shared` 保持一致 |
 | `packages/shared` | 前后端共享类型、schema、校验常量 | 改这里等于改契约，必须前后端同时验证 |
-| `database/` | D1 建表 / 迁移 / 种子脚本 | 只增编号，生产执行需用户手动操作 |
+| `database/migrations` | D1 幂等结构迁移，部署时自动执行 | 编号只增不改；已应用文件禁止修改 |
+| `database/seeds` | 默认业务数据（配置 / 搜索源 / 分类 / 标签 / 邮件模板） | 仅全新环境手动执行，部署流程禁止自动执行 |
 
 ## 4. 架构约定
 
@@ -229,7 +236,7 @@ await invalidateSourceCache(sourceId);
 
 - 不修改 `node_modules/`、`dist/`、`.wrangler/`、构建产物与缓存目录。
 - 不读取、不写入、不提交任何密钥：`.dev.vars`、`.env*`、token、证书。
-- 不擅自执行数据库脚本或生产迁移；脚本写好并说明执行顺序，由用户手动执行。
+- 结构迁移随部署自动执行；不得擅自对生产执行 `database/seeds/` 或数据修复类 SQL。新增迁移必须幂等且向后兼容，迁移先于新代码上线。
 - 不擅自改 CI/CD、部署配置、域名、D1 绑定；需要时先说明影响。
 - 不顺手重构、不扩项、不修与当前任务无关的问题；发现风险先报告。
 - 不提交调试代码、临时日志、`.tmp` / `.screenshots` 等本地产物。
@@ -238,6 +245,6 @@ await invalidateSourceCache(sourceId);
 
 - 子目录单独 `npm install` 会让 `@codeseek/shared` 解析失败；依赖统一在根目录安装。
 - Worker 部署前未构建 `frontend/dist`，线上静态资源会缺失或停留在旧版本。
-- D1 脚本编号已排到较大数字，新增脚本必须续编号，禁止改动已执行脚本。
+- D1 迁移编号已排到 `0007`，新增迁移必须续编号；禁止改动已应用迁移，否则 `d1_migrations` 与实际结构不一致。
 - 修改搜索源开关、缓存键、推荐数量等常量的同时，要同步升级对应缓存 key 版本，否则旧缓存会返回旧结果。
 - Service Worker 缓存规则必须排除系统配置与管理后台接口，避免配置修改后仍显示旧值。

@@ -120,7 +120,7 @@ npx wrangler secret put TMDB_API_KEY
 
 Cloudflare、Resend、Mailtrap、Brevo 可以同时配置，发送时按管理端「系统配置 → 邮件」依次尝试：
 
-1. 每家使用独立发件子域名（隔离域名信誉，代码内固定绑定）：Cloudflare `noreply@mail.wort.uk`、Resend `noreply@resend.wort.uk`、Mailtrap `noreply@mailtrap.wort.uk`、Brevo `noreply@brevo.wort.uk`；
+1. 发件地址在管理端「系统配置 → 邮件」配置：`email_from_cloudflare`（留空回退 `DEFAULT_FROM_EMAIL`）、`email_from_resend`、`email_from_mailtrap`、`email_from_brevo`；
 2. `email_priority_cloudflare` / `email_priority_resend` / `email_priority_mailtrap` / `email_priority_brevo`：默认 `0 / -1 / -1 / -1`，数值越小越优先，`-1` 停用；调整阶段仅保留 Cloudflare，某家子域名验证完成后在管理端改回 `0`~`3` 启用；
 3. `email_daily_limit_*`：默认每家 `100` 封/天，`0` 不限额；达到上限自动跳到下一优先级；
 4. 未配置凭据或发送失败也会继续尝试下一家。
@@ -129,7 +129,7 @@ Cloudflare 启用前确认：
 
 1. 账号为 Workers Paid，并在 **Compute → Email Service → Email Sending** 为发件域完成 onboard；
 2. `DEFAULT_FROM_EMAIL` 属于该已 onboard 域名；
-3. `database/02_config.sql` 与 `database/05_security_email.sql` 已执行，管理端能看到优先级与限额配置。
+3. 已导入 `database/seeds/001_system_config.sql` 与 `005_email_templates.sql`，管理端能看到优先级与限额配置。
 
 Mailtrap 启用前确认：API Token 具备发送权限、发件域名已在 Mailtrap 验证，并在 Sending Setup 中切换到 Transactional Stream 的 API 模式。
 
@@ -142,46 +142,36 @@ Brevo 启用前确认：API Key 具备发送权限，发件域名/发件人已�
 
 ---
 
-## 五、初始化数据库
+## 五、数据库初始化与迁移
 
-脚本按业务类别拆在 `database/`，按文件名顺序执行。所有文件都可重复执行：
-表/视图/索引/触发器使用 `IF NOT EXISTS`，种子数据使用 `INSERT OR IGNORE`。
+结构变更与默认数据分离，避免自动部署覆盖生产环境已调整的业务数据：
+
+- `database/migrations/`：终态结构迁移（表 / 索引 / 视图 / 触发器 + 鉴权必需的角色种子）。全部使用 `IF NOT EXISTS`，由 `wrangler d1 migrations apply` 记录到 D1 的 `d1_migrations` 表，重复执行只应用未执行过的文件。
+- `database/seeds/`：业务默认数据（系统配置、搜索大类 / 分类 / 搜索源、社区标签、邮件模板）。**不参与自动迁移**，只在全新环境手动执行一次。
 
 ```bash
-cd backend
-# Bash / WSL / Git Bash
-for f in ../database/*.sql; do
-  npx wrangler d1 execute codeseek --remote --file="$f"
-done
+# 应用未执行的迁移（本地 / 生产）
+npm run db:migrate:local --workspace=backend
+npm run db:migrate --workspace=backend
+
+# 仅在全新环境初始化默认数据（生产已调整过数据时不要执行）
+npm run db:seed:local --workspace=backend
+npm run db:seed --workspace=backend
 ```
 
-```powershell
-# PowerShell
-cd backend
-Get-ChildItem ../database/*.sql | Sort-Object Name | ForEach-Object {
-  npx wrangler d1 execute codeseek --remote --file=$_.FullName
-}
-```
-
-| 文件 | 内容 |
+| 迁移文件 | 内容 |
 |---|---|
-| `01_core.sql` | 角色、用户、会话、收藏、搜索历史、行为日志、分析事件 |
-| `02_config.sql` | 系统配置、配置分组、配置变更日志 |
-| `03_search_sources.sql` | 搜索大类、分类、搜索源、用户源配置、状态缓存 |
-| `04_community.sql` | 社区标签、帖子、评论、点赞、举报、浏览去重 |
-| `05_security_email.sql` | 验证码、改邮箱、密码重置、登录锁定、安全事件、邮件模板与发送日志 |
-| `06_system.sql` | 反馈、站点公告、系统错误、Cron 锁 |
-| `07_notifications_follows.sql` | 站内通知、关注对象、关注作品、即将发售、邮件队列 |
-| `08_jav_library.sql` | JAV 作品库、来源、标签词典、详情补全、实体别名 |
-| `09_seed_sources_jav.sql` | JAV 搜索源种子 |
-| `10_seed_sources_anime.sql` | 动漫搜索源种子 |
-| `11_seed_sources_movie.sql` | 影视搜索源种子 |
-| `12_seed_sources_manga.sql` | 漫画搜索源种子 |
-| `13_seed_sources_novel.sql` | 小说搜索源种子 |
+| `0001_core.sql` | 角色、用户、会话、收藏、搜索历史、行为日志、系统配置 |
+| `0002_search_sources.sql` | 搜索大类、分类、搜索源、用户源配置、状态缓存（owner_id 归属模型） |
+| `0003_community.sql` | 社区标签、帖子、评论、点赞、举报、浏览去重 |
+| `0004_security_email.sql` | 验证码、改邮箱、密码重置、登录锁定、安全事件、邮件模板与发送日志、OAuth 票据 |
+| `0005_system_notifications.sql` | 反馈、站点公告、系统错误、Cron 锁、站内通知、关注对象、邮件队列 |
+| `0006_jav_library.sql` | JAV 作品库、榜单归档、封面账本、R2 对象快照 |
 
-- 全新库按 `01` → `13` 顺序执行；已有生产库可只执行本次改动的分类文件，重复执行不会清空数据。
-- `CREATE TABLE IF NOT EXISTS` 不会给已有表补列；未来新增列时，在对应分类文件追加可重复执行的升级语句，或单独加一个一次性升级脚本。
-- 本地库把 `--remote` 换成 `--local`。
+- 部署流程（`npm run deploy` 与 Actions）自动执行迁移，且迁移先于代码部署；新代码可以依赖新增字段 / 索引。
+- 新增结构变更：在 `database/migrations/` 追加编号文件；已应用的文件只增不改，否则 `d1_migrations` 与实际结构会不一致。
+- `CREATE TABLE IF NOT EXISTS` 不会给已有表补列；新增列必须写新的 `ALTER TABLE` 迁移。
+- 新增搜索源 / 分类 / 标签：改 `database/seeds/` 对应文件后手动执行；自动迁移不会触碰这些数据。
 
 ---
 
@@ -193,7 +183,7 @@ npm run dev --workspace=backend              # http://localhost:8787
 npm run dev --workspace=frontend             # http://localhost:3000
 ```
 
-前端 Vite 已把 `/api` 代理到 `http://localhost:8787`。本地 D1 用 `--local` 执行第五节的脚本。
+前端 Vite 已把 `/api` 代理到 `http://localhost:8787`。本地 D1 执行 `npm run db:migrate:local --workspace=backend` 建表；需要默认数据时再执行 `npm run db:seed:local --workspace=backend`。
 
 Windows 下 `wrangler dev` 报 EPERM（无法写 `%APPDATA%\xdg.config\.wrangler`）时，指定可写目录：
 
@@ -216,7 +206,7 @@ Cloudflare → Workers & Pages → `atlas` → Settings → Builds → Connect G
 | Root directory | `backend` |
 | Build command | `cd .. && npm install && npm run typecheck --workspace=backend && npm run lint --workspace=backend && npm run build --workspace=frontend` |
 | Deploy command | `npm run deploy` |
-| Watch paths | `backend/**`、`frontend/**`、`packages/**`、`package-lock.json` |
+| Watch paths | `backend/**`、`frontend/**`、`packages/**`、`database/**`、`package-lock.json` |
 | Environment variables | 不填（所有配置在 `[vars]` 与 secrets 里） |
 
 要点：
@@ -224,6 +214,8 @@ Cloudflare → Workers & Pages → `atlas` → Settings → Builds → Connect G
 - `npm install` 必须在仓库根执行，只在 `frontend/` 下安装会解析不到 `@codeseek/shared`
 - 构建命令包含 typecheck 与 lint，这是部署前的质量闸门
 - Worker 部署时把 `../frontend/dist` 一起上传（`[assets]`），**必须先构建前端**，否则上传的是旧产物
+- Deploy command 必须是 `npm run deploy`：该脚本先执行 `wrangler d1 migrations apply DB --remote`，再 `wrangler deploy`。改成裸 `wrangler deploy` 会导致迁移不执行
+- Watch paths 必须包含 `database/**`：只改迁移不触发构建时，结构变更不会上线
 
 ### 2. 手动部署（等价，用于排查）
 
@@ -279,7 +271,7 @@ run_worker_first = ["/api", "/api/*"]   # 必须同时写裸路径与通配符
 | `*/30 * * * *` | 每 30 分钟 | 关注对象新作检测（≤20 个，5 个一批、批间 10 秒）+ 邮件摘要合并发送（≤15 封）；两者串行执行 |
 | `* * * * *` | 每分钟 | 管理看板手动触发的 JAV 详情补全批次 |
 
-小时任务固定在 `:05`，避开 `*/30` 的整半点。各任务各自持有 `cron_locks` 租约（`database/06_system.sql`），上一轮未跑完时本轮跳过。
+小时任务固定在 `:05`，避开 `*/30` 的整半点。各任务各自持有 `cron_locks` 租约（`database/migrations/0005_system_notifications.sql`），上一轮未跑完时本轮跳过。
 
 **手动触发**
 
@@ -327,7 +319,7 @@ curl -X POST "https://<your-domain>/api/admin/data-storage/genre-dict/sync" \
 
 ### 1. GitHub Actions 应急部署（保留，仅手动）
 
-`.github/workflows/backend-deploy.yml` 只有 `workflow_dispatch`，流程与 Workers Builds 等价：安装依赖 → typecheck → lint → 构建前端 → `wrangler deploy`。
+`.github/workflows/backend-deploy.yml` 只有 `workflow_dispatch`，流程与 Workers Builds 等价：安装依赖 → typecheck → lint → 构建前端 → `wrangler d1 migrations apply` → `wrangler deploy`。
 保留原因：Builds 额度耗尽或 GitHub 集成异常时，这是唯一还能发版的路径；它不随 push 触发，不存在与 Builds 双写。
 
 | 仓库 Secret | 值 | 缺了会怎样 |
@@ -356,8 +348,8 @@ TOP250 使用 `.github/workflows/javdb-top250-sync.yml`（每天 19:30 UTC，东
 - 每月 1–4 日分别同步「全部 / 有码 / 无码 / FC2」总榜（欧美暂不考虑）；
 - 每月 5 日起分别同步 2008–当前年份年度榜（一天一个；2027 年起 24 日自动顺延 2027）；
 - 每个榜单 13 页，按 4 页一批、批间 20 秒执行；手动运行可指定 `list` / `year` / `pages`；
-- 需要先执行 `database/14_jav_ranking_archive.sql`，榜单归档与 TOP250 读取依赖新表；
-- 周榜/月榜历史补档依次执行 `database/21_jav_ranking_cycle_backfill.sql`、`database/22_jav_ranking_drop_history_fix.sql`、`database/23_jav_ranking_final_rank_fix.sql`：21 清空旧快照并按首次/最后上榜日期重建，22 把非最新快照修正为「只保留掉榜影片」并永久裁剪 TOP250 历史快照，23 把各榜单最新/终榜快照的名次重排为连续唯一的 1..N；三个脚本都可重复执行。
+- 榜单归档表由 `database/migrations/0006_jav_library.sql` 自动创建；
+- 历史上的周榜/月榜补档与名次修正脚本已在生产执行完毕，归档在 Git 历史中，不需要重复执行；
 
 ### 3. 即将发售同步 workflow
 

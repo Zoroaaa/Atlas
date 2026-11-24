@@ -77,28 +77,28 @@ npx wrangler secret put RANKINGS_IMPORT_SECRET
 name = "EMAIL"
 ```
 
-四家服务商都可以同时配置，发送时按管理端优先级依次尝试。每家使用独立发件子域名，隔离发件域名信誉：
+四家服务商都可以同时配置，发送时按管理端优先级依次尝试。发件地址可在管理端「系统配置 → 邮件」修改，留空回退 `DEFAULT_FROM_EMAIL`：
 
-| 服务商 | 发件地址 | 发件域名验证位置 |
-|---|---|---|
-| Cloudflare | `noreply@mail.wort.uk`（`DEFAULT_FROM_EMAIL`） | Cloudflare 面板 |
-| Resend | `noreply@resend.wort.uk` | Resend 后台 |
-| Mailtrap | `noreply@mailtrap.wort.uk` | Mailtrap 后台 |
-| Brevo | `noreply@brevo.wort.uk` | Brevo 后台 |
+| 服务商 | 发件地址配置项 | 默认值 | 发件域名验证位置 |
+|---|---|---|---|
+| Cloudflare | `email_from_cloudflare` | 留空（回退 `DEFAULT_FROM_EMAIL`） | Cloudflare 面板 |
+| Resend | `email_from_resend` | `noreply@resend.wort.uk` | Resend 后台 |
+| Mailtrap | `email_from_mailtrap` | `noreply@mailtrap.wort.uk` | Mailtrap 后台 |
+| Brevo | `email_from_brevo` | `noreply@brevo.wort.uk` | Brevo 后台 |
 
+> 发件地址必须与服务商后台已验证的域名一致；换域名时先在服务商后台完成验证，再到系统配置修改，不要填未验证地址。
 
-> 发件地址按服务商在代码中固定绑定，业务层不可覆盖，避免选错通道后使用未验证域名发信。
-
+- `email_from_cloudflare` / `email_from_resend` / `email_from_mailtrap` / `email_from_brevo`：发件地址；留空或配置缺失时回退 `DEFAULT_FROM_EMAIL`。修改后发送侧在配置缓存过期（约 60 秒）或下次请求加载配置时生效。
 - `email_priority_cloudflare` / `email_priority_resend` / `email_priority_mailtrap` / `email_priority_brevo`：默认 `0 / -1 / -1 / -1`（调整阶段仅保留 Cloudflare），数值越小越优先，`-1` 表示停用。某家子域名验证完成后到管理端改回 `0`~`3` 即可启用。
 - `email_daily_limit_cloudflare` / `email_daily_limit_resend` / `email_daily_limit_mailtrap` / `email_daily_limit_brevo`：默认每家 `100`，每天成功发送上限，`0` 表示不限额；达到上限自动切换到下一优先级。
 - 某个服务商未配置凭据或发送失败时，也会继续尝试下一优先级；每日额度按 Asia/Shanghai 自然日统计。
 
 各服务商准备：
 
-- **Cloudflare**：在面板 **Compute → Email Service → Email Sending** 为发件域完成 onboard，`DEFAULT_FROM_EMAIL` 必须属于该域名。
-- **Resend**：配置 `RESEND_API_KEY`，并确保子域名 `resend.wort.uk` 已在 Resend 验证。
-- **Mailtrap**：配置 `MAILTRAP_API_TOKEN`，并确保子域名 `mailtrap.wort.uk` 已在 Mailtrap 验证；默认走 Transactional Stream。
-- **Brevo**：配置 `BREVO_API_KEY`，并确保子域名 `brevo.wort.uk` 已在 Brevo 验证；走 Transactional Email API。
+- **Cloudflare**：在面板 **Compute → Email Service → Email Sending** 为发件域完成 onboard；`DEFAULT_FROM_EMAIL`（以及填写了的 `email_from_cloudflare`）必须属于该域名。
+- **Resend**：配置 `RESEND_API_KEY`，并确保 `email_from_resend`（默认 `resend.wort.uk`）对应域名已在 Resend 验证。
+- **Mailtrap**：配置 `MAILTRAP_API_TOKEN`，并确保 `email_from_mailtrap`（默认 `mailtrap.wort.uk`）对应域名已在 Mailtrap 验证；默认走 Transactional Stream。
+- **Brevo**：配置 `BREVO_API_KEY`，并确保 `email_from_brevo`（默认 `brevo.wort.uk`）对应域名已在 Brevo 验证；走 Transactional Email API。
 
 ---
 
@@ -114,7 +114,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 ```
 
 - 建库：`npx wrangler d1 create codeseek`
-- 全新库初始化见 [部署指南](./deploy.md)：按文件名顺序执行 `database/01_core.sql` → `database/13_seed_sources_novel.sql`（全部可重复执行）
+- 结构迁移与默认数据分离：迁移见 [部署指南](./deploy.md) 第五节，`npm run db:migrate --workspace=backend` 自动应用；默认配置数据由 `database/seeds/001_system_config.sql` 手动导入
 - 本地开发使用 `--local`，生产使用 `--remote`，两者数据互不影响
 
 ---
@@ -211,7 +211,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 ## 九、运行时配置（system_config）
 
-管理后台 → 系统配置可修改以下键（`database/02_config.sql` 初始化）：
+管理后台 → 系统配置可修改以下键（默认值由 `database/seeds/001_system_config.sql` 初始化）：
 
 | 键 | 默认 | 说明 |
 |----|------|------|
@@ -226,6 +226,7 @@ database_id = "<创建 D1 后返回的 database_id>"
 | `password_reset_lockout_duration` | `3600000` | 找回密码锁定时长（毫秒） |
 | `email_rate_limit_per_hour` | `5` | 每用户每小时发信上限 |
 | `email_rate_limit_per_day` | `20` | 每用户每天发信上限 |
+| `email_from_cloudflare` / `email_from_resend` / `email_from_mailtrap` / `email_from_brevo` | 留空 / `noreply@resend.wort.uk` / `noreply@mailtrap.wort.uk` / `noreply@brevo.wort.uk` | 各服务商发件地址，留空回退 `DEFAULT_FROM_EMAIL` |
 | `email_priority_cloudflare` / `_resend` / `_mailtrap` / `_brevo` | `0` / `-1` / `-1` / `-1` | 邮件服务商优先级，越小越优先，`-1` 停用（调整阶段仅 Cloudflare） |
 | `email_daily_limit_cloudflare` / `_resend` / `_mailtrap` / `_brevo` | `100` | 服务商每日成功发送上限，`0` 不限额，达到后切换下一优先级 |
 | `verification_code_expiry` | `900000` | 验证码有效期（毫秒） |
@@ -256,12 +257,11 @@ database_id = "<创建 D1 后返回的 database_id>"
 
 新增一个搜索类别（以 `novel` 为例）：
 
-1. 在 `database/03_search_sources.sql` 追加大类/分类，在对应的 `database/09_seed_sources_*.sql` 追加搜索源（均使用 `INSERT OR IGNORE`）
+1. 在 `database/seeds/002_search_categories.sql` 追加大类 / 分类，在 `database/seeds/003_search_sources.sql` 追加搜索源（均使用 `INSERT OR IGNORE`）；结构变更写入 `database/migrations/`
 2. 在前端 `frontend/src/constants.ts` 的 `SEARCH_CATEGORIES` 中添加对应配置
 3. 在 `frontend/src/i18n/locales/{zh-CN,zh-TW,en}/*.ts` 补充三语文案
-4. 重新执行对应分类文件：
-   `npx wrangler d1 execute codeseek --remote --file=../database/03_search_sources.sql`
-   `npx wrangler d1 execute codeseek --remote --file=../database/09_seed_sources_jav.sql`
+4. 手动执行种子：
+   `npm run db:seed --workspace=backend`
 
 ---
 

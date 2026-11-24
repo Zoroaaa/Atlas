@@ -4,13 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "db:migrate": "wrangler d1 migrations apply codeseek-db"
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:seed": "wrangler d1 execute DB --remote --file ../database/seeds/001_system_config.sql && wrangler d1 execute DB --remote --file ../database/seeds/002_search_categories.sql && wrangler d1 execute DB --remote --file ../database/seeds/003_search_sources.sql && wrangler d1 execute DB --remote --file ../database/seeds/004_community_tags.sql && wrangler d1 execute DB --remote --file ../database/seeds/005_email_templates.sql",
+    "db:seed:local": "wrangler d1 execute DB --local --file ../database/seeds/001_system_config.sql && wrangler d1 execute DB --local --file ../database/seeds/002_search_categories.sql && wrangler d1 execute DB --local --file ../database/seeds/003_search_sources.sql && wrangler d1 execute DB --local --file ../database/seeds/004_community_tags.sql && wrangler d1 execute DB --local --file ../database/seeds/005_email_templates.sql"
   },
   "dependencies": {
     "@codeseek/shared": "*",

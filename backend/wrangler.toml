@@ -73,10 +73,13 @@ ENABLE_ALIAS_AI = "0"
 # =====================================================================
 
 # 数据库绑定
+# migrations_dir 指向仓库根 database/migrations：部署时由 `wrangler d1 migrations apply`
+# 自动执行未应用的迁移；默认种子数据在 database/seeds，不参与自动迁移。
 [[d1_databases]]
 binding = "DB"
 database_name = "codeseek"
 database_id = "42216a7e-3dbb-4feb-9974-2a8ee32af550"
+migrations_dir = "../database/migrations"
 
 # R2 封面缓存
 # 部署前必须先在账号内创建 bucket：wrangler r2 bucket create atlas-media

@@ -288,7 +288,7 @@ export default {
       // 过期未兑换的 OAuth 票据（正常 5 分钟过期，异常中断时靠这里兜底）
       ctx.waitUntil(deleteExpiredOAuthLoginCodes(env.DB, Date.now()));
       // 每 7 天刷新一次查询优化器统计：未到周期时只读一行 system_config 就返回，
-      // 到期才逐表 ANALYZE（原因见 services/db-maintenance.ts 与 database/19_analyze.sql）
+      // 到期才逐表 ANALYZE（原因见 services/db-maintenance.ts）
       ctx.waitUntil(
         runPeriodicAnalyze(env.DB)
           .then((r) => {

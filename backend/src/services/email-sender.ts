@@ -1,7 +1,8 @@
 /**
  * 统一邮件发送器：验证码 / 通知摘要 / 反馈回复共用通道选择、发送日志与限流口径。
  *
- * 通道按管理端优先级依次尝试，跳过停用/未配置/超日限额的服务商；各服务商使用独立子域发件地址。
+ * 通道按管理端优先级依次尝试，跳过停用/未配置/超日限额的服务商；
+ * 各服务商发件地址可在系统配置中覆盖，留空回退 DEFAULT_FROM_EMAIL。
  */
 import { generateId, hashToken, checkRateLimitD1 } from '@/utils';
 import { CONFIG, DB_CONFIG_KEYS } from '@/constants';
@@ -39,32 +40,40 @@ export function isRateLimitedEmailType(emailType: string): boolean {
 // ── 发送通道 ──────────────────────────────────────────────────────────
 
 /**
- * 各服务商的发件地址。
- * 每家使用独立子域名，隔离发件域名信誉；地址必须与服务商后台已验证的域名一致，
- * 属于通道集成细节，因此不开放给业务层覆盖。
- * Cloudflare 保持原有发件地址（DEFAULT_FROM_EMAIL）。
+ * 各服务商的发件地址可在管理端「系统配置 → 邮件」中覆盖。
+ * 未配置或留空时回退 DEFAULT_FROM_EMAIL（wrangler.toml），避免使用未验证的发件域名。
  */
-const PROVIDER_FROM_EMAIL: Record<Exclude<EmailProvider, 'cloudflare'>, string> = {
-  resend: 'noreply@resend.wort.uk',
-  mailtrap: 'noreply@mailtrap.wort.uk',
-  brevo: 'noreply@brevo.wort.uk',
+const PROVIDER_FROM_EMAIL_CONFIG_KEY: Record<EmailProvider, string> = {
+  cloudflare: DB_CONFIG_KEYS.EMAIL_FROM_CLOUDFLARE,
+  resend: DB_CONFIG_KEYS.EMAIL_FROM_RESEND,
+  mailtrap: DB_CONFIG_KEYS.EMAIL_FROM_MAILTRAP,
+  brevo: DB_CONFIG_KEYS.EMAIL_FROM_BREVO,
 };
 
-/** 取服务商发件地址；Cloudflare 走 DEFAULT_FROM_EMAIL 兜底。 */
-export function getProviderFromEmail(env: Env, provider: EmailProvider): string {
-  return provider === 'cloudflare'
-    ? env.DEFAULT_FROM_EMAIL || 'noreply@mail.wort.uk'
-    : PROVIDER_FROM_EMAIL[provider];
+/** 从已加载的配置表解析发件地址；空值统一回退 DEFAULT_FROM_EMAIL。 */
+function resolveProviderFromEmail(
+  env: Env,
+  provider: EmailProvider,
+  config: Record<string, string>
+): string {
+  const configured = (config[PROVIDER_FROM_EMAIL_CONFIG_KEY[provider]] || '').trim();
+  return configured || env.DEFAULT_FROM_EMAIL || 'noreply@mail.wort.uk';
 }
 
-function resolveFrom(
+/** 读取服务商实际发件地址（system_config 优先，缺省回退 DEFAULT_FROM_EMAIL）。 */
+export async function getProviderFromEmail(env: Env, provider: EmailProvider): Promise<string> {
+  const config = await new ConfigService(env).getAll();
+  return resolveProviderFromEmail(env, provider, config);
+}
+
+async function resolveFrom(
   env: Env,
   provider: EmailProvider,
   email: OutgoingEmail
-): { fromName: string; fromEmail: string } {
+): Promise<{ fromName: string; fromEmail: string }> {
   return {
     fromName: email.fromName || env.DEFAULT_FROM_NAME || 'Atlas',
-    fromEmail: getProviderFromEmail(env, provider),
+    fromEmail: await getProviderFromEmail(env, provider),
   };
 }
 
@@ -72,7 +81,7 @@ function resolveFrom(
 export async function sendResendEmail(env: Env, email: OutgoingEmail): Promise<SendResult> {
   if (!env.RESEND_API_KEY) return { ok: false, error: '未配置 RESEND_API_KEY', provider: 'resend' };
 
-  const { fromName, fromEmail } = resolveFrom(env, 'resend', email);
+  const { fromName, fromEmail } = await resolveFrom(env, 'resend', email);
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -102,7 +111,7 @@ export async function sendCloudflareEmail(env: Env, email: OutgoingEmail): Promi
     return { ok: false, error: '未配置 Cloudflare EMAIL 绑定', provider: 'cloudflare' };
   }
 
-  const { fromName, fromEmail } = resolveFrom(env, 'cloudflare', email);
+  const { fromName, fromEmail } = await resolveFrom(env, 'cloudflare', email);
 
   try {
     const result = await env.EMAIL.send({
@@ -129,7 +138,7 @@ export async function sendMailtrapEmail(env: Env, email: OutgoingEmail): Promise
     return { ok: false, error: '未配置 MAILTRAP_API_TOKEN', provider: 'mailtrap' };
   }
 
-  const { fromName, fromEmail } = resolveFrom(env, 'mailtrap', email);
+  const { fromName, fromEmail } = await resolveFrom(env, 'mailtrap', email);
   const endpoint = env.MAILTRAP_API_URL || 'https://send.api.mailtrap.io/api/send';
 
   try {
@@ -174,7 +183,7 @@ export async function sendBrevoEmail(env: Env, email: OutgoingEmail): Promise<Se
     return { ok: false, error: '未配置 BREVO_API_KEY', provider: 'brevo' };
   }
 
-  const { fromName, fromEmail } = resolveFrom(env, 'brevo', email);
+  const { fromName, fromEmail } = await resolveFrom(env, 'brevo', email);
 
   try {
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -272,11 +281,12 @@ export interface EmailProviderStatus extends EmailProviderSetting {
 /** 管理端邮件测试面板使用：固定顺序返回全部服务商状态 */
 export async function getEmailProviderStatuses(env: Env): Promise<EmailProviderStatus[]> {
   const chain = await getEmailProviderChain(env);
+  const config = await new ConfigService(env).getAll();
   return PROVIDER_TIE_ORDER.map((provider) => {
     const setting = chain.find((item) => item.provider === provider)!;
     return {
       ...setting,
-      fromEmail: getProviderFromEmail(env, provider),
+      fromEmail: resolveProviderFromEmail(env, provider, config),
       enabled: setting.priority >= 0 && setting.configured,
     };
   });
