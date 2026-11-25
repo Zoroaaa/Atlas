@@ -78,7 +78,8 @@ export async function enrichPendingJavRecords(
   const budgetMs = options.budgetMs ?? RECOMMEND.ENRICH_TIME_BUDGET_MS;
   const now = Date.now();
 
-  // 以 jav_detail_meta 为驱动：按到期时间直接定位候选，命中 idx_jav_meta_due。
+  // 以 jav_detail_meta 为驱动：按到期时间直接定位候选，命中 partial 索引
+  // idx_jav_meta_auto_due（只收可自动补全的记录）。
   // 原写法以 data_records 为驱动、按 last_updated_at 排序，必须扫完整个待补全集
   // （其中大量记录的重试时间在 30 天后）才能筛出到期记录。
   // 约束：所有 detail_completed=0 的 JAV 记录都必须有 meta 行，写入链路
@@ -89,6 +90,9 @@ export async function enrichPendingJavRecords(
        FROM jav_detail_meta m
        INNER JOIN data_records d ON d.id = m.record_id
        WHERE m.retry_exhausted = 0
+         -- status <> 'complete' 与下面的 partial 条件必须与 partial 索引的
+         -- WHERE 完全一致，否则索引不会被命中（complete 行的 next_retry_at 也是 0）。
+         AND m.status <> 'complete'
          AND m.next_retry_at <= ?
          -- 只缺导演/制作商/发行商（磁力齐全）的记录不再自动重补：
          -- 这三项只能由管理端 JAV 详情批量补全面板手动触发。

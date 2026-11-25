@@ -235,8 +235,9 @@ export async function getRecentJavRecords(
 export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
   const rows = await db
     .prepare(
-      // rs.source_type = 'ranking' 已经限定了榜单来源，再套一层 IN 子查询
-      // 会让优化器多扫一遍 idx_sources_type 并建 bloom filter，属于重复工作。
+      // 这个看似冗余的 IN 子查询不能删：生产实测去掉后，优化器会改为
+      // 「扫描全部 JAV 记录再回查来源」，读取量从 7.7k 涨到 31.7 万行。
+      // 用它把榜单来源先收敛成 record_id 列表，强制只碰 source_type='ranking' 的行。
       `SELECT rs.record_id, rs.source_name, rs.source_data, rs.created_at,
               dr.code, dr.title, dr.cover, dr.actors, dr.tags, dr.publisher,
               dr.rating, dr.detail_completed
@@ -244,7 +245,10 @@ export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
        INNER JOIN data_record_sources rs ON rs.record_id = dr.id
        WHERE dr.record_type = 'jav'
          AND dr.status = 'active'
-         AND rs.source_type = 'ranking'`
+         AND rs.source_type = 'ranking'
+         AND dr.id IN (
+           SELECT record_id FROM data_record_sources WHERE source_type = 'ranking'
+         )`
     )
     .all<RankingRow>();
   return rows.results || [];
