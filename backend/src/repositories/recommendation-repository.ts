@@ -235,9 +235,8 @@ export async function getRecentJavRecords(
 export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
   const rows = await db
     .prepare(
-      // 用 IN 子查询把「榜单来源」先收敛成一份 record_id 列表：
-      // 直接 JOIN 会被优化器选中「扫全表 sources 再逐行回查」，
-      // 这里保证走 idx_sources_type，只碰 source_type='ranking' 的那批行。
+      // rs.source_type = 'ranking' 已经限定了榜单来源，再套一层 IN 子查询
+      // 会让优化器多扫一遍 idx_sources_type 并建 bloom filter，属于重复工作。
       `SELECT rs.record_id, rs.source_name, rs.source_data, rs.created_at,
               dr.code, dr.title, dr.cover, dr.actors, dr.tags, dr.publisher,
               dr.rating, dr.detail_completed
@@ -245,10 +244,7 @@ export async function getRankingRows(db: D1Database): Promise<RankingRow[]> {
        INNER JOIN data_record_sources rs ON rs.record_id = dr.id
        WHERE dr.record_type = 'jav'
          AND dr.status = 'active'
-         AND rs.source_type = 'ranking'
-         AND dr.id IN (
-           SELECT record_id FROM data_record_sources WHERE source_type = 'ranking'
-         )`
+         AND rs.source_type = 'ranking'`
     )
     .all<RankingRow>();
   return rows.results || [];

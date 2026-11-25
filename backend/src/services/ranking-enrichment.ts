@@ -78,27 +78,30 @@ export async function enrichPendingJavRecords(
   const budgetMs = options.budgetMs ?? RECOMMEND.ENRICH_TIME_BUDGET_MS;
   const now = Date.now();
 
+  // 以 jav_detail_meta 为驱动：按到期时间直接定位候选，命中 idx_jav_meta_due。
+  // 原写法以 data_records 为驱动、按 last_updated_at 排序，必须扫完整个待补全集
+  // （其中大量记录的重试时间在 30 天后）才能筛出到期记录。
+  // 约束：所有 detail_completed=0 的 JAV 记录都必须有 meta 行，写入链路
+  // （markJavDetailPending / saveJavDetailMeta）负责保证，迁移 0008 已回填历史数据。
   const rows = await db
     .prepare(
       `SELECT d.id, d.code, d.content_data
-       FROM data_records d
-       LEFT JOIN jav_detail_meta m ON m.record_id = d.id
-       WHERE d.record_type = 'jav'
-         AND d.status = 'active'
-         AND d.detail_completed = 0
-         AND d.code IS NOT NULL
-         AND COALESCE(m.retry_exhausted, 0) = 0
-         AND COALESCE(m.next_retry_at, 0) <= ?
+       FROM jav_detail_meta m
+       INNER JOIN data_records d ON d.id = m.record_id
+       WHERE m.retry_exhausted = 0
+         AND m.next_retry_at <= ?
          -- 只缺导演/制作商/发行商（磁力齐全）的记录不再自动重补：
          -- 这三项只能由管理端 JAV 详情批量补全面板手动触发。
          -- 在候选集里排除，而不是抓完之后过滤，避免白白请求源站。
          AND (
-           COALESCE(m.status, 'pending') <> 'partial'
-           OR (COALESCE(m.missing_mask, 0) & ${DETAIL_FIELD_BITS.magnets}) <> 0
+           m.status <> 'partial'
+           OR (m.missing_mask & ${DETAIL_FIELD_BITS.magnets}) <> 0
          )
-       -- 排序键只用 last_updated_at，命中 idx_data_records_jav_pending 的末列，
-       -- 避免以 join 表的 next_retry_at 为首列时被迫建 temp B-tree 排完候选集。
-       ORDER BY d.last_updated_at ASC
+         AND d.record_type = 'jav'
+         AND d.status = 'active'
+         AND d.detail_completed = 0
+         AND d.code IS NOT NULL
+       ORDER BY m.next_retry_at ASC
        LIMIT ?`
     )
     .bind(now, limit * 4)
